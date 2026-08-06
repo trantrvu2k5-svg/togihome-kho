@@ -1,6 +1,7 @@
 -- KHO-1 seed — 199 mã (154 pk + 45 ván). Lô mở đầu 2026-08-06.
 -- Chạy SAU 001_schema.sql. Idempotent-ish: dùng on conflict do nothing cho danh mục.
 begin;
+set search_path = kho, public;   -- bảng nằm trong schema kho (mọi tên không prefix -> kho)
 insert into kho(ten,la_mac_dinh) values ('Xưởng',true) on conflict (ten) do nothing;
 insert into nhom(ten,loai) values
   ('Bản lề','pk'),

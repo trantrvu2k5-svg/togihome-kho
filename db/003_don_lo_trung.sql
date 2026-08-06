@@ -2,6 +2,7 @@
 -- Chạy SAU khi đã xác nhận 399 dòng là 3 bản TRÙNG (xem truy vấn ĐO). Idempotent: chạy lại vô hại.
 -- Tồn (ton) KHÔNG bị nhân (upsert) -> vẫn kiểm tổng để chắc.
 begin;
+set search_path = kho, public;   -- bảng nằm trong schema kho
 
 -- 1) Xoá GIAO DỊCH mở đầu trỏ tới lô KHÔNG giữ (FK giao_dich.lo_nhap_id -> lo_nhap, xoá con trước).
 with keep as (

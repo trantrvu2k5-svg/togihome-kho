@@ -1,8 +1,11 @@
 -- KHO-1 — Schema hệ kho Togihome. Chạy TRONG Supabase SQL Editor (CEO duyệt trước).
 -- Nguyên tắc: mọi bảng có id uuid · tao_luc/sua_luc · nguoi_thao_tac · RLS BẬT.
 -- 3 tháng đầu: CHỈ GHI, không chặn (cai_dat.chan_ton_am=false). Tồn âm -> cảnh báo, vẫn ghi.
+-- MỘT dự án Supabase, tách bằng SCHEMA: kho vào "kho" (sau: crm, erp) -> nối chung được.
 
 create extension if not exists pgcrypto;
+create schema if not exists kho;
+set search_path = kho, public;   -- mọi create table/policy/function dưới đây VÀO schema kho
 
 -- ── NGƯỜI DÙNG + vai trò ──────────────────────────────────────────────
 create table nguoi_dung (
@@ -16,7 +19,7 @@ create table nguoi_dung (
 );
 
 create or replace function current_vai_tro() returns text
-  language sql stable security definer set search_path = public as $$
+  language sql stable security definer set search_path = kho, public as $$
   select vai_tro from nguoi_dung where auth_uid = auth.uid() and dang_hoat_dong limit 1 $$;
 
 -- ── DANH MỤC ──────────────────────────────────────────────────────────
@@ -100,7 +103,7 @@ create table chuoi_so (
   primary key (loai, nam)
 );
 create or replace function cap_so_phieu(p_loai text) returns text
-  language plpgsql as $$
+  language plpgsql set search_path = kho, public as $$
 declare y int := extract(year from now()); n int;
 begin
   insert into chuoi_so(loai,nam,so_hien_tai) values (p_loai,y,0)

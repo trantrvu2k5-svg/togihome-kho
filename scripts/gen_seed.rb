@@ -17,6 +17,7 @@ out = []
 out << "-- KHO-1 seed — #{all.size} mã (#{pk.size} pk + #{van.size} ván). Lô mở đầu #{NGAY}."
 out << "-- Chạy SAU 001_schema.sql. Idempotent-ish: dùng on conflict do nothing cho danh mục."
 out << "begin;"
+out << "set search_path = kho, public;   -- bảng nằm trong schema kho (mọi tên không prefix -> kho)"
 out << "insert into kho(ten,la_mac_dinh) values ('Xưởng',true) on conflict (ten) do nothing;"
 out << "insert into nhom(ten,loai) values"
 out << "  " + nhoms.map { |t, l| "(#{q(t)},#{q(l)})" }.join(",\n  ") + "\n  on conflict (ten) do nothing;"

@@ -1,4 +1,16 @@
-# KHO-1 — Đề xuất thiết kế bảng (CHỜ CEO DUYỆT, chưa chạy migration)
+# KHO-1 — Thiết kế bảng
+
+> **SCHEMA:** Một dự án Supabase duy nhất, tách bằng schema. **Mọi bảng dưới đây nằm trong schema `kho`**
+> (sau: `crm`, `erp` — nối chung qua khoá ngoại/giao dịch). Fresh install: `001` tự tạo trong `kho`.
+> DB đang chạy (bảng ở `public`): chạy `db/004_chuyen_schema.sql` một lần để dời sang `kho`.
+> Web app đọc `kho`: `createClient(url, key, { db: { schema: 'kho' } })`.
+>
+> **⚠ CÁCH MỞ SCHEMA (đọc kỹ — dễ mò):** schema được expose qua **cấu hình trong DB**, KHÔNG qua ô dashboard.
+> CEO đã chạy SQL: `alter role authenticator set pgrst.db_schemas = 'public, kho, storage, graphql_public';`
+> rồi `notify pgrst, 'reload config';`. Hiện `pgrst.db_schemas = public, kho, storage, graphql_public`.
+> **Vì cấu hình nằm trong DB (role setting), ô "Exposed schemas" trên Dashboard KHÔNG còn điều khiển được —
+> DB config THẮNG.** Muốn thêm/bớt schema (vd `crm`, `erp`) → sửa bằng SQL trên, ĐỪNG bấm dashboard.
+
 
 Mọi bảng: `id uuid pk default gen_random_uuid()`, `tao_luc timestamptz default now()`,
 `sua_luc timestamptz`, `nguoi_thao_tac uuid → nguoi_dung(id)`. **RLS bật cho MỌI bảng.**
