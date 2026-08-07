@@ -164,33 +164,6 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 .dong-tk.n .sl{color:var(--xanh)} .dong-tk.x .sl{color:var(--do)}
 .rong{color:var(--muted);font-size:13px;padding:16px;background:#FBFAF7;border:1px dashed var(--line);border-radius:3px}
 
-/* quét mã */
-.dt-ngoai{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap}
-.dt{width:322px;flex:0 0 322px;background:#12161C;border-radius:30px;padding:11px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
-.dt-man{background:var(--paper);border-radius:22px;overflow:hidden;min-height:588px;display:flex;flex-direction:column}
-.dt-top{background:var(--do);color:#fff;padding:12px 16px;font-size:14px;font-weight:600}
-.dt-than{padding:15px;flex:1;display:flex;flex-direction:column}
-.o-quet{border:2px dashed #B5AEA0;border-radius:8px;padding:24px 14px;text-align:center;color:#6E7681;font-size:13.5px;background:#F7F5F1;cursor:pointer}
-.o-quet b{display:block;font-size:29px;margin-bottom:5px}
-.kq{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;margin-top:13px}
-.kq .anh{width:100%;height:118px;flex:none;margin-bottom:10px}
-.kq .t{font-size:16px;font-weight:600;line-height:1.3}
-.kq .m{font-family:var(--mono);font-size:12.5px;color:#5A6169;margin-top:2px}
-.kq .ton-l{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2)}
-.kq .ton-l span{font-size:12px;color:var(--muted);display:block}
-.kq .ton-l b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:32px;letter-spacing:-.03em;line-height:1.1}
-.hai-nut{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
-.hai-nut button{padding:15px 8px;border:0;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;color:#fff}
-.b-ra{background:var(--do)} .b-ve{background:var(--xanh)}
-.sl-h{display:flex;align-items:center;gap:10px;margin-top:12px}
-.sl-h button{width:46px;height:46px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:21px;cursor:pointer}
-.sl-h .v{flex:1;text-align:center;font-family:var(--mono);font-size:28px;font-weight:700}
-.ghi-chu{margin-top:auto;font-size:12px;color:#8A8F96;text-align:center;padding-top:13px}
-.dt-canh{flex:1;min-width:250px}
-.dt-canh h3{margin:0 0 8px;font-size:15px}
-.dt-canh p,.dt-canh li{color:#4A5159;font-size:13.5px}
-.dt-canh p{color:var(--muted);margin:0 0 12px}
-.dt-canh li{margin-bottom:7px}
 </style></head><body>
 <header>
   <h1>Togihome — Kho xưởng</h1>
@@ -207,8 +180,6 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   <button data-m="xuat">Phiếu xuất kho</button>
   <div class="cap">Danh mục</div>
   <button data-m="ncc">Nhà cung cấp</button>
-  <div class="cap">Ở xưởng</div>
-  <button data-m="quet">Quét mã</button>
 </nav>
 <main>
 <section class="man on" id="m-ton">
@@ -285,30 +256,6 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
     <tbody id="ncc-b"></tbody></table>
 </section>
 
-<section class="man" id="m-quet">
-  <h2>Quét mã</h2>
-  <p class="lead">Màn thợ dùng ở xưởng, trên điện thoại. Một tay cầm máy, một tay cầm vật tư.</p>
-  <div class="dt-ngoai">
-    <div class="dt"><div class="dt-man">
-      <div class="dt-top">Togihome — Quét</div>
-      <div class="dt-than">
-        <div class="o-quet" onclick="quet()"><b>▣</b>Chạm để quét tem<br><span style="font-size:12px">(bản nháp: lấy một mã bất kỳ)</span></div>
-        <div id="q-kq"></div>
-        <div class="ghi-chu">Quét cả lúc lấy ra và lúc trả về.<br>Không quét lúc trả thì tồn lệch dần.</div>
-      </div>
-    </div></div>
-    <div class="dt-canh">
-      <h3>Vì sao màn này khác hẳn</h3>
-      <p>Thợ đứng ở xưởng, tay bẩn, đeo găng. Bỏ hết menu và bảng biểu — chỉ còn quét, nhìn ảnh, bấm số.</p>
-      <ul>
-        <li><b>Ảnh to</b> để đối chiếu ngay: đúng thứ đang cầm trên tay hay không.</li>
-        <li><b>Tem tự in</b>, không dùng mã nhà cung cấp — đổi nhà cung cấp là mã đổi.</li>
-        <li><b>Hai nút bằng nhau</b>: lấy ra và trả về. Trả về không phải việc phụ.</li>
-        <li>Mỗi lần quét ghi thẳng vào thẻ kho của mã đó, có giờ và tên người quét.</li>
-      </ul>
-    </div>
-  </div>
-</section>
 </main></div>
 
 <aside class="the" id="the"></aside>
@@ -322,17 +269,10 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 <div class="den on" id="login" style="flex-direction:column;gap:0">
   <div style="background:#fff;border-radius:8px;padding:26px 28px;width:min(92vw,360px)">
     <h2 style="margin:0 0 4px;color:var(--do)">Togihome Kho</h2>
-    <p class="lead" style="margin:0 0 16px">Đăng nhập để vào kho</p>
-    <div class="seg" style="width:100%;margin-bottom:14px">
-      <button class="on" id="tab-email" style="flex:1;justify-content:center">CEO / Kho (email)</button>
-      <button id="tab-pin" style="flex:1;justify-content:center">Thợ (mã cá nhân)</button>
-    </div>
+    <p class="lead" style="margin:0 0 16px">Đăng nhập bằng email và mật khẩu</p>
     <div id="f-email">
       <label>Email</label><input class="ip" id="lg-email" style="width:100%;margin-bottom:10px" autocomplete="username">
       <label>Mật khẩu</label><input class="ip" id="lg-pass" type="password" style="width:100%" autocomplete="current-password">
-    </div>
-    <div id="f-pin" style="display:none">
-      <label>Mã cá nhân</label><input class="ip" id="lg-pin" type="password" autocomplete="off" style="width:100%;font-size:18px;text-align:center;letter-spacing:2px" placeholder="vd: hung-4k7m">
     </div>
     <button class="n chinh" id="lg-btn" style="width:100%;margin-top:16px;justify-content:center">Đăng nhập</button>
     <div id="lg-err" style="color:var(--do);font-size:13px;margin-top:10px;min-height:18px"></div>

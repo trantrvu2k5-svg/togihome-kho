@@ -15,33 +15,18 @@ const anhUrl = ma => ma ? `https://drive.google.com/thumbnail?id=${ma}&sz=w400` 
 // ── trạng thái ──
 let KHO = [], NCC = [], NHOM = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
 let locNhom = '*', locKho = '*', ROLE = null, ME = null, ME_ID = null
-const laTho = () => ROLE === 'tho'
-
-// ═══════════ ĐĂNG NHẬP ═══════════
-let cheDo = 'email'
-$('#tab-email').onclick = () => { cheDo = 'email'; $('#tab-email').classList.add('on'); $('#tab-pin').classList.remove('on'); $('#f-email').style.display = ''; $('#f-pin').style.display = 'none' }
-$('#tab-pin').onclick = () => { cheDo = 'pin'; $('#tab-pin').classList.add('on'); $('#tab-email').classList.remove('on'); $('#f-pin').style.display = ''; $('#f-email').style.display = 'none' }
+// ═══════════ ĐĂNG NHẬP — chỉ EMAIL + mật khẩu (CEO / Thủ kho) ═══════════
 $('#lg-btn').onclick = dangNhap
-$('#lg-pin').addEventListener('keydown', e => { if (e.key === 'Enter') dangNhap() })
+$('#lg-email').addEventListener('keydown', e => { if (e.key === 'Enter') dangNhap() })
 $('#lg-pass').addEventListener('keydown', e => { if (e.key === 'Enter') dangNhap() })
 
 async function dangNhap() {
   const err = $('#lg-err'); err.textContent = ''
-  let email, pass
-  if (cheDo === 'email') { email = $('#lg-email').value.trim(); pass = $('#lg-pass').value }
-  else {
-    // Mã cá nhân: <tên>-<4 ký tự>. Tách tại gạch nối ĐẦU TIÊN: trước -> email, sau -> MẬT KHẨU.
-    // Tên đăng nhập (phần tên) ≠ mật khẩu (phần 4 ký tự) — không bao giờ dùng cả mã hay phần tên làm mật khẩu.
-    const ma = $('#lg-pin').value.trim()
-    const i = ma.indexOf('-')
-    const ten = i < 0 ? '' : ma.slice(0, i), duoi = i < 0 ? '' : ma.slice(i + 1)
-    if (!/^[a-z]{2,12}$/.test(ten) || !/^[a-z0-9]{4}$/.test(duoi)) { err.textContent = 'Mã không đúng dạng, ví dụ hung-4k7m'; return }
-    email = `tho${ten}@kho.local`; pass = duoi
-  }
+  const email = $('#lg-email').value.trim(), pass = $('#lg-pass').value
   $('#lg-btn').disabled = true; $('#lg-btn').textContent = 'Đang vào…'
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass })
   $('#lg-btn').disabled = false; $('#lg-btn').textContent = 'Đăng nhập'
-  if (error) { err.textContent = 'Sai thông tin đăng nhập hoặc tài khoản chưa tạo.'; return }
+  if (error) { err.textContent = 'Sai email hoặc mật khẩu.'; return }
   await vaoApp(data.user)
 }
 
@@ -58,8 +43,6 @@ async function vaoApp(user) {
     b.onclick = async () => { await sb.auth.signOut(); location.reload() }
     document.querySelector('header').appendChild(b)
   }
-  // thợ: chỉ Quét mã
-  if (laTho()) { $$('nav button').forEach(b => { if (b.dataset.m !== 'quet') b.style.display = 'none' }); chuyenMan('quet') }
   await taiDuLieu()
   boot()
 }
@@ -140,7 +123,7 @@ function veBang() {
     (!q || x.ma.toLowerCase().includes(q) || x.ten.toLowerCase().includes(q)))
   $('#bang').innerHTML = ds.map(x => {
     const duoi = x.min > 0 && x.ton < x.min, pct = x.min > 0 ? Math.min(100, x.ton / x.min * 100) : (x.ton > 0 ? 100 : 0)
-    const co = []; if (!laTho() && !x.gia && !x.gtk) co.push('chưa có giá'); if (x.kho === 'pk' && !x.sl) co.push('thiếu quy cách')
+    const co = []; if (!x.gia && !x.gtk) co.push('chưa có giá'); if (x.kho === 'pk' && !x.sl) co.push('thiếu quy cách')
     return `<tr class="click ${duoi ? 'duoi' : ''}" onclick="moThe('${x.ma}')">
       <td>${oAnh(x)}</td><td class="ma">${x.ma}</td>
       <td>${x.ten}${x.ht ? `<span class="ht ${x.ht.includes('Sơn') ? 'son' : 'dan'}">${x.ht.replace(/[🅰🅱]\s*/, '')}</span>` : ''}${co.length ? `<span class="thieu">${co.join(' · ')}</span>` : ''}</td>
@@ -148,13 +131,13 @@ function veBang() {
       <td class="r"><div class="mt"><span class="v">${n(x.ton)}</span><span class="bar"><i style="width:${pct}%"></i></span></div></td>
       <td class="r num" style="color:#6E7681">${x.min ? n(x.min) : '—'}</td>
       <td style="color:#6E7681;font-size:13px">${x.dvt}</td>
-      <td class="r num">${laTho() ? '·' : (x.gia ? n(x.gia) : (x.gtk ? `<span class="chua-gia" title="giá mua tham khảo — chưa có tồn/giá vốn thật">${n(x.gtk)} · tham khảo</span>` : '—'))}</td></tr>`
+      <td class="r num">${x.gia ? n(x.gia) : (x.gtk ? `<span class="chua-gia" title="giá mua tham khảo — chưa có tồn/giá vốn thật">${n(x.gtk)} · tham khảo</span>` : '—')}</td></tr>`
   }).join('') || `<tr><td colspan="8" style="padding:22px;color:#6E7681">Không có mã nào khớp.</td></tr>`
   const kv = KHO.filter(x => locKho === '*' || x.kho === locKho)
   $('#k-ma').textContent = n(kv.length)
   $('#k-duoi').textContent = n(kv.filter(x => x.min > 0 && x.ton < x.min).length)
-  $('#k-thieu').textContent = laTho() ? '·' : n(kv.filter(x => !x.gia).length)
-  $('#k-tien').textContent = laTho() ? '·' : n(kv.reduce((s, x) => s + x.ton * x.gia, 0))
+  $('#k-thieu').textContent = n(kv.filter(x => !x.gia).length)
+  $('#k-tien').textContent = n(kv.reduce((s, x) => s + x.ton * x.gia, 0))
   $('#s-all').textContent = KHO.length; $('#s-pk').textContent = KHO.filter(x => x.kho === 'pk').length; $('#s-van').textContent = KHO.filter(x => x.kho === 'van').length
 }
 
@@ -181,10 +164,10 @@ async function moThe(ma) {
   const lich = (gd || []).map(g => ({ vao: ['nhap', 'tra'].includes(g.loai), sl: Math.abs(g.so_luong), luc: new Date(g.tao_luc), so: g.phieu?.so_phieu || (g.nguon === 'quet_tem' ? 'QUÉT' : '—'), mo: g.loai }))
   let du = tonTuoi
   const dong = lich.map(g => { const h = `<div class="dong-tk ${g.vao ? 'n' : 'x'}"><span class="ngay">${gio(g.luc)}</span><span>${g.mo}<br><span style="color:#8A8F96;font-size:11.5px">${g.so}</span></span><span class="sl">${g.vao ? '+' : '−'}${n(g.sl)}</span><span class="du">còn ${n(du)}</span></div>`; du += g.vao ? -g.sl : g.sl; return h }).join('')
-  $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div>${laTho() ? '' : `<button class="n nho" onclick="suaVatTu('${v.ma}')" style="margin-left:auto">✎ Sửa</button>`}<button class="x" onclick="dongThe()"${laTho() ? ' style="margin-left:auto"' : ''}>×</button></div>
+  $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div><button class="n nho" onclick="suaVatTu('${v.ma}')" style="margin-left:auto">✎ Sửa</button><button class="x" onclick="dongThe()">×</button></div>
     <div class="the-so"><div><span>Tồn hiện tại</span><b style="color:${v.ton < v.min ? 'var(--do)' : 'var(--ink)'}">${n(v.ton)}</b></div>
       <div><span>Tối thiểu</span><b style="color:#6E7681">${v.min ? n(v.min) : '—'}</b></div>
-      ${laTho() ? '' : `<div><span>Giá bình quân</span><b>${v.gia ? n(v.gia) : '—'}</b></div><div><span>Giá trị tồn</span><b>${n(v.ton * v.gia)}</b></div>`}</div>
+      <div><span>Giá bình quân</span><b>${v.gia ? n(v.gia) : '—'}</b></div><div><span>Giá trị tồn</span><b>${n(v.ton * v.gia)}</b></div></div>
     <div class="the-than"><h4>Thẻ kho — lịch sử nhập xuất</h4>${dong || '<div class="rong">Chưa có giao dịch nào.</div>'}</div>`
   $('#the').classList.add('on')
 }
@@ -193,7 +176,6 @@ const escA = s => String(s ?? '').replace(/"/g, '&quot;')
 
 // ── SỬA DANH MỤC (ceo/kho) — form trong thẻ kho; giá vốn KHÔNG sửa ở đây ──
 function suaVatTu(ma) {
-  if (laTho()) return
   const v = KHO.find(x => x.ma === ma)
   const opts = NHOM.filter(nh => !nh.loai || nh.loai === v.kho).map(nh => `<option value="${nh.id}"${nh.id === v.nhom_id ? ' selected' : ''}>${nh.ten}</option>`).join('')
   $('#the').innerHTML = `
@@ -233,9 +215,9 @@ function veDat() {
   const ds = KHO.filter(x => x.min > 0 && x.ton < x.min)
   if (!ds.length) { $('#dat-ds').innerHTML = '<div class="rong">Không mã nào dưới mức tối thiểu.</div>'; return }
   const ct = ds.reduce((s, x) => s + Math.ceil(x.min - x.ton) * x.gia, 0)
-  $('#dat-ds').innerHTML = `<div style="display:flex;align-items:baseline;gap:12px;margin:20px 0 8px"><h3 style="font-size:14px;margin:0">Chưa gán nhà cung cấp</h3><span style="font-size:12.5px;color:var(--muted)">${ds.length} mã${laTho() ? '' : ' · ước ' + n(ct) + ' đ'}</span></div>
-    <table><thead><tr><th style="width:64px">Ảnh</th><th style="width:86px">Mã</th><th>Tên</th><th class="r" style="width:70px">Tồn</th><th class="r" style="width:78px">Tối thiểu</th><th class="r" style="width:96px">Cần mua</th>${laTho() ? '' : '<th class="r" style="width:120px">Ước tiền</th>'}</tr></thead>
-    <tbody>${ds.map(x => { const c = Math.ceil(x.min - x.ton); return `<tr class="click" onclick="moThe('${x.ma}')"><td>${oAnh(x)}</td><td class="ma">${x.ma}</td><td>${x.ten}</td><td class="r num" style="color:var(--do);font-weight:700">${n(x.ton)}</td><td class="r num" style="color:#6E7681">${n(x.min)}</td><td class="r num"><b>${n(c)}</b> <span style="color:#6E7681;font-size:12px">${x.dvt}</span></td>${laTho() ? '' : `<td class="r num">${x.gia ? n(c * x.gia) : '<span style="color:var(--amber)">chưa có giá</span>'}</td>`}</tr>` }).join('')}</tbody></table>`
+  $('#dat-ds').innerHTML = `<div style="display:flex;align-items:baseline;gap:12px;margin:20px 0 8px"><h3 style="font-size:14px;margin:0">Chưa gán nhà cung cấp</h3><span style="font-size:12.5px;color:var(--muted)">${ds.length} mã · ước ${n(ct)} đ</span></div>
+    <table><thead><tr><th style="width:64px">Ảnh</th><th style="width:86px">Mã</th><th>Tên</th><th class="r" style="width:70px">Tồn</th><th class="r" style="width:78px">Tối thiểu</th><th class="r" style="width:96px">Cần mua</th><th class="r" style="width:120px">Ước tiền</th></tr></thead>
+    <tbody>${ds.map(x => { const c = Math.ceil(x.min - x.ton); return `<tr class="click" onclick="moThe('${x.ma}')"><td>${oAnh(x)}</td><td class="ma">${x.ma}</td><td>${x.ten}</td><td class="r num" style="color:var(--do);font-weight:700">${n(x.ton)}</td><td class="r num" style="color:#6E7681">${n(x.min)}</td><td class="r num"><b>${n(c)}</b> <span style="color:#6E7681;font-size:12px">${x.dvt}</span></td><td class="r num">${x.gia ? n(c * x.gia) : '<span style="color:var(--amber)">chưa có giá</span>'}</td></tr>` }).join('')}</tbody></table>`
 }
 
 // ── nhà cung cấp ──
@@ -247,27 +229,6 @@ async function themNcc() {
   await taiDuLieu(); veNcc(); bao(`Đã thêm ${t}.`)
 }
 function veNcc() { $('#ncc-b').innerHTML = NCC.filter(c => c.id).map(c => `<tr><td class="ma">${c.id.slice ? c.id.slice(0, 4) : c.id}</td><td><b>${c.ten}</b></td><td class="num" style="font-size:13px">${c.dt || '—'}</td><td style="font-size:13.5px;color:#5A6169">${c.mh || '—'}</td><td style="font-size:13px;color:#8A8F96">${c.dc || '—'}</td><td class="r num">—</td></tr>`).join('') || '<tr><td colspan="6" class="rong">Chưa có nhà cung cấp.</td></tr>' }
-
-// ── quét mã (thợ) — ghi thật qua RPC ──
-let qSl = 1, qMa = null
-function quet() { qMa = KHO[Math.floor(Math.random() * KHO.length)]; qSl = 1; veQuet() }  // bản nháp: mã ngẫu nhiên (thay bằng camera sau)
-function veQuet() {
-  if (!qMa) { $('#q-kq').innerHTML = ''; return }
-  const duoi = qMa.ton < qMa.min
-  $('#q-kq').innerHTML = `<div class="kq">${oAnh(qMa)}<div class="t">${qMa.ten}</div><div class="m">${qMa.ma} · ${qMa.nhom}</div>
-    <div class="ton-l"><span>Đang có trong kho</span><b style="color:${duoi ? 'var(--do)' : 'var(--ink)'}">${n(qMa.ton)}</b><span>${qMa.dvt}${duoi ? ' · dưới mức tối thiểu' : ''}</span></div>
-    <div class="sl-h"><button onclick="qDelta(-1)">−</button><span class="v">${qSl}</span><button onclick="qDelta(1)">+</button></div>
-    <div class="hai-nut"><button class="b-ra" onclick="qXong('lay')">Lấy ra</button><button class="b-ve" onclick="qXong('tra')">Trả về</button></div></div>`
-}
-function qDelta(d) { qSl = Math.max(1, qSl + d); veQuet() }
-async function qXong(loai) {
-  const v = qMa, s = qSl; if (!v) return
-  const { error } = await sb.rpc('quet_giao_dich', { p_vat_tu_ma: v.ma, p_loai: loai, p_so_luong: s })
-  if (error) { bao('Không ghi được: ' + error.message); return }
-  v.ton += (loai === 'tra' ? s : -s); qMa = null; veBang()
-  $('#q-kq').innerHTML = `<div class="kq" style="border-color:#BFDACB;background:#F3F9F5"><div class="t">Đã ghi</div><div class="m" style="margin-top:6px">${loai === 'lay' ? 'Lấy ra' : 'Trả về'} ${s} · ${v.ten}</div><div style="margin-top:10px;font-size:13px;color:#5A6169">Còn ${n(v.ton)} ${v.dvt}. Quét tem tiếp theo.</div></div>`
-  setTimeout(() => { if (!qMa) $('#q-kq').innerHTML = '' }, 2800)
-}
 
 // ── phiếu nhập/xuất (nháp → ghi sổ) ──
 const P = { nhap: null, xuat: null }
@@ -326,8 +287,8 @@ function bao(t) { let e = $('#toast'); if (!e) { e = document.createElement('div
 function boot() {
   $('#tim').oninput = veBang
   veChips(); veBang()
-  if (!laTho()) { veNcc(); moiPhieu('nhap'); vePhieu('nhap'); moiPhieu('xuat'); vePhieu('xuat') }
+  veNcc(); moiPhieu('nhap'); vePhieu('nhap'); moiPhieu('xuat'); vePhieu('xuat')
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, quet, veQuet, qXong, qDelta, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
