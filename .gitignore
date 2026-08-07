@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 __pycache__/
 scratch/
+web/.env
+web/node_modules/
+web/dist/
