@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Togihome — Kho xưởng (bản nháp 2)</title>
+<style>
+:root{
+  --paper:#EFEDE8; --surface:#FFFFFF; --ink:#23282E; --muted:#6E7681;
+  --line:#D9D5CC; --line2:#EDEAE3;
+  --do:#C0392B; --do-dam:#A5301F; --do-nhat:#FBEEEC;
+  --amber:#A65F00; --xanh:#2D6A4A; --than:#2A323C;
+  --mono:ui-monospace,"SF Mono","Menlo","Roboto Mono",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+button{font:inherit}
+
+header{background:var(--do);color:#fff;padding:13px 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+header h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+header .sub{font-size:13px;color:#F3CFC9}
+header .nhap{margin-left:auto;font-size:12px;color:#F7DCD8;border:1px solid #D8705F;padding:3px 9px;border-radius:3px}
+.wrap{display:flex;min-height:calc(100vh - 50px)}
+nav{width:196px;flex:0 0 196px;background:#E6E3DB;border-right:1px solid var(--line);padding:12px 0}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 20px;
+ font-size:14px;color:#4A5159;cursor:pointer;border-left:3px solid transparent}
+nav button:hover{background:#DCD8CE}
+nav button.on{background:var(--paper);border-left-color:var(--do);color:var(--ink);font-weight:600}
+nav .cap{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8D9099;padding:13px 20px 5px}
+main{flex:1;padding:20px 26px 60px;min-width:0}
+h2{margin:0 0 3px;font-size:20px;letter-spacing:-.01em}
+.lead{margin:0 0 16px;color:var(--muted);font-size:13.5px}
+
+.tk{display:flex;gap:11px;margin-bottom:16px;flex-wrap:wrap}
+.tk div{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 15px;min-width:126px}
+.tk b{display:block;font-size:22px;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.tk span{font-size:12px;color:var(--muted)}
+.tk .c-do b{color:var(--do)} .tk .c-am b{color:var(--amber)}
+
+.loc{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px;align-items:center}
+input,select,textarea{font:inherit}
+.ip{border:1px solid var(--line);border-radius:3px;padding:7px 10px;font-size:14px;background:var(--surface);color:var(--ink)}
+.ip:focus,select:focus{outline:2px solid var(--do);outline-offset:-1px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:100px;padding:4px 12px;
+ font-size:12.5px;cursor:pointer;color:#555C64}
+.chip.on{background:var(--do);border-color:var(--do);color:#fff}
+
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:4px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#7C838B;
+ font-weight:600;padding:8px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 11px;border-bottom:1px solid var(--line2);font-size:14px;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--do-nhat)}
+.r{text-align:right}
+.ma{font-family:var(--mono);font-size:12.5px;color:#5A6169}
+.nhom-t{font-size:12px;color:var(--muted)}
+.thieu{font-size:11px;color:var(--amber);border:1px solid #E0CDA8;background:#FBF4E6;
+ padding:1px 6px;border-radius:3px;margin-left:6px;white-space:nowrap}
+.mt{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+.mt .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px;min-width:52px;text-align:right}
+.bar{width:54px;height:4px;background:#E4E0D7;border-radius:2px;overflow:hidden;flex:0 0 54px}
+.bar i{display:block;height:100%;background:var(--xanh)}
+tr.duoi .bar i{background:var(--do)}
+tr.duoi .mt .v{color:var(--do);font-weight:700}
+
+.anh{width:50px;height:50px;border-radius:4px;border:1px solid var(--line);background:#F7F5F1;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;flex:0 0 50px}
+.anh:hover{border-color:var(--do)}
+.anh img{width:100%;height:100%;object-fit:cover;display:block}
+.anh .trong{font-size:17px;color:#B5AEA0;line-height:1;text-align:center}
+.anh .trong small{display:block;font-size:8px;letter-spacing:.04em;margin-top:1px}
+.anh.co::after{content:"⤢";position:absolute;right:2px;bottom:1px;font-size:10px;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.7)}
+.den{position:fixed;inset:0;background:rgba(18,22,28,.86);display:none;z-index:60;
+ align-items:center;justify-content:center;padding:26px;flex-direction:column;gap:14px}
+.den.on{display:flex}
+.den img{max-width:min(88vw,860px);max-height:74vh;border-radius:6px;background:#fff}
+.den .ct{color:#E7E4DE;font-size:14px;text-align:center}
+.den .ct b{display:block;font-size:17px;margin-bottom:2px}
+.den .dong{background:none;border:1px solid #5A626D;color:#D9D5CC;border-radius:3px;padding:7px 16px;font-size:13px;cursor:pointer}
+
+/* nút */
+.n{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:7px 14px;
+ font-size:14px;cursor:pointer;color:#3B4148}
+.n:hover{border-color:#B9B3A7;background:#FAF9F6}
+.n.chinh{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+.n.chinh:hover{background:var(--do-dam);border-color:var(--do-dam)}
+.n.than{background:var(--than);border-color:var(--than);color:#fff;font-weight:600}
+.n.than:hover{background:#1E2530}
+.n:disabled{opacity:.42;cursor:not-allowed}
+.n.nho{padding:4px 9px;font-size:12.5px}
+
+/* phiếu */
+.phieu{background:var(--surface);border:1px solid var(--line);border-radius:5px;overflow:hidden;max-width:1080px}
+.ph-dau{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#FBFAF7}
+.ph-so{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.02em}
+.tt{font-size:11.5px;padding:3px 9px;border-radius:100px;font-weight:600;letter-spacing:.02em}
+.tt.nhap-tt{background:#FBF4E6;color:#8A5200;border:1px solid #E3CFA6}
+.tt.so{background:#EAF3EE;color:#255C40;border:1px solid #BFDACB}
+.ph-dau .cach{margin-left:auto;display:flex;gap:7px}
+.ph-than{padding:16px 18px}
+.hang{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:820px){.hang{grid-template-columns:1fr}}
+label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
+.hang .ip,.hang select{width:100%}
+.ph-than table td{padding:6px 9px}
+.ph-than .ip{width:100%;padding:5px 8px;font-size:13.5px}
+.ph-than select{width:100%;padding:5px 8px;font-size:13.5px;border:1px solid var(--line);border-radius:3px;background:#fff}
+.xoa{background:none;border:0;color:#B04A3C;cursor:pointer;font-size:17px;line-height:1;padding:2px 5px}
+.tong-ph{display:flex;justify-content:flex-end;gap:26px;padding:13px 18px;border-top:1px solid var(--line);background:#FBFAF7}
+.tong-ph div{text-align:right}
+.tong-ph span{display:block;font-size:12px;color:var(--muted)}
+.tong-ph b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20px;letter-spacing:-.03em}
+.ds-ph{margin-top:22px;max-width:1080px}
+.ds-ph h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#7C838B;margin:0 0 8px}
+.khoa{background:#F4F2ED;color:#6E7681}
+.chua{background:#FBF4E6;border:1px solid #E3CFA6;border-radius:4px;padding:10px 14px;font-size:13px;color:#7A4B00;margin-bottom:15px}
+.chua b{color:#5E3A00}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:7px 15px;font-size:13.5px;color:#4A5159;cursor:pointer;
+ border-right:1px solid var(--line2);display:flex;align-items:baseline;gap:7px}
+.seg button:last-child{border-right:0}
+.seg button b{font-family:var(--mono);font-size:12px;color:#8A8F96;font-weight:600}
+.seg button.on{background:var(--do);color:#fff}
+.seg button.on b{color:#F6D4CF}
+.chua-gia{font-size:11px;color:var(--amber);border:1px solid #E0CDA8;background:#FBF4E6;
+ padding:1px 6px;border-radius:3px;white-space:nowrap}
+.muc{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:18px;max-width:980px}
+@media(max-width:900px){.muc{grid-template-columns:1fr}}
+.muc button{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:5px;
+ padding:13px 15px;cursor:pointer;display:flex;flex-direction:column;gap:5px}
+.muc button:hover{border-color:#B9B3A7}
+.muc button.on{border-color:var(--do);box-shadow:inset 0 0 0 1px var(--do);background:var(--do-nhat)}
+.muc button b{font-size:14px}
+.muc button span{font-size:12.5px;color:var(--muted);line-height:1.45}
+.muc button i{font-style:normal;font-size:11px;padding:2px 8px;border-radius:100px;align-self:flex-start;margin-top:2px}
+.muc .san{background:#EAF3EE;color:#255C40;border:1px solid #BFDACB}
+.muc .thieu-dl{background:#FBF4E6;color:#8A5200;border:1px solid #E3CFA6}
+.ht{font-size:11px;padding:1px 7px;border-radius:3px;margin-left:7px;white-space:nowrap}
+.ht.dan{background:#EDF2F7;color:#3C5871;border:1px solid #C8D6E2}
+.ht.son{background:#F6EFE4;color:#7A5210;border:1px solid #E0CDA8}
+.man{display:none}.man.on{display:block}
+/* thẻ kho */
+.the{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);background:var(--surface);
+ border-left:1px solid var(--line);box-shadow:-8px 0 28px rgba(0,0,0,.13);z-index:55;
+ display:none;flex-direction:column}
+.the.on{display:flex}
+.the-dau{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;gap:13px;align-items:flex-start}
+.the-dau .anh{width:64px;height:64px;flex:0 0 64px}
+.the-dau h3{margin:0;font-size:16px;line-height:1.3}
+.the-dau .m{font-family:var(--mono);font-size:12.5px;color:#5A6169;margin-top:2px}
+.the-dau .x{margin-left:auto;background:none;border:0;font-size:22px;color:#8A8F96;cursor:pointer;line-height:1}
+.the-so{display:flex;gap:20px;padding:13px 20px;border-bottom:1px solid var(--line2);background:#FBFAF7}
+.the-so div span{display:block;font-size:11.5px;color:var(--muted)}
+.the-so div b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px}
+.the-than{overflow:auto;padding:14px 20px 30px;flex:1}
+.the-than h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:#7C838B;margin:0 0 8px}
+.dong-tk{display:grid;grid-template-columns:74px 1fr auto auto;gap:10px;padding:7px 0;
+ border-bottom:1px solid var(--line2);font-size:13px;align-items:baseline}
+.dong-tk .ngay{font-family:var(--mono);font-size:11.5px;color:#8A8F96}
+.dong-tk .sl{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
+.dong-tk .du{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
+.dong-tk.n .sl{color:var(--xanh)} .dong-tk.x .sl{color:var(--do)}
+.rong{color:var(--muted);font-size:13px;padding:16px;background:#FBFAF7;border:1px dashed var(--line);border-radius:3px}
+
+/* quét mã */
+.dt-ngoai{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap}
+.dt{width:322px;flex:0 0 322px;background:#12161C;border-radius:30px;padding:11px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.dt-man{background:var(--paper);border-radius:22px;overflow:hidden;min-height:588px;display:flex;flex-direction:column}
+.dt-top{background:var(--do);color:#fff;padding:12px 16px;font-size:14px;font-weight:600}
+.dt-than{padding:15px;flex:1;display:flex;flex-direction:column}
+.o-quet{border:2px dashed #B5AEA0;border-radius:8px;padding:24px 14px;text-align:center;color:#6E7681;font-size:13.5px;background:#F7F5F1;cursor:pointer}
+.o-quet b{display:block;font-size:29px;margin-bottom:5px}
+.kq{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;margin-top:13px}
+.kq .anh{width:100%;height:118px;flex:none;margin-bottom:10px}
+.kq .t{font-size:16px;font-weight:600;line-height:1.3}
+.kq .m{font-family:var(--mono);font-size:12.5px;color:#5A6169;margin-top:2px}
+.kq .ton-l{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2)}
+.kq .ton-l span{font-size:12px;color:var(--muted);display:block}
+.kq .ton-l b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:32px;letter-spacing:-.03em;line-height:1.1}
+.hai-nut{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.hai-nut button{padding:15px 8px;border:0;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;color:#fff}
+.b-ra{background:var(--do)} .b-ve{background:var(--xanh)}
+.sl-h{display:flex;align-items:center;gap:10px;margin-top:12px}
+.sl-h button{width:46px;height:46px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:21px;cursor:pointer}
+.sl-h .v{flex:1;text-align:center;font-family:var(--mono);font-size:28px;font-weight:700}
+.ghi-chu{margin-top:auto;font-size:12px;color:#8A8F96;text-align:center;padding-top:13px}
+.dt-canh{flex:1;min-width:250px}
+.dt-canh h3{margin:0 0 8px;font-size:15px}
+.dt-canh p,.dt-canh li{color:#4A5159;font-size:13.5px}
+.dt-canh p{color:var(--muted);margin:0 0 12px}
+.dt-canh li{margin-bottom:7px}
+</style></head><body>
+<header>
+  <h1>Togihome — Kho xưởng</h1>
+  <span class="sub">199 mã · 154 phụ kiện + 45 ván gỗ · dữ liệu thật</span>
+  <span class="nhap" id="ai">…</span>
+</header>
+<div class="wrap">
+<nav>
+  <div class="cap">Kho</div>
+  <button class="on" data-m="ton">Tồn kho</button>
+  <button data-m="dat">Cần đặt hàng</button>
+  <div class="cap">Chứng từ</div>
+  <button data-m="nhap">Phiếu nhập kho</button>
+  <button data-m="xuat">Phiếu xuất kho</button>
+  <div class="cap">Danh mục</div>
+  <button data-m="ncc">Nhà cung cấp</button>
+  <div class="cap">Ở xưởng</div>
+  <button data-m="quet">Quét mã</button>
+</nav>
+<main>
+<section class="man on" id="m-ton">
+  <h2>Tồn kho</h2>
+  <p class="lead">Bấm một dòng để mở <b>thẻ kho</b> — lịch sử nhập xuất của riêng mã đó.</p>
+  <div class="tk">
+    <div><b id="k-ma">0</b><span>mã vật tư</span></div>
+    <div class="c-do"><b id="k-duoi">0</b><span>dưới tối thiểu</span></div>
+    <div class="c-am"><b id="k-thieu">0</b><span>chưa có giá</span></div>
+    <div><b id="k-tien">0</b><span>giá trị tồn (đ)</span></div>
+  </div>
+  <div class="loc" style="margin-bottom:9px">
+    <div class="seg">
+      <button class="on" data-k="*">Tất cả <b id="s-all">0</b></button>
+      <button data-k="pk">Phụ kiện <b id="s-pk">0</b></button>
+      <button data-k="van">Ván gỗ <b id="s-van">0</b></button>
+    </div>
+    <input class="ip" id="tim" placeholder="Tìm mã hoặc tên…" style="width:230px">
+  </div>
+  <div class="loc">
+    <button class="chip on" data-n="*">Tất cả nhóm</button><span id="chips"></span>
+  </div>
+  <table><thead><tr>
+    <th style="width:64px">Ảnh</th><th style="width:86px">Mã</th><th>Tên vật tư</th><th style="width:124px">Nhóm</th>
+    <th class="r" style="width:126px">Tồn</th><th class="r" style="width:72px">Tối thiểu</th>
+    <th style="width:52px">ĐVT</th><th class="r" style="width:92px">Giá BQ</th>
+  </tr></thead><tbody id="bang"></tbody></table>
+</section>
+
+<section class="man" id="m-dat">
+  <h2>Cần đặt hàng</h2>
+  <p class="lead">Chọn cách tính gợi ý. Logic thật nằm ở tầng dưới — đây chỉ là chỗ nó hiện ra.</p>
+  <div class="muc">
+    <button class="on" data-l="1"><b>Mức 1 — Ngưỡng tay</b>
+      <span>Tồn dưới mức tối thiểu do người khai. Dùng được ngay.</span>
+      <i class="san">đang chạy</i></button>
+    <button data-l="2"><b>Mức 2 — Theo đơn đã chốt</b>
+      <span>Cộng BOM các đơn đang sản xuất, trừ tồn và hàng đã đặt. Đúng nhất cho hàng đặt theo yêu cầu.</span>
+      <i class="thieu-dl">cần: danh sách đơn + BOM</i></button>
+    <button data-l="3"><b>Mức 3 — Theo mức tiêu thụ</b>
+      <span>Tiêu thụ trong thời gian chờ hàng + tồn an toàn. Cho vật tư dùng đều: vít, keo, nhám.</span>
+      <i class="thieu-dl">cần: lịch sử xuất + thời gian giao hàng</i></button>
+  </div>
+  <div id="dat-ds"></div>
+</section>
+
+<section class="man" id="m-nhap">
+  <h2>Phiếu nhập kho</h2>
+  <p class="lead">Một lần hàng về là một phiếu, nhiều dòng. Còn <b>nháp</b> thì sửa thoải mái; <b>ghi sổ</b> rồi thì khoá, muốn đổi phải làm phiếu điều chỉnh.</p>
+  <div class="chua">Ba tháng đầu kho <b>chỉ ghi, không chặn</b>. Tồn âm vẫn ghi sổ được, chỉ cảnh báo.</div>
+  <div class="phieu" id="ph-nhap"></div>
+  <div class="ds-ph"><h3>Phiếu đã lập</h3><div id="ds-nhap"></div></div>
+</section>
+
+<section class="man" id="m-xuat">
+  <h2>Phiếu xuất kho</h2>
+  <p class="lead">Xuất cho sản xuất, lắp đặt, hoặc trả nhà cung cấp. Cũng theo phiếu nhiều dòng.</p>
+  <div class="phieu" id="ph-xuat"></div>
+  <div class="ds-ph"><h3>Phiếu đã lập</h3><div id="ds-xuat"></div></div>
+</section>
+
+<section class="man" id="m-ncc">
+  <h2>Nhà cung cấp</h2>
+  <p class="lead">Khai ở đây một lần, lúc lập phiếu nhập chỉ việc chọn.</p>
+  <div style="display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+    <div><label>Tên nhà cung cấp</label><input class="ip" id="ncc-ten" style="width:230px" placeholder="Ví dụ: AEC Hà Nội"></div>
+    <div><label>Điện thoại</label><input class="ip" id="ncc-dt" style="width:150px"></div>
+    <div><label>Mặt hàng</label><input class="ip" id="ncc-mh" style="width:200px" placeholder="Ván · ray · nẹp"></div>
+    <button class="n chinh" onclick="themNcc()">Thêm nhà cung cấp</button>
+  </div>
+  <table><thead><tr><th style="width:34px">#</th><th>Tên</th><th style="width:140px">Điện thoại</th>
+    <th>Mặt hàng</th><th style="width:120px">Địa chỉ</th><th class="r" style="width:120px">Đang mua</th></tr></thead>
+    <tbody id="ncc-b"></tbody></table>
+</section>
+
+<section class="man" id="m-quet">
+  <h2>Quét mã</h2>
+  <p class="lead">Màn thợ dùng ở xưởng, trên điện thoại. Một tay cầm máy, một tay cầm vật tư.</p>
+  <div class="dt-ngoai">
+    <div class="dt"><div class="dt-man">
+      <div class="dt-top">Togihome — Quét</div>
+      <div class="dt-than">
+        <div class="o-quet" onclick="quet()"><b>▣</b>Chạm để quét tem<br><span style="font-size:12px">(bản nháp: lấy một mã bất kỳ)</span></div>
+        <div id="q-kq"></div>
+        <div class="ghi-chu">Quét cả lúc lấy ra và lúc trả về.<br>Không quét lúc trả thì tồn lệch dần.</div>
+      </div>
+    </div></div>
+    <div class="dt-canh">
+      <h3>Vì sao màn này khác hẳn</h3>
+      <p>Thợ đứng ở xưởng, tay bẩn, đeo găng. Bỏ hết menu và bảng biểu — chỉ còn quét, nhìn ảnh, bấm số.</p>
+      <ul>
+        <li><b>Ảnh to</b> để đối chiếu ngay: đúng thứ đang cầm trên tay hay không.</li>
+        <li><b>Tem tự in</b>, không dùng mã nhà cung cấp — đổi nhà cung cấp là mã đổi.</li>
+        <li><b>Hai nút bằng nhau</b>: lấy ra và trả về. Trả về không phải việc phụ.</li>
+        <li>Mỗi lần quét ghi thẳng vào thẻ kho của mã đó, có giờ và tên người quét.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main></div>
+
+<aside class="the" id="the"></aside>
+<input type="file" id="chon-anh" accept="image/*" style="display:none">
+<div class="den" id="den" onclick="if(event.target.id==='den')dongDen()">
+  <img id="den-img" alt=""><div class="ct" id="den-ct"></div>
+  <button class="dong" onclick="dongDen()">Đóng</button>
+</div>
+
+<!-- ĐĂNG NHẬP -->
+<div class="den on" id="login" style="flex-direction:column;gap:0">
+  <div style="background:#fff;border-radius:8px;padding:26px 28px;width:min(92vw,360px)">
+    <h2 style="margin:0 0 4px;color:var(--do)">Togihome Kho</h2>
+    <p class="lead" style="margin:0 0 16px">Đăng nhập để vào kho</p>
+    <div class="seg" style="width:100%;margin-bottom:14px">
+      <button class="on" id="tab-email" style="flex:1;justify-content:center">CEO / Kho (email)</button>
+      <button id="tab-pin" style="flex:1;justify-content:center">Thợ (mã PIN)</button>
+    </div>
+    <div id="f-email">
+      <label>Email</label><input class="ip" id="lg-email" style="width:100%;margin-bottom:10px" autocomplete="username">
+      <label>Mật khẩu</label><input class="ip" id="lg-pass" type="password" style="width:100%" autocomplete="current-password">
+    </div>
+    <div id="f-pin" style="display:none">
+      <label>Mã PIN của thợ</label><input class="ip num" id="lg-pin" inputmode="numeric" style="width:100%;font-size:22px;text-align:center;letter-spacing:6px" placeholder="••••">
+    </div>
+    <button class="n chinh" id="lg-btn" style="width:100%;margin-top:16px;justify-content:center">Đăng nhập</button>
+    <div id="lg-err" style="color:var(--do);font-size:13px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body></html>

@@ -1,0 +1,18 @@
+{
+  "name": "togihome-kho-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5180",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}
