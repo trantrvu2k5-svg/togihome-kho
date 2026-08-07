@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Togihome Kho — bản mẫu điện thoại</title>
+<style>
+:root{
+  --paper:#EFEDE8; --surface:#FFFFFF; --ink:#23282E; --muted:#6E7681;
+  --line:#D9D5CC; --line2:#EDEAE3; --do:#C0392B; --do-dam:#A5301F; --do-nhat:#FBEEEC;
+  --amber:#A65F00; --xanh:#2D6A4A;
+  --mono:ui-monospace,"SF Mono","Menlo","Roboto Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;overflow-x:hidden;max-width:100%}
+body{background:var(--paper);color:var(--ink);
+ font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+img{max-width:100%;display:block}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* dải nhắc bản mẫu */
+.mau-nhac{background:#2A323C;color:#F1D6A0;font-size:12px;text-align:center;padding:6px 12px}
+
+/* băng đỏ trên cùng, phủ trọn ngang */
+header{background:var(--do);color:#fff;display:flex;align-items:center;gap:10px;
+ padding:0 12px;height:52px;position:sticky;top:0;z-index:30}
+header .bagach{width:44px;height:44px;background:none;border:0;color:#fff;font-size:22px;border-radius:6px}
+header .bagach:active{background:rgba(255,255,255,.15)}
+header h1{margin:0;font-size:17px;font-weight:700}
+header .lam-moi{margin-left:auto;min-height:44px;display:flex;align-items:center;gap:6px;
+ background:#fff;color:var(--do);border:0;border-radius:6px;padding:0 12px;font-size:13px;font-weight:600}
+
+main{padding:12px 12px 90px}
+
+/* 4 ô số MỘT HÀNG NGANG chia đều */
+.o-so{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+.o-so .o{background:var(--surface);border:1px solid var(--line);border-radius:8px;
+ padding:9px 6px;min-height:56px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.o-so .o b{font-size:18px;font-family:var(--mono);line-height:1.1}
+.o-so .o span{font-size:12px;color:var(--muted);margin-top:2px}
+.o-so .o.tien{border-color:#EAC9C3}
+.o-so .o.tien b{color:var(--do);font-size:16px}
+.o-so .o.tien.mo b{font-size:13px}
+
+/* tìm kiếm + Lọc */
+.tim-hang{display:flex;gap:8px;margin-bottom:8px}
+.tim-hang input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:8px;
+ padding:0 12px;font-size:14px;background:var(--surface);color:var(--ink)}
+.tim-hang .loc{min-height:44px;padding:0 16px;border:1px solid var(--line);background:var(--surface);
+ border-radius:8px;font-size:14px;font-weight:600;color:#4A5159;display:flex;align-items:center;gap:5px}
+.tim-hang .loc.on{background:var(--do);color:#fff;border-color:var(--do)}
+.chips{display:none;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.chips.hien{display:flex}
+.chip{min-height:34px;padding:0 12px;border:1px solid var(--line);background:var(--surface);
+ border-radius:17px;font-size:12.5px;color:#4A5159;display:flex;align-items:center}
+.chip.on{background:var(--do-nhat);border-color:#E3B8B0;color:var(--do)}
+
+/* 3 tab chia đều */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.tabs button{min-height:46px;border:1px solid var(--line);background:var(--surface);border-radius:8px;
+ font-size:13px;color:#4A5159;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:5px}
+.tabs button b{font-family:var(--mono);font-size:12px;color:#8A8F96}
+.tabs button.on{background:var(--do);color:#fff;border-color:var(--do)}
+.tabs button.on b{color:#F6D4CF}
+
+/* danh sách thẻ */
+.ds{display:flex;flex-direction:column;gap:8px}
+.the-mat{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);
+ border-radius:10px;padding:10px;min-height:64px;text-align:left;width:100%}
+.the-mat:active{background:#FBFAF7}
+.the-mat.duoi{border-color:#E9C7A6}
+.anh{width:52px;height:52px;flex:none;border-radius:7px;overflow:hidden;background:#F2EFE9;
+ border:1px solid var(--line2);display:flex;align-items:center;justify-content:center}
+.anh img{width:100%;height:100%;object-fit:cover}
+.anh .trong{color:#B7AE9E;font-size:10px;text-align:center;line-height:1.1}
+.anh .trong b{display:block;font-size:19px}
+.giua{flex:1;min-width:0}
+.giua .ten{font-size:14px;font-weight:600;line-height:1.3;
+ overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.giua .phu{font-size:12px;color:var(--muted);margin-top:2px;font-family:var(--mono);
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.giua .co-tag{display:inline-block;font-size:11px;color:var(--amber);margin-top:3px;
+ background:#FBF2E2;border-radius:4px;padding:1px 6px}
+.phai{flex:none;text-align:right}
+.phai .ton{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1}
+.phai .ton.het{color:var(--do)}
+.phai .dv{font-size:12px;color:var(--muted)}
+
+/* thanh điều hướng trượt */
+.phu-nen{position:fixed;inset:0;background:rgba(20,22,26,.5);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.phu-nen.hien{opacity:1;pointer-events:auto}
+.nav{position:fixed;top:0;left:0;bottom:0;width:80%;max-width:290px;background:#E6E3DB;z-index:50;
+ transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column;padding:8px 0}
+.nav.hien{transform:none}
+.nav .nav-dau{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 12px}
+.nav .nav-dau b{font-size:15px;color:var(--do)}
+.nav .dong{width:44px;height:44px;border:0;background:none;font-size:22px;color:#4A5159}
+.nav .cap{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#8D9099;padding:12px 20px 4px}
+.nav a{display:block;min-height:48px;display:flex;align-items:center;padding:0 20px;font-size:15px;
+ color:#3A4048;text-decoration:none;border-left:3px solid transparent}
+.nav a.on{background:var(--paper);border-left-color:var(--do);font-weight:600;color:var(--ink)}
+
+/* panel chi tiết trượt lên */
+.tam-nen{position:fixed;inset:0;background:rgba(20,22,26,.5);z-index:55;opacity:0;pointer-events:none;transition:opacity .2s}
+.tam-nen.hien{opacity:1;pointer-events:auto}
+.tam{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--surface);
+ border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .25s;
+ max-height:88vh;overflow-y:auto;padding:6px 16px 24px}
+.tam.hien{transform:none}
+.tam .keo{width:40px;height:4px;background:#D8D3C9;border-radius:2px;margin:8px auto 10px}
+.tam .tam-dau{display:flex;gap:14px;align-items:flex-start}
+.tam .anh-to{width:96px;height:96px;flex:none;border-radius:10px;overflow:hidden;background:#F2EFE9;
+ border:1px solid var(--line2);display:flex;align-items:center;justify-content:center}
+.tam .anh-to img{width:100%;height:100%;object-fit:cover}
+.tam h3{margin:0;font-size:18px}
+.tam .ma-nho{font-size:13px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.tam .dong-x{margin-left:auto;width:44px;height:44px;border:0;background:#F1EEE8;border-radius:8px;font-size:20px;color:#5A6169}
+.tam-anh-nut{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.tam-anh-nut .them-anh{min-height:44px;display:flex;align-items:center;gap:7px;background:var(--surface);
+ border:1px solid var(--line);border-radius:8px;padding:0 14px;font-size:14px;color:#3A4048}
+.tam-anh-nut .nhac{font-size:12px;color:var(--muted)}
+.tam-so{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 14px}
+.tam-so .o{background:#FBFAF7;border:1px solid var(--line2);border-radius:8px;padding:9px 11px}
+.tam-so .o span{display:block;font-size:12px;color:var(--muted)}
+.tam-so .o b{font-size:19px;font-family:var(--mono)}
+.tam h4{margin:6px 0 8px;font-size:13px;color:#4A5159}
+.tk{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-top:1px solid var(--line2);font-size:13px}
+.tk .ngay{color:#8A8F96;font-size:12px;font-family:var(--mono)}
+.tk .sl{font-family:var(--mono);font-weight:700}
+.tk .sl.vao{color:var(--xanh)} .tk .sl.ra{color:var(--do)}
+.mini{font-size:12px;color:var(--muted);margin:4px 0 0}
+</style></head><body>
+
+<div class="mau-nhac">BẢN MẪU TĨNH — số liệu KHÔNG thật, chỉ để duyệt bố cục trên điện thoại.</div>
+
+<header>
+  <button class="bagach" onclick="moNav()" aria-label="Menu">☰</button>
+  <h1>Tồn kho</h1>
+  <button class="lam-moi">⟳ Làm mới</button>
+</header>
+
+<main>
+  <div class="o-so">
+    <div class="o"><b>199</b><span>mã</span></div>
+    <div class="o"><b>30</b><span>thiếu</span></div>
+    <div class="o"><b>65</b><span>chưa giá</span></div>
+    <div class="o tien" id="oTien" onclick="toggleTien()"><b id="bTien">377tr</b><span>giá trị</span></div>
+  </div>
+  <div class="mini" style="margin:-6px 0 10px">Chạm ô “giá trị” để xem số đầy đủ.</div>
+
+  <div class="tim-hang">
+    <input placeholder="Tìm mã hoặc tên…" inputmode="search">
+    <button class="loc" id="btnLoc" onclick="toggleLoc()">⚙ Lọc</button>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip on">Tất cả nhóm</span><span class="chip">Bản lề</span><span class="chip">Ray</span>
+    <span class="chip">Tay nắm</span><span class="chip">Ván</span><span class="chip">Đế chân</span><span class="chip">Ốc vít</span>
+  </div>
+
+  <div class="tabs">
+    <button class="on">Tất cả <b>199</b></button>
+    <button>Phụ kiện <b>154</b></button>
+    <button>Ván <b>45</b></button>
+  </div>
+
+  <div class="ds" id="ds"></div>
+</main>
+
+<!-- thanh điều hướng -->
+<div class="phu-nen" id="phuNen" onclick="dongNav()"></div>
+<nav class="nav" id="nav">
+  <div class="nav-dau"><b>Togihome Kho</b><button class="dong" onclick="dongNav()" aria-label="Đóng">×</button></div>
+  <div class="cap">Kho</div>
+  <a class="on">Tồn kho</a><a>Cần đặt hàng</a>
+  <div class="cap">Chứng từ</div>
+  <a>Phiếu nhập kho</a><a>Phiếu xuất kho</a>
+  <div class="cap">Danh mục</div>
+  <a>Nhà cung cấp</a>
+</nav>
+
+<!-- panel chi tiết -->
+<div class="tam-nen" id="tamNen" onclick="dongTam()"></div>
+<div class="tam" id="tam"><div class="keo"></div><div id="tamNoi"></div></div>
+
+<script>
+const BUCKET='https://ugebruuxkslsnbramils.supabase.co/storage/v1/object/public/kho-images/';
+const n=v=>Math.round(v).toLocaleString('vi-VN');
+// dữ liệu VIẾT CỨNG (không thật) — gồm mã tồn 0 và mã chưa giá; vài dòng có ảnh thật bucket, vài dòng ô trống
+const DATA=[
+ {ma:'BL-01',ten:'Bản lề GC — Cong nửa',nhom:'Bản lề',ton:120,dv:'bộ',min:50,gia:18500,img:'kho/BL-01_1781168117307.jpg'},
+ {ma:'BL-02',ten:'Bản lề GC — Cong nhiều',nhom:'Bản lề',ton:85,dv:'bộ',min:50,gia:18500,img:'kho/BL-02_1781168121539.jpg'},
+ {ma:'BL-03',ten:'Bản lề GC — Thẳng',nhom:'Bản lề',ton:10,dv:'bộ',min:50,gia:18500,img:'kho/BL-03_1781168125635.jpg'},
+ {ma:'BA-02',ten:'Bản lề bật giảm chấn',nhom:'Bản lề',ton:40,dv:'cái',min:20,gia:24000,img:'kho/BA-02_1786116987636.jpg'},
+ {ma:'AA-NAU-18',ten:'Gỗ cao su pu nâu AA 18mm',nhom:'Ván',ton:22,dv:'tấm',min:10,gia:915000,img:'kho/AA-NAU-18_1781169675367.jpg',van:1},
+ {ma:'DC-10',ten:'Đế chân inox 100mm',nhom:'Đế chân',ton:60,dv:'cái',min:30,gia:42000,img:'kho/DC-10_1786116991357.jpg'},
+ {ma:'MX-01',ten:'Ray bi 3 tầng 450mm',nhom:'Ray',ton:210,dv:'bộ',min:80,gia:56000,img:'kho/MX-01_1786117038517.jpg'},
+ {ma:'TN-17',ten:'Tay nắm nhôm 160mm',nhom:'Tay nắm',ton:0,dv:'cái',min:40,gia:12500,img:'kho/TN-17_1786117106678.jpg'},
+ {ma:'PKG-03',ten:'Phụ kiện góc liên kết',nhom:'Phụ kiện góc',ton:15,dv:'bộ',min:10,gia:33000,img:'kho/PKG-03_1786117070910.jpg'},
+ {ma:'RG1V',ten:'Ray giảm chấn âm 500mm',nhom:'Ray',ton:300,dv:'bộ',min:100,gia:64000,img:null},
+ {ma:'CS-VER',ten:'Caosu phủ verneer 18mm',nhom:'Ván',ton:0,dv:'tấm',min:6,gia:0,van:1,img:null},
+ {ma:'OV-18',ten:'Ốc vít bắt gỗ 4×18',nhom:'Ốc vít',ton:5000,dv:'con',min:1000,gia:0,img:null},
+ {ma:'KE-01',ten:'Kệ góc xoay 3 tầng',nhom:'Kệ',ton:8,dv:'bộ',min:5,gia:285000,img:null},
+ {ma:'GK-05',ten:'Giá kéo để đồ khô',nhom:'Giá kéo',ton:12,dv:'bộ',min:4,gia:0,img:null},
+ {ma:'TN-08',ten:'Tay nắm âm 96mm',nhom:'Tay nắm',ton:3,dv:'cái',min:20,gia:9800,img:null},
+];
+const TK={
+ 'BL-03':[['12/08 · Nhập · NK-2026-0001','+5','vao'],['11/08 · Nhập · NK-2026-0002','+5','vao'],['09/08 · Xuất · XK-2026-0003','−0','ra']],
+};
+function oAnh(x,to){
+ const cls=to?'anh-to':'anh';
+ if(x.img) return `<div class="${cls}"><img src="${BUCKET}${x.img}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'trong\\'>⚠<br>HỎNG</span>'"></div>`;
+ return `<div class="${cls}"><span class="trong"><b>▣</b>ẢNH</span></div>`;
+}
+function veDs(){
+ document.getElementById('ds').innerHTML=DATA.map((x,i)=>{
+  const duoi=x.min>0&&x.ton<x.min;
+  const co=[]; if(!x.gia) co.push('chưa có giá');
+  return `<button class="the-mat ${duoi?'duoi':''}" onclick="moTam(${i})">
+    ${oAnh(x,false)}
+    <div class="giua"><div class="ten">${x.ten}</div>
+      <div class="phu">${x.ma} · ${x.nhom}</div>
+      ${co.length?`<span class="co-tag">${co.join(' · ')}</span>`:''}</div>
+    <div class="phai"><div class="ton ${x.ton===0?'het':''}">${n(x.ton)}</div><div class="dv">${x.dv}</div></div>
+  </button>`;
+ }).join('');
+}
+veDs();
+
+let tienMo=false;
+function toggleTien(){ tienMo=!tienMo;
+ document.getElementById('bTien').textContent=tienMo?'377.157.400':'377tr';
+ document.getElementById('oTien').classList.toggle('mo',tienMo);
+}
+function toggleLoc(){ document.getElementById('chips').classList.toggle('hien');
+ document.getElementById('btnLoc').classList.toggle('on');
+}
+function moNav(){ document.getElementById('nav').classList.add('hien'); document.getElementById('phuNen').classList.add('hien'); }
+function dongNav(){ document.getElementById('nav').classList.remove('hien'); document.getElementById('phuNen').classList.remove('hien'); }
+function moTam(i){
+ const x=DATA[i];
+ const tk=(TK[x.ma]||[['12/08 · Nhập · NK-2026-0001','+'+n(x.ton||5),'vao'],['10/08 · Xuất · XK-2026-0005','−2','ra']]);
+ document.getElementById('tamNoi').innerHTML=`
+  <div class="tam-dau">
+   ${oAnh(x,true)}
+   <div style="flex:1;min-width:0"><h3>${x.ten}</h3><div class="ma-nho">${x.ma} · ${x.nhom}</div></div>
+   <button class="dong-x" onclick="dongTam()" aria-label="Đóng">×</button>
+  </div>
+  <div class="tam-anh-nut">
+   <button class="them-anh">📷 ${x.img?'Thay ảnh':'Thêm ảnh'}</button>
+   <span class="nhac">Ảnh sẽ được thu nhỏ; ảnh cũ vẫn giữ lại.</span>
+  </div>
+  <div class="tam-so">
+   <div class="o"><span>Tồn hiện tại</span><b style="${x.ton<x.min?'color:var(--do)':''}">${n(x.ton)} ${x.dv}</b></div>
+   <div class="o"><span>Tối thiểu</span><b>${n(x.min)}</b></div>
+   <div class="o"><span>Giá bình quân</span><b>${x.gia?n(x.gia):'—'}</b></div>
+   <div class="o"><span>Giá trị tồn</span><b>${n(x.ton*x.gia)}</b></div>
+  </div>
+  <h4>Thẻ kho — lịch sử nhập xuất</h4>
+  ${tk.map(t=>`<div class="tk"><span class="ngay">${t[0]}</span><span class="sl ${t[2]}">${t[1]}</span></div>`).join('')}
+  <p class="mini">Bản mẫu: các số trên chỉ để xem bố cục, chưa nối kho thật.</p>`;
+ document.getElementById('tam').classList.add('hien'); document.getElementById('tamNen').classList.add('hien');
+}
+function dongTam(){ document.getElementById('tam').classList.remove('hien'); document.getElementById('tamNen').classList.remove('hien'); }
+</script>
+</body></html>

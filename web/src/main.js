@@ -146,8 +146,18 @@ function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) retur
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
 
-function chuyenMan(m) { $$('nav button').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc() }
-$$('nav button').forEach(b => b.onclick = () => chuyenMan(b.dataset.m))
+function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc() }
+// ── điều khiển bố cục điện thoại (chỉ tác dụng ở màn hẹp; desktop các phần tử ẩn) ──
+function moNav() { $('nav')?.classList.add('mo'); $('#navNen')?.classList.add('mo') }
+function dongNav() { $('nav')?.classList.remove('mo'); $('#navNen')?.classList.remove('mo') }
+function toggleLoc() { $('#chips-row')?.classList.toggle('mo'); $('.mb-loc')?.classList.toggle('on') }
+let tienDayDu = false
+const tienNgan = v => v >= 1e9 ? (Math.round(v / 1e8) / 10) + ' tỷ' : v >= 1e6 ? Math.round(v / 1e6) + 'tr' : n(v)
+function veOTien(val) { const el = $('#k-tien'); if (!el) return; el.dataset.full = val
+  const hep = window.matchMedia('(max-width:819.98px)').matches
+  el.textContent = (hep && !tienDayDu) ? tienNgan(val) : n(val) }
+function toggleTien() { tienDayDu = !tienDayDu; veOTien(Number($('#k-tien')?.dataset.full || 0)) }
+$$('nav button[data-m]').forEach(b => b.onclick = () => chuyenMan(b.dataset.m))
 
 // Trang Tồn kho: nạp LẠI từ DB rồi mới vẽ. Hiện "Đang tải…" lúc nạp; lỗi thì hiện rõ, KHÔNG giữ số cũ im lặng.
 async function lamMoiTon() {
@@ -191,7 +201,7 @@ function veBang() {
   $('#k-ma').textContent = n(kv.length)
   $('#k-duoi').textContent = n(kv.filter(x => x.min > 0 && x.ton < x.min).length)
   $('#k-thieu').textContent = n(kv.filter(x => !x.gia).length)
-  $('#k-tien').textContent = n(kv.reduce((s, x) => s + x.ton * x.gia, 0))
+  veOTien(kv.reduce((s, x) => s + x.ton * x.gia, 0))
   $('#s-all').textContent = KHO.length; $('#s-pk').textContent = KHO.filter(x => x.kho === 'pk').length; $('#s-van').textContent = KHO.filter(x => x.kho === 'van').length
 }
 
@@ -326,7 +336,7 @@ function vePhieu(loai) {
     <span class="cach">${khoa ? `<button class="n nho" onclick="moiPhieu('${loai}');vePhieu('${loai}')">Lập phiếu mới</button>` : `<button class="n" onclick="themDong('${loai}')">+ Thêm dòng</button><button class="n chinh" onclick="ghiSo('${loai}')">Ghi sổ</button>`}</span>${khoa ? '' : `<span class="ghi-nhac">Phiếu chưa ghi sổ sẽ mất nếu tải lại trang.</span>`}</div>
     <div class="ph-than"><div class="hang"><div><label>Ngày chứng từ</label><input class="ip" type="date" ${ro} value="${p.luc.toISOString().slice(0, 10)}" onchange="P['${loai}'].luc=new Date(this.value);vePhieu('${loai}')"></div>${loai === 'nhap' ? dauNhap : dauXuat}<div><label>Ghi chú</label><input class="ip" ${ro} value="${p.ghi}" placeholder="Số hoá đơn, người giao…" oninput="P['${loai}'].ghi=this.value"></div></div>
     <table><thead><tr><th style="width:30px">#</th><th>Vật tư</th><th class="r" style="width:110px">Số lượng</th><th style="width:56px">ĐVT</th>${loai === 'nhap' ? '<th class="r" style="width:130px">Đơn giá (đ)</th>' : '<th class="r" style="width:100px">Tồn sau</th>'}<th class="r" style="width:130px">${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}</th><th style="width:34px"></th></tr></thead><tbody>
-    ${p.dong.map((d, i) => { const v = KHO.find(x => x.ma === d.ma) || { ton: 0, dvt: '', min: 0, gia: 0 }; const sau = v.ton - (loai === 'xuat' ? d.sl : -d.sl); return `<tr><td style="color:#8A8F96;font-size:12.5px">${i + 1}</td><td>${khoa ? `<span style="font-size:13.5px">${v.ma || d.ma} — ${v.ten || ''}</span>` : `<select onchange="datDong('${loai}',${i},'ma',this)">${optVt(d.ma)}</select>`}</td><td class="r"><input class="ip num r" type="number" ${ro} value="${d.sl}" oninput="datSo('${loai}',${i},'sl',this)"></td><td style="color:#6E7681;font-size:13px">${v.dvt}</td>${loai === 'nhap' ? `<td class="r"><input class="ip num r" ${ro} value="${n(d.gia)}" oninput="datSo('${loai}',${i},'gia',this)" onblur="tien(this)"></td>` : `<td id="ts-${loai}-${i}" class="r num" style="color:${sau < 0 ? 'var(--do)' : sau < v.min ? 'var(--amber)' : '#6E7681'}">${n(sau)}</td>`}<td id="ct-${loai}-${i}" class="r num">${n(d.sl * (loai === 'nhap' ? d.gia : v.gia))}</td><td>${khoa ? '' : `<button class="xoa" onclick="xoaDong('${loai}',${i})">×</button>`}</td></tr>` }).join('')}</tbody></table></div>
+    ${p.dong.map((d, i) => { const v = KHO.find(x => x.ma === d.ma) || { ton: 0, dvt: '', min: 0, gia: 0 }; const sau = v.ton - (loai === 'xuat' ? d.sl : -d.sl); return `<tr><td style="color:#8A8F96;font-size:12.5px">${i + 1}</td><td data-label="Vật tư">${khoa ? `<span style="font-size:13.5px">${v.ma || d.ma} — ${v.ten || ''}</span>` : `<select onchange="datDong('${loai}',${i},'ma',this)">${optVt(d.ma)}</select>`}</td><td class="r" data-label="Số lượng"><input class="ip num r" type="number" ${ro} value="${d.sl}" oninput="datSo('${loai}',${i},'sl',this)"></td><td style="color:#6E7681;font-size:13px" data-label="ĐVT">${v.dvt}</td>${loai === 'nhap' ? `<td class="r" data-label="Đơn giá"><input class="ip num r" ${ro} value="${n(d.gia)}" oninput="datSo('${loai}',${i},'gia',this)" onblur="tien(this)"></td>` : `<td id="ts-${loai}-${i}" class="r num" data-label="Tồn sau" style="color:${sau < 0 ? 'var(--do)' : sau < v.min ? 'var(--amber)' : '#6E7681'}">${n(sau)}</td>`}<td id="ct-${loai}-${i}" class="r num" data-label="${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}">${n(d.sl * (loai === 'nhap' ? d.gia : v.gia))}</td><td>${khoa ? '' : `<button class="xoa" onclick="xoaDong('${loai}',${i})">×</button>`}</td></tr>` }).join('')}</tbody></table></div>
     <div class="tong-ph"><div><span>Số dòng</span><b id="sd-${loai}">${p.dong.length}</b></div><div><span>Tổng số lượng</span><b id="tsl-${loai}">${n(tongSl)}</b></div><div><span>Tổng tiền</span><b id="tt-${loai}" style="color:var(--do)">${n(tongTien)} đ</b></div></div>`
 }
 async function ghiSo(loai) {
@@ -348,4 +358,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien })
