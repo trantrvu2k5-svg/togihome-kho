@@ -22,7 +22,11 @@ async function chay(ten, dbrole, s) {
   out['3 giá vốn (view)'] = await probe('gvv', async () => (await c.query('select gia_von_bq from kho.v_ton_gia_von limit 1')).rowCount + ' dòng')
   out['4 chèn lấy/trả (RPC)'] = await probe('q', async () => { await c.query("select kho.quet_giao_dich('BL-01','lay',1)"); return 'ĐƯỢC' })
   out['5 ghi sổ phiếu (RPC)'] = await probe('g', async () => { await c.query("select kho.ghi_so_phieu('nhap',null,null,'t', $1::jsonb)", [JSON.stringify([{ vat_tu_id: vt1, so_luong: 1, don_gia: 1000 }])]); return 'ĐƯỢC' })
-  out['6 sửa danh mục'] = await probe('s', async () => { const r = await c.query("update kho.vat_tu set ten=ten where ma='BL-01'"); return r.rowCount + ' dòng' })
+  out['6 sửa vật tư (ten/min)'] = await probe('s', async () => (await c.query("update kho.vat_tu set ton_toi_thieu=99 where ma='BL-01'")).rowCount + ' dòng')
+  out['7 thêm vật tư'] = await probe('t', async () => (await c.query("insert into kho.vat_tu(ma,ten,loai) values('ZZ-TEST','x','pk')")).rowCount + ' dòng')
+  out['8 xoá vật tư'] = await probe('x', async () => (await c.query("delete from kho.vat_tu where ma='BL-01'")).rowCount + ' dòng')
+  out['9 sửa giá vốn tay'] = await probe('gvt', async () => (await c.query('update kho.ton set gia_von_bq=1 where vat_tu_id=$1', [vt1])).rowCount + ' dòng')
+  out['10 thêm nhà cung cấp'] = await probe('n', async () => (await c.query("insert into kho.nha_cung_cap(ten) values('NCC Test')")).rowCount + ' dòng')
   await c.query('rollback')
   return out
 }
@@ -47,5 +51,21 @@ for (const r of cp.rows) console.log(`  ${r.table_name.padEnd(14)} ${r.grantee.p
 // cột giá vốn còn sót?
 const bad = cp.rows.filter(r => /gia_von_bq|gia_von_lo|don_gia|thanh_tien/.test(r.cols) && r.privilege_type === 'SELECT')
 console.log(bad.length ? '  ❌ CÒN SÓT quyền SELECT cột giá: ' + bad.map(r => r.table_name).join(',') : '  ✅ KHÔNG cột giá nào còn quyền SELECT cho anon/authenticated')
+
+// ── DẤU VẾT (VIỆC 3): 1 lần sửa thật của ceo -> nhật ký ghi ai/gì; rồi trả lại ──
+console.log('\n╔═══ DẤU VẾT sửa danh mục (trigger -> nhat_ky_danh_muc) ═══')
+const cu = (await c.query("select ton_toi_thieu from kho.vat_tu where ma='BL-01'")).rows[0].ton_toi_thieu
+await c.query('begin'); await c.query('set local role authenticated')
+await c.query(`select set_config('request.jwt.claims',$1,true)`, [JSON.stringify({ sub: sub.ceo })])
+await c.query("update kho.vat_tu set ton_toi_thieu=777 where ma='BL-01'")
+await c.query('reset role')
+const nk = (await c.query(`select n.hanh_dong, n.thay_doi, u.ho_ten, u.vai_tro, n.luc
+  from kho.nhat_ky_danh_muc n left join kho.nguoi_dung u on u.id=n.nguoi
+  where n.bang='vat_tu' order by n.luc desc limit 1`)).rows[0]
+console.log('  bản ghi nhật ký mới nhất:', JSON.stringify(nk))
+const okvet = nk && nk.hanh_dong === 'update' && nk.vai_tro === 'ceo' && JSON.stringify(nk.thay_doi).includes('ton_toi_thieu')
+console.log(okvet ? '  ✅ dấu vết ĐÚNG: ai=ceo · hành động=update · sửa gì=ton_toi_thieu (cu->moi)' : '  ❌ dấu vết SAI/THIẾU')
+await c.query('rollback')   // trả lại ton_toi_thieu + xoá dòng nhật ký test
+console.log('  (đã rollback — ton_toi_thieu BL-01 giữ nguyên =', cu, ')')
 
 await c.end()
