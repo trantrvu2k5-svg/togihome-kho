@@ -29,7 +29,15 @@ async function dangNhap() {
   const err = $('#lg-err'); err.textContent = ''
   let email, pass
   if (cheDo === 'email') { email = $('#lg-email').value.trim(); pass = $('#lg-pass').value }
-  else { const pin = $('#lg-pin').value.trim(); if (!/^\d{4,}$/.test(pin)) { err.textContent = 'PIN tối thiểu 4 số.'; return } email = `tho${pin}@kho.local`; pass = pin }
+  else {
+    // Mã cá nhân: <tên>-<4 ký tự>. Tách tại gạch nối ĐẦU TIÊN: trước -> email, sau -> MẬT KHẨU.
+    // Tên đăng nhập (phần tên) ≠ mật khẩu (phần 4 ký tự) — không bao giờ dùng cả mã hay phần tên làm mật khẩu.
+    const ma = $('#lg-pin').value.trim()
+    const i = ma.indexOf('-')
+    const ten = i < 0 ? '' : ma.slice(0, i), duoi = i < 0 ? '' : ma.slice(i + 1)
+    if (!/^[a-z]{2,12}$/.test(ten) || !/^[a-z0-9]{4}$/.test(duoi)) { err.textContent = 'Mã không đúng dạng, ví dụ hung-4k7m'; return }
+    email = `tho${ten}@kho.local`; pass = duoi
+  }
   $('#lg-btn').disabled = true; $('#lg-btn').textContent = 'Đang vào…'
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass })
   $('#lg-btn').disabled = false; $('#lg-btn').textContent = 'Đăng nhập'
