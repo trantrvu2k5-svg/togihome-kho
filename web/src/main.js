@@ -13,8 +13,8 @@ const ngay = d => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digi
 const anhUrl = ma => ma ? `https://drive.google.com/thumbnail?id=${ma}&sz=w400` : null
 
 // ── trạng thái ──
-let KHO = [], NCC = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
-let locNhom = '*', locKho = '*', ROLE = null, ME = null
+let KHO = [], NCC = [], NHOM = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
+let locNhom = '*', locKho = '*', ROLE = null, ME = null, ME_ID = null
 const laTho = () => ROLE === 'tho'
 
 // ═══════════ ĐĂNG NHẬP ═══════════
@@ -38,9 +38,9 @@ async function dangNhap() {
 }
 
 async function vaoApp(user) {
-  const { data: nd, error } = await sb.from('nguoi_dung').select('ho_ten,vai_tro').eq('auth_uid', user.id).maybeSingle()
+  const { data: nd, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro').eq('auth_uid', user.id).maybeSingle()
   if (error || !nd) { $('#lg-err').textContent = 'Tài khoản chưa được gán vai trò trong kho.nguoi_dung — báo CEO.'; await sb.auth.signOut(); return }
-  ROLE = nd.vai_tro; ME = nd.ho_ten
+  ROLE = nd.vai_tro; ME = nd.ho_ten; ME_ID = nd.id
   $('#login').classList.remove('on')
   $('#ai').textContent = `${nd.ho_ten} · ${ROLE.toUpperCase()}`
   // nút Đăng xuất (thêm 1 lần)
@@ -61,20 +61,23 @@ sb.auth.getSession().then(({ data }) => { if (data.session) vaoApp(data.session.
 
 // ═══════════ TẢI DỮ LIỆU ═══════════
 async function taiDuLieu() {
-  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: ncc }] = await Promise.all([
+  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }] = await Promise.all([
     sb.from('nhom').select('id,ten'),
     sb.from('vat_tu').select('ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,ton_toi_thieu'),
     sb.from('ton').select('vat_tu_id,so_luong,vat_tu:vat_tu_id(ma)'),
     sb.from('v_ton_gia_von').select('vat_tu_id,gia_von_bq,vat_tu:vat_tu_id(ma)'),  // rỗng nếu là thợ
+    sb.from('v_gia_tham_khao').select('ma,gia_tham_khao'),                          // rỗng nếu là thợ
     sb.from('nha_cung_cap').select('id,ten,dien_thoai,dia_chi')
   ])
-  const tenNhom = Object.fromEntries((nhom || []).map(x => [x.id, x.ten]))
+  NHOM = nhom || []
+  const tenNhom = Object.fromEntries(NHOM.map(x => [x.id, x.ten]))
   const tonMa = Object.fromEntries((ton || []).map(t => [t.vat_tu?.ma, t.so_luong]))
   const giaMa = Object.fromEntries((gv || []).map(g => [g.vat_tu?.ma, g.gia_von_bq]))
+  const gtkMa = Object.fromEntries((gtk || []).map(g => [g.ma, g.gia_tham_khao]))
   KHO = (vt || []).map(v => ({
-    ma: v.ma, ten: v.ten, kho: v.loai, nhom: tenNhom[v.nhom_id] || '—',
-    dvt: v.dvt, sl: v.so_moi_dvt, min: v.ton_toi_thieu || 0,
-    ton: tonMa[v.ma] || 0, gia: giaMa[v.ma] || 0,
+    ma: v.ma, ten: v.ten, kho: v.loai, nhom: tenNhom[v.nhom_id] || '—', nhom_id: v.nhom_id,
+    dvt: v.dvt, sl: v.so_moi_dvt, min: v.ton_toi_thieu || 0, cktr: v.can_kiem_tra,
+    ton: tonMa[v.ma] || 0, gia: giaMa[v.ma] || 0, gtk: gtkMa[v.ma] || 0,
     vl: v.vat_lieu, day: v.do_day_mm, mv: v.ma_van_ncc, ht: v.hoan_thien, anh_ma: v.anh_ma
   }))
   KHO.forEach(x => { if (x.anh_ma) ANH[x.ma] = anhUrl(x.anh_ma) })
@@ -109,7 +112,7 @@ function veBang() {
     (!q || x.ma.toLowerCase().includes(q) || x.ten.toLowerCase().includes(q)))
   $('#bang').innerHTML = ds.map(x => {
     const duoi = x.min > 0 && x.ton < x.min, pct = x.min > 0 ? Math.min(100, x.ton / x.min * 100) : (x.ton > 0 ? 100 : 0)
-    const co = []; if (!laTho() && !x.gia) co.push('chưa có giá'); if (x.kho === 'pk' && !x.sl) co.push('thiếu quy cách')
+    const co = []; if (!laTho() && !x.gia && !x.gtk) co.push('chưa có giá'); if (x.kho === 'pk' && !x.sl) co.push('thiếu quy cách')
     return `<tr class="click ${duoi ? 'duoi' : ''}" onclick="moThe('${x.ma}')">
       <td>${oAnh(x)}</td><td class="ma">${x.ma}</td>
       <td>${x.ten}${x.ht ? `<span class="ht ${x.ht.includes('Sơn') ? 'son' : 'dan'}">${x.ht.replace(/[🅰🅱]\s*/, '')}</span>` : ''}${co.length ? `<span class="thieu">${co.join(' · ')}</span>` : ''}</td>
@@ -117,7 +120,7 @@ function veBang() {
       <td class="r"><div class="mt"><span class="v">${n(x.ton)}</span><span class="bar"><i style="width:${pct}%"></i></span></div></td>
       <td class="r num" style="color:#6E7681">${x.min ? n(x.min) : '—'}</td>
       <td style="color:#6E7681;font-size:13px">${x.dvt}</td>
-      <td class="r num">${laTho() ? '·' : (x.gia ? n(x.gia) : '—')}</td></tr>`
+      <td class="r num">${laTho() ? '·' : (x.gia ? n(x.gia) : (x.gtk ? `<span class="chua-gia" title="giá mua tham khảo — chưa có tồn/giá vốn thật">${n(x.gtk)} · tham khảo</span>` : '—'))}</td></tr>`
   }).join('') || `<tr><td colspan="8" style="padding:22px;color:#6E7681">Không có mã nào khớp.</td></tr>`
   const kv = KHO.filter(x => locKho === '*' || x.kho === locKho)
   $('#k-ma').textContent = n(kv.length)
@@ -136,7 +139,7 @@ async function moThe(ma) {
   const lich = (gd || []).map(g => ({ vao: ['nhap', 'tra'].includes(g.loai), sl: Math.abs(g.so_luong), luc: new Date(g.tao_luc), so: g.phieu?.so_phieu || (g.nguon === 'quet_tem' ? 'QUÉT' : '—'), mo: g.loai }))
   let du = v.ton
   const dong = lich.map(g => { const h = `<div class="dong-tk ${g.vao ? 'n' : 'x'}"><span class="ngay">${gio(g.luc)}</span><span>${g.mo}<br><span style="color:#8A8F96;font-size:11.5px">${g.so}</span></span><span class="sl">${g.vao ? '+' : '−'}${n(g.sl)}</span><span class="du">còn ${n(du)}</span></div>`; du += g.vao ? -g.sl : g.sl; return h }).join('')
-  $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div><button class="x" onclick="dongThe()">×</button></div>
+  $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div>${laTho() ? '' : `<button class="n nho" onclick="suaVatTu('${v.ma}')" style="margin-left:auto">✎ Sửa</button>`}<button class="x" onclick="dongThe()"${laTho() ? ' style="margin-left:auto"' : ''}>×</button></div>
     <div class="the-so"><div><span>Tồn hiện tại</span><b style="color:${v.ton < v.min ? 'var(--do)' : 'var(--ink)'}">${n(v.ton)}</b></div>
       <div><span>Tối thiểu</span><b style="color:#6E7681">${v.min ? n(v.min) : '—'}</b></div>
       ${laTho() ? '' : `<div><span>Giá bình quân</span><b>${v.gia ? n(v.gia) : '—'}</b></div><div><span>Giá trị tồn</span><b>${n(v.ton * v.gia)}</b></div>`}</div>
@@ -144,6 +147,41 @@ async function moThe(ma) {
   $('#the').classList.add('on')
 }
 const dongThe = () => { $('#the').classList.remove('on'); theMa = null }
+const escA = s => String(s ?? '').replace(/"/g, '&quot;')
+
+// ── SỬA DANH MỤC (ceo/kho) — form trong thẻ kho; giá vốn KHÔNG sửa ở đây ──
+function suaVatTu(ma) {
+  if (laTho()) return
+  const v = KHO.find(x => x.ma === ma)
+  const opts = NHOM.filter(nh => !nh.loai || nh.loai === v.kho).map(nh => `<option value="${nh.id}"${nh.id === v.nhom_id ? ' selected' : ''}>${nh.ten}</option>`).join('')
+  $('#the').innerHTML = `
+    <div class="the-dau"><div><h3>Sửa vật tư</h3><div class="m">${v.ma} · ${v.kho === 'van' ? 'ván' : 'phụ kiện'}</div></div><button class="x" onclick="moThe('${ma}')" style="margin-left:auto">×</button></div>
+    <div class="the-than">
+      <label>Tên</label><input class="ip" id="e-ten" style="width:100%" value="${escA(v.ten)}">
+      <label style="margin-top:10px">Nhóm</label><select class="ip" id="e-nhom" style="width:100%">${opts}</select>
+      <label style="margin-top:10px">Đơn vị tính</label><input class="ip" id="e-dvt" style="width:100%" value="${escA(v.dvt)}">
+      <label style="margin-top:10px">Quy cách (số cái / đơn vị mua)</label><input class="ip num" id="e-sl" type="number" style="width:100%" value="${v.sl ?? ''}">
+      <label style="margin-top:10px">Mức tối thiểu</label><input class="ip num" id="e-min" type="number" style="width:100%" value="${v.min ?? 0}">
+      <label style="margin-top:12px;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="e-cktr" ${v.cktr ? 'checked' : ''} style="width:auto"> Cần kiểm tra (dữ liệu nghi ngờ)</label>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Giá vốn tính từ phiếu nhập (bình quân gia quyền) — không sửa ở đây. Muốn đổi thì lập phiếu điều chỉnh.</div>
+      <div style="display:flex;gap:8px;margin-top:16px"><button class="n chinh" onclick="luuVatTu('${ma}')">Lưu</button><button class="n" onclick="moThe('${ma}')">Huỷ</button></div>
+      <div id="e-err" style="color:var(--do);font-size:13px;margin-top:8px"></div>
+    </div>`
+  $('#the').classList.add('on')
+}
+async function luuVatTu(ma) {
+  const err = $('#e-err'); err.textContent = ''
+  const ten = $('#e-ten').value.trim(); if (!ten) { err.textContent = 'Tên không được để trống.'; return }
+  const upd = {
+    ten, nhom_id: $('#e-nhom').value || null, dvt: $('#e-dvt').value.trim() || null,
+    so_moi_dvt: $('#e-sl').value === '' ? null : Number($('#e-sl').value),
+    ton_toi_thieu: Number($('#e-min').value) || 0, can_kiem_tra: $('#e-cktr').checked,
+    sua_luc: new Date().toISOString(), nguoi_thao_tac: ME_ID
+  }
+  const { error } = await sb.from('vat_tu').update(upd).eq('ma', ma)
+  if (error) { err.textContent = 'Lưu lỗi: ' + error.message; return }
+  await taiDuLieu(); veChips(); veBang(); bao(`Đã lưu ${ma}.`); moThe(ma)
+}
 const _idCache = {}
 async function maToId(ma) { if (_idCache[ma]) return _idCache[ma]; const { data } = await sb.from('vat_tu').select('id').eq('ma', ma).single(); _idCache[ma] = data?.id; return data?.id }
 
@@ -231,4 +269,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, quet, veQuet, qXong, qDelta, themNcc, moiPhieu, themDong, xoaDong, datDong, vePhieu, luuNhap, ghiSo, P, tien, bao })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, quet, veQuet, qXong, qDelta, themNcc, moiPhieu, themDong, xoaDong, datDong, vePhieu, luuNhap, ghiSo, P, tien, bao, suaVatTu, luuVatTu })
