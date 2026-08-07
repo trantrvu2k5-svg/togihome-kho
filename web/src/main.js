@@ -61,7 +61,7 @@ sb.auth.getSession().then(({ data }) => { if (data.session) vaoApp(data.session.
 
 // ═══════════ TẢI DỮ LIỆU ═══════════
 async function taiDuLieu() {
-  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }] = await Promise.all([
+  const res = await Promise.all([
     sb.from('nhom').select('id,ten'),
     sb.from('vat_tu').select('ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,ton_toi_thieu'),
     sb.from('ton').select('vat_tu_id,so_luong,vat_tu:vat_tu_id(ma)'),
@@ -69,6 +69,10 @@ async function taiDuLieu() {
     sb.from('v_gia_tham_khao').select('ma,gia_tham_khao'),                          // rỗng nếu là thợ
     sb.from('nha_cung_cap').select('id,ten,dien_thoai,dia_chi')
   ])
+  // Lỗi bất kỳ truy vấn -> KHÔNG dựng lại KHO (giữ nguyên, không clobber), trả lỗi cho nơi gọi hiện ra.
+  const loi = res.find(r => r.error)
+  if (loi) return { ok: false, loi: loi.error.message }
+  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }] = res
   NHOM = nhom || []
   const tenNhom = Object.fromEntries(NHOM.map(x => [x.id, x.ten]))
   const tonMa = Object.fromEntries((ton || []).map(t => [t.vat_tu?.ma, t.so_luong]))
@@ -83,6 +87,8 @@ async function taiDuLieu() {
   KHO.forEach(x => { if (x.anh_ma) ANH[x.ma] = anhUrl(x.anh_ma) })
   NCC = (ncc || []).map(c => ({ id: c.id, ten: c.ten, dt: c.dien_thoai, dc: c.dia_chi, mh: '' }))
   if (!NCC.length) NCC = [{ id: null, ten: '(chưa có nhà cung cấp)', dt: '', dc: '', mh: '' }]
+  window.KHO = KHO   // phơi tham chiếu hiện hành (mảng bị thay mới mỗi lần nạp) — cho kiểm thử soi bộ nhớ
+  return { ok: true, loi: null }
 }
 
 // ═══════════ RENDER (thích ứng từ bản nháp) ═══════════
@@ -95,8 +101,22 @@ function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) retur
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
 
-function chuyenMan(m) { $$('nav button').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc() }
+function chuyenMan(m) { $$('nav button').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc() }
 $$('nav button').forEach(b => b.onclick = () => chuyenMan(b.dataset.m))
+
+// Trang Tồn kho: nạp LẠI từ DB rồi mới vẽ. Hiện "Đang tải…" lúc nạp; lỗi thì hiện rõ, KHÔNG giữ số cũ im lặng.
+async function lamMoiTon() {
+  const bang = $('#bang'), btn = $('#btn-lammoi')
+  if (btn) { btn.disabled = true; btn.textContent = 'Đang tải…' }
+  if (bang) bang.innerHTML = '<tr><td colspan="8" style="padding:22px;color:#6E7681">Đang tải…</td></tr>'
+  const r = await taiDuLieu()
+  if (btn) { btn.disabled = false; btn.textContent = 'Làm mới' }
+  if (!r || !r.ok) {
+    if (bang) bang.innerHTML = `<tr><td colspan="8" style="padding:22px;color:var(--do)">Không tải được dữ liệu từ máy chủ${r && r.loi ? ': ' + r.loi : ''}. Bấm Làm mới để thử lại.</td></tr>`
+    return
+  }
+  veChips(); veBang()
+}
 
 function veChips() {
   const ds = KHO.filter(x => locKho === '*' || x.kho === locKho)
@@ -134,10 +154,24 @@ function veBang() {
 let theMa = null
 async function moThe(ma) {
   theMa = ma; const v = KHO.find(x => x.ma === ma)
-  const { data: gd } = await sb.from('giao_dich').select('loai,so_luong,tao_luc,nguon,phieu:phieu_id(so_phieu)')
-    .eq('vat_tu_id', (await maToId(ma))).order('tao_luc', { ascending: false }).limit(50)
+  const vid = await maToId(ma)
+  // Tồn TƯƠI + giao dịch: hỏi DB cùng lúc. KHÔNG dùng v.ton trong bộ nhớ nữa.
+  const [{ data: gd, error: eGd }, { data: tonRows, error: eTon }] = await Promise.all([
+    sb.from('giao_dich').select('loai,so_luong,tao_luc,nguon,phieu:phieu_id(so_phieu)')
+      .eq('vat_tu_id', vid).order('tao_luc', { ascending: false }).limit(50),
+    sb.from('ton').select('so_luong').eq('vat_tu_id', vid)
+  ])
+  // Lỗi đọc tồn (hoặc giao dịch) -> KHÔNG âm thầm dùng số cũ. Hiện rõ, không in con số nào.
+  if (eTon || eGd) {
+    $('#the').innerHTML = `<div class="the-dau"><div><h3>${v ? v.ten : ma}</h3><div class="m">${ma}</div></div><button class="x" onclick="dongThe()" style="margin-left:auto">×</button></div>
+      <div class="the-than"><div class="rong" style="color:var(--do)">Không đọc được tồn từ máy chủ.</div></div>`
+    $('#the').classList.add('on'); return
+  }
+  // Tồn tươi = tổng so_luong các dòng ton của mã (một kho -> một dòng). Cập nhật lại KHO để bảng không lệch panel.
+  const tonTuoi = (tonRows || []).reduce((s, r) => s + Number(r.so_luong || 0), 0)
+  v.ton = tonTuoi
   const lich = (gd || []).map(g => ({ vao: ['nhap', 'tra'].includes(g.loai), sl: Math.abs(g.so_luong), luc: new Date(g.tao_luc), so: g.phieu?.so_phieu || (g.nguon === 'quet_tem' ? 'QUÉT' : '—'), mo: g.loai }))
-  let du = v.ton
+  let du = tonTuoi
   const dong = lich.map(g => { const h = `<div class="dong-tk ${g.vao ? 'n' : 'x'}"><span class="ngay">${gio(g.luc)}</span><span>${g.mo}<br><span style="color:#8A8F96;font-size:11.5px">${g.so}</span></span><span class="sl">${g.vao ? '+' : '−'}${n(g.sl)}</span><span class="du">còn ${n(du)}</span></div>`; du += g.vao ? -g.sl : g.sl; return h }).join('')
   $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div>${laTho() ? '' : `<button class="n nho" onclick="suaVatTu('${v.ma}')" style="margin-left:auto">✎ Sửa</button>`}<button class="x" onclick="dongThe()"${laTho() ? ' style="margin-left:auto"' : ''}>×</button></div>
     <div class="the-so"><div><span>Tồn hiện tại</span><b style="color:${v.ton < v.min ? 'var(--do)' : 'var(--ink)'}">${n(v.ton)}</b></div>
@@ -288,4 +322,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, quet, veQuet, qXong, qDelta, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, quet, veQuet, qXong, qDelta, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
