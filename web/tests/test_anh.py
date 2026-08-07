@@ -3,9 +3,10 @@
 #   a. 154 ảnh tải được trên trang Tồn kho.
 #   b. BL-03 (có anh_file) src trỏ bucket, KHÔNG phải drive.
 #   c. mã chỉ-bucket (AA-NAU-18) có ảnh hiện ra.
-#   d. mã chỉ-Drive (tự tìm từ DB) src trỏ drive.google.com.
+#   d. TỰ DỰNG một mã chỉ-Drive (tạm null anh_file của mã có cả hai) -> src trỏ drive.google.com -> TRẢ NGUYÊN TRẠNG.
 #   e. mã không có cả hai (tự tìm từ DB) hiện ô trống, KHÔNG phải img hỏng.
 #   f. source main.js không viết cứng địa chỉ dự án Supabase.
+#   g. CỔNG TƯƠNG LAI: 0 mã có anh_ma mà thiếu anh_file (không ai quay lại phụ thuộc Drive).
 # Gõ phím thật. KHÔNG gọi hàm JS của app. KHÔNG tạo phiếu, KHÔNG Ghi sổ.
 # Chạy: cd web && DEV_URL=... CEO_EMAIL=... CEO_PASS=... DB_HOST=... DB_USER=... DB_PASS=... python3 tests/test_anh.py
 
@@ -39,14 +40,23 @@ def db_one(sql):
     return out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
 
 
+def db_run(sql):
+    # chạy 1 câu GHI (dùng cho mục d: tạm null anh_file rồi trả nguyên trạng). KHÔNG đụng anh_ma.
+    src = ("import pg from 'pg'; import { docConfig } from './ops/conn.mjs';"
+           "const c=new pg.Client(await docConfig()); await c.connect();"
+           f"await c.query(`{sql}`); await c.end(); process.exit(0);")
+    out = subprocess.run(["node", "--input-type=module"], input=src, capture_output=True, text=True, cwd=WEB_DIR)
+    if out.returncode != 0:
+        print("LỖI GHI DB:", out.stderr.strip()); sys.exit(2)
+
+
 def main():
     if not PASS:
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
 
     # tự tìm mã từ DB (cấm viết cứng)
-    ma_drive = db_one("select ma from kho.vat_tu where anh_ma is not null and anh_file is null order by ma limit 1")
     ma_trong = db_one("select ma from kho.vat_tu where anh_ma is null and anh_file is null order by ma limit 1")
-    print(f"  (DB) mã chỉ-Drive = {ma_drive} · mã trống-cả-hai = {ma_trong}")
+    print(f"  (DB) mã trống-cả-hai = {ma_trong}")
 
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
@@ -94,12 +104,25 @@ def main():
         if not ok_c:
             raise AssertionError("29 MÃ VẪN TRỐNG")
 
-        # ── (d) mã chỉ-Drive trỏ drive.google.com ──
-        sd = src_cua(ma_drive)
-        ok_d = sd is not None and "drive.google.com" in sd
-        bao(f"d. {ma_drive} (chỉ Drive) src trỏ drive", ok_d, str(sd))
-        if not ok_d:
-            raise AssertionError("d: mã chỉ-Drive không trỏ drive")
+        # ── (d) TỰ DỰNG mã chỉ-Drive rồi TRẢ NGUYÊN TRẠNG — chứng minh nhánh dự phòng Drive còn sống ──
+        ma_d = db_one("select ma from kho.vat_tu where anh_ma is not null and anh_file is not null order by ma limit 1")
+        goc = db_one(f"select anh_file from kho.vat_tu where ma='{ma_d}'")
+        db_run(f"update kho.vat_tu set anh_file=null where ma='{ma_d}'")   # tạm bỏ bucket -> mã chỉ còn Drive
+        try:
+            page.reload(wait_until="networkidle")                          # nạp lại dữ liệu tươi
+            page.wait_for_selector("#login", state="hidden", timeout=15000)
+            page.wait_for_function("() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='199' }", timeout=12000)
+            sd = src_cua(ma_d)
+            ok_d = sd is not None and "drive.google.com" in sd
+            bao(f"d. {ma_d} (tạm chỉ-Drive) src trỏ drive", ok_d, str(sd))
+            if not ok_d:
+                raise AssertionError("d: nhánh dự phòng Drive KHÔNG cho src drive.google.com")
+        finally:
+            db_run(f"update kho.vat_tu set anh_file='{goc}' where ma='{ma_d}'")   # TRẢ nguyên trạng KỂ CẢ khi trên đỏ
+        sau = db_one(f"select anh_file from kho.vat_tu where ma='{ma_d}'")
+        bao("d(trả nguyên trạng). anh_file về đúng gốc", sau == goc, f"sau={sau} · gốc={goc}")
+        if sau != goc:
+            raise AssertionError("d: TRẢ NGUYÊN TRẠNG thất bại — dữ liệu còn lệch")
 
         # ── (e) mã trống cả hai: ô trống, KHÔNG img hỏng ──
         page.fill("#tim", ma_trong)
@@ -120,6 +143,14 @@ def main():
     bao("f. source không viết cứng địa chỉ Supabase", hard is None, hard.group(0) if hard else "")
     if hard:
         raise AssertionError("f: có địa chỉ Supabase viết cứng trong source")
+
+    # ── (g) CỔNG TƯƠNG LAI: 0 mã có anh_ma mà thiếu anh_file ──
+    con = db_one("select count(*)::int from kho.vat_tu where anh_ma is not null and anh_file is null")
+    if con != "0":
+        ds = db_one("select coalesce(string_agg(ma, ', ' order by ma),'') from kho.vat_tu where anh_ma is not null and anh_file is null")
+        bao("g. 0 mã quay lại phụ thuộc Drive", False, f"CÓ MÃ QUAY LẠI PHỤ THUỘC DRIVE: {ds}")
+        raise AssertionError(f"CÓ MÃ QUAY LẠI PHỤ THUỘC DRIVE: {ds}")
+    bao("g. 0 mã quay lại phụ thuộc Drive", True, f"đếm được {con}")
 
     print()
     if loi:

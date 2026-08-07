@@ -17,6 +17,7 @@ const anhBucket = f => f ? `${URL}/storage/v1/object/public/kho-images/${f}` : n
 // ── trạng thái ──
 let KHO = [], NCC = [], NHOM = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
 let locNhom = '*', locKho = '*', ROLE = null, ME = null, ME_ID = null
+const laQuanLy = () => ROLE === 'ceo' || ROLE === 'kho'   // chỉ ceo/kho thấy nút tải ảnh
 // ═══════════ ĐĂNG NHẬP — chỉ EMAIL + mật khẩu (CEO / Thủ kho) ═══════════
 $('#lg-btn').onclick = dangNhap
 $('#lg-email').addEventListener('keydown', e => { if (e.key === 'Enter') dangNhap() })
@@ -93,6 +94,54 @@ function oAnh(x) {
 }
 // Ảnh CÓ nguồn nhưng tải HỎNG -> hiện ⚠HỎNG (đỏ), KHÁC hẳn ô 'chưa có ảnh' (▣ẢNH). Không nuốt lỗi im lặng.
 function anhHong(el) { const p = el.parentNode; p.classList.remove('co'); p.classList.add('hong'); p.onclick = null; p.innerHTML = '<span class="trong" style="color:var(--do)">⚠<small>HỎNG</small></span>' }
+
+// ── TẢI ẢNH VẬT TƯ (ceo/kho) — thu nhỏ ≤800px rồi lên bucket kho-images, tên MỚI mỗi lần (không đè) ──
+// Thu nhỏ qua canvas: cạnh dài ≤ canhMax, xuất JPEG chất lượng vừa. window.URL vì `URL` (dòng 4) là chuỗi env.
+function thuNhoAnh(file, canhMax = 800, chatLuong = 0.8) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(); const u = window.URL.createObjectURL(file)
+    img.onload = () => {
+      window.URL.revokeObjectURL(u)
+      let w = img.naturalWidth, h = img.naturalHeight; const tl = Math.max(w, h)
+      if (tl > canhMax) { const k = canhMax / tl; w = Math.round(w * k); h = Math.round(h * k) }
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h
+      cv.getContext('2d').drawImage(img, 0, 0, w, h)
+      cv.toBlob(b => b ? resolve(b) : reject(new Error('không tạo được ảnh thu nhỏ')), 'image/jpeg', chatLuong)
+    }
+    img.onerror = () => { window.URL.revokeObjectURL(u); reject(new Error('ảnh hỏng, không đọc được')) }
+    img.src = u
+  })
+}
+let dangTaiAnh = false
+async function taiAnh(ma, inp) {
+  const file = inp.files && inp.files[0]; inp.value = ''      // reset để lần sau chọn lại cùng file vẫn kích hoạt
+  if (!file || dangTaiAnh) return
+  const v = KHO.find(x => x.ma === ma); if (!v) return
+  const txt = $('#nut-anh-txt'); const nhan0 = txt ? txt.textContent : ''
+  // b. kiểm loại + cỡ (chặn TRƯỚC khi tải)
+  if (!['image/jpeg', 'image/png'].includes(file.type)) { bao('Chỉ nhận ảnh JPG hoặc PNG — không tải.'); return }
+  if (file.size > 5 * 1024 * 1024) { bao(`Ảnh ${(file.size / 1048576).toFixed(1)}MB vượt 5MB — không tải.`); return }
+  dangTaiAnh = true; if (txt) txt.textContent = '⏳ Đang tải…'
+  const xong = () => { dangTaiAnh = false; if (txt) txt.textContent = nhan0 }
+  // c. thu nhỏ
+  let blob
+  try { blob = await thuNhoAnh(file) } catch (e) { xong(); bao('Lỗi xử lý ảnh: ' + e.message); return }
+  // d. tải lên tên MỚI (upsert:false -> không bao giờ đè file cũ)
+  const path = `kho/${ma}_${Date.now()}.jpg`
+  const up = await sb.storage.from('kho-images').upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+  if (up.error) { xong(); bao('TẢI ẢNH LÊN LỖI: ' + up.error.message + ' — chưa đổi gì.'); return }   // lỗi 1: không nuốt
+  // e. cập nhật cột anh_file
+  const upd = await sb.from('vat_tu').update({ anh_file: path }).eq('ma', ma)
+  if (upd.error) {   // lỗi 2 (NGUY NHẤT): ảnh đã ở bucket mà bảng không biết -> nêu TÊN FILE để truy
+    xong(); bao('NGUY: ảnh ĐÃ tải lên bucket "' + path + '" NHƯNG lưu cột anh_file LỖI: ' + upd.error.message + '. Báo kỹ thuật, giữ tên file này.')
+    return
+  }
+  // f. cập nhật hiển thị NGAY (không tải lại trang)
+  v.anh_file = path; ANH[ma] = anhBucket(path)
+  dangTaiAnh = false
+  bao('Đã tải ảnh cho ' + ma + '. Ảnh cũ (nếu có) vẫn giữ trong bucket.')
+  veBang(); moThe(ma)
+}
 function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) return; $('#den-img').src = ANH[ma]; $('#den-ct').innerHTML = `<b>${v.ten}</b>${v.ma} · ${v.nhom} · tồn ${n(v.ton)} ${v.dvt}`; $('#den').classList.add('on') }
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
@@ -170,6 +219,9 @@ async function moThe(ma) {
   let du = tonTuoi
   const dong = lich.map(g => { const h = `<div class="dong-tk ${g.vao ? 'n' : 'x'}"><span class="ngay">${gio(g.luc)}</span><span>${g.mo}<br><span style="color:#8A8F96;font-size:11.5px">${g.so}</span></span><span class="sl">${g.vao ? '+' : '−'}${n(g.sl)}</span><span class="du">còn ${n(du)}</span></div>`; du += g.vao ? -g.sl : g.sl; return h }).join('')
   $('#the').innerHTML = `<div class="the-dau">${oAnh(v)}<div><h3>${v.ten}</h3><div class="m">${v.ma} · ${v.nhom}</div>${v.kho === 'van' ? `<div class="m" style="margin-top:4px;color:#4A5159">${v.vl || ''}${v.day ? ' · dày ' + v.day + 'mm' : ''}${v.mv ? ' · vân ' + v.mv : ''}</div>` : ''}</div><button class="n nho" onclick="suaVatTu('${v.ma}')" style="margin-left:auto">✎ Sửa</button><button class="x" onclick="dongThe()">×</button></div>
+    ${laQuanLy() ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 6px">
+      <label class="n nho" id="nut-anh" style="cursor:pointer"><span id="nut-anh-txt">📷 ${ANH[v.ma] ? 'Thay ảnh' : 'Thêm ảnh'}</span><input type="file" accept="image/jpeg,image/png" capture="environment" style="display:none" onchange="taiAnh('${v.ma}',this)"></label>
+      <span style="font-size:12px;color:var(--muted)">Ảnh sẽ được thu nhỏ; ảnh cũ vẫn được giữ lại.</span></div>` : ''}
     <div class="the-so"><div><span>Tồn hiện tại</span><b style="color:${v.ton < v.min ? 'var(--do)' : 'var(--ink)'}">${n(v.ton)}</b></div>
       <div><span>Tối thiểu</span><b style="color:#6E7681">${v.min ? n(v.min) : '—'}</b></div>
       <div><span>Giá bình quân</span><b>${v.gia ? n(v.gia) : '—'}</b></div><div><span>Giá trị tồn</span><b>${n(v.ton * v.gia)}</b></div></div>
@@ -296,4 +348,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
