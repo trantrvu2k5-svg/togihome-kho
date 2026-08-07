@@ -11,6 +11,8 @@ const n = v => Math.round(v || 0).toLocaleString('vi-VN')
 const gio = d => d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const ngay = d => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const anhUrl = ma => ma ? `https://drive.google.com/thumbnail?id=${ma}&sz=w400` : null
+// URL ảnh bucket công khai — địa chỉ dự án lấy từ env VITE_SUPABASE_URL (KHÔNG viết cứng). f = kho.vat_tu.anh_file.
+const anhBucket = f => f ? `${URL}/storage/v1/object/public/kho-images/${f}` : null
 
 // ── trạng thái ──
 let KHO = [], NCC = [], NHOM = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
@@ -54,7 +56,7 @@ sb.auth.getSession().then(({ data }) => { if (data.session) vaoApp(data.session.
 async function taiDuLieu() {
   const res = await Promise.all([
     sb.from('nhom').select('id,ten'),
-    sb.from('vat_tu').select('ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,ton_toi_thieu'),
+    sb.from('vat_tu').select('ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,anh_file,ton_toi_thieu'),
     sb.from('ton').select('vat_tu_id,so_luong,vat_tu:vat_tu_id(ma)'),
     sb.from('v_ton_gia_von').select('vat_tu_id,gia_von_bq,vat_tu:vat_tu_id(ma)'),  // rỗng nếu là thợ
     sb.from('v_gia_tham_khao').select('ma,gia_tham_khao'),                          // rỗng nếu là thợ
@@ -73,9 +75,10 @@ async function taiDuLieu() {
     ma: v.ma, ten: v.ten, kho: v.loai, nhom: tenNhom[v.nhom_id] || '—', nhom_id: v.nhom_id,
     dvt: v.dvt, sl: v.so_moi_dvt, min: v.ton_toi_thieu || 0, cktr: v.can_kiem_tra,
     ton: tonMa[v.ma] || 0, gia: giaMa[v.ma] || 0, gtk: gtkMa[v.ma] || 0,
-    vl: v.vat_lieu, day: v.do_day_mm, mv: v.ma_van_ncc, ht: v.hoan_thien, anh_ma: v.anh_ma
+    vl: v.vat_lieu, day: v.do_day_mm, mv: v.ma_van_ncc, ht: v.hoan_thien, anh_ma: v.anh_ma, anh_file: v.anh_file
   }))
-  KHO.forEach(x => { if (x.anh_ma) ANH[x.ma] = anhUrl(x.anh_ma) })
+  // Nguồn ảnh theo THỨ TỰ: (1) anh_file -> bucket công khai · (2) anh_ma -> Drive dự phòng · (3) không có -> ô trống.
+  KHO.forEach(x => { const u = anhBucket(x.anh_file) || anhUrl(x.anh_ma); if (u) ANH[x.ma] = u })
   NCC = (ncc || []).map(c => ({ id: c.id, ten: c.ten, dt: c.dien_thoai, dc: c.dia_chi, mh: '' }))
   if (!NCC.length) NCC = [{ id: null, ten: '(chưa có nhà cung cấp)', dt: '', dc: '', mh: '' }]
   window.KHO = KHO   // phơi tham chiếu hiện hành (mảng bị thay mới mỗi lần nạp) — cho kiểm thử soi bộ nhớ
@@ -85,9 +88,11 @@ async function taiDuLieu() {
 // ═══════════ RENDER (thích ứng từ bản nháp) ═══════════
 function oAnh(x) {
   const a = ANH[x.ma]
-  return a ? `<div class="anh co" onclick="event.stopPropagation();phongTo('${x.ma}')"><img src="${a}" alt="" onerror="this.parentNode.classList.remove('co');this.remove()"></div>`
+  return a ? `<div class="anh co" onclick="event.stopPropagation();phongTo('${x.ma}')"><img src="${a}" alt="" onerror="anhHong(this)"></div>`
     : `<div class="anh"><span class="trong">▣<small>ẢNH</small></span></div>`
 }
+// Ảnh CÓ nguồn nhưng tải HỎNG -> hiện ⚠HỎNG (đỏ), KHÁC hẳn ô 'chưa có ảnh' (▣ẢNH). Không nuốt lỗi im lặng.
+function anhHong(el) { const p = el.parentNode; p.classList.remove('co'); p.classList.add('hong'); p.onclick = null; p.innerHTML = '<span class="trong" style="color:var(--do)">⚠<small>HỎNG</small></span>' }
 function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) return; $('#den-img').src = ANH[ma]; $('#den-ct').innerHTML = `<b>${v.ten}</b>${v.ma} · ${v.nhom} · tồn ${n(v.ton)} ${v.dvt}`; $('#den').classList.add('on') }
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
@@ -291,4 +296,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon })
