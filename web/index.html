@@ -301,6 +301,76 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 .huy-box textarea{width:100%;min-height:82px;border:1px solid var(--line);border-radius:5px;padding:8px 10px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}
 .n.do{background:#C0392B;color:#fff;border:0}
 .n.do[disabled]{opacity:.5;cursor:not-allowed}
+/* ── GHÉP MÃ (theo prototype đã duyệt: chữ ≥14px, vùng bấm ≥48px) ── */
+#m-ghep .gm-tk{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 18px}
+#m-ghep .gm-tk>div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 18px;min-width:120px;flex:1 1 120px}
+#m-ghep .gm-tk b{display:block;font-size:24px;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+#m-ghep .gm-tk span{font-size:14px;color:#4A5159}
+#m-ghep .gm-tk .c-xanh b{color:var(--xanh)} #m-ghep .gm-tk .c-am b{color:var(--amber)}
+#m-ghep .gm-loc{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+#m-ghep .gm-chip{border:1px solid var(--line);background:var(--surface);border-radius:100px;padding:0 18px;min-height:48px;display:inline-flex;align-items:center;cursor:pointer;font-size:14px;color:var(--ink)}
+#m-ghep .gm-chip.on{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+#m-ghep .khoi{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:24px;overflow:hidden}
+#m-ghep .khoi.chot{border-color:#BFD8C8;box-shadow:inset 5px 0 0 var(--xanh)}
+#m-ghep .khoi.bo{opacity:.7;box-shadow:inset 5px 0 0 #4A5159}
+#m-ghep .khoi-nhac{background:#F6F8F7;border-bottom:1px solid var(--line2);padding:10px 16px;font-size:15px;color:#4A5159;line-height:1.6}
+#m-ghep .khoi-than{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:0}
+#m-ghep .trai{padding:16px 18px;border-right:1px solid var(--line2);background:#FCFBF9}
+#m-ghep .trai .mp{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--do)}
+#m-ghep .trai .mota{font-size:16px;margin:8px 0 10px;line-height:1.6;color:var(--ink)}
+#m-ghep .trai .meta{font-size:14px;color:#4A5159}
+#m-ghep .trai .meta b{color:var(--ink)}
+#m-ghep .tien{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);font-size:16px}
+#m-ghep .badge{display:inline-block;font-size:14px;font-weight:700;padding:3px 10px;border-radius:5px;margin-top:10px}
+#m-ghep .b-A{background:#E7EEF9;color:#2A4E8C} #m-ghep .b-B{background:#E9F3EA;color:#2D6A4A} #m-ghep .b-C{background:#F3EDF8;color:#6C4CB3}
+#m-ghep .tt{display:inline-block;font-size:14px;font-weight:700;padding:2px 8px;border-radius:5px;margin-left:6px}
+#m-ghep .tt-duyet{background:#DCEEDD;color:#2E7D46} #m-ghep .tt-chua{background:#EFEDE8;color:#6E7681} #m-ghep .tt-bo{background:#F0E7D2;color:#9A6B00}
+#m-ghep .phai{padding:14px 16px}
+#m-ghep .uv{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border:1px solid var(--line);border-radius:6px;padding:11px 12px;margin-bottom:11px;font-size:15px;min-height:48px}
+#m-ghep .uv.dexuat{border-color:#C9A96A;background:#FCF7EC}
+#m-ghep .uv.chon{border-color:var(--xanh);background:#EFF6F1}
+#m-ghep .uv .u-ma{font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink);min-width:74px}
+#m-ghep .uv .u-ten{flex:1 1 120px;min-width:100px;font-size:16px;color:var(--ink)}
+#m-ghep .uv .u-so{color:#4A5159;font-size:14px}
+#m-ghep .nut{min-height:48px;padding:0 16px;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer;font-size:14px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+#m-ghep .nut.on{background:var(--xanh);border-color:var(--xanh);color:#fff;font-weight:600}
+#m-ghep .nut.bo{border-color:#C9B7B3;color:var(--do)}
+#m-ghep .nut.bo.on{background:#4A5159;border-color:#4A5159;color:#fff}
+#m-ghep .tc{display:inline-block;font-size:14px;font-weight:700;padding:2px 8px;border-radius:5px;margin-left:6px}
+#m-ghep .tc-chac{background:#DCEEDD;color:#2E7D46} #m-ghep .tc-ngo{background:#FBF0D6;color:#9A6B00} #m-ghep .tc-chuaro{background:#EDEAE3;color:#6E7681}
+#m-ghep .cbao{background:#FBF4E6;border:1px solid #E0CDA8;color:var(--do-dam);border-radius:6px;padding:11px 13px;margin:10px 0;font-size:15px;font-weight:600;line-height:1.6}
+#m-ghep .cbao.lo{background:var(--do-nhat);border-color:#D98F86}
+#m-ghep .cbao b{font-family:var(--mono)}
+#m-ghep .hs{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:14px;color:#4A5159}
+#m-ghep .hs input{width:120px}
+#m-ghep .gm-ip{border:1px solid var(--line);border-radius:6px;padding:0 12px;min-height:48px;font-size:16px;background:var(--surface);color:var(--ink);width:100%}
+#m-ghep .gm-ip:focus{outline:2px solid var(--do);outline-offset:-1px}
+#m-ghep .ghi{margin-top:10px}
+#m-ghep .ghi label{font-size:14px;color:#4A5159;display:block;margin-bottom:4px}
+#m-ghep .trong{border:1px dashed var(--line);border-radius:6px;padding:14px;color:#4A5159;font-size:15px;background:#FAF9F6;line-height:1.6}
+#m-ghep .gm-loi{border:1px solid #E4B7B1;background:var(--do-nhat);color:var(--do-dam);border-radius:6px;padding:12px;font-size:15px}
+#m-ghep .nut.chinh{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+#m-ghep #gm-canhbao{background:#FBF4E6;border:1px solid #E0CDA8;color:var(--amber);border-radius:8px;padding:12px 16px;margin:2px 0 14px;font-size:15px;cursor:pointer;line-height:1.55}
+#m-ghep #gm-canhbao b{color:var(--do-dam)}
+#m-ghep #gm-chuaghep{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:14px;background:var(--surface);max-height:440px;overflow:auto}
+#m-ghep .gm-chua-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:9px 8px;border-bottom:1px solid var(--line2);font-size:15px;min-height:48px}
+#m-ghep .gm-chua-row .u-ma{font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink);min-width:74px}
+#m-ghep .gm-chua-row .u-ten{flex:1 1 160px;font-size:16px;color:var(--ink)}
+#m-ghep .gm-chua-row .u-so{font-size:14px;color:#4A5159}
+#m-ghep .gm-chua-row .nut{margin-left:auto}
+#m-ghep .gm-xuat{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px}
+#m-ghep .gm-xuat .nut{min-height:48px}
+#m-ghep .gm-xuat-note{font-size:14px;color:#4A5159;flex:1 1 240px;line-height:1.55}
+#m-ghep #gm-modal{position:fixed;inset:0;background:rgba(18,22,28,.6);z-index:60;align-items:center;justify-content:center;padding:16px}
+#m-ghep .gm-modal-box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px;max-width:min(94vw,470px);font-size:16px;line-height:1.6}
+#m-ghep .gm-modal-box b{font-family:var(--mono)}
+#m-ghep .gm-modal-nut{display:flex;gap:10px;margin-top:18px}
+@media(max-width:780px){
+  #m-ghep .khoi-than{grid-template-columns:1fr}
+  #m-ghep .trai{border-right:0;border-bottom:1px solid var(--line2)}
+  #m-ghep .uv .u-ten{flex-basis:100%}
+  #m-ghep .gm-chua-row .u-ten{flex-basis:100%}
+}
 </style></head><body>
 <header>
   <button class="mb-menu" onclick="moNav()" aria-label="Menu">☰</button>
@@ -321,6 +391,7 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   <button data-m="xuat">Phiếu xuất kho</button>
   <div class="cap">Danh mục</div>
   <button data-m="ncc">Nhà cung cấp</button>
+  <button data-m="ghep">Ghép mã</button>
 </nav>
 <main>
 <section class="man on" id="m-ton">
@@ -397,6 +468,35 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   <table><thead><tr><th style="width:34px">#</th><th>Tên</th><th style="width:140px">Điện thoại</th>
     <th>Mặt hàng</th><th style="width:120px">Địa chỉ</th><th class="r" style="width:120px">Đang mua</th></tr></thead>
     <tbody id="ncc-b"></tbody></table>
+</section>
+
+<section class="man" id="m-ghep">
+  <h2>Ghép mã</h2>
+  <p class="lead" style="font-size:14px">Ghép mỗi <b>mô tả thiết kế</b> (bên plugin) với một <b>mã kho</b> làm mặc định. Chốt xong, phần <b>Đã duyệt</b> được xuất sang plugin để báo giá lấy đúng giá vốn kho. Chọn ở đây <b>lưu thẳng</b> vào bảng quy đổi.</p>
+  <div id="gm-canhbao" onclick="gmMoChua()" style="display:none"></div>
+  <div id="gm-chuaghep" style="display:none"></div>
+  <div class="gm-tk">
+    <div class="c-xanh"><b id="gm-chot">0</b><span>đã chốt</span></div>
+    <div><b id="gm-conlai">0</b><span>còn lại</span></div>
+    <div class="c-am"><b id="gm-cbao">0</b><span>có cảnh báo lệch giá</span></div>
+  </div>
+  <div class="gm-xuat">
+    <button class="nut chinh" id="gm-btn-xuat" onclick="gmXuat()">⬇ Xuất bảng quy đổi</button>
+    <span class="gm-xuat-note">Tải file JSON các dòng <b>ĐÃ DUYỆT</b> về máy → gửi/chép vào repo plugin để báo giá lấy đúng giá vốn kho (thay giá bịa bằng giá vốn thật).</span>
+  </div>
+  <div class="gm-loc" id="gm-loc">
+    <span class="gm-chip on" data-f="tat_ca">Tất cả</span>
+    <span class="gm-chip" data-f="chua_chot">Chưa chốt</span>
+    <span class="gm-chip" data-f="cbao">Có cảnh báo lệch giá</span>
+    <span class="gm-chip" data-f="khong_uv">Chưa có ứng viên</span>
+  </div>
+  <div id="gm-ds"></div>
+  <div id="gm-modal" style="display:none">
+    <div class="gm-modal-box">
+      <div id="gm-modal-msg"></div>
+      <div class="gm-modal-nut"><button class="nut chinh" id="gm-modal-ok">Xuất</button><button class="nut" onclick="gmModalDong()">Để sau</button></div>
+    </div>
+  </div>
 </section>
 
 </main></div>

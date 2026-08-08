@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mẫu · Duyệt ghép mã thiết kế ↔ kho</title>
+<style>
+:root{
+  --paper:#EFEDE8; --surface:#FFFFFF; --ink:#23282E; --muted:#6E7681;
+  --line:#D9D5CC; --line2:#EDEAE3;
+  --do:#C0392B; --do-dam:#A5301F; --do-nhat:#FBEEEC;
+  --amber:#A65F00; --xanh:#2D6A4A; --than:#2A323C;
+  --mono:ui-monospace,"SF Mono","Menlo","Roboto Mono",monospace;
+}
+*{box-sizing:border-box}
+/* --muted2 = xám ĐẬM hơn --muted, để chữ phụ đọc rõ trên nền giấy (tăng tương phản) */
+:root{ --muted2:#4A5159; }
+body{margin:0;background:var(--paper);color:var(--ink);
+ font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* .tien = số tiền/giá: chữ ĐẬM NHẤT trong khối (thứ CEO nhìn để quyết) */
+.tien{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);font-size:16px}
+header{background:var(--do);color:#fff;padding:14px 20px}
+header h1{margin:0;font-size:20px}
+header p{margin:4px 0 0;font-size:14px;opacity:.95}
+.mau-nhac{background:#FBF4E6;border-bottom:1px solid #E0CDA8;color:var(--amber);
+ padding:11px 20px;font-size:14px;font-weight:600}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+.tk{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 18px}
+.tk div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 18px;min-width:120px;flex:1 1 120px}
+.tk b{display:block;font-size:24px;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.tk span{font-size:14px;color:var(--muted2)}
+.tk .c-xanh b{color:var(--xanh)} .tk .c-do b{color:var(--do)} .tk .c-am b{color:var(--amber)}
+.loc{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:100px;padding:0 18px;
+ min-height:48px;display:inline-flex;align-items:center;cursor:pointer;font-size:14px;color:var(--ink)}
+.chip.on{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+.khoi{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:24px;overflow:hidden}
+.khoi.chot{border-color:#BFD8C8;box-shadow:inset 5px 0 0 var(--xanh)}
+.khoi.bo{opacity:.7;box-shadow:inset 5px 0 0 var(--muted2)}
+.khoi-nhac{background:#F6F8F7;border-bottom:1px solid var(--line2);padding:10px 16px;font-size:15px;color:var(--muted2);line-height:1.6}
+.khoi-than{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:0}
+.trai{padding:16px 18px;border-right:1px solid var(--line2);background:#FCFBF9}
+.trai .mp{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--do)}
+.trai .mota{font-size:16px;margin:8px 0 10px;line-height:1.6;color:var(--ink)}
+.trai .meta{font-size:14px;color:var(--muted2)}
+.trai .meta b{color:var(--ink)}
+.badge{display:inline-block;font-size:14px;font-weight:700;padding:3px 10px;border-radius:5px;margin-top:10px}
+.b-A{background:#E7EEF9;color:#2A4E8C} .b-B{background:#E9F3EA;color:#2D6A4A} .b-C{background:#F3EDF8;color:#6C4CB3}
+.phai{padding:14px 16px}
+.uv{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border:1px solid var(--line);border-radius:6px;
+ padding:11px 12px;margin-bottom:11px;font-size:15px;min-height:48px}
+.uv.dexuat{border-color:#C9A96A;background:#FCF7EC}
+.uv.chon{border-color:var(--xanh);background:#EFF6F1}
+.uv .u-ma{font-family:var(--mono);font-weight:700;font-size:16px;color:var(--ink);min-width:74px}
+.uv .u-ten{flex:1 1 120px;min-width:100px;font-size:16px;color:var(--ink)}
+.uv .u-so{color:var(--muted2);font-size:14px}
+.nut{min-height:48px;padding:0 16px;border:1px solid var(--line);border-radius:6px;background:var(--surface);
+ cursor:pointer;font-size:14px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.nut.chinh{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+.nut.on{background:var(--xanh);border-color:var(--xanh);color:#fff;font-weight:600}
+.nut.bo{border-color:#C9B7B3;color:var(--do)}
+.nut.bo.on{background:var(--muted2);border-color:var(--muted2);color:#fff}
+.tc{display:inline-block;font-size:14px;font-weight:700;padding:2px 8px;border-radius:5px;margin-left:6px}
+.tc-chac{background:#DCEEDD;color:#2E7D46} .tc-ngo{background:#FBF0D6;color:#9A6B00}
+.cbao{background:#FBF4E6;border:1px solid #E0CDA8;color:var(--do-dam);border-radius:6px;
+ padding:11px 13px;margin:10px 0;font-size:15px;font-weight:600;line-height:1.6}
+.cbao.lo{background:var(--do-nhat);border-color:#D98F86;color:var(--do-dam)}
+.cbao b{font-family:var(--mono)}
+.hs{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;font-size:14px;color:var(--muted2)}
+.hs input{width:110px}
+.ip{border:1px solid var(--line);border-radius:6px;padding:0 12px;min-height:48px;font-size:16px;
+ background:var(--surface);color:var(--ink);width:100%}
+.ip:focus{outline:2px solid var(--do);outline-offset:-1px}
+.ghi{margin-top:10px}
+.ghi label{font-size:14px;color:var(--muted2);display:block;margin-bottom:4px}
+.trong{border:1px dashed var(--line);border-radius:6px;padding:14px;color:var(--muted2);font-size:15px;background:#FAF9F6;line-height:1.6}
+.dai-gia{font-size:14px;color:var(--muted2);margin:2px 0 12px}
+.dai-gia b{color:var(--ink)}
+.xuat-box{white-space:pre-wrap;font-family:var(--mono);font-size:14px;background:var(--than);color:#F2F0EB;
+ border-radius:8px;padding:16px;margin-top:12px;display:none;overflow-x:auto;line-height:1.6}
+.thanh-xuat{position:sticky;bottom:0;background:var(--paper);padding:12px 0;margin-top:8px;
+ border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:780px){
+  .khoi-than{grid-template-columns:1fr}
+  .trai{border-right:0;border-bottom:1px solid var(--line2)}
+  .wrap{padding:14px 14px 60px}
+  .uv .u-ten{flex-basis:100%}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Duyệt ghép mã — thiết kế ↔ kho</h1>
+  <p>Mỗi dòng: mô tả thiết kế (trái) · chọn một mã kho làm mặc định (phải). ~35 dòng cần quyết — bản mẫu dựng 14 khối.</p>
+</header>
+<div class="mau-nhac">⚠ BẢN MẪU TĨNH — số liệu VIẾT CỨNG, KHÔNG nối kho thật. Chỉ để CEO duyệt bố cục, chọn ở đây chưa lưu đi đâu.</div>
+
+<div class="wrap">
+  <div class="tk">
+    <div class="c-xanh"><b id="tk-chot">0</b><span>đã chốt</span></div>
+    <div><b id="tk-conlai">14</b><span>còn lại</span></div>
+    <div class="c-am"><b id="tk-cbao">0</b><span>có cảnh báo lệch giá</span></div>
+  </div>
+  <div class="loc" id="loc">
+    <span class="chip on" data-f="tat_ca">Tất cả</span>
+    <span class="chip" data-f="chua_chot">Chưa chốt</span>
+    <span class="chip" data-f="cbao">Có cảnh báo lệch giá</span>
+    <span class="chip" data-f="khong_uv">Chưa có ứng viên</span>
+  </div>
+  <div id="ds"></div>
+
+  <div class="thanh-xuat">
+    <button class="nut chinh" id="btn-xuat">Xuất kết quả (xem tóm tắt)</button>
+    <button class="nut" id="btn-an" style="display:none">Ẩn tóm tắt</button>
+  </div>
+  <pre class="xuat-box" id="xuat"></pre>
+</div>
+
+<script>
+// ================= DỮ LIỆU CỨNG (từ báo cáo đo trước) =================
+const n = v => v==null ? '—' : Math.round(v).toLocaleString('vi-VN');
+// nhom_type: A hình học · B theo mét/m² · C khách chọn
+const KHOI = [
+  // ---- (a) ứng viên rõ ----
+  { id:'RAY-KEO-BI', mp:'RAY-KEO-BI', mota:'Ray bi hộp kéo — tra bảng theo SÂU hộp (giá lấy từ bảng, không phải số 0).',
+    dvt:'bộ', gia:null, nhom:'A', nhac:'Ray bi ngăn kéo — chọn mã theo chiều sâu hộp. Đây là ghép RÕ.',
+    uv:[ {ma:'RT-03',ten:'Ray bi 40cm',nhom:'Ray ngăn kéo',dvt:'bộ',von:28500,ton:120,tc:'chac',def:true},
+         {ma:'RT-02',ten:'Ray bi 30cm',nhom:'Ray ngăn kéo',dvt:'bộ',von:22500,ton:78},
+         {ma:'RT-01',ten:'Ray bi 25cm',nhom:'Ray ngăn kéo',dvt:'bộ',von:20000,ton:60} ] },
+
+  // ---- (b) cảnh báo lệch giá ----
+  { id:'PK-RAY01', mp:'PK-RAY01', mota:'Ray bi giảm chấn 3 tầng (dòng cũ). Ray ngắn nhất 250mm.',
+    dvt:'bộ', gia:45000, nhom:'A', nhac:'Tên "giảm chấn" trùng RT-04/05 nhưng giá plugin thấp hơn nhiều — soi kỹ lệch giá.',
+    uv:[ {ma:'RT-04',ten:'Ray giảm chấn 30cm',nhom:'Ray ngăn kéo',dvt:'bộ',von:130000,ton:20,tc:'ngo',def:true},
+         {ma:'RT-05',ten:'Ray giảm chấn 40cm',nhom:'Ray ngăn kéo',dvt:'bộ',von:145000,ton:11},
+         {ma:'RT-03',ten:'Ray bi 40cm (thường)',nhom:'Ray ngăn kéo',dvt:'bộ',von:28500,ton:120} ] },
+
+  { id:'PK-CAM01', mp:'PK-CAM01', mota:'Minifix cam ø15 + chốt (dòng cũ). Liên kết tháo lắp thùng.',
+    dvt:'bộ', gia:3000, nhom:'A', nhac:'Kho bán ốc/chốt cam theo TÚI 1000 — nhập hệ số quy đổi túi→cái để so đúng.',
+    unit:'1 túi = ? cái', uv:[
+      {ma:'OV-11',ten:'Ốc cam',nhom:'Ốc vít-Bulong',dvt:'túi(1000)',von:230000,ton:5,tc:'ngo',def:true},
+      {ma:'OV-10',ten:'Chốt cam',nhom:'Ốc vít-Bulong',dvt:'túi(1000)',von:270000,ton:8} ] },
+
+  { id:'PK-BL01', mp:'PK-BL01', mota:'Bản lề giảm chấn 110°, cup ø35 (dòng cũ, chưa phân độ cong).',
+    dvt:'cái', gia:12000, nhom:'A', nhac:'Cùng họ bản lề GC cửa gỗ. Xác nhận đúng mã + soi lệch giá +33%.',
+    uv:[ {ma:'BL-01',ten:'Bản lề GC — Cong nửa',nhom:'Bản lề',dvt:'bộ',von:9000,ton:50,tc:'ngo',def:true},
+         {ma:'BL-02',ten:'Bản lề GC — Cong nhiều',nhom:'Bản lề',dvt:'bộ',von:9000,ton:50} ] },
+
+  { id:'PK-RL01', mp:'PK-RL01', mota:'Ray cửa lùa (trên + dưới).',
+    dvt:'bộ', gia:55000, nhom:'A', nhac:'PK-09 là ray lùa; hệ lùa cơ bản = ray + bánh xe. Soi lệch giá +96%.',
+    uv:[ {ma:'PK-09',ten:'Ray nhôm cửa lùa',nhom:'PK tủ',dvt:'thanh',von:28000,ton:97,tc:'ngo',def:true},
+         {ma:'BX-04',ten:'Bánh xe cửa lùa (tủ áo)',nhom:'Bánh xe',dvt:'bộ',von:30000,ton:90} ] },
+
+  { id:'nap_luon_day', mp:'nap_luon_day', mota:'Nắp luồn dây tròn ø60 [GĐ giá].',
+    dvt:'cái', gia:12000, nhom:'C', nhac:'Cùng chức năng nắp đi dây — soi lệch giá +500% (nghi khác cỡ).',
+    uv:[ {ma:'PK-06',ten:'Nắp đi dây điện',nhom:'PK-Bàn',dvt:'cái',von:2000,ton:120,tc:'ngo',def:true} ] },
+
+  { id:'TSUOT', mp:'TSUOT', mota:'Sào treo inox ø25 — tính theo MÉT (cắt theo lòng khoang).',
+    dvt:'m', gia:20500, nhom:'B', nhac:'Kho bán theo THANH — nhập 1 thanh = mấy mét để quy đổi rồi so.',
+    unit:'1 thanh = ? mét', uv:[
+      {ma:'PK-12',ten:'Thanh suốt treo quần áo',nhom:'PK tủ',dvt:'thanh',von:103000,ton:32,tc:'ngo',def:true} ] },
+
+  { id:'banh_xe', mp:'banh_xe', mota:'Bánh xe có khoá [GĐ giá].',
+    dvt:'bộ', gia:140000, nhom:'C', nhac:'Kho bán theo CÁI, plugin theo BỘ — cần xác nhận 1 bộ mấy cái trước khi so.',
+    uv:[ {ma:'BX-01',ten:'Bánh xe có khóa (cọc)',nhom:'Bánh xe',dvt:'cái',von:11500,ton:283,tc:'ngo',def:true},
+         {ma:'BX-04',ten:'Bánh xe cửa lùa',nhom:'Bánh xe',dvt:'bộ',von:30000,ton:90} ] },
+
+  { id:'PK-HDL01', mp:'PK-HDL01', mota:'Tay nắm / âm (1 / mặt kéo hoặc cánh).',
+    dvt:'cái', gia:25000, nhom:'C', nhac:'KHÁCH CHỌN màu/kiểu — máy KHÔNG đặt mặc định, CEO quyết theo đơn.',
+    uv:[ {ma:'TN-17',ten:'Tay nắm inox tròn',nhom:'Tay nắm',dvt:'cái',von:47000,ton:10},
+         {ma:'TN-11',ten:'Tay nắm âm vàng 16cm',nhom:'Tay nắm',dvt:'cái',von:18000,ton:23},
+         {ma:'TN-09',ten:'Tay nắm âm đen 14cm',nhom:'Tay nắm',dvt:'cái',von:15000,ton:50},
+         {ma:'TN-06',ten:'Tay nắm vuông vàng',nhom:'Tay nắm',dvt:'cái',von:8000,ton:229} ] },
+
+  // ---- (c) không có ứng viên ----
+  { id:'PK-PIN01', mp:'PK-PIN01', mota:'Chốt đỡ đợt ø5 (4 chốt / đợt di động).',
+    dvt:'cái', gia:800, nhom:'A', nhac:'Kho CHƯA nhập chốt đỡ đợt — bấm "Không ghép", chờ kho nhập hàng.',
+    uv:[] },
+  { id:'RO-500', mp:'RO-500', mota:'Rổ lưới kéo KOMPLEMENT — lớp 500.',
+    dvt:'cái', gia:650000, nhom:'A', nhac:'Hàng IKEA KOMPLEMENT — kho CHƯA nhập. "Không ghép".',
+    uv:[] },
+  { id:'PK-BL02', mp:'PK-BL02', mota:'Bản lề bật nhấn-mở (không tay nắm) [GĐ giá].',
+    dvt:'cái', gia:28000, nhom:'A', nhac:'Kho CHƯA nhập bản lề bật. "Không ghép" cho tới khi có hàng.',
+    uv:[] },
+
+  // ---- VÁN (nhiều mã theo màu) ----
+  { id:'van_mdf_17.5', mp:'MDF 17.5 ly', mota:'Ván MDF melamine dày 17.5 ly (cửa/thân tủ).', van:true,
+    dvt:'tấm', gia:550000, nhom:'A', nhac:'Chọn 1 mã màu làm mặc định (tồn cao = bán chạy). Các màu khác giữ lại cho khách chọn sau.',
+    uv:[ {ma:'MDF-XAM-17',ten:'MDF xám 17mm',mau:'xám',nhom:'GỖ MDF 17LY',dvt:'tấm',von:485000,ton:8,def:true},
+         {ma:'MDF-VDD-17',ten:'MDF vân đá đen 17mm',mau:'vân đá đen',nhom:'GỖ MDF 17LY',dvt:'tấm',von:510000,ton:2},
+         {ma:'MDF-VDT-17',ten:'MDF vân đá trắng 17mm',mau:'vân đá trắng',nhom:'GỖ MDF 17LY',dvt:'tấm',von:510000,ton:2.05},
+         {ma:'MDF-TRG-17',ten:'MDF trắng 17mm',mau:'trắng',nhom:'GỖ MDF 17LY',dvt:'tấm',von:470000,ton:2.02},
+         {ma:'MDF-VAG-17',ten:'MDF vàng sồi 17mm',mau:'vàng sồi',nhom:'GỖ MDF 17LY',dvt:'tấm',von:465000,ton:1.4} ] },
+
+  { id:'van_mdf_6', mp:'MDF 6 ly', mota:'Ván MDF melamine dày 6 ly (hậu / lưng tủ). (Nhóm kho vừa sửa tên 5LY→6LY.)', van:true,
+    dvt:'tấm', gia:175000, nhom:'A', nhac:'CHÚ Ý: giá plugin đang THẤP hơn mọi mã kho nhóm này — nguy cơ bán lỗ ván.',
+    uv:[ {ma:'MDF-OCH-5',ten:'MDF óc chó 6mm',mau:'óc chó',nhom:'GỖ MDF 6LY',dvt:'tấm',von:190000,ton:11.28,def:true},
+         {ma:'MDF-XAM-5',ten:'MDF xám 6mm',mau:'xám',nhom:'GỖ MDF 6LY',dvt:'tấm',von:190000,ton:4.1},
+         {ma:'MDF-VAG-5',ten:'MDF vàng sồi 6mm',mau:'vàng sồi',nhom:'GỖ MDF 6LY',dvt:'tấm',von:185000,ton:11.15},
+         {ma:'MDF-TRG-5',ten:'MDF trắng 6mm',mau:'trắng',nhom:'GỖ MDF 6LY',dvt:'tấm',von:185000,ton:7.75},
+         {ma:'MDF-DEN-5',ten:'MDF đen 6mm',mau:'đen',nhom:'GỖ MDF 6LY',dvt:'tấm',von:185000,ton:7.78} ] },
+];
+
+// ================= TRẠNG THÁI =================
+const ST = {};  // id -> {choice: ma|'KHONG_GHEP'|null, heso: number|null, ghi: string}
+KHOI.forEach(k => ST[k.id] = { choice:null, heso:null, ghi:'' });
+let filter = 'tat_ca';
+
+// giá kho quy về đơn vị plugin (chia hệ số nếu có)
+function effVon(von, heso){ return (heso && heso>0) ? von/heso : von; }
+
+// tính cảnh báo cho 1 khối theo lựa chọn hiện tại (hoặc mã đề xuất nếu chưa chọn)
+function tinhCbao(k){
+  const s = ST[k.id];
+  if (s.choice === 'KHONG_GHEP') return null;
+  if (k.van){
+    // ván: nguy cơ bán lỗ nếu giá plugin < mã rẻ nhất trong nhóm
+    const cos = k.uv.filter(u=>u.von!=null).map(u=>u.von);
+    if (!cos.length || !k.gia) return null;
+    const min = Math.min(...cos), max = Math.max(...cos);
+    if (k.gia < min) return {lo:true, txt:`🔴 NGUY CƠ BÁN LỖ: giá plugin <b>${n(k.gia)}</b> THẤP HƠN mã kho rẻ nhất <b>${n(min)}</b> (dải ${n(min)}–${n(max)}). Nghĩa là báo giá đang THIẾU tiền ván — chỗ mất tiền nhiều nhất.`};
+    return null;
+  }
+  // phụ kiện: so với ứng viên đang chọn (hoặc đề xuất)
+  const maSo = s.choice || (k.uv.find(u=>u.def)||{}).ma;
+  const uv = k.uv.find(u=>u.ma===maSo);
+  if (!uv || uv.von==null || !k.gia) return null;
+  const eff = effVon(uv.von, s.heso);
+  const lech = (k.gia - eff)/eff*100;
+  if (Math.abs(lech) <= 20) return null;
+  const dv = s.heso ? ` (đã quy đổi: ${n(uv.von)}/${uv.dvt} ÷ ${s.heso} = <b>${n(eff)}</b>/${k.dvt})` : '';
+  if (k.gia < eff)
+    return {lo:true, txt:`Giá plugin <b>${n(k.gia)}</b> THẤP HƠN kho <b>${n(eff)}</b> (${uv.ma})${dv} — lệch <b>${lech.toFixed(0)}%</b>. Plugin thấp hơn = báo giá đang THIẾU tiền.`};
+  return {lo:false, txt:`Giá plugin <b>${n(k.gia)}</b> CAO HƠN kho <b>${n(eff)}</b> (${uv.ma})${dv} — lệch <b>+${lech.toFixed(0)}%</b>. Kiểm xem có tính dư không.`};
+}
+
+// ================= RENDER (1 lần) =================
+const ds = document.getElementById('ds');
+KHOI.forEach(k => {
+  const el = document.createElement('div');
+  el.className = 'khoi'; el.id = 'k-'+k.id; el.dataset.uv = k.uv.length ? '1':'0';
+  const badge = {A:'A · hình học', B:'B · theo mét/m²', C:'C · khách chọn'}[k.nhom];
+  let phaiHtml;
+  if (!k.uv.length){
+    phaiHtml = `<div class="trong">Kho chưa có mã nào khớp. Bấm <b>Không ghép</b> — chờ kho nhập hàng loại này.</div>`;
+  } else if (k.van){
+    const cos = k.uv.filter(u=>u.von!=null).map(u=>u.von);
+    const min=Math.min(...cos), max=Math.max(...cos);
+    const viTri = k.gia<min?'DƯỚI dải (rẻ hơn kho)':k.gia>max?'TRÊN dải (đắt hơn kho)':'trong dải';
+    phaiHtml = `<div class="dai-gia">Dải giá kho: <b class="tien">${n(min)}</b> – <b class="tien">${n(max)}</b> · giá plugin <b class="tien">${n(k.gia)}</b> → ${viTri}.</div>`
+      + k.uv.map(u=>uvHtml(k,u)).join('');
+  } else {
+    phaiHtml = k.uv.map(u=>uvHtml(k,u)).join('');
+  }
+  el.innerHTML = `
+    <div class="khoi-nhac">${k.nhac}</div>
+    <div class="khoi-than">
+      <div class="trai">
+        <div class="mp">${k.mp}</div>
+        <div class="mota">${k.mota}</div>
+        <div class="meta">Đơn vị: <b>${k.dvt}</b> · giá plugin: <b class="tien">${k.gia==null?'(tra bảng)':n(k.gia)}</b></div>
+        <span class="badge b-${k.nhom}">${badge}</span>
+      </div>
+      <div class="phai">
+        ${phaiHtml}
+        ${k.unit ? `<div class="hs">Hệ số quy đổi — ${k.unit} <input class="ip" type="number" min="0" step="any" data-hs="${k.id}" placeholder="nhập số"></div>`:''}
+        <div style="margin-top:8px"><button class="nut bo" data-bo="${k.id}">Không ghép (kho chưa có hàng)</button></div>
+        <div class="cbao-slot"></div>
+        <div class="ghi"><label>Ghi chú của CEO (lý do chọn):</label><input class="ip" data-ghi="${k.id}" placeholder="ví dụ: đúng hàng đang mua, chờ đo hệ số…"></div>
+      </div>
+    </div>`;
+  ds.appendChild(el);
+});
+
+function uvHtml(k,u){
+  const so = `<span class="u-so">${u.dvt} · vốn <b class="tien">${n(u.von)}${u.von==null?'':'đ'}</b> · tồn <span class="num">${u.ton}</span></span>`;
+  const tc = u.tc==='chac'?'<span class="tc tc-chac">CHẮC</span>':u.tc==='ngo'?'<span class="tc tc-ngo">NGỜ</span>':'';
+  const de = u.def?' dexuat':'';
+  return `<div class="uv${de}" id="uv-${k.id}-${u.ma}">
+    <span class="u-ma">${u.ma}</span><span class="u-ten">${u.ten}${u.mau?` · ${u.mau}`:''} ${tc}${u.def?' <span class="tc tc-ngo" style="background:#F0E7D2">máy đề xuất</span>':''}</span>
+    ${so}
+    <button class="nut" data-chon="${k.id}" data-ma="${u.ma}">Chọn</button></div>`;
+}
+
+// ================= CẬP NHẬT 1 KHỐI (không re-render, giữ focus ô ghi chú) =================
+function updKhoi(id){
+  const k = KHOI.find(x=>x.id===id), s = ST[id], el = document.getElementById('k-'+id);
+  // đánh dấu ứng viên đang chọn
+  el.querySelectorAll('.uv').forEach(uv=>uv.classList.remove('chon'));
+  el.querySelectorAll('[data-chon]').forEach(b=>{ b.classList.remove('on'); b.textContent='Chọn'; });
+  if (s.choice && s.choice!=='KHONG_GHEP'){
+    const uv = document.getElementById(`uv-${id}-${s.choice}`);
+    if (uv){ uv.classList.add('chon'); const b=uv.querySelector('[data-chon]'); b.classList.add('on'); b.textContent='✓ Đã chọn'; }
+  }
+  // nút không ghép
+  const nb = el.querySelector('[data-bo]');
+  nb.classList.toggle('on', s.choice==='KHONG_GHEP');
+  nb.textContent = s.choice==='KHONG_GHEP' ? '✓ Không ghép' : 'Không ghép (kho chưa có hàng)';
+  // trạng thái khối
+  el.classList.toggle('chot', s.choice && s.choice!=='KHONG_GHEP');
+  el.classList.toggle('bo', s.choice==='KHONG_GHEP');
+  // cảnh báo
+  const cb = tinhCbao(k), slot = el.querySelector('.cbao-slot');
+  slot.innerHTML = cb ? `<div class="cbao ${cb.lo?'lo':''}">${cb.lo?'⚠ ':'ℹ '}${cb.txt}</div>` : '';
+  el.dataset.cbao = cb ? '1':'0';
+}
+
+// ================= ĐẾM + LỌC =================
+function updDem(){
+  let chot=0, cbao=0;
+  KHOI.forEach(k=>{ const s=ST[k.id]; if(s.choice) chot++; if(tinhCbao(k)) cbao++; });
+  document.getElementById('tk-chot').textContent = chot;
+  document.getElementById('tk-conlai').textContent = KHOI.length - chot;
+  document.getElementById('tk-cbao').textContent = cbao;
+}
+function apDungLoc(){
+  KHOI.forEach(k=>{
+    const s=ST[k.id], el=document.getElementById('k-'+k.id);
+    let hien=true;
+    if (filter==='chua_chot') hien = !s.choice;
+    else if (filter==='cbao') hien = el.dataset.cbao==='1';
+    else if (filter==='khong_uv') hien = el.dataset.uv==='0';
+    el.style.display = hien ? '' : 'none';
+  });
+}
+function refresh(id){ if(id) updKhoi(id); else KHOI.forEach(k=>updKhoi(k.id)); updDem(); apDungLoc(); }
+
+// ================= SỰ KIỆN =================
+ds.addEventListener('click', e=>{
+  const chon=e.target.closest('[data-chon]'), bo=e.target.closest('[data-bo]');
+  if (chon){ const id=chon.dataset.chon; ST[id].choice = (ST[id].choice===chon.dataset.ma)?null:chon.dataset.ma; refresh(id); }
+  else if (bo){ const id=bo.dataset.bo; ST[id].choice = (ST[id].choice==='KHONG_GHEP')?null:'KHONG_GHEP'; refresh(id); }
+});
+ds.addEventListener('input', e=>{
+  if (e.target.dataset.hs!=null){ const id=e.target.dataset.hs; const v=parseFloat(e.target.value); ST[id].heso = (v>0)?v:null; updKhoi(id); updDem(); apDungLoc(); }
+  else if (e.target.dataset.ghi!=null){ ST[e.target.dataset.ghi].ghi = e.target.value; }   // KHÔNG re-render -> không mất focus
+});
+document.getElementById('loc').addEventListener('click', e=>{
+  const c=e.target.closest('.chip'); if(!c) return;
+  filter=c.dataset.f;
+  document.querySelectorAll('#loc .chip').forEach(x=>x.classList.toggle('on', x===c));
+  apDungLoc();
+});
+
+// ================= XUẤT TÓM TẮT =================
+document.getElementById('btn-xuat').addEventListener('click', ()=>{
+  const L=[]; L.push('TÓM TẮT DUYỆT GHÉP MÃ (bản mẫu — chưa lưu)'); L.push('='.repeat(48));
+  let chot=0;
+  KHOI.forEach(k=>{
+    const s=ST[k.id]; let d;
+    if (s.choice==='KHONG_GHEP') d='KHÔNG GHÉP (kho chưa có hàng)';
+    else if (s.choice) d='→ '+s.choice + (s.heso?` (hệ số ${s.heso})`:'');
+    else d='(chưa quyết)';
+    if (s.choice) chot++;
+    const cb=tinhCbao(k);
+    L.push(`\n${k.mp}  [${k.dvt}${k.gia!=null?' · '+n(k.gia):''}]`);
+    L.push('   '+d);
+    if (cb) L.push('   ⚠ '+cb.txt.replace(/<[^>]+>/g,''));
+    if (s.ghi) L.push('   ghi chú: '+s.ghi);
+  });
+  L.push('\n'+'='.repeat(48));
+  L.push(`Đã chốt ${chot}/${KHOI.length} · còn ${KHOI.length-chot} · cảnh báo ${document.getElementById('tk-cbao').textContent}`);
+  const box=document.getElementById('xuat'); box.textContent=L.join('\n'); box.style.display='block';
+  document.getElementById('btn-an').style.display='';
+});
+document.getElementById('btn-an').addEventListener('click', ()=>{
+  document.getElementById('xuat').style.display='none';
+  document.getElementById('btn-an').style.display='none';
+});
+
+// khởi tạo
+refresh();
+</script>
+</body>
+</html>

@@ -146,7 +146,7 @@ function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) retur
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
 
-function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat') }
+function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat'); if (m === 'ghep') veGhepMa() }
 // ── điều khiển bố cục điện thoại (chỉ tác dụng ở màn hẹp; desktop các phần tử ẩn) ──
 function moNav() { $('nav')?.classList.add('mo'); $('#navNen')?.classList.add('mo') }
 function dongNav() { $('nav')?.classList.remove('mo'); $('#navNen')?.classList.remove('mo') }
@@ -432,12 +432,260 @@ async function xacNhanHuy(loai, id, so) {
 
 function bao(t) { let e = $('#toast'); if (!e) { e = document.createElement('div'); e.id = 'toast'; e.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#2A323C;color:#fff;padding:11px 20px;border-radius:4px;font-size:14px;z-index:70;box-shadow:0 6px 20px rgba(0,0,0,.28);max-width:min(92vw,620px)'; document.body.appendChild(e) } e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(() => e.style.display = 'none', 4200) }
 
+// ═══════════ GHÉP MÃ — đọc/ghi kho.quy_doi (bảng quy đổi thiết kế ↔ mã kho) ═══════════
+let GHEP = [], gmFilter = 'tat_ca'
+const gmSelectCols = 'id,mo_ta_thiet_ke,ten_mo_ta,ma_plugin,dvt_plugin,gia_plugin,nhom_dinh_muc,ma_kho,he_so_quy_doi,muc_tin_cay,la_mac_dinh,trang_thai,ghi_chu'
+const gmKm = () => Object.fromEntries(KHO.map(x => [x.ma, x]))   // ma -> {ten,nhom,dvt,ton,gia(=giá vốn)}
+const gmActive = g => g.rows.find(r => r.la_mac_dinh) || g.rows[0]
+const gmCoUV = g => g.rows.some(r => r.ma_kho)
+const gmChotRoi = g => g.rows.some(r => r.trang_thai === 'DA_DUYET' || r.trang_thai === 'KHONG_GHEP')
+
+// So gia_plugin với giá vốn kho của ứng viên ĐANG CHỌN (chia hệ số). Chưa có giá vốn -> null (không cảnh báo giả).
+function gmWarn(g) {
+  const act = gmActive(g)
+  if (!act || !act.ma_kho || g.gia == null) return null
+  const k = gmKm()[act.ma_kho]; if (!k || !k.gia) return null
+  const heso = Number(act.he_so_quy_doi) || 1, eff = k.gia / heso
+  const lech = (g.gia - eff) / eff * 100
+  if (Math.abs(lech) <= 20) return null
+  return { lo: g.gia < eff, plugin: g.gia, eff, lech }
+}
+function gmWarnHtml(g) {
+  const w = gmWarn(g); if (!w) return ''
+  const t = w.lo
+    ? `⚠ Giá plugin <b>${n(w.plugin)}</b> THẤP HƠN giá vốn kho <b>${n(w.eff)}</b> — lệch <b>${w.lech.toFixed(0)}%</b>. Plugin thấp hơn nghĩa là báo giá đang <b>THIẾU tiền</b>.`
+    : `ℹ Giá plugin <b>${n(w.plugin)}</b> CAO HƠN giá vốn kho <b>${n(w.eff)}</b> — lệch <b>+${w.lech.toFixed(0)}%</b>. Plugin cao hơn nghĩa là báo giá đang <b>ĐẮT hơn thực tế</b>.`
+  return `<div class="cbao ${w.lo ? 'lo' : ''}">${t}</div>`
+}
+
+async function veGhepMa() {
+  const el = $('#gm-ds'); if (!el) return
+  el.innerHTML = '<div class="rong">Đang tải…</div>'
+  const { data, error } = await sb.from('quy_doi').select(gmSelectCols)
+    .order('mo_ta_thiet_ke').order('la_mac_dinh', { ascending: false }).order('ma_kho', { nullsFirst: false })
+  if (error) { el.innerHTML = `<div class="gm-loi">Không tải được bảng ghép mã: ${error.message}. <button class="nut" onclick="veGhepMa()">Thử lại</button></div>`; return }
+  const g = {}
+  ;(data || []).forEach(r => { (g[r.mo_ta_thiet_ke] ||= { mo_ta: r.mo_ta_thiet_ke, ten: r.ten_mo_ta, mp: r.ma_plugin, dvt: r.dvt_plugin, gia: r.gia_plugin, nhom: r.nhom_dinh_muc, rows: [] }).rows.push(r) })
+  GHEP = Object.values(g).sort((a, b) => a.mo_ta < b.mo_ta ? -1 : 1)
+  if (!GHEP.length) { el.innerHTML = '<div class="rong">Bảng quy đổi trống.</div>'; return }
+  el.innerHTML = GHEP.map(gmKhoiHtml).join('')
+  gmDem(); gmLoc(); gmCanhBao()
+}
+
+// ── CẢNH BÁO mã kho CHƯA nằm trong bảng quy_doi (mã mới thủ kho thêm mà chưa ai ghép) ──
+// Dấu "không liên quan" lưu ở localStorage (key gm_bo_qua) — KHÔNG tạo bảng mới. Xem báo cáo §chỗ-lưu.
+function gmBoQua() { try { return new Set(JSON.parse(localStorage.getItem('gm_bo_qua') || '[]')) } catch { return new Set() } }
+async function gmCanhBao() {
+  const el = $('#gm-canhbao'), box = $('#gm-chuaghep'); if (!el) return
+  const { data, error } = await sb.from('quy_doi').select('ma_kho')
+  if (error) { el.style.display = 'none'; return }
+  const daCo = new Set((data || []).map(r => r.ma_kho).filter(Boolean))   // mã kho đã có TRONG bảng (bất kỳ dòng nào)
+  const boQua = gmBoQua()
+  const chua = KHO.filter(x => !daCo.has(x.ma) && !boQua.has(x.ma))
+  window._gmChua = chua
+  if (!chua.length) { el.style.display = 'none'; if (box) box.style.display = 'none'; return }
+  el.style.display = 'block'
+  el.innerHTML = `⚠ Có <b>${chua.length}</b> mã vật tư trong kho CHƯA nằm trong bảng quy đổi (thủ kho thêm mã mới, chưa ai ghép). Bảng sẽ mục ruỗng dần nếu bỏ sót — <b>bấm để xem danh sách</b> rồi quyết mã nào cần thêm.`
+  if (box && box.style.display === 'block') gmRenderChua()   // đang mở -> cập nhật lại
+}
+function gmRenderChua() {
+  const box = $('#gm-chuaghep'), chua = window._gmChua || []
+  box.innerHTML = chua.length ? chua.map(x => `<div class="gm-chua-row">
+      <span class="u-ma">${x.ma}</span>
+      <span class="u-ten">${escA(x.ten)} · ${x.nhom}</span>
+      <span class="u-so">tồn ${x.ton != null ? x.ton : '—'} · vốn ${x.gia ? n(x.gia) + 'đ' : '—'}</span>
+      <button class="nut" onclick="gmBoQuaMa('${x.ma}')">Không liên quan</button></div>`).join('')
+    : '<div class="trong">Không còn mã nào chưa ghép.</div>'
+}
+function gmMoChua() {
+  const box = $('#gm-chuaghep'); if (!box) return
+  if (box.style.display === 'block') { box.style.display = 'none'; return }
+  gmRenderChua(); box.style.display = 'block'
+}
+function gmBoQuaMa(ma) {
+  const s = gmBoQua(); s.add(ma); localStorage.setItem('gm_bo_qua', JSON.stringify([...s]))
+  bao(`Đã đánh dấu ${ma} là KHÔNG LIÊN QUAN — lần sau không đếm nữa.`)
+  gmCanhBao()   // đếm lại (giảm 1) + cập nhật danh sách nếu đang mở
+}
+
+// ── XUẤT bảng quy đổi: dựng file GIỐNG HỆT web/ops/xuat_quy_doi.mjs, tải về máy ──
+async function gmXuat() {
+  const { data, error } = await sb.from('quy_doi').select('mo_ta_thiet_ke,trang_thai,la_mac_dinh')
+  if (error) { bao('Đọc quy_doi lỗi: ' + error.message); return }
+  const soMoTa = new Set((data || []).map(r => r.mo_ta_thiet_ke)).size
+  const daDuyet = (data || []).filter(r => r.trang_thai === 'DA_DUYET' && r.la_mac_dinh).length
+  if (daDuyet === 0) { bao('Chưa có dòng nào ĐÃ DUYỆT — không có gì để xuất (không tải file rỗng).'); return }
+  const conLai = soMoTa - daDuyet
+  if (conLai > 0) {
+    $('#gm-modal-msg').innerHTML = `Xuất bây giờ: <b>${daDuyet}</b> mô tả CÓ giá kho (sẽ ghi vào file). Còn <b>${conLai}</b> mô tả CHƯA chốt — plugin vẫn phải dùng <b>giá cũ</b> cho các mã này. Làm dần từng phần là hợp lý — vẫn xuất phần đã có?`
+    $('#gm-modal').style.display = 'flex'
+    $('#gm-modal-ok').onclick = () => { gmModalDong(); gmTaiFile() }
+  } else {
+    gmTaiFile()
+  }
+}
+function gmModalDong() { const m = $('#gm-modal'); if (m) m.style.display = 'none' }
+async function gmTaiFile() {
+  // ĐỌC + DỰNG y hệt xuat_quy_doi.mjs: chỉ DA_DUYET+la_mac_dinh, sắp theo mo_ta_thiet_ke, giá vốn từ v_ton_gia_von (raw, null giữ nguyên)
+  const { data, error } = await sb.from('quy_doi')
+    .select('mo_ta_thiet_ke,ma_plugin,ma_kho,he_so_quy_doi,tao_luc')
+    .eq('trang_thai', 'DA_DUYET').eq('la_mac_dinh', true).order('mo_ta_thiet_ke', { ascending: true })
+  if (error) { bao('Đọc quy_doi lỗi: ' + error.message); return }
+  if (!data.length) { bao('Chưa có dòng ĐÃ DUYỆT — không có gì để xuất.'); return }
+  const gv = {}
+  const { data: vg } = await sb.from('v_ton_gia_von').select('gia_von_bq, vat_tu:vat_tu_id(ma)')
+  ;(vg || []).forEach(r => { if (r.vat_tu) gv[r.vat_tu.ma] = r.gia_von_bq == null ? null : Number(r.gia_von_bq) })
+  const quy_doi = data.map(r => ({
+    mo_ta_thiet_ke: r.mo_ta_thiet_ke,
+    ma_plugin: r.ma_plugin,
+    ma_kho: r.ma_kho,
+    he_so_quy_doi: Number(r.he_so_quy_doi),
+    gia_von_kho: (r.ma_kho in gv) ? gv[r.ma_kho] : null,
+  }))
+  const moc = data.reduce((m, r) => (r.tao_luc > m ? r.tao_luc : m), data[0].tao_luc)   // MAX(tao_luc); test bỏ qua dấu thời gian
+  const doc = { thoi_gian_xuat: moc, so_dong: quy_doi.length, quy_doi }
+  const noiDung = JSON.stringify(doc, null, 2) + '\n'
+  const d = new Date(), p2 = x => String(x).padStart(2, '0')
+  const fn = `quy_doi_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.json`
+  const blob = new Blob([noiDung], { type: 'application/json' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => window.URL.revokeObjectURL(url), 1500)
+  bao(`Đã xuất ${quy_doi.length} dòng ĐÃ DUYỆT ra file ${fn}. Chép file này vào repo plugin để báo giá dùng giá vốn kho.`)
+}
+
+function gmKhoiHtml(g) {
+  const km = gmKm(), act = gmActive(g), coUV = gmCoUV(g), chot = gmChotRoi(g)
+  const bo = g.rows.some(r => r.trang_thai === 'KHONG_GHEP')
+  const badge = { A: 'A · hình học', B: 'B · theo mét/m²', C: 'C · khách chọn' }[g.nhom] || g.nhom || '—'
+  const ttTxt = bo ? '<span class="tt tt-bo">KHÔNG GHÉP</span>' : chot ? '<span class="tt tt-duyet">ĐÃ DUYỆT</span>' : '<span class="tt tt-chua">CHƯA CHỐT</span>'
+  const nhac = coUV ? 'Chọn một mã kho làm mặc định (bấm Chọn), hoặc Không ghép nếu không mã nào đúng.' : 'Kho chưa có mã khớp — nhập lý do rồi bấm Không ghép.'
+  let phai
+  if (!coUV) {
+    phai = `<div class="trong">Kho chưa có mã nào khớp. Nhập lý do vào ô ghi chú rồi bấm <b>Không ghép</b>.</div>`
+  } else {
+    phai = g.rows.filter(r => r.ma_kho).map(r => {
+      const k = km[r.ma_kho] || {}
+      const giaTxt = k.gia ? `vốn <b class="tien">${n(k.gia)}đ</b>` : '<b style="color:var(--amber)">chưa có giá vốn</b>'
+      const tc = { CHAC: '<span class="tc tc-chac">CHẮC</span>', NGO: '<span class="tc tc-ngo">NGỜ</span>', CHUA_RO: '<span class="tc tc-chuaro">CHƯA RÕ</span>' }[r.muc_tin_cay] || ''
+      const md = r.la_mac_dinh ? ' <span class="tc tc-ngo">mặc định</span>' : ''
+      const chon = r.la_mac_dinh && r.trang_thai === 'DA_DUYET'
+      return `<div class="uv${r.la_mac_dinh ? ' dexuat' : ''}${chon ? ' chon' : ''}">
+        <span class="u-ma">${r.ma_kho}</span>
+        <span class="u-ten">${escA(k.ten || r.ma_kho)}${k.nhom ? ` · ${k.nhom}` : ''} ${tc}${md}</span>
+        <span class="u-so">${k.dvt || ''} · ${giaTxt} · tồn <span class="num">${k.ton != null ? k.ton : '—'}</span></span>
+        <button class="nut${chon ? ' on' : ''}" onclick="gmChon('${r.id}','${g.mo_ta}')">${chon ? '✓ Đã chọn' : 'Chọn'}</button></div>`
+    }).join('')
+  }
+  const hsHtml = coUV ? `<div class="hs">Hệ số quy đổi (1 đơn vị kho = ? đơn vị plugin) <input class="gm-ip" type="number" min="0" step="any" value="${act && Number(act.he_so_quy_doi) !== 1 ? act.he_so_quy_doi : ''}" placeholder="1" data-hs="${act ? act.id : ''}" data-mota="${g.mo_ta}"></div>` : ''
+  return `<div class="khoi ${chot ? 'chot' : ''} ${bo ? 'bo' : ''}" id="gm-k-${g.mo_ta}">
+    <div class="khoi-nhac">${nhac}</div>
+    <div class="khoi-than">
+      <div class="trai">
+        <div class="mp">${g.mp} ${ttTxt}</div>
+        <div class="mota">${escA(g.ten)}</div>
+        <div class="meta">Đơn vị: <b>${g.dvt || '—'}</b> · giá plugin: <b class="tien">${g.gia == null ? '(tra bảng)' : n(g.gia)}</b></div>
+        <span class="badge b-${g.nhom || 'A'}">${badge}</span>
+      </div>
+      <div class="phai">
+        ${phai}
+        ${hsHtml}
+        <div style="margin-top:8px"><button class="nut bo${bo ? ' on' : ''}" onclick="gmKhongGhep('${g.mo_ta}')">${bo ? '✓ Không ghép' : 'Không ghép (kho chưa có hàng)'}</button></div>
+        <div class="gm-cbao-slot">${gmWarnHtml(g)}</div>
+        <div class="ghi"><label>Ghi chú (lý do chọn / không ghép):</label><input class="gm-ip" value="${escA((act && act.ghi_chu) || '')}" data-ghi="${act ? act.id : ''}" data-mota="${g.mo_ta}" placeholder="ví dụ: đúng hàng đang mua…"></div>
+      </div>
+    </div>
+  </div>`
+}
+
+function gmDem() {
+  let chot = 0, cbao = 0
+  GHEP.forEach(g => { if (gmChotRoi(g)) chot++; if (gmWarn(g)) cbao++ })
+  $('#gm-chot').textContent = chot; $('#gm-conlai').textContent = GHEP.length - chot; $('#gm-cbao').textContent = cbao
+}
+function gmLoc() {
+  GHEP.forEach(g => {
+    const el = $(`#gm-k-${g.mo_ta}`); if (!el) return
+    let hien = true
+    if (gmFilter === 'chua_chot') hien = !gmChotRoi(g)
+    else if (gmFilter === 'cbao') hien = !!gmWarn(g)
+    else if (gmFilter === 'khong_uv') hien = !gmCoUV(g)
+    el.style.display = hien ? '' : 'none'
+  })
+}
+async function gmReload(mo_ta) {
+  const { data } = await sb.from('quy_doi').select(gmSelectCols).eq('mo_ta_thiet_ke', mo_ta)
+    .order('la_mac_dinh', { ascending: false }).order('ma_kho', { nullsFirst: false })
+  const g = GHEP.find(x => x.mo_ta === mo_ta)
+  if (g && data && data.length) { g.rows = data; g.ten = data[0].ten_mo_ta ?? g.ten }
+  const el = $(`#gm-k-${mo_ta}`); if (el && g) el.outerHTML = gmKhoiHtml(g)
+  gmDem(); gmLoc()
+}
+
+// CHỌN ứng viên: BỎ cờ mặc định cũ TRƯỚC (tránh vi phạm ràng buộc 1-mặc-định), rồi đặt cờ mới + DA_DUYET.
+async function gmChon(id, mo_ta) {
+  const e1 = (await sb.from('quy_doi').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
+  if (e1) { bao('Bỏ cờ mặc định cũ lỗi: ' + e1.message); return }
+  const { error } = await sb.from('quy_doi').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id)
+  if (error) { bao('Chốt lỗi: ' + error.message); return }   // hiện NGUYÊN VĂN lỗi (gồm lỗi ràng buộc)
+  bao('Đã chốt mã kho mặc định cho mô tả này.')
+  await gmReload(mo_ta)
+}
+// KHÔNG GHÉP: bắt buộc có ghi chú (app chặn TRƯỚC, không để lỗi CSDL bắn thô).
+async function gmKhongGhep(mo_ta) {
+  const g = GHEP.find(x => x.mo_ta === mo_ta); if (!g) return
+  const ghiInp = $(`#gm-k-${mo_ta} [data-ghi]`), ly = (ghiInp ? ghiInp.value : '').trim()
+  if (!ly) { bao('Nhập LÝ DO vào ô ghi chú trước khi bấm Không ghép.'); if (ghiInp) ghiInp.focus(); return }
+  const primary = gmActive(g)
+  const { error } = await sb.from('quy_doi').update({ trang_thai: 'KHONG_GHEP', ma_kho: null, la_mac_dinh: false, ghi_chu: ly, nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', primary.id)
+  if (error) { bao('Lưu Không ghép lỗi: ' + error.message); return }
+  bao(`Đã đánh dấu KHÔNG GHÉP: ${g.mp}.`)
+  await gmReload(mo_ta)
+}
+
+function gmGanSuKien() {
+  const ds = $('#gm-ds'); if (!ds || ds._gm) return; ds._gm = 1
+  // gõ hệ số -> cảnh báo tính lại NGAY (chưa lưu); blur/Enter -> LƯU
+  ds.addEventListener('input', e => {
+    const t = e.target; if (t.dataset.hs == null) return
+    const g = GHEP.find(x => x.mo_ta === t.dataset.mota); if (!g) return
+    const act = gmActive(g), v = parseFloat(t.value), tmp = act.he_so_quy_doi
+    act.he_so_quy_doi = (v > 0) ? v : 1
+    const slot = $(`#gm-k-${g.mo_ta} .gm-cbao-slot`); if (slot) slot.innerHTML = gmWarnHtml(g)
+    act.he_so_quy_doi = tmp
+  })
+  ds.addEventListener('change', async e => {
+    const t = e.target
+    if (t.dataset.hs != null && t.dataset.hs !== '') {
+      const val = t.value.trim()
+      if (val !== '' && !(parseFloat(val) > 0)) { bao('Hệ số quy đổi phải là số DƯƠNG.'); t.value = ''; return }
+      const so = val === '' ? 1 : parseFloat(val)
+      const { error } = await sb.from('quy_doi').update({ he_so_quy_doi: so }).eq('id', t.dataset.hs)
+      if (error) { bao('Lưu hệ số lỗi: ' + error.message); return }
+      const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.hs); if (row) row.he_so_quy_doi = so
+      const slot = $(`#gm-k-${t.dataset.mota} .gm-cbao-slot`); if (slot && g) slot.innerHTML = gmWarnHtml(g)
+      gmDem(); gmLoc(); bao('Đã lưu hệ số quy đổi.')
+    } else if (t.dataset.ghi != null && t.dataset.ghi !== '') {
+      const { error } = await sb.from('quy_doi').update({ ghi_chu: t.value }).eq('id', t.dataset.ghi)
+      if (error) { bao('Lưu ghi chú lỗi: ' + error.message); return }
+      const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.ghi); if (row) row.ghi_chu = t.value
+      bao('Đã lưu ghi chú.')
+    }
+  })
+  $('#gm-loc').addEventListener('click', e => {
+    const c = e.target.closest('.gm-chip'); if (!c) return
+    gmFilter = c.dataset.f
+    $$('#gm-loc .gm-chip').forEach(x => x.classList.toggle('on', x === c)); gmLoc()
+  })
+}
+
 // ═══════════ BOOT ═══════════
 function boot() {
   $('#tim').oninput = veBang
   veChips(); veBang()
   veNcc(); moiPhieu('nhap'); vePhieu('nhap'); moiPhieu('xuat'); vePhieu('xuat')
+  gmGanSuKien()
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien, veDsPhieu, phXemThem, moPhieuXem, moXacNhanHuy, xacNhanHuy })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien, veDsPhieu, phXemThem, moPhieuXem, moXacNhanHuy, xacNhanHuy, veGhepMa, gmChon, gmKhongGhep, gmXuat, gmModalDong, gmMoChua, gmBoQuaMa })
