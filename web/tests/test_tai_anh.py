@@ -76,7 +76,8 @@ def main():
     # dọn trước (phòng lần trước sót) rồi chốt baseline
     don_bucket()
     base_count = dem_bucket()
-    print(f"  (bucket ban đầu = {base_count} file · anh_file[{MA}] ban đầu = NULL)")
+    n_ma = db_one("select count(*)::int from kho.vat_tu")   # số mã đọc DB, thay số cứng
+    print(f"  (bucket ban đầu = {base_count} file · anh_file[{MA}] ban đầu = NULL · số mã DB = {n_ma})")
 
     # ── (a) tự sinh ảnh png + file văn bản trong thư mục tạm ──
     d = tempfile.mkdtemp()
@@ -90,7 +91,7 @@ def main():
         page.goto(URL, wait_until="networkidle")
         page.fill("#lg-email", EMAIL); page.fill("#lg-pass", PASS); page.click("#lg-btn")
         page.wait_for_selector("#login", state="hidden", timeout=15000)
-        page.wait_for_function("() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='199' }", timeout=12000)
+        page.wait_for_function("() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='" + n_ma + "' }", timeout=12000)
 
         def mo_the(ma):
             page.fill("#tim", ma)

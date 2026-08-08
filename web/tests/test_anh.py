@@ -54,9 +54,11 @@ def main():
     if not PASS:
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
 
-    # tự tìm mã từ DB (cấm viết cứng)
+    # tự tìm mã + mốc từ DB (cấm viết cứng)
     ma_trong = db_one("select ma from kho.vat_tu where anh_ma is null and anh_file is null order by ma limit 1")
-    print(f"  (DB) mã trống-cả-hai = {ma_trong}")
+    n_ma = db_one("select count(*)::int from kho.vat_tu")
+    n_anh = int(db_one("select count(anh_file)::int from kho.vat_tu"))
+    print(f"  (DB) mã trống-cả-hai = {ma_trong} · số mã = {n_ma} · số mã có anh_file = {n_anh}")
 
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
@@ -67,17 +69,17 @@ def main():
         page.click("#lg-btn")
         page.wait_for_selector("#login", state="hidden", timeout=15000)
         page.wait_for_function(
-            "() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='199' }",
+            "() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='" + n_ma + "' }",
             timeout=12000)
 
-        # ── (a) đợi mọi ảnh settle, đếm ảnh tải được = 154 ──
+        # ── (a) đợi mọi ảnh settle, đếm ảnh tải được = số mã có anh_file (đọc DB) ──
         page.wait_for_function(
             "() => { const im=[...document.querySelectorAll('#bang img')]; return im.length>0 && im.every(i=>i.complete) }",
             timeout=90000)
         loaded = page.eval_on_selector_all("#bang img", "els => els.filter(e => e.naturalWidth > 0).length")
-        bao("a. số ảnh tải được = 154", loaded == 154, f"đếm được {loaded}")
-        if loaded != 154:
-            raise AssertionError(f"a: ảnh tải được {loaded} != 154")
+        bao(f"a. số ảnh tải được = {n_anh} (anh_file DB)", loaded == n_anh, f"đếm được {loaded}")
+        if loaded != n_anh:
+            raise AssertionError(f"a: ảnh tải được {loaded} != {n_anh}")
 
         # helper: lọc 1 mã rồi lấy src ảnh (hoặc None nếu ô trống)
         def src_cua(ma):
@@ -111,7 +113,7 @@ def main():
         try:
             page.reload(wait_until="networkidle")                          # nạp lại dữ liệu tươi
             page.wait_for_selector("#login", state="hidden", timeout=15000)
-            page.wait_for_function("() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='199' }", timeout=12000)
+            page.wait_for_function("() => { const e=document.querySelector('#k-ma'); return e && e.textContent.replace(/\\D/g,'')==='" + n_ma + "' }", timeout=12000)
             sd = src_cua(ma_d)
             ok_d = sd is not None and "drive.google.com" in sd
             bao(f"d. {ma_d} (tạm chỉ-Drive) src trỏ drive", ok_d, str(sd))

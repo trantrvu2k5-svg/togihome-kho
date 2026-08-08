@@ -41,7 +41,8 @@ def main():
     if not PASS:
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
     ton_bl03 = str(int(float(db_one("select so_luong from kho.ton t join kho.vat_tu v on v.id=t.vat_tu_id where v.ma='BL-03'"))))
-    print(f"  (DB) BL-03 tồn = {ton_bl03}")
+    n_ma = db_one("select count(*)::int from kho.vat_tu")   # số mã đọc DB, thay số cứng
+    print(f"  (DB) BL-03 tồn = {ton_bl03} · số mã = {n_ma}")
 
     with sync_playwright() as p:
         b = p.chromium.launch()
@@ -53,7 +54,7 @@ def main():
                 pg.goto(URL, wait_until="networkidle")
                 pg.fill("#lg-email", EMAIL); pg.fill("#lg-pass", PASS); pg.click("#lg-btn")
                 pg.wait_for_selector("#login", state="hidden", timeout=15000)
-                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='199'}", timeout=12000)
+                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='" + n_ma + "'}", timeout=12000)
             login()
 
             def di_toi(m):
@@ -72,9 +73,9 @@ def main():
             di_toi("ton")
             # h. danh sách tồn 199 dòng
             nrow = pg.locator("#bang tr").count()
-            bao(f"h.{W} danh sách tồn 199 dòng", nrow == 199, f"đếm {nrow}")
-            if nrow != 199:
-                raise AssertionError(f"h: {nrow} dòng != 199")
+            bao(f"h.{W} danh sách tồn {n_ma} dòng", nrow == int(n_ma), f"đếm {nrow}")
+            if nrow != int(n_ma):
+                raise AssertionError(f"h: {nrow} dòng != {n_ma}")
 
             # f. không phần tử tràn ngoài chiều rộng (panel/chip đang đóng)
             tran = pg.evaluate(f"""() => {{

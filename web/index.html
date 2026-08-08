@@ -277,8 +277,30 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   .muc{grid-template-columns:1fr}
   .ncc-form{flex-direction:column;align-items:stretch}
   .ncc-form .ip{width:100% !important}
+  /* danh sách phiếu + huỷ: vùng bấm đủ 44px trên điện thoại */
+  .dsp-row{min-height:44px}
+  .dsp-more .n,.huy-box textarea{min-height:44px}
+  .the .n.do{min-height:44px;display:inline-flex;align-items:center}
 }
 
+/* ── DANH SÁCH PHIẾU ĐÃ LẬP + PANEL XEM/HUỶ ── */
+.dsp-row{display:flex;flex-direction:column;gap:3px;padding:10px 13px;border:1px solid var(--line);border-radius:6px;margin-bottom:7px;cursor:pointer;background:var(--surface)}
+.dsp-row:hover{background:#FBFAF7;border-color:#CBBFA6}
+.dsp-row.huy{opacity:.55}
+.dsp-so{font-family:var(--mono);font-weight:600;font-size:13.5px}
+.dsp-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:3px;margin-left:8px;vertical-align:middle;letter-spacing:.02em}
+.dsp-tag.huy{background:#F6E0DE;color:#B03A2E}
+.dsp-tag.nguoc{background:#E8E3F5;color:#6C4CB3}
+.dsp-tag.so{background:#DCEEDD;color:#2E7D46}
+.dsp-tag.nhap{background:#FBF0D6;color:#9A6B00}
+.dsp-meta{font-size:12px;color:#6E7681}
+.dsp-more{margin-top:6px}
+.ph-dong-tb{width:100%;border-collapse:collapse;margin:6px 0 12px;table-layout:fixed}
+.ph-dong-tb th,.ph-dong-tb td{padding:6px 8px;font-size:13px;border-bottom:1px solid var(--line2);text-align:left;word-break:break-word}
+.ph-dong-tb th.r,.ph-dong-tb td.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.huy-box textarea{width:100%;min-height:82px;border:1px solid var(--line);border-radius:5px;padding:8px 10px;font:inherit;font-size:14px;box-sizing:border-box;resize:vertical}
+.n.do{background:#C0392B;color:#fff;border:0}
+.n.do[disabled]{opacity:.5;cursor:not-allowed}
 </style></head><body>
 <header>
   <button class="mb-menu" onclick="moNav()" aria-label="Menu">☰</button>
