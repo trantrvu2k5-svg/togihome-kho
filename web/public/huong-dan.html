@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Togihome Kho — Hướng dẫn dùng</title>
+<style>
+:root{--do:#C0392B;--ink:#23282E;--muted:#6E7681;--line:#D9D5CC;--paper:#EFEDE8}
+*{box-sizing:border-box} html,body{margin:0;overflow-x:hidden;max-width:100%}
+body{background:var(--paper);color:var(--ink);font:15px/1.6 system-ui,-apple-system,Roboto,sans-serif}
+header.top{background:var(--do);color:#fff;padding:18px 16px}
+header.top h1{margin:0 0 4px;font-size:20px} header.top .meta{font-size:13px;color:#F3CFC9}
+header.top .dem{margin-top:6px;font-size:13px;background:rgba(255,255,255,.15);display:inline-block;padding:3px 10px;border-radius:5px}
+.wrap{max-width:920px;margin:0 auto;padding:16px 14px 60px}
+.mucluc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:22px}
+.mucluc h2{margin:0 0 8px;font-size:15px} .ml-nhom{margin:8px 0} .ml-nhom b{font-size:13.5px}
+.mucluc ul{margin:4px 0 0;padding-left:20px} .mucluc li{margin:2px 0} .mucluc a{color:var(--do);text-decoration:none}
+.nhom-tit{font-size:17px;color:var(--do);border-bottom:2px solid #E7C9C3;padding-bottom:5px;margin:26px 0 14px}
+.buoc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
+.buoc .dau{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.stt{width:30px;height:30px;flex:none;background:var(--do);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+.buoc h3{margin:0;font-size:16px} .giai{margin:0 0 10px;color:#3A4048}
+ol.tt{margin:0 0 12px;padding-left:22px} ol.tt li{margin:2px 0;color:#3A4048}
+figure{margin:0 0 14px} figcaption{font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600}
+figcaption .nhac{font-weight:400;color:#9AA0A6}
+.anh-box{position:relative;display:block;width:100%;cursor:zoom-in;line-height:0}
+.anh-box img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px}
+.anh-box.mt img{min-width:0}
+@media (min-width:940px){ .anh-box.mt{min-width:900px} }
+.khung{position:absolute;border:3px solid var(--do);border-radius:6px;box-shadow:0 0 0 3px rgba(192,57,43,.25);pointer-events:none}
+.numc{position:absolute;transform:translate(-55%,-55%);width:26px;height:26px;background:var(--do);color:#fff;
+ border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+ box-shadow:0 1px 4px rgba(0,0,0,.4);pointer-events:none}
+/* lightbox */
+#lb{position:fixed;inset:0;background:rgba(10,12,16,.9);display:none;align-items:center;justify-content:center;z-index:90;cursor:zoom-out;padding:10px}
+#lb.on{display:flex} #lb img{max-width:98vw;max-height:96vh;border-radius:6px;background:#fff}
+@media print{
+  body{background:#fff} header.top{background:#fff;color:#000;border-bottom:2px solid #000}
+  header.top .meta,header.top .dem{color:#333;background:none} .mucluc{display:none}
+  .buoc{page-break-inside:avoid;border:1px solid #999} .nhom-tit{page-break-before:always}
+  .anh-box.mt{min-width:0} .khung,.numc{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  figcaption .nhac{display:none}
+}
+</style></head><body>
+<header class="top">
+  <h1>Togihome Kho — Hướng dẫn dùng</h1>
+  <div class="meta">Sinh tự động lúc 07:56 08/08/2026 · phiên bản app: v-kho-11</div>
+  <div class="dem">Đã chụp 15/15 bước (ĐỦ) · khung đỏ & số lấy toạ độ thật từ trình duyệt</div>
+</header>
+<div class="wrap">
+  <nav class="mucluc"><h2>Mục lục</h2><div class="ml-nhom"><b>Nhóm 1 — Đăng nhập</b><ul><li><a href="#b1">1. Màn hình đăng nhập</a></li><li><a href="#b2">2. Trang Tồn kho</a></li></ul></div><div class="ml-nhom"><b>Nhóm 2 — Tra cứu</b><ul><li><a href="#b3">3. Tìm một món hàng</a></li><li><a href="#b4">4. Mở bộ lọc nhóm</a></li><li><a href="#b5">5. Lọc theo nhóm</a></li><li><a href="#b6">6. Xem chi tiết một món</a></li></ul></div><div class="ml-nhom"><b>Nhóm 3 — Nhập kho</b><ul><li><a href="#b7">7. Mở phiếu nhập kho</a></li><li><a href="#b8">8. Chọn nhà cung cấp, thêm dòng</a></li><li><a href="#b9">9. Điền số lượng và giá</a></li><li><a href="#b10">10. Bấm Ghi sổ để lưu</a></li></ul></div><div class="ml-nhom"><b>Nhóm 4 — Xuất kho</b><ul><li><a href="#b11">11. Phiếu xuất kho</a></li></ul></div><div class="ml-nhom"><b>Nhóm 5 — Ảnh</b><ul><li><a href="#b12">12. Thêm ảnh cho món hàng</a></li></ul></div><div class="ml-nhom"><b>Nhóm 6 — Trang khác</b><ul><li><a href="#b13">13. Trang Cần đặt hàng</a></li><li><a href="#b14">14. Trang Nhà cung cấp</a></li><li><a href="#b15">15. Mở menu trên điện thoại</a></li></ul></div></nav>
+  <h2 class="nhom-tit">Nhóm 1 — Đăng nhập</h2><section class="buoc" id="b1">
+  <div class="dau"><span class="stt">1</span><h3>Màn hình đăng nhập</h3></div>
+  <p class="giai">Mở phần mềm lên, màn hình đầu tiên hỏi email và mật khẩu.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b01-390.png" alt="Bước 1 điện thoại"><span class="khung" style="left:11.18%;top:55.22%;width:77.64%;height:2.64%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b01-1280.png" alt="Bước 1 máy tính"><span class="khung" style="left:38.12%;top:57.46%;width:23.75%;height:3.70%"></span></div></figure>
+</section><section class="buoc" id="b2">
+  <div class="dau"><span class="stt">2</span><h3>Trang Tồn kho</h3></div>
+  <p class="giai">Gõ đúng email, mật khẩu rồi bấm Đăng nhập. Vào là thấy trang Tồn kho — bốn ô số tóm tắt và danh sách hàng.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b02-390.png" alt="Bước 2 điện thoại"><span class="khung" style="left:3.08%;top:10.36%;width:93.85%;height:4.86%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b02-1280.png" alt="Bước 2 máy tính"><span class="khung" style="left:17.34%;top:14.22%;width:80.62%;height:7.75%"></span></div></figure>
+</section><h2 class="nhom-tit">Nhóm 2 — Tra cứu</h2><section class="buoc" id="b3">
+  <div class="dau"><span class="stt">3</span><h3>Tìm một món hàng</h3></div>
+  <p class="giai">Muốn tìm nhanh, gõ mã hoặc tên vào ô tìm kiếm. Danh sách tự rút gọn còn món khớp.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b03-390.png" alt="Bước 3 điện thoại"><span class="khung" style="left:3.08%;top:22.57%;width:75.26%;height:3.14%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b03-1280.png" alt="Bước 3 máy tính"><span class="khung" style="left:41.92%;top:23.57%;width:17.97%;height:3.70%"></span></div></figure>
+</section><section class="buoc" id="b4">
+  <div class="dau"><span class="stt">4</span><h3>Mở bộ lọc nhóm</h3></div>
+  <p class="giai">Bấm nút Lọc để hiện các nhóm hàng (bản lề, ray, ván…).</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b04-390.png" alt="Bước 4 điện thoại"><span class="khung" style="left:80.13%;top:22.57%;width:16.79%;height:3.14%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b04-1280.png" alt="Bước 4 máy tính"><span class="khung" style="left:17.34%;top:28.18%;width:80.62%;height:12.20%"></span></div></figure>
+</section><section class="buoc" id="b5">
+  <div class="dau"><span class="stt">5</span><h3>Lọc theo nhóm</h3></div>
+  <p class="giai">Bấm vào một nhóm, danh sách chỉ còn hàng thuộc nhóm đó.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b05-390.png" alt="Bước 5 điện thoại"><span class="khung" style="left:3.08%;top:30.00%;width:29.21%;height:3.14%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b05-1280.png" alt="Bước 5 máy tính"><span class="khung" style="left:17.34%;top:31.75%;width:8.90%;height:2.88%"></span></div></figure>
+</section><section class="buoc" id="b6">
+  <div class="dau"><span class="stt">6</span><h3>Xem chi tiết một món</h3></div>
+  <p class="giai">Bấm vào một dòng hàng để xem: còn bao nhiêu trong kho và lịch sử nhập xuất của riêng món đó.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b06-390.png" alt="Bước 6 điện thoại"><span class="khung" style="left:0.00%;top:82.00%;width:100.00%;height:5.20%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b06-1280.png" alt="Bước 6 máy tính"><span class="khung" style="left:56.33%;top:13.58%;width:43.67%;height:7.27%"></span></div></figure>
+</section><h2 class="nhom-tit">Nhóm 3 — Nhập kho</h2><section class="buoc" id="b7">
+  <div class="dau"><span class="stt">7</span><h3>Mở phiếu nhập kho</h3></div>
+  <p class="giai">Khi có hàng về thì vào mục Phiếu nhập kho. Mỗi lần hàng về là một phiếu.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b07-390.png" alt="Bước 7 điện thoại"><span class="khung" style="left:3.33%;top:17.25%;width:93.33%;height:10.79%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b07-1280.png" alt="Bước 7 máy tính"><span class="khung" style="left:17.42%;top:19.98%;width:80.47%;height:9.60%"></span></div></figure>
+</section><section class="buoc" id="b8">
+  <div class="dau"><span class="stt">8</span><h3>Chọn nhà cung cấp, thêm dòng</h3></div>
+  <p class="giai">Làm theo thứ tự: chọn nơi giao hàng, rồi bấm Thêm dòng cho mỗi món nhận về.</p>
+  <ol class="tt"><li>Chọn nhà cung cấp</li><li>Bấm + Thêm dòng</li></ol>
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b08-390.png" alt="Bước 8 điện thoại"><span class="numc" style="left:6.41%;top:35.48%">1</span><span class="numc" style="left:6.41%;top:22.75%">2</span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b08-1280.png" alt="Bước 8 máy tính"><span class="numc" style="left:45.08%;top:33.38%">1</span><span class="numc" style="left:81.25%;top:21.38%">2</span></div></figure>
+</section><section class="buoc" id="b9">
+  <div class="dau"><span class="stt">9</span><h3>Điền số lượng và giá</h3></div>
+  <p class="giai">Gõ số lượng nhận và giá mua mỗi món. Phần mềm tự tính thành tiền.</p>
+  <ol class="tt"><li>Gõ số lượng nhận</li><li>Gõ đơn giá mua</li><li>Thành tiền tự hiện</li></ol>
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b09-390.png" alt="Bước 9 điện thoại"><span class="numc" style="left:33.33%;top:47.79%">1</span><span class="numc" style="left:33.33%;top:53.20%">2</span><span class="numc" style="left:9.49%;top:55.93%">3</span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b09-1280.png" alt="Bước 9 máy tính"><span class="numc" style="left:60.84%;top:42.45%">1</span><span class="numc" style="left:73.81%;top:42.45%">2</span><span class="numc" style="left:83.26%;top:41.80%">3</span></div></figure>
+</section><section class="buoc" id="b10">
+  <div class="dau"><span class="stt">10</span><h3>Bấm Ghi sổ để lưu</h3></div>
+  <p class="giai">Kiểm lại cho đúng rồi bấm Ghi sổ. Ghi sổ xong là tồn kho cập nhật ngay.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b10-390.png" alt="Bước 10 điện thoại"><span class="khung" style="left:37.92%;top:22.75%;width:18.50%;height:2.64%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b10-1280.png" alt="Bước 10 máy tính"><span class="khung" style="left:90.85%;top:21.38%;width:5.64%;height:3.70%"></span></div></figure>
+</section><h2 class="nhom-tit">Nhóm 4 — Xuất kho</h2><section class="buoc" id="b11">
+  <div class="dau"><span class="stt">11</span><h3>Phiếu xuất kho</h3></div>
+  <p class="giai">Khi lấy hàng ra dùng thì làm Phiếu xuất kho, cũng điền từng dòng rồi Ghi sổ.</p>
+  <ol class="tt"><li>Gõ số lượng lấy ra</li><li>Bấm Ghi sổ khi đã chắc</li></ol>
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b11-390.png" alt="Bước 11 điện thoại"><span class="numc" style="left:33.33%;top:40.96%">1</span><span class="numc" style="left:37.92%;top:15.93%">2</span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b11-1280.png" alt="Bước 11 máy tính"><span class="numc" style="left:63.18%;top:36.80%">1</span><span class="numc" style="left:90.85%;top:15.72%">2</span></div></figure>
+</section><h2 class="nhom-tit">Nhóm 5 — Ảnh</h2><section class="buoc" id="b12">
+  <div class="dau"><span class="stt">12</span><h3>Thêm ảnh cho món hàng</h3></div>
+  <p class="giai">Món nào chưa có ảnh, mở chi tiết rồi bấm Thêm ảnh, chụp bằng điện thoại là xong.</p>
+  <ol class="tt"><li>Bấm Thêm ảnh rồi chụp/chọn ảnh</li></ol>
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b12-390.png" alt="Bước 12 điện thoại"><span class="numc" style="left:0.00%;top:78.02%">1</span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b12-1280.png" alt="Bước 12 máy tính"><span class="numc" style="left:56.33%;top:9.73%">1</span></div></figure>
+</section><h2 class="nhom-tit">Nhóm 6 — Trang khác</h2><section class="buoc" id="b13">
+  <div class="dau"><span class="stt">13</span><h3>Trang Cần đặt hàng</h3></div>
+  <p class="giai">Mục Cần đặt hàng gợi ý những món sắp hết, dưới mức tối thiểu.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b13-390.png" alt="Bước 13 điện thoại"><span class="khung" style="left:3.21%;top:42.10%;width:93.59%;height:3.50%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b13-1280.png" alt="Bước 13 máy tính"><span class="khung" style="left:17.38%;top:36.39%;width:80.55%;height:6.70%"></span></div></figure>
+</section><section class="buoc" id="b14">
+  <div class="dau"><span class="stt">14</span><h3>Trang Nhà cung cấp</h3></div>
+  <p class="giai">Mục Nhà cung cấp để lưu tên và số điện thoại nơi mình hay mua hàng.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b14-390.png" alt="Bước 14 điện thoại"><span class="khung" style="left:55.41%;top:23.54%;width:41.51%;height:2.64%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b14-1280.png" alt="Bước 14 máy tính"><span class="khung" style="left:64.77%;top:16.43%;width:12.65%;height:3.70%"></span></div></figure>
+</section><section class="buoc" id="b15">
+  <div class="dau"><span class="stt">15</span><h3>Mở menu trên điện thoại</h3></div>
+  <p class="giai">Trên điện thoại, bấm nút ba gạch ở góc trái để mở danh sách các mục.</p>
+  
+  <figure><figcaption>📱 Điện thoại</figcaption>
+    <div class="anh-box dt" onclick="phong(this)"><img src="hd/b15-390.png" alt="Bước 15 điện thoại"><span class="khung" style="left:2.56%;top:0.29%;width:11.28%;height:3.14%"></span></div></figure>
+  <figure><figcaption>💻 Máy tính <span class="nhac">— bấm ảnh để phóng to</span></figcaption>
+    <div class="anh-box mt" onclick="phong(this)"><img src="hd/b15-1280.png" alt="Bước 15 máy tính"><span class="khung" style="left:0.00%;top:9.95%;width:15.23%;height:3.90%"></span></div></figure>
+</section>
+</div>
+<div id="lb" onclick="this.classList.remove('on')"><img id="lb-img" alt=""></div>
+<script>
+function phong(box){ const im=box.querySelector('img'); const lb=document.getElementById('lb');
+  document.getElementById('lb-img').src=im.src; lb.classList.add('on'); }
+</script>
+</body></html>
