@@ -3,7 +3,7 @@
 #   a. có nút Xuất · b. modal hiện đúng số đã-chốt/chưa-chốt (khớp DB) · c. tải file được
 #   d. CỔNG: file tải về == file ops/xuat_quy_doi.mjs (bỏ qua dấu thời gian) · e. dải cảnh báo đúng số
 #   f. bấm dải mở danh sách · g. đánh dấu 1 mã không liên quan -> số -1, reload vẫn giữ · h. layout 390
-#   i. dọn sạch: quy_doi vẫn 96/6, xoá localStorage
+#   i. dọn sạch: quy_doi vẫn ĐÚNG MỐC ĐẦU (đọc lúc chạy), xoá localStorage
 # Chỗ lưu "không liên quan": localStorage key gm_bo_qua (KHÔNG tạo bảng — cai_dat chỉ SELECT cho app).
 import json
 import os
@@ -45,6 +45,7 @@ def main():
     if not PASS:
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
     truoc = dbjs("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")
+    n_ma = str(dbjs("const r=await q(`select count(*)::int n from kho.vat_tu`); console.log(JSON.stringify(r[0].n));"))  # số mã ĐỌC LÚC CHẠY (không viết cứng 199)
 
     with sync_playwright() as p:
         b = p.chromium.launch()
@@ -57,7 +58,7 @@ def main():
                 pg.goto(URL, wait_until="networkidle")
                 pg.fill("#lg-email", EMAIL); pg.fill("#lg-pass", PASS); pg.click("#lg-btn")
                 pg.wait_for_selector("#login", state="hidden", timeout=15000)
-                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='199'}", timeout=12000)
+                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='" + n_ma + "'}", timeout=12000)
 
             def di_ghep():
                 if hep:
@@ -150,7 +151,7 @@ def main():
                 so_sau = int(re.sub(r"\D", "", pg.locator("#gm-canhbao b").first.inner_text()))
                 # reload -> vào lại ghép -> số vẫn giảm (localStorage giữ)
                 pg.reload(wait_until="networkidle")
-                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='199'}", timeout=12000)
+                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='" + n_ma + "'}", timeout=12000)
                 di_ghep()
                 # chờ gmCanhBao (async) cập nhật dải sau reload — localStorage giữ mark thì số còn exp_chua-1
                 pg.wait_for_function("(n)=>{const e=document.querySelector('#gm-canhbao b');return e && parseInt(e.textContent.replace(/\\D/g,''))===n}", arg=exp_chua - 1, timeout=8000)
@@ -166,7 +167,7 @@ def main():
 
     # i. quy_doi không đổi
     sau = dbjs("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")
-    oki = sau == truoc and sau["n"] == 96 and sau["d"] == 6
+    oki = sau == truoc and sau["n"] == truoc["n"] and sau["d"] == truoc["d"]
     bao(f"i. quy_doi giữ nguyên {sau} (localStorage đã xoá)", oki, f"trước {truoc}")
     if not oki:
         raise AssertionError(f"i: quy_doi lệch {sau} vs {truoc}")

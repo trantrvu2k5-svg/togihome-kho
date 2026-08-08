@@ -5,7 +5,7 @@
 #   c. thêm trùng -> báo, không tạo dòng · d. chọn ứng viên vừa thêm làm mặc định -> cờ chuyển
 #   f. xoá khi đang mặc định -> chặn · e. bỏ chọn + xoá -> dòng biến mất
 #   g. dải chưa-ghép: Ghép vào 1 mã cho 1 mô tả -> thêm + số dải -1
-#   h. 390: không cuộn ngang, chữ>=14, vùng bấm>=48 · i. dọn sạch -> 96/6
+#   h. 390: không cuộn ngang, chữ>=14, vùng bấm>=48 · i. dọn sạch -> về đúng MỐC ĐẦU (đọc lúc chạy)
 import json
 import os
 import re
@@ -62,6 +62,7 @@ def main():
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
     snap = snapshot()
     truoc = dbjs("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")
+    n_ma = str(dbjs("const r=await q(`select count(*)::int n from kho.vat_tu`); console.log(JSON.stringify(r[0].n));"))  # số mã ĐỌC LÚC CHẠY (không viết cứng 199)
     try:
       with sync_playwright() as p:
         b = p.chromium.launch()
@@ -75,7 +76,7 @@ def main():
                 pg.goto(URL, wait_until="networkidle")
                 pg.fill("#lg-email", EMAIL); pg.fill("#lg-pass", PASS); pg.click("#lg-btn")
                 pg.wait_for_selector("#login", state="hidden", timeout=15000)
-                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='199'}", timeout=12000)
+                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='" + n_ma + "'}", timeout=12000)
 
             def di_ghep():
                 if hep:
@@ -190,8 +191,8 @@ def main():
         restore(snap)
 
     fin = dbjs("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")
-    oki = fin == truoc and fin["n"] == 96 and fin["d"] == 6
-    bao(f"i. dọn sạch: {fin} (cần 96/6)", oki, f"trước {truoc}")
+    oki = fin == truoc and fin["n"] == truoc["n"] and fin["d"] == truoc["d"]
+    bao(f"i. dọn sạch: {fin} (cần {truoc['n']}/{truoc['d']})", oki, f"trước {truoc}")
     if not oki:
         raise AssertionError(f"i: quy_doi lệch {fin}")
 

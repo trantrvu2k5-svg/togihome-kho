@@ -4,7 +4,7 @@
 #   a. số khối = số mo_ta_thiet_ke · b. 3 ô đếm khớp DB · c. chọn 1 ứng viên -> DB đúng
 #   d. đổi sang ứng viên khác cùng mô tả -> cờ mặc định chuyển (cổng ràng buộc) · e. hệ số lưu + cảnh báo tính lại
 #   f. Không ghép ghi chú trống -> báo yêu cầu (không lỗi thô); nhập lý do -> lưu KHONG_GHEP
-#   g. 4 lọc đúng · h. không cuộn ngang 390 · i. vùng bấm >=48px, chữ >=14px · j. dọn sạch -> 96 dòng, 6 DA_DUYET
+#   g. 4 lọc đúng · h. không cuộn ngang 390 · i. vùng bấm >=48px, chữ >=14px · j. dọn sạch -> về đúng MỐC ĐẦU (đọc lúc chạy)
 # Chạy: cd web && DEV_URL=... CEO_EMAIL=... CEO_PASS=... DB_* python3 tests/test_ghep_ma.py
 import json
 import os
@@ -75,6 +75,8 @@ def main():
     if not PASS:
         print("THIẾU CEO_PASS — DỪNG."); sys.exit(2)
     snap = snapshot()
+    truoc = db_json("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")  # mốc ĐỌC LÚC CHẠY
+    n_ma = str(db_json("const r=await q(`select count(*)::int n from kho.vat_tu`); console.log(JSON.stringify(r[0].n));"))  # số mã ĐỌC LÚC CHẠY (không viết cứng 199)
     try:
       with sync_playwright() as p:
         b = p.chromium.launch()
@@ -88,7 +90,7 @@ def main():
                 pg.goto(URL, wait_until="networkidle")
                 pg.fill("#lg-email", EMAIL); pg.fill("#lg-pass", PASS); pg.click("#lg-btn")
                 pg.wait_for_selector("#login", state="hidden", timeout=15000)
-                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='199'}", timeout=12000)
+                pg.wait_for_function("()=>{const e=document.querySelector('#k-ma');return e&&e.textContent.replace(/\\D/g,'')==='" + n_ma + "'}", timeout=12000)
 
             def di_ghep():
                 if hep:
@@ -210,10 +212,10 @@ def main():
 
     # ── j. DỌN SẠCH + đối chiếu (đã restore ở finally) ──
     fin = db_json("const r=await q(`select (select count(*)::int from kho.quy_doi) n,(select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') d`); console.log(JSON.stringify(r[0]));")
-    okj = fin["n"] == 96 and fin["d"] == 6
-    bao(f"j. dọn sạch: {fin['n']} dòng · {fin['d']} DA_DUYET", okj, "cần 96 · 6")
+    okj = fin["n"] == truoc["n"] and fin["d"] == truoc["d"]
+    bao(f"j. dọn sạch: {fin['n']} dòng · {fin['d']} DA_DUYET", okj, f"cần {truoc['n']} · {truoc['d']}")
     if not okj:
-        raise AssertionError(f"j: quy_doi lệch {fin} (cần 96/6)")
+        raise AssertionError(f"j: quy_doi lệch {fin} (cần {truoc['n']}/{truoc['d']})")
 
     print("\n" + ("✅ TẤT CẢ PASS" if not loi else "❌ FAIL: " + ", ".join(loi)))
     sys.exit(1 if loi else 0)

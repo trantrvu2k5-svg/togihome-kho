@@ -60,7 +60,9 @@ def main():
             def di_toi(m):
                 pg.click(".mb-menu"); pg.wait_for_selector("nav.mo", timeout=4000)
                 pg.click(f'nav button[data-m="{m}"]'); pg.wait_for_selector(f"#m-{m}.on", timeout=8000)
-                pg.wait_for_selector("nav:not(.mo)", timeout=4000); pg.wait_for_timeout(350)
+                pg.wait_for_selector("nav:not(.mo)", timeout=4000)
+                # nav đóng = translateX(-100%) transition .22s: CHỜ tới khi nav trượt HẲN khỏi màn (điều kiện đúng), thay chờ 350ms cố định
+                pg.wait_for_function("()=>{const n=document.querySelector('nav');if(!n)return true;const r=n.getBoundingClientRect();return r.right<=0.5}", timeout=4000)
 
             # a. không cuộn ngang trên mọi trang
             for m, ten in PAGES:
@@ -71,7 +73,11 @@ def main():
                     raise AssertionError(f"a: {ten} @{W}px cuộn ngang (scrollW={sc}>{cw})")
 
             di_toi("ton")
-            # h. danh sách tồn 199 dòng
+            # h. danh sách tồn 199 dòng — CHỜ tới khi DOM render đủ n_ma dòng (đọc DB), thay chờ thời gian cố định.
+            try:
+                pg.wait_for_function(f"()=>document.querySelectorAll('#bang tr').length==={int(n_ma)}", timeout=12000)
+            except PWTimeout:
+                pass  # KHÔNG nuốt lỗi: assertion CHẶT ngay dưới vẫn in đếm/mong đợi rồi RAISE
             nrow = pg.locator("#bang tr").count()
             bao(f"h.{W} danh sách tồn {n_ma} dòng", nrow == int(n_ma), f"đếm {nrow}")
             if nrow != int(n_ma):
@@ -106,7 +112,7 @@ def main():
             # b. ☰ mở & đóng nav
             pg.click(".mb-menu"); pg.wait_for_selector("nav.mo", timeout=4000)
             o1 = pg.locator("nav").evaluate("e=>e.classList.contains('mo')")
-            pg.click("nav .nav-x"); pg.wait_for_selector("nav:not(.mo)", timeout=4000); pg.wait_for_timeout(350)
+            pg.click("nav .nav-x"); pg.wait_for_selector("nav:not(.mo)", timeout=4000)  # đã chờ nav mất class 'mo' -> o2 chắc chắn False; bỏ chờ 350ms thừa (kiểm CLASS, không phải đếm)
             o2 = pg.locator("nav").evaluate("e=>e.classList.contains('mo')")
             bao(f"b.{W} ☰ mở & đóng nav", o1 and not o2)
             if not (o1 and not o2):
