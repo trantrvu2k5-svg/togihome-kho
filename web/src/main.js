@@ -494,7 +494,9 @@ function gmRenderChua() {
       <span class="u-ma">${x.ma}</span>
       <span class="u-ten">${escA(x.ten)} · ${x.nhom}</span>
       <span class="u-so">tồn ${x.ton != null ? x.ton : '—'} · vốn ${x.gia ? n(x.gia) + 'đ' : '—'}</span>
-      <button class="nut" onclick="gmBoQuaMa('${x.ma}')">Không liên quan</button></div>`).join('')
+      <button class="gm-ghep-btn" onclick="gmMoGhepVao('${x.ma}')">+ Ghép vào mô tả</button>
+      <button class="nut" onclick="gmBoQuaMa('${x.ma}')">Không liên quan</button>
+      <div class="gm-ghep-slot" id="gm-ghep-${x.ma}" style="flex-basis:100%"></div></div>`).join('')
     : '<div class="trong">Không còn mã nào chưa ghép.</div>'
 }
 function gmMoChua() {
@@ -517,9 +519,7 @@ async function gmXuat() {
   if (daDuyet === 0) { bao('Chưa có dòng nào ĐÃ DUYỆT — không có gì để xuất (không tải file rỗng).'); return }
   const conLai = soMoTa - daDuyet
   if (conLai > 0) {
-    $('#gm-modal-msg').innerHTML = `Xuất bây giờ: <b>${daDuyet}</b> mô tả CÓ giá kho (sẽ ghi vào file). Còn <b>${conLai}</b> mô tả CHƯA chốt — plugin vẫn phải dùng <b>giá cũ</b> cho các mã này. Làm dần từng phần là hợp lý — vẫn xuất phần đã có?`
-    $('#gm-modal').style.display = 'flex'
-    $('#gm-modal-ok').onclick = () => { gmModalDong(); gmTaiFile() }
+    gmModal(`Xuất bây giờ: <b>${daDuyet}</b> mô tả CÓ giá kho (sẽ ghi vào file). Còn <b>${conLai}</b> mô tả CHƯA chốt — plugin vẫn phải dùng <b>giá cũ</b> cho các mã này. Làm dần từng phần là hợp lý — vẫn xuất phần đã có?`, 'Xuất', () => gmTaiFile())
   } else {
     gmTaiFile()
   }
@@ -574,7 +574,8 @@ function gmKhoiHtml(g) {
         <span class="u-ma">${r.ma_kho}</span>
         <span class="u-ten">${escA(k.ten || r.ma_kho)}${k.nhom ? ` · ${k.nhom}` : ''} ${tc}${md}</span>
         <span class="u-so">${k.dvt || ''} · ${giaTxt} · tồn <span class="num">${k.ton != null ? k.ton : '—'}</span></span>
-        <button class="nut${chon ? ' on' : ''}" onclick="gmChon('${r.id}','${g.mo_ta}')">${chon ? '✓ Đã chọn' : 'Chọn'}</button></div>`
+        <button class="nut${chon ? ' on' : ''}" onclick="gmChon('${r.id}','${g.mo_ta}')">${chon ? '✓ Đã chọn' : 'Chọn'}</button>
+        <button class="nut gm-xoa" title="Xoá ứng viên khỏi mô tả" onclick="gmXoaUngVien('${r.id}','${g.mo_ta}')">🗑</button></div>`
     }).join('')
   }
   const hsHtml = coUV ? `<div class="hs">Hệ số quy đổi (1 đơn vị kho = ? đơn vị plugin) <input class="gm-ip" type="number" min="0" step="any" value="${act && Number(act.he_so_quy_doi) !== 1 ? act.he_so_quy_doi : ''}" placeholder="1" data-hs="${act ? act.id : ''}" data-mota="${g.mo_ta}"></div>` : ''
@@ -590,6 +591,9 @@ function gmKhoiHtml(g) {
       <div class="phai">
         ${phai}
         ${hsHtml}
+        <div class="gm-them-wrap"><button class="nut" onclick="gmMoThem('${g.mo_ta}')">+ Thêm mã kho khác</button>
+          <span class="gm-them-note">Dùng khi các mã gợi ý trên đều KHÔNG đúng — tìm và thêm mã kho bất kỳ.</span></div>
+        <div class="gm-them-slot" id="gm-them-${g.mo_ta}"></div>
         <div style="margin-top:8px"><button class="nut bo${bo ? ' on' : ''}" onclick="gmKhongGhep('${g.mo_ta}')">${bo ? '✓ Không ghép' : 'Không ghép (kho chưa có hàng)'}</button></div>
         <div class="gm-cbao-slot">${gmWarnHtml(g)}</div>
         <div class="ghi"><label>Ghi chú (lý do chọn / không ghép):</label><input class="gm-ip" value="${escA((act && act.ghi_chu) || '')}" data-ghi="${act ? act.id : ''}" data-mota="${g.mo_ta}" placeholder="ví dụ: đúng hàng đang mua…"></div>
@@ -624,12 +628,106 @@ async function gmReload(mo_ta) {
 
 // CHỌN ứng viên: BỎ cờ mặc định cũ TRƯỚC (tránh vi phạm ràng buộc 1-mặc-định), rồi đặt cờ mới + DA_DUYET.
 async function gmChon(id, mo_ta) {
-  const e1 = (await sb.from('quy_doi').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
-  if (e1) { bao('Bỏ cờ mặc định cũ lỗi: ' + e1.message); return }
+  const g = GHEP.find(x => x.mo_ta === mo_ta), row = g && g.rows.find(r => r.id === id)
+  // BỎ CHỌN: bấm lại ứng viên đang chọn -> về CHUA_DUYET, không mặc định (để đổi / xoá được).
+  if (row && row.la_mac_dinh && row.trang_thai === 'DA_DUYET') {
+    const { error } = await sb.from('quy_doi').update({ la_mac_dinh: false, trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('id', id)
+    if (error) { bao('Bỏ chọn lỗi: ' + error.message); return }
+    bao('Đã BỎ CHỌN mã kho cho mô tả này.'); return gmReload(mo_ta)
+  }
+  // CHỌN: revert DA_DUYET cũ về CHUA_DUYET + bỏ MỌI cờ mặc định TRƯỚC (ràng buộc 1-mặc-định) rồi đặt cờ mới.
+  const eR = (await sb.from('quy_doi').update({ trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('mo_ta_thiet_ke', mo_ta).eq('trang_thai', 'DA_DUYET')).error
+  const eC = (await sb.from('quy_doi').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
+  if (eR || eC) { bao('Bỏ cờ mặc định cũ lỗi: ' + (eR || eC).message); return }
   const { error } = await sb.from('quy_doi').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id)
   if (error) { bao('Chốt lỗi: ' + error.message); return }   // hiện NGUYÊN VĂN lỗi (gồm lỗi ràng buộc)
   bao('Đã chốt mã kho mặc định cho mô tả này.')
   await gmReload(mo_ta)
+}
+
+// Hộp xác nhận dùng chung (tái dùng #gm-modal): msg + nhãn nút OK + việc khi OK.
+function gmModal(msgHtml, okLabel, onOk) {
+  $('#gm-modal-msg').innerHTML = msgHtml
+  const ok = $('#gm-modal-ok'); ok.textContent = okLabel; ok.onclick = () => { gmModalDong(); onOk() }
+  $('#gm-modal').style.display = 'flex'
+}
+
+// THÊM 1 mã kho làm ứng viên MỚI của mô tả (VIỆC 1 + 2). Chặn TRÙNG trước (ràng buộc uniq mo_ta+ma_kho).
+async function gmThemUngVien(mo_ta, ma) {
+  const g = GHEP.find(x => x.mo_ta === mo_ta); if (!g) return
+  if (g.rows.some(r => r.ma_kho === ma)) { bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`); return }
+  const khac = GHEP.filter(x => x.mo_ta !== mo_ta && x.rows.some(r => r.ma_kho === ma)).map(x => x.mo_ta)
+  const { error } = await sb.from('quy_doi').insert({
+    mo_ta_thiet_ke: mo_ta, ten_mo_ta: g.ten, ma_plugin: g.mp, dvt_plugin: g.dvt, gia_plugin: g.gia,
+    nhom_dinh_muc: g.nhom, ma_kho: ma, he_so_quy_doi: 1, muc_tin_cay: 'CHUA_RO', la_mac_dinh: false,
+    trang_thai: 'CHUA_DUYET', ghi_chu: 'CEO thêm tay từ giao diện'
+  })
+  if (error) {
+    if (error.code === '23505' || /duplicate|unique/i.test(error.message)) { bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`); return }
+    bao('Thêm lỗi: ' + error.message); return   // hiện nguyên văn lỗi khác
+  }
+  bao(`Đã thêm ${ma} vào mô tả${khac.length ? ` (LƯU Ý: mã này cũng đang dùng ở: ${khac.join(', ')})` : ''}.`)
+  await gmReload(mo_ta); gmCanhBao()
+}
+
+// VIỆC 1 — picker tìm mã kho trong khối
+function gmMoThem(mo_ta) {
+  const slot = $(`#gm-them-${mo_ta}`); if (!slot) return
+  if (slot.dataset.open === '1') { slot.innerHTML = ''; slot.dataset.open = ''; return }
+  slot.dataset.open = '1'
+  slot.innerHTML = `<input class="gm-ip gm-them-tim" placeholder="Gõ MÃ hoặc TÊN kho để tìm…" oninput="gmThemLoc('${mo_ta}')"><div class="gm-them-kq"></div>`
+  const inp = slot.querySelector('.gm-them-tim'); if (inp) inp.focus()
+  gmThemLoc(mo_ta)
+}
+function gmThemLoc(mo_ta) {
+  const slot = $(`#gm-them-${mo_ta}`); if (!slot) return
+  const inp = slot.querySelector('.gm-them-tim'), kq = slot.querySelector('.gm-them-kq')
+  const q = (inp ? inp.value : '').trim().toLowerCase()
+  const g = GHEP.find(x => x.mo_ta === mo_ta), coRoi = new Set(g ? g.rows.map(r => r.ma_kho) : [])
+  let ds = KHO
+  if (q) ds = ds.filter(x => x.ma.toLowerCase().includes(q) || (x.ten || '').toLowerCase().includes(q))
+  ds = ds.slice(0, 25)
+  kq.innerHTML = ds.length ? ds.map(x => `<div class="gm-them-row">
+      <span class="u-ma">${x.ma}</span><span class="u-ten">${escA(x.ten)} · ${x.nhom}${coRoi.has(x.ma) ? ' <span class="tc tc-chuaro">đã có</span>' : ''}</span>
+      <span class="u-so">${x.dvt || ''} · vốn ${x.gia ? n(x.gia) + 'đ' : '—'} · tồn ${x.ton != null ? x.ton : '—'}</span>
+      <button class="nut" onclick="gmThemUngVien('${mo_ta}','${x.ma}')">Chọn</button></div>`).join('')
+    : `<div class="trong">${q ? 'Không mã nào khớp.' : 'Gõ để tìm mã kho.'}</div>`
+}
+
+// VIỆC 2 — từ danh sách mã chưa ghép: chọn MÔ TẢ để ghép vào
+function gmMoGhepVao(ma) {
+  const slot = $(`#gm-ghep-${ma}`); if (!slot) return
+  if (slot.dataset.open === '1') { slot.innerHTML = ''; slot.dataset.open = ''; return }
+  slot.dataset.open = '1'
+  slot.innerHTML = `<input class="gm-ip gm-ghep-tim" placeholder="Gõ để tìm mô tả thiết kế…" oninput="gmGhepLoc('${ma}')"><div class="gm-ghep-kq"></div>`
+  const inp = slot.querySelector('.gm-ghep-tim'); if (inp) inp.focus()
+  gmGhepLoc(ma)
+}
+function gmGhepLoc(ma) {
+  const slot = $(`#gm-ghep-${ma}`); if (!slot) return
+  const inp = slot.querySelector('.gm-ghep-tim'), kq = slot.querySelector('.gm-ghep-kq')
+  const q = (inp ? inp.value : '').trim().toLowerCase()
+  let ds = GHEP
+  if (q) ds = ds.filter(g => g.mo_ta.toLowerCase().includes(q) || (g.ten || '').toLowerCase().includes(q) || (g.mp || '').toLowerCase().includes(q))
+  ds = ds.slice(0, 25)
+  kq.innerHTML = ds.length ? ds.map(g => `<div class="gm-them-row">
+      <span class="u-ma">${g.mp}</span><span class="u-ten">${escA(g.ten)}</span>
+      <button class="nut" onclick="gmGhepVaoChon('${g.mo_ta}','${ma}')">Ghép</button></div>`).join('')
+    : `<div class="trong">${q ? 'Không mô tả nào khớp.' : 'Gõ để tìm mô tả.'}</div>`
+}
+async function gmGhepVaoChon(mo_ta, ma) { await gmThemUngVien(mo_ta, ma) }   // thêm + gmCanhBao (dải giảm 1)
+
+// VIỆC 3 — xoá ứng viên (chỉ khi KHÔNG mặc định + chưa duyệt). Hỏi xác nhận, xoá hẳn dòng.
+async function gmXoaUngVien(id, mo_ta) {
+  const g = GHEP.find(x => x.mo_ta === mo_ta), row = g && g.rows.find(r => r.id === id)
+  if (!row) return
+  if (row.la_mac_dinh || row.trang_thai === 'DA_DUYET') { bao('Ứng viên đang là MẶC ĐỊNH / đã duyệt — BỎ CHỌN trước khi xoá (bấm lại nút Đã chọn).'); return }
+  gmModal(`Xoá hẳn ứng viên <b>${row.ma_kho}</b> khỏi mô tả này? Không hoàn tác được.`, 'Xoá', async () => {
+    const { error } = await sb.from('quy_doi').delete().eq('id', id)
+    if (error) { bao('Xoá lỗi: ' + error.message); return }
+    bao(`Đã xoá ứng viên ${row.ma_kho}.`)
+    await gmReload(mo_ta); gmCanhBao()
+  })
 }
 // KHÔNG GHÉP: bắt buộc có ghi chú (app chặn TRƯỚC, không để lỗi CSDL bắn thô).
 async function gmKhongGhep(mo_ta) {
@@ -688,4 +786,4 @@ function boot() {
 }
 
 // phơi hàm cho onclick trong HTML sinh động
-Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien, veDsPhieu, phXemThem, moPhieuXem, moXacNhanHuy, xacNhanHuy, veGhepMa, gmChon, gmKhongGhep, gmXuat, gmModalDong, gmMoChua, gmBoQuaMa })
+Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien, veDsPhieu, phXemThem, moPhieuXem, moXacNhanHuy, xacNhanHuy, veGhepMa, gmChon, gmKhongGhep, gmXuat, gmModalDong, gmMoChua, gmBoQuaMa, gmMoThem, gmThemLoc, gmThemUngVien, gmMoGhepVao, gmGhepLoc, gmGhepVaoChon, gmXoaUngVien })
