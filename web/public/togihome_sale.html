@@ -193,6 +193,7 @@ td input.ce::placeholder{color:#C6CDD9}
 .bdg.c2{background:var(--l2B);color:var(--l2)}.bdg.c3{background:var(--l3B);color:var(--l3)}
 .bdg.mut{background:var(--bg);color:var(--mut)}
 .bdg.gn{background:var(--gnB);color:var(--gn)}.bdg.rd{background:var(--rdB);color:var(--rd)}
+.bdg.bao{background:#EDE9FE;color:#6D28D9}
 .dlt{font-size:11.5px;font-weight:600;font-family:var(--mono)}
 .dlt.up{color:var(--gn)}.dlt.dn{color:var(--rd)}
 
@@ -790,6 +791,10 @@ const TT = [{
   nut: null
 }];
 const TT_KHAC = [{
+  c: "bao_gia",
+  n: "Báo giá",
+  mau: "bao"
+}, {
   c: "tam_ngung",
   n: "Tạm ngưng",
   mau: "am"
@@ -1009,7 +1014,7 @@ const kTra = (d, ct) => tienDon(ct) - (+d.giam || 0);
    Khách trả thẳng thợ thì khoản đó không chạy qua sổ công ty. */
 const lapCty = d => (d.lapAi || "cty") === "cty" ? +d.lap || 0 : 0;
 /* Cước vận chuyển công ty trả nhà xe, nên trừ khỏi doanh thu — giống phí lắp đặt. */
-const dtCua = (d, ct) => loaiOf(d.loai).dt ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0;
+const dtCua = (d, ct) => loaiOf(d.loai).dt && d.tt !== "bao_gia" ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0;
 const phaiThu = (d, ct) => kTra(d, ct) - (+d.coc || 0) - (+d.daTT || 0);
 const canHD = d => !!tkOf(d.tkCoc)?.hd;
 /* Trạng thái thanh toán suy ra từ số, không lưu riêng — số đổi là trạng thái đổi theo */
@@ -2448,6 +2453,52 @@ function DonModal({
     }, ln, ln.length > 1 || giam > 0);
     onClose();
   };
+  /* BÁO GIÁ: món chỉ cần tên + mã màu (bỏ ràng buộc đơn giá > 0). Lưu ở trạng thái bao_gia. */
+  const monBaoOk = ln.every(x => x.ten.trim() && x.maMau);
+  const okBao = !["sdt", "diaChi", "tkCoc", "brand", "donGoc", "hd"].some(k => E[k]) && monBaoOk;
+  const THIEU_B = THIEU.filter(x => x[0] !== "mon").concat(!monBaoOk ? [["mon", "Mỗi món cần tên và mã màu", rMon]] : []);
+  const luuBao = () => {
+    setThu(true);
+    if (!okBao) {
+      THIEU_B[0]?.[2]?.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      THIEU_B[0]?.[2]?.current?.focus?.();
+      return;
+    }
+    onSave({
+      ...f,
+      giaCongThuc: tong,
+      giaChot: null
+    }, ln, ln.length > 1 || giam > 0, true);
+    onClose();
+  };
+  /* CHUYỂN thành đơn hàng: đòi ĐỦ giá món (thiếu -> chỉ rõ món), rồi lưu ở moi_len_don. */
+  const chuyen = () => {
+    setThu(true);
+    const thieuGia = ln.filter(x => !(x.ten.trim() && x.maMau && +x.gia > 0));
+    if (thieuGia.length) {
+      window.alert("Chưa chuyển thành đơn hàng được — món thiếu giá: " + thieuGia.map(x => x.ten.trim() || "(món chưa tên)").join(", "));
+      return;
+    }
+    if (giam > 0 && !(f.lyDoGiam || "").trim()) {
+      window.alert("Cần nhập lý do giảm giá.");
+      return;
+    }
+    const pctG = tong > 0 ? giam / tong * 100 : 0,
+      tranG = db.cfg?.tranSale ?? 5;
+    if (pctG > tranG + 1e-9 && !f.nsDuyet) {
+      window.alert("Giảm " + pctG.toFixed(1).replace(".", ",") + "% vượt trần " + tranG + "% — chọn người duyệt.");
+      return;
+    }
+    onSave({
+      ...f,
+      giaCongThuc: tong,
+      giaChot: tong - giam
+    }, ln, ln.length > 1 || giam > 0, false, "moi");
+    onClose();
+  };
   const upL = (i, p) => setLn(ln.map((x, k) => k === i ? {
     ...x,
     ...p
@@ -3357,10 +3408,23 @@ function DonModal({
   }), /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: onClose
-  }, "Đóng"), /*#__PURE__*/React.createElement("button", {
+  }, "Đóng"), don && don.tt === "bao_gia" ? [/*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    key: "bg",
+    onClick: luuBao
+  }, "Lưu báo giá"), /*#__PURE__*/React.createElement("button", {
     className: "btn pri",
+    key: "ch",
+    onClick: chuyen
+  }, "Chuyển thành đơn hàng")] : [/*#__PURE__*/React.createElement("button", {
+    className: "btn pri",
+    key: "lu",
     onClick: luu
-  }, don ? "Lưu thay đổi" : "Lưu đơn"))));
+  }, don ? "Lưu thay đổi" : "Lưu đơn"), !don && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    key: "bg",
+    onClick: luuBao
+  }, "Lưu báo giá")])));
 }
 
 /* ---------------- GIAO HÀNG VÀ THU TIỀN ---------------- */
@@ -4006,7 +4070,7 @@ function SoDon({
       } : x;
     }));
   };
-  const luu = (f, ln, combo, don) => {
+  const luu = (f, ln, combo, don, bao, ttEp) => {
     let kh = db.khach.find(k => sdtChuan(k.sdt) === sdtChuan(f.sdt));
     let khach = db.khach;
     if (!kh) {
@@ -4038,7 +4102,7 @@ function SoDon({
       lap: +f.lap || 0,
       dong: ["combo", "combo_moi", "full_can"].includes(f.loai) ? "combo" : "ban_le",
       kgs: f.kgs,
-      tt: don?.tt || "moi",
+      tt: ttEp || don?.tt || (bao ? "bao_gia" : "moi"),
       lyDo: don?.lyDo || "",
       saleId: don?.saleId || user.id,
       lo: don?.lo || "",
@@ -4060,19 +4124,36 @@ function SoDon({
       hd: tkOf(f.tkCoc)?.hd || f.loai === "cong_ty" ? f.hd : null
     };
     up("khach", khach);
-    up("don", don ? db.don.map(x => x.id === id ? d : x) : [...db.don, d]);
-    up("ct", [...db.ct.filter(x => x.donId !== id), ...ln.filter(x => x.ten.trim()).map(x => ({
+    const _donV = don ? db.don.map(x => x.id === id ? d : x) : [...db.don, d];
+    const _ctV = [...db.ct.filter(x => x.donId !== id), ...ln.filter(x => x.ten.trim()).map(x => ({
       ...x,
       donId: id,
       gia: +x.gia || 0,
       dungMoi: !!x.dungMoi,
       spId: x.spId || ""
-    }))]);
+    }))];
+    /* Chuyển bao_gia→moi_len_don: ghi giá món (ct) TRƯỚC khi lật trạng thái (don) —
+       trigger DB đọc don_hang_mon lúc lật; đơn đã tồn tại nên không vướng FK. Đơn mới: don trước (FK). */
+    if (ttEp && don) {
+      up("ct", _ctV);
+      up("don", _donV);
+    } else {
+      up("don", _donV);
+      up("ct", _ctV);
+    }
     if (!don) up("ls", [...db.ls, {
       id: uid(),
       donId: id,
       tu: "",
-      den: "moi",
+      den: bao ? "bao_gia" : "moi",
+      nguoi: user.ten,
+      luc: f.ngay + " " + new Date().toTimeString().slice(0, 5),
+      lyDo: ""
+    }]);else if (ttEp && don.tt !== ttEp) up("ls", [...db.ls, {
+      id: uid(),
+      donId: id,
+      tu: don.tt,
+      den: ttEp,
       nguoi: user.ten,
       luc: f.ngay + " " + new Date().toTimeString().slice(0, 5),
       lyDo: ""
@@ -4499,7 +4580,7 @@ function SoDon({
     don: mo.don,
     user: user,
     onClose: () => setMo(null),
-    onSave: (f, ln, combo) => luu(f, ln, combo, mo.don)
+    onSave: (f, ln, combo, bao, ttEp) => luu(f, ln, combo, mo.don, bao, ttEp)
   }), mo2 && /*#__PURE__*/React.createElement(XemDon, {
     d: mo2,
     db: db,

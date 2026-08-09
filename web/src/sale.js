@@ -29,7 +29,7 @@ const Q = {
 const qMap = vt => Object.fromEntries((Q[vt] || []).map(c => [c, true]))
 
 // ── ÁNH XẠ TRẠNG THÁI: file (9) <-> don_hang (12) ──
-const TT2DB = { moi:'moi_len_don', tk:'dang_thiet_ke', co_file:'xong_file', da_cat:'da_cat',
+const TT2DB = { bao_gia:'bao_gia', moi:'moi_len_don', tk:'dang_thiet_ke', co_file:'xong_file', da_cat:'da_cat',
   dang_lam:'dang_lam', xong_sx:'xong_sx', da_giao:'da_giao', tam_ngung:'tam_ngung', huy:'huy' }
 const DB2TT = Object.fromEntries(Object.entries(TT2DB).map(([a, b]) => [b, a]))
 const toTT = db => DB2TT[db] || 'moi'
