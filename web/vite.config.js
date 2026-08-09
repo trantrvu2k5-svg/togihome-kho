@@ -7,7 +7,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         kho:  fileURLToPath(new URL('./index.html', import.meta.url)),
-        sale: fileURLToPath(new URL('./sale.html', import.meta.url)),
       },
     },
   },
