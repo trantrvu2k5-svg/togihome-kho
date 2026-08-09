@@ -2309,7 +2309,7 @@ function DonModal({
     ngay: don.ngay,
     link: don.link || "",
     brand: don.brand,
-    loai: don.loai || "ca_nhan",
+    loai: don.loai || "le_sang",
     tkCoc: don.tkCoc || "",
     donGoc: don.donGoc || "",
     ngayGiao: don.ngayGiao || "",
@@ -2334,7 +2334,7 @@ function DonModal({
     ngay: new Date().toISOString().slice(0, 10),
     link: "",
     brand: "",
-    loai: "ca_nhan",
+    loai: "le_sang",
     tkCoc: "",
     donGoc: "",
     ngayGiao: "",
@@ -2373,6 +2373,7 @@ function DonModal({
   }]);
   const [foc, setFoc] = useState(null);
   const [thu, setThu] = useState(false); /* đã bấm Lưu chưa */
+  const [mode, setMode] = useState(null); /* nút đang xét: 'don' (Lưu đơn/Chuyển) | 'bao' (Lưu báo giá) — banner/border đổi theo */
   const first = useRef(null);
   const rTk = useRef(null),
     rBr = useRef(null),
@@ -2415,13 +2416,14 @@ function DonModal({
     mon: !monOk
   };
   const ok = !Object.values(E).some(Boolean);
-  const bad = k => thu && E[k] ? {
+  const bad = k => thu && E[k] && (mode !== "bao" || ["sdt", "brand"].includes(k)) ? {
     borderColor: "var(--rd)",
     boxShadow: "0 0 0 3px var(--rdB)"
   } : null;
   const THIEU = [["tkCoc", "Tài khoản cọc", rTk], ["brand", "Thương hiệu", rBr], ["donGoc", "Mã đơn gốc", rTk], ["sdt", "Số điện thoại khách", rSdt], ["diaChi", "Địa chỉ giao", rDc], ["hd", "Tên công ty và mã số thuế", rHd], ["mon", "Mỗi món phải có tên, mã màu, đơn giá", rMon]].filter(([k]) => E[k]);
   const luu = () => {
     setThu(true);
+    setMode("don");
     if (!ok) {
       THIEU[0]?.[2]?.current?.scrollIntoView({
         behavior: "smooth",
@@ -2454,11 +2456,13 @@ function DonModal({
     onClose();
   };
   /* BÁO GIÁ: món chỉ cần tên + mã màu (bỏ ràng buộc đơn giá > 0). Lưu ở trạng thái bao_gia. */
-  const monBaoOk = ln.every(x => x.ten.trim() && x.maMau);
-  const okBao = !["sdt", "diaChi", "tkCoc", "brand", "donGoc", "hd"].some(k => E[k]) && monBaoOk;
-  const THIEU_B = THIEU.filter(x => x[0] !== "mon").concat(!monBaoOk ? [["mon", "Mỗi món cần tên và mã màu", rMon]] : []);
+  const monBaoOk = ln.every(x => x.ten.trim());   /* báo giá: món CHỈ cần TÊN (chưa màu, chưa giá) */
+  const okBao = !["sdt", "brand"].some(k => E[k]) && monBaoOk;   /* đầu đơn: chỉ SĐT + Thương hiệu; TK cọc/địa chỉ/HĐ để lúc chuyển đơn */
+  const THIEU_B = THIEU.filter(x => ["sdt", "brand"].includes(x[0])).concat(!monBaoOk ? [["mon", "Mỗi món cần có tên", rMon]] : []);
+  const THIEU_ACTIVE = mode === "bao" ? THIEU_B : THIEU;   /* banner/đếm đổi theo nút đang xét */
   const luuBao = () => {
     setThu(true);
+    setMode("bao");
     if (!okBao) {
       THIEU_B[0]?.[2]?.current?.scrollIntoView({
         behavior: "smooth",
@@ -2477,9 +2481,15 @@ function DonModal({
   /* CHUYỂN thành đơn hàng: đòi ĐỦ giá món (thiếu -> chỉ rõ món), rồi lưu ở moi_len_don. */
   const chuyen = () => {
     setThu(true);
-    const thieuGia = ln.filter(x => !(x.ten.trim() && x.maMau && +x.gia > 0));
-    if (thieuGia.length) {
-      window.alert("Chưa chuyển thành đơn hàng được — món thiếu giá: " + thieuGia.map(x => x.ten.trim() || "(món chưa tên)").join(", "));
+    setMode("don");
+    /* Chuyển đơn = đủ đầu đơn (kể cả ô đã hoãn lúc báo giá: TK cọc, địa chỉ…) + món đủ màu + đơn giá. */
+    const thieuDau = THIEU.filter(x => x[0] !== "mon").map(x => x[1]);
+    const thieuMon = ln.filter(x => !(x.ten.trim() && x.maMau && +x.gia > 0));
+    if (thieuDau.length || thieuMon.length) {
+      const phan = [];
+      if (thieuDau.length) phan.push(thieuDau.join(", "));
+      if (thieuMon.length) phan.push("món thiếu màu/đơn giá: " + thieuMon.map(x => x.ten.trim() || "(chưa tên)").join(", "));
+      window.alert("Chưa chuyển thành đơn hàng được — " + phan.join("; "));
       return;
     }
     if (giam > 0 && !(f.lyDoGiam || "").trim()) {
@@ -2837,7 +2847,7 @@ function DonModal({
   }, "+ Thêm món")), ln.map((x, i) => /*#__PURE__*/React.createElement("div", {
     className: "mon" + (foc === i ? " on" : ""),
     key: x.id,
-    style: thu && !(x.ten.trim() && x.maMau && +x.gia > 0) ? {
+    style: thu && (mode === "bao" ? !x.ten.trim() : !(x.ten.trim() && x.maMau && +x.gia > 0)) ? {
       borderColor: "var(--rd)"
     } : null,
     onFocus: () => setFoc(i)
@@ -3005,12 +3015,12 @@ function DonModal({
     onClick: themL
   }, "+ Thêm món nữa")), /*#__PURE__*/React.createElement("div", {
     className: "R"
-  }, thu && THIEU.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, thu && THIEU_ACTIVE.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "note rd",
     style: {
       marginBottom: 13
     }
-  }, /*#__PURE__*/React.createElement("b", null, "Chưa lưu được — còn ", THIEU.length, " mục"), /*#__PURE__*/React.createElement("span", null, THIEU.map(x => x[1]).join(" · "), ". Ô thiếu đang viền đỏ ở cột trái.")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("b", null, "Chưa lưu được — còn ", THIEU_ACTIVE.length, " mục"), /*#__PURE__*/React.createElement("span", null, THIEU_ACTIVE.map(x => x[1]).join(" · "), ". Ô thiếu đang viền đỏ ở cột trái.")), /*#__PURE__*/React.createElement("div", {
     className: "sec",
     style: {
       marginTop: 0
@@ -3395,15 +3405,15 @@ function DonModal({
     }
   }, "Cước do ", /*#__PURE__*/React.createElement("b", null, "điều vận"), " chốt sau khi cân hàng, và ", /*#__PURE__*/React.createElement("b", null, "trừ thẳng vào doanh thu đơn này"), ". Sale không sửa được.")))), /*#__PURE__*/React.createElement("div", {
     className: "mft"
-  }, thu && THIEU.length > 0 ? /*#__PURE__*/React.createElement("span", {
+  }, thu && THIEU_ACTIVE.length > 0 ? /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12.5,
       color: "var(--rd)",
       fontWeight: 600
     }
-  }, "Còn thiếu: ", THIEU.map(x => x[1]).join(" · ")) : /*#__PURE__*/React.createElement("span", {
+  }, "Còn thiếu: ", THIEU_ACTIVE.map(x => x[1]).join(" · ")) : /*#__PURE__*/React.createElement("span", {
     className: "mini"
-  }, THIEU.length ? `Còn ${THIEU.length} mục chưa điền` : "Đã đủ thông tin"), /*#__PURE__*/React.createElement("div", {
+  }, THIEU_ACTIVE.length ? `Còn ${THIEU_ACTIVE.length} mục chưa điền` : "Đã đủ thông tin"), /*#__PURE__*/React.createElement("div", {
     className: "sp"
   }), /*#__PURE__*/React.createElement("button", {
     className: "btn",
