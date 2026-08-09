@@ -903,16 +903,11 @@ const LOAI = [{
   mau: "rd",
   mo: "Không sinh doanh thu"
 }];
-/* Tham số khối ③ Cấp đơn — kỳ 2026-07, sửa ở Thiết lập */
-const GV0 = {
-  dgGioTK: 75000,
-  cncLapTrinh: 300000,
-  setupToHop: 200000,
-  gioL1: 0.3,
-  gioL2: 3,
-  gioL3: 15
-};
-const gvOf = (db, c) => db.cfg && db.cfg[c] != null ? db.cfg[c] : GV0[c];
+/* Tham số khối ③ Cấp đơn — kỳ 2026-07. KHÔNG chôn số ở đây nữa: giờ (gioL1/2/3) và TIỀN
+   (dgGioTK/cncLapTrinh/setupToHop) nạp từ DB qua khoá "c2:gia_tham_so" (hàm gio_thiet_ke cho mọi
+   vai trò; tham_so_tai_chinh RLS chỉ ceo/ke_toan). Sale KHÔNG nhận số tiền -> gvOf trả null -> khối
+   tiền tự ẩn. Xem db/028_duong_gia.sql + web/src/sale.js. */
+const gvOf = (db, c) => db.cfg && db.cfg[c] != null ? db.cfg[c] : null;
 const loaiOf = c => LOAI.find(x => x.c === c) || LOAI[0];
 /* Giờ dựng hình gợi ý. Combo hỗn hợp tính theo từng món: món có sẵn 0,3 giờ, món dựng mới 3 giờ. */
 const soMoi = ct => (ct || []).filter(x => x.dungMoi).length;
@@ -1790,13 +1785,17 @@ function App() {
           vat: VAT_MAC_DINH,
           gio: ["01:00", "13:00"],
           ghiDe: 7,
-          ...NGUONG0,
-          ...GV0
+          ...NGUONG0
         }),
         khach: await g("c2:khach", null),
         don: await g("c2:don", null),
         ct: await g("c2:ct", null),
         ls: await g("c2:ls", null)
+      };
+      /* Giá (giờ + tiền nội bộ) nạp từ DB, overlay lên cfg. Sale bị RLS chặn tiền -> chỉ có giờ. */
+      st.cfg = {
+        ...st.cfg,
+        ...(await g("c2:gia_tham_so", {}))
       };
       if (!Array.isArray(st.bank)) {
         st.bank = genBank();
@@ -1838,8 +1837,7 @@ function App() {
         vat: VAT_MAC_DINH,
         gio: ["01:00", "13:00"],
         ghiDe: 7,
-        ...NGUONG0,
-        ...GV0
+        ...NGUONG0
       };
       setUid((window.__saleUser && window.__saleUser.id) || null);   // [BỌC] phiên do trang bọc Supabase xử lý
       setDb(st);
@@ -3157,7 +3155,8 @@ function DonModal({
     const gio = gioGoiY(db, {
       loai: f.loai
     }, ln);
-    const tienTK = Math.round(gio * gvOf(db, "dgGioTK"));
+    const coTien = gvOf(db, "dgGioTK") != null;   // sale bị RLS chặn tiền -> ẩn khối chi phí, giữ GIỜ
+    const tienTK = coTien ? Math.round(gio * gvOf(db, "dgGioTK")) : null;
     const cnc = canCNC({
       loai: f.loai
     }, ln) ? gvOf(db, "cncLapTrinh") : 0;
@@ -3187,7 +3186,7 @@ function DonModal({
       className: "lb"
     }, ln.length - nm, " món có sẵn × ", gvOf(db, "gioL1"), "h + ", nm, " món dựng mới × ", gvOf(db, "gioL2"), "h"), /*#__PURE__*/React.createElement("span", {
       className: "vl"
-    })), /*#__PURE__*/React.createElement("div", {
+    })), coTien && /*#__PURE__*/React.createElement("div", {
       className: "wfr sub2"
     }, /*#__PURE__*/React.createElement("span", {
       className: "op"
@@ -3195,7 +3194,7 @@ function DonModal({
       className: "lb"
     }, "Chi phí dựng hình"), /*#__PURE__*/React.createElement("span", {
       className: "vl"
-    }, vnd(tienTK))), /*#__PURE__*/React.createElement("div", {
+    }, vnd(tienTK))), coTien && /*#__PURE__*/React.createElement("div", {
       className: "wfr sub2"
     }, /*#__PURE__*/React.createElement("span", {
       className: "op"
@@ -3203,7 +3202,7 @@ function DonModal({
       className: "lb"
     }, "CNC lập trình", cnc ? "" : " · không cần"), /*#__PURE__*/React.createElement("span", {
       className: "vl"
-    }, cnc ? vnd(cnc) : "0")), /*#__PURE__*/React.createElement("div", {
+    }, cnc ? vnd(cnc) : "0")), coTien && /*#__PURE__*/React.createElement("div", {
       className: "wfr fin"
     }, /*#__PURE__*/React.createElement("span", {
       className: "op"
@@ -3233,7 +3232,7 @@ function DonModal({
         loai: nen
       })
     }, "Đổi sang")));
-  })(), /*#__PURE__*/React.createElement("div", {
+  })(), gvOf(db, "setupToHop") != null && /*#__PURE__*/React.createElement("div", {
     className: "mini",
     style: {
       marginTop: 8,
@@ -8031,6 +8030,7 @@ function TKModal({
       marginBottom: 13
     }
   }, /*#__PURE__*/React.createElement("b", null, "Ghi chú của sale"), /*#__PURE__*/React.createElement("span", null, d.ghiChu)), (() => {
+    if (gvOf(db, "dgGioTK") == null) return null;   // tiền nội bộ: chỉ ceo/ke_toan thấy khối ③
     const g2 = +f.gioTK || 0,
       th = +f.toHop || 0;
     const tk2 = Math.round(g2 * gvOf(db, "dgGioTK"));
@@ -8143,7 +8143,7 @@ function TKModal({
     })
   }), /*#__PURE__*/React.createElement("div", {
     className: "hlp"
-  }, "Đếm từ file dựng hình. Mỗi tổ hợp tốn ", vnd(gvOf(db, "setupToHop")), " setup máy.")), /*#__PURE__*/React.createElement("div", {
+  }, "Đếm từ file dựng hình.", gvOf(db, "setupToHop") != null ? " Mỗi tổ hợp tốn " + vnd(gvOf(db, "setupToHop")) + " setup máy." : "")), /*#__PURE__*/React.createElement("div", {
     className: "fld"
   }, /*#__PURE__*/React.createElement("label", null, "Người dựng hình"), /*#__PURE__*/React.createElement("input", {
     value: f.nguoiTK,
@@ -8172,7 +8172,7 @@ function TKModal({
     })
   }, "Dùng file cũ")), /*#__PURE__*/React.createElement("div", {
     className: "hlp"
-  }, "Cấp ", lo2.cap, " ", canCNC(d, ct) ? "thường phải lập trình lại · " + vnd(gvOf(db, "cncLapTrinh")) : "dùng lại file sản xuất cũ, không tốn")), /*#__PURE__*/React.createElement("div", {
+  }, "Cấp ", lo2.cap, " ", canCNC(d, ct) ? "thường phải lập trình lại" + (gvOf(db, "cncLapTrinh") != null ? " · " + vnd(gvOf(db, "cncLapTrinh")) : "") : "dùng lại file sản xuất cũ, không tốn")), /*#__PURE__*/React.createElement("div", {
     className: "fld full"
   }, /*#__PURE__*/React.createElement("label", null, "Ghi chú cho xưởng"), /*#__PURE__*/React.createElement("input", {
     value: f.ghiChuTK,

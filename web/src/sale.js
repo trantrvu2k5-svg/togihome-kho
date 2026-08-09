@@ -117,6 +117,22 @@ async function _get(k) {
     const { data, error } = await sb.from('don_hang_nhat_ky').select('*, don_hang(ma_don)').order('luc'); if (error) throw error
     return data.map(l => ({ id: l.id, donId: l.don_hang ? l.don_hang.ma_don : '', tu: l.tu ? toTT(l.tu) : '',
       den: toTT(l.den), nguoi: '', luc: l.luc, lyDo: l.ly_do || '' })) }
+  if (k === 'c2:gia_tham_so') {
+    // GIỜ dựng hình: hàm gio_thiet_ke() cho MỌI vai trò (kể cả sale) — chỉ 3 số giờ, không tiền.
+    const out = {}
+    try {
+      const { data } = await sb.rpc('gio_thiet_ke')
+      const r = Array.isArray(data) ? data[0] : data
+      if (r) { out.gioL1 = Number(r.gio_l1); out.gioL2 = Number(r.gio_l2); out.gioL3 = Number(r.gio_l3) }
+    } catch (e) { /* thiếu giờ -> app tự ẩn số gợi ý */ }
+    // TIỀN nội bộ (đơn giá giờ, CNC, setup): tham_so_tai_chinh RLS chỉ ceo/ke_toan -> sale ra RỖNG.
+    try {
+      const { data } = await sb.from('tham_so_tai_chinh')
+        .select('dg_gio_tk,cnc_lap_trinh,setup_to_hop').order('ngay_ap_dung', { ascending: false }).limit(1).maybeSingle()
+      if (data) { out.dgGioTK = Number(data.dg_gio_tk); out.cncLapTrinh = Number(data.cnc_lap_trinh); out.setupToHop = Number(data.setup_to_hop) }
+    } catch (e) { /* sale bị RLS chặn -> không có tiền, đúng ý đồ */ }
+    return out
+  }
   if (KEYLESS.has(k.replace('c2:', ''))) { if (k in mem) return mem[k]; const e = new Error('khong co khoa'); e.__keyless = true; throw e }
   const e = new Error('khong co khoa'); throw e
 }
