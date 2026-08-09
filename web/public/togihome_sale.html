@@ -7621,17 +7621,6 @@ function SPModal({
     })
   })), /*#__PURE__*/React.createElement("div", {
     className: "fld"
-  }, /*#__PURE__*/React.createElement("label", null, "Giá vốn kỳ gần nhất"), /*#__PURE__*/React.createElement(Tien, {
-    value: f.giaVon,
-    placeholder: "0",
-    onChange: v => setF({
-      ...f,
-      giaVon: v
-    })
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "hlp"
-  }, "Lấy từ engine giá vốn, để tham chiếu khi báo giá")), /*#__PURE__*/React.createElement("div", {
-    className: "fld"
   }, /*#__PURE__*/React.createElement("label", null, "File dựng hình SketchUp"), /*#__PURE__*/React.createElement("input", {
     className: "m",
     value: f.fileTK,
@@ -7862,12 +7851,7 @@ function SanPham({
     style: {
       minWidth: 120
     }
-  }, "CNC"), tien && /*#__PURE__*/React.createElement("th", {
-    className: "r",
-    style: {
-      minWidth: 130
-    }
-  }, "Giá vốn"), /*#__PURE__*/React.createElement("th", {
+  }, "CNC"), /*#__PURE__*/React.createElement("th", {
     className: "r",
     style: {
       minWidth: 90
@@ -7921,11 +7905,7 @@ function SanPham({
     className: "bdg c0"
   }, "đã lập trình") : /*#__PURE__*/React.createElement("span", {
     className: "bdg mut"
-  }, "chưa"))), tien && /*#__PURE__*/React.createElement("td", {
-    className: "auto"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "c r n"
-  }, p.giaVon ? vnd(p.giaVon) : /*#__PURE__*/React.createElement(D, null))), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+  }, "chưa"))), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
     className: "c r n",
     style: p.lan ? {
       fontWeight: 600

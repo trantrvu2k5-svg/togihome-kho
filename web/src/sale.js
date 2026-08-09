@@ -96,8 +96,8 @@ async function _get(k) {
   }
   if (k === 'c2:brands') { const { data, error } = await sb.from('thuong_hieu').select('*').eq('ngung', false); if (error) throw error
     return data.map(b => ({ c: b.ma, n: b.ten, dom: b.domain || '', nguoiId: b.nguoi_ads || '' })) }
-  if (k === 'c2:sp') { const { data, error } = await sb.from('san_pham_mau').select('*').eq('ngung', false); if (error) throw error
-    return data.map(s => ({ id: s.ma, ma: s.ma, ten: s.ten, kt: s.kich_thuoc || '', vl: s.vat_lieu || '', fileTK: s.file_tk || '', toHop: s.to_hop || 1, cnc: s.cnc || 0, giaVon: Number(s.gia_von) || 0 })) }
+  if (k === 'c2:sp') { const { data, error } = await sb.from('san_pham_mau').select('ma,ten,kich_thuoc,vat_lieu,file_tk,to_hop,cnc').eq('ngung', false); if (error) throw error
+    return data.map(s => ({ id: s.ma, ma: s.ma, ten: s.ten, kt: s.kich_thuoc || '', vl: s.vat_lieu || '', fileTK: s.file_tk || '', toHop: s.to_hop || 1, cnc: s.cnc || 0 })) }
   if (k === 'c2:mau') { const { data, error } = await sb.from('mau_sac').select('*').eq('ngung', false); if (error) throw error
     return data.map(m => ({ c: m.ma, n: m.ten, hex: m.hex || '#ccc' })) }
   if (k === 'c2:vc') { const { data, error } = await sb.from('don_vi_van_chuyen').select('ten').eq('ngung', false); if (error) throw error
@@ -168,7 +168,7 @@ async function _set(k, jsonStr) {
     return
   }
   const KMAP = { 'c2:brands': ['thuong_hieu', b => ({ ma: b.c, ten: b.n, domain: nz(b.dom), nguoi_ads: nz(b.nguoiId) }), 'ma'],
-    'c2:sp': ['san_pham_mau', s => ({ ma: s.ma, ten: s.ten, kich_thuoc: nz(s.kt), vat_lieu: nz(s.vl), file_tk: nz(s.fileTK), to_hop: s.toHop ?? null, cnc: s.cnc ?? null, gia_von: s.giaVon ?? null }), 'ma'],
+    'c2:sp': ['san_pham_mau', s => ({ ma: s.ma, ten: s.ten, kich_thuoc: nz(s.kt), vat_lieu: nz(s.vl), file_tk: nz(s.fileTK), to_hop: s.toHop ?? null, cnc: s.cnc ?? null }), 'ma'],
     'c2:mau': ['mau_sac', m => ({ ma: m.c, ten: m.n, hex: nz(m.hex) }), 'ma'],
     'c2:vl': ['vat_lieu_ban', x => ({ ma: x.c, ten: x.n, tho: nz(x.tho) }), 'ma'],
     'c2:vc': ['don_vi_van_chuyen', t => ({ ten: t }), 'ten'] }
