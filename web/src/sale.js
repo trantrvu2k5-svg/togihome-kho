@@ -77,7 +77,19 @@ function rowToDon(r) {
 // Bộ nhớ trong cho khoá CHƯA CÓ BẢNG + cache ánh xạ appId->ma của đơn.
 const mem = {}
 let donKeyMap = {}      // app don.id -> ma_don (để giải món/nhật ký)
-const KEYLESS = new Set(['tho','lines','kgs','people','acc','cards','conn','bank','dsvc','cfg','users_extra','session'])
+// Cụm ads còn KEYLESS (lô sau): people/acc/cards/conn/bank + users_extra.
+// Đã chuyển sang DB (029): tho, kgs, cfg, dsvc — và lines (enum)/session (bỏ) xử lý riêng.
+const KEYLESS = new Set(['people','acc','cards','conn','bank','users_extra'])
+
+// VAT (%) từ cau_hinh_sale — dùng quy đổi giá CHƯA VAT (DB) ↔ CÓ VAT (màn hình). Cache 1 lần.
+let _vatCache = null
+async function getVat() {
+  if (_vatCache != null) return _vatCache
+  try { const { data } = await sb.rpc('cau_hinh_sale'); _vatCache = Number(data?.vat) || 10 } catch { _vatCache = 10 }
+  return _vatCache
+}
+const themVat = (n, vat) => n == null ? n : Math.round(Number(n) * (1 + vat / 100))   // pre-VAT -> CÓ VAT
+const boVat   = (n, vat) => n == null ? n : Math.round(Number(n) / (1 + vat / 100))   // CÓ VAT -> pre-VAT
 
 // ── resolve ma_don + id(uuid) ──
 async function donIdCuaMa(ma) {
@@ -106,13 +118,16 @@ async function _get(k) {
     return data.map(v => ({ c: v.ma, n: v.ten, tho: v.tho || '' })) }
   if (k === 'c2:khach') { const { data, error } = await sb.from('khach').select('*'); if (error) throw error
     return data.map(x => ({ id: x.sdt, sdt: x.sdt, ten: x.ten || '', tinh: x.tinh || '', diaChi: x.dia_chi || '', lanDau: x.ngay_mua_dau || '' })) }
-  if (k === 'c2:don') { const { data, error } = await sb.from('don_hang').select('*'); if (error) throw error
-    donKeyMap = Object.fromEntries(data.map(r => [r.ma_don, r.ma_don])); return data.map(rowToDon) }
+  if (k === 'c2:don') { const vat = await getVat(); const { data, error } = await sb.from('don_hang').select('*'); if (error) throw error
+    donKeyMap = Object.fromEntries(data.map(r => [r.ma_don, r.ma_don]))
+    // chiet_khau lưu CHƯA VAT -> trả app dạng CÓ VAT (tiền cọc/đã thu là tiền mặt, GIỮ nguyên).
+    return data.map(r => { const d = rowToDon(r); d.giam = themVat(d.giam, vat) || 0; return d }) }
   if (k === 'c2:ct') {
+    const vat = await getVat()
     const { data, error } = await sb.from('don_hang_mon').select('*, don_hang(ma_don)'); if (error) throw error
     return data.map(m => ({ id: m.id, donId: m.don_hang ? m.don_hang.ma_don : '', spId: m.sp_id || '', ten: m.ten || '',
-      vl: m.vl || '', kt: m.kt || '', sl: Number(m.so_luong) || 1, gia: Number(m.gia) || 0, tho: m.tho || '',
-      maMau: m.ma_mau || '', ct: m.chi_tiet || '', dungMoi: !!m.dung_moi, anh: m.anh || [] })) }
+      vl: m.vl || '', kt: m.kt || '', sl: Number(m.so_luong) || 1, gia: themVat(Number(m.gia) || 0, vat), tho: m.tho || '',
+      maMau: m.ma_mau || '', ct: m.chi_tiet || '', dungMoi: !!m.dung_moi, anh: m.anh || [], khongGian: m.khong_gian || [] })) }
   if (k === 'c2:ls') {
     const { data, error } = await sb.from('don_hang_nhat_ky').select('*, don_hang(ma_don)').order('luc'); if (error) throw error
     return data.map(l => ({ id: l.id, donId: l.don_hang ? l.don_hang.ma_don : '', tu: l.tu ? toTT(l.tu) : '',
@@ -133,6 +148,21 @@ async function _get(k) {
     } catch (e) { /* sale bị RLS chặn -> không có tiền, đúng ý đồ */ }
     return out
   }
+  if (k === 'c2:tho') {   // danh mục thợ (029) -> mảng tên (như THO0)
+    const { data, error } = await sb.from('tho').select('ten,dang_lam').eq('dang_lam', true).order('ten'); if (error) throw error
+    return data.map(t => t.ten) }
+  if (k === 'c2:kgs') {   // danh mục không gian (029) -> [{c,n}] (như KG0)
+    const { data, error } = await sb.from('khong_gian').select('ma,ten').eq('ngung', false); if (error) throw error
+    return data.map(x => ({ c: x.ma, n: x.ten })) }
+  if (k === 'c2:cfg') {   // vat + giờ + ghi_de + ngưỡng qua cau_hinh_sale() (KHÔNG lộ cột tiền)
+    const { data } = await sb.rpc('cau_hinh_sale'); const r = data || {}
+    if (r.vat != null) _vatCache = Number(r.vat)
+    return { vat: r.vat ?? 10, gio: r.gio_mo_cua || ['01:00', '13:00'], ghiDe: r.ghi_de ?? 7,
+      nAds: r.n_ads, nCac: r.n_cac, nKg: r.n_kg, nNo: r.n_no, nGiam: r.n_giam } }
+  if (k === 'c2:dsvc') {  // ship dự toán {ma_ky|dong: số}
+    const { data } = await sb.rpc('ship_du_toan_map'); return data || {} }
+  if (k === 'c2:lines') return [{ c: 'ban_le', n: 'Bán lẻ' }, { c: 'combo', n: 'Combo' }, { c: 'du_an', n: 'Dự án' }]  // enum, khỏi bảng
+  if (k === 'c2:session') return null   // BỎ: auth thật do Supabase persistSession lo
   if (KEYLESS.has(k.replace('c2:', ''))) { if (k in mem) return mem[k]; const e = new Error('khong co khoa'); e.__keyless = true; throw e }
   const e = new Error('khong co khoa'); throw e
 }
@@ -140,12 +170,15 @@ async function _get(k) {
 async function _set(k, jsonStr) {
   const v = JSON.parse(jsonStr)
   if (k === 'c2:don') {
+    const vat = await getVat()
     donKeyMap = Object.fromEntries((v || []).map(d => [d.id, d.ma]))
     const { data: kd } = await sb.from('khach').select('*')
     const khMap = Object.fromEntries((kd || []).map(x => [x.sdt, { sdt: x.sdt, ten: x.ten, tinh: x.tinh, diaChi: x.dia_chi }]))
     // khMap theo id app: đơn app dùng khachId; nhưng khách app nằm ở c2:khach (id=sdt). Ghép qua mem nếu có.
     const khByAppId = mem['__khByAppId'] || {}
-    const rows = (v || []).map(d => donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} }))
+    // chiet_khau (giảm giá) lưu CHƯA VAT; cọc/đã thu là tiền mặt -> GIỮ nguyên.
+    const rows = (v || []).map(d => { const r = donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} })
+      r.chiet_khau = boVat(r.chiet_khau, vat); return r })
     const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error
     const mas = (v || []).map(d => d.ma)
     if (mas.length) { await sb.from('don_hang').delete().not('ma_don', 'in', '(' + mas.map(m => JSON.stringify(m)).join(',') + ')') }
@@ -154,13 +187,16 @@ async function _set(k, jsonStr) {
   }
   if (k === 'c2:ct') {
     // resolve don_id theo ma; xoá món cũ của các đơn liên quan rồi chèn lại (whole-array write).
+    const vat = await getVat()
     const byMa = {}
     for (const m of (v || [])) { const ma = maCuaAppId(m.donId); (byMa[ma] = byMa[ma] || []).push(m) }
     for (const ma of Object.keys(byMa)) {
       const did = await donIdCuaMa(ma); if (!did) continue
       await sb.from('don_hang_mon').delete().eq('don_id', did)
+      // gia lưu CHƯA VAT (app nhập CÓ VAT -> ÷(1+vat)); khong_gian = mảng mã.
       const rows = byMa[ma].map(m => ({ don_id: did, sp_id: nz(m.spId), ten: nz(m.ten), vl: nz(m.vl), kt: nz(m.kt),
-        so_luong: m.sl ?? 1, gia: m.gia ?? null, tho: nz(m.tho), ma_mau: nz(m.maMau), chi_tiet: nz(m.ct), dung_moi: !!m.dungMoi, anh: m.anh || [] }))
+        so_luong: m.sl ?? 1, gia: boVat(m.gia ?? null, vat), tho: nz(m.tho), ma_mau: nz(m.maMau), chi_tiet: nz(m.ct),
+        dung_moi: !!m.dungMoi, anh: m.anh || [], khong_gian: Array.isArray(m.khongGian) ? m.khongGian : [] }))
       if (rows.length) { const { error } = await sb.from('don_hang_mon').insert(rows); if (error) throw error }
     }
     return
@@ -183,6 +219,21 @@ async function _set(k, jsonStr) {
     if (rows.length) { const { error } = await sb.from('khach').upsert(rows, { onConflict: 'sdt' }); if (error) throw error }
     return
   }
+  if (k === 'c2:cfg') {   // vat + giờ + ghi_de + ngưỡng -> cột non-money của kỳ hiện hành (RLS ceo/ke_toan)
+    if (v.vat != null) _vatCache = Number(v.vat)
+    const { data: ky } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ngay_ap_dung', { ascending: false }).limit(1).maybeSingle()
+    if (ky) { const { error } = await sb.from('tham_so_tai_chinh').update({
+        vat: v.vat, gio_mo_cua: v.gio, ghi_de: v.ghiDe,
+        n_ads: v.nAds, n_cac: v.nCac, n_kg: v.nKg, n_no: v.nNo, n_giam: v.nGiam }).eq('ma_ky', ky.ma_ky)
+      if (error) throw error }
+    return
+  }
+  if (k === 'c2:dsvc') {   // {ma_ky|dong: số} -> gọi dat_ship_du_toan từng khoá (ceo/ke_toan)
+    for (const key of Object.keys(v || {})) { const [mk, dong] = key.split('|')
+      if (mk && dong) { const { error } = await sb.rpc('dat_ship_du_toan', { p_ma_ky: mk, p_dong: dong, p_val: Number(v[key]) || 0 }); if (error) throw error } }
+    return
+  }
+  if (k === 'c2:session') return   // BỎ: không lưu (Supabase persistSession lo)
   const KMAP = { 'c2:brands': ['thuong_hieu', b => ({ ma: b.c, ten: b.n, domain: nz(b.dom), nguoi_ads: nz(b.nguoiId) }), 'ma'],
     'c2:sp': ['san_pham_mau', s => ({ ma: s.ma, ten: s.ten, kich_thuoc: nz(s.kt), vat_lieu: nz(s.vl), file_tk: nz(s.fileTK), to_hop: s.toHop ?? null, cnc: s.cnc ?? null }), 'ma'],
     'c2:mau': ['mau_sac', m => ({ ma: m.c, ten: m.n, hex: nz(m.hex) }), 'ma'],
