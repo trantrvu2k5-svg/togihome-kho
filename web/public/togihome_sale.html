@@ -1780,6 +1780,7 @@ function App() {
         conn: await g("c2:conn", CONN0),
         bank: await g("c2:bank", null),
         dsvc: await g("c2:dsvc", {}),
+        nguoiDuyet: await g("c2:nguoi_duyet", []),
         sp: await g("c2:sp", []),
         cfg: await g("c2:cfg", {
           vat: VAT_MAC_DINH,
@@ -2429,7 +2430,22 @@ function DonModal({
       const doiTien = tienDon(cu2) !== tong || (+don.giam || 0) !== giam || (+don.lap || 0) !== lap;
       if (doiTien && !window.confirm(`Đơn ${don.ma} đang ở trạng thái "${ttOf(don.tt).n}" — xưởng đã bắt đầu làm.\n\n` + `Tiền hàng: ${vnd(tienDon(cu2))} → ${vnd(tong)}\n` + `Đổi số lúc này có thể lệch với vật tư đã cắt. Vẫn lưu?`)) return;
     }
-    onSave(f, ln, ln.length > 1 || giam > 0);
+    /* Trần giảm giá — chặn thiếu lý do / người duyệt trước khi lưu (DB còn chặn cứng lần nữa). */
+    const pctG = tong > 0 ? giam / tong * 100 : 0,
+      tranG = db.cfg?.tranSale ?? 5;
+    if (giam > 0 && !(f.lyDoGiam || "").trim()) {
+      window.alert("Cần nhập lý do giảm giá.");
+      return;
+    }
+    if (pctG > tranG + 1e-9 && !f.nsDuyet) {
+      window.alert("Giảm " + pctG.toFixed(1).replace(".", ",") + "% vượt trần " + tranG + "% — chọn người duyệt.");
+      return;
+    }
+    onSave({
+      ...f,
+      giaCongThuc: tong,
+      giaChot: tong - giam
+    }, ln, ln.length > 1 || giam > 0);
     onClose();
   };
   const upL = (i, p) => setLn(ln.map((x, k) => k === i ? {
@@ -2914,6 +2930,17 @@ function DonModal({
     className: "hlp"
   }, "Phụ kiện và yêu cầu riêng. Vật liệu, màu, kích thước đã có ô riêng.")), /*#__PURE__*/React.createElement("div", {
     className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "Không gian"), /*#__PURE__*/React.createElement("div", {
+    className: "chips"
+  }, (db.kgs || []).map(k => /*#__PURE__*/React.createElement("button", {
+    key: k.c,
+    type: "button",
+    className: "chip" + ((x.khongGian || []).includes(k.c) ? " on" : ""),
+    onClick: () => upL(i, {
+      khongGian: (x.khongGian || []).includes(k.c) ? (x.khongGian || []).filter(z => z !== k.c) : [...(x.khongGian || []), k.c]
+    })
+  }, k.n)))), /*#__PURE__*/React.createElement("div", {
+    className: "fld"
   }, /*#__PURE__*/React.createElement("label", null, "Ảnh sản phẩm", x.anh?.length > 1 ? ` · ${x.anh.length} ảnh` : ""), /*#__PURE__*/React.createElement(ChonAnh, {
     anh: x.anh || [],
     onChange: a => upL(i, {
@@ -2962,7 +2989,24 @@ function DonModal({
     })
   }), /*#__PURE__*/React.createElement("div", {
     className: "hlp"
-  }, "Gõ số này thì giảm giá tự tính ngược")), /*#__PURE__*/React.createElement("div", {
+  }, "Gõ số này thì giảm giá tự tính ngược")), giam > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "fld full"
+  }, /*#__PURE__*/React.createElement("label", null, "Lý do giảm giá ", /*#__PURE__*/React.createElement("b", {
+    style: { color: "var(--rd)" }
+  }, "*")), /*#__PURE__*/React.createElement("input", {
+    className: "m",
+    value: f.lyDoGiam || "",
+    placeholder: "vd: khách quen · mua nhiều món",
+    onChange: e => setF({ ...f, lyDoGiam: e.target.value })
+  }), (() => {
+    const pct = tong > 0 ? giam / tong * 100 : 0, tran = db.cfg?.tranSale ?? 5;
+    if (pct <= tran + 1e-9) return /*#__PURE__*/React.createElement("div", { className: "hlp" }, "Giảm ", pct.toFixed(1).replace(".", ","), "% · trong trần ", tran, "% — không cần duyệt");
+    return /*#__PURE__*/React.createElement("div", { style: { marginTop: 8 } }, /*#__PURE__*/React.createElement("label", null, "Người duyệt ", /*#__PURE__*/React.createElement("b", { style: { color: "var(--rd)" } }, "*"), " · giảm ", pct.toFixed(1).replace(".", ","), "% vượt trần ", tran, "%"), /*#__PURE__*/React.createElement("select", {
+      className: "m",
+      value: f.nsDuyet || "",
+      onChange: e => setF({ ...f, nsDuyet: e.target.value })
+    }, /*#__PURE__*/React.createElement("option", { value: "" }, "— chọn người duyệt —"), (db.nguoiDuyet || []).map(p => /*#__PURE__*/React.createElement("option", { key: p.id, value: p.id }, p.ten, " (", p.cap === "ceo" ? "CEO" : "trưởng nhóm", ")"))));
+  })()), /*#__PURE__*/React.createElement("div", {
     className: "fld full",
     style: {
       padding: 11,
