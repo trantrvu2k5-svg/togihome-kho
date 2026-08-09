@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Togihome · Lên đơn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- React/ReactDOM/Recharts NHƯ file sale (biến toàn cục React/ReactDOM/Recharts phải có TRƯỚC khi mã app chạy) -->
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<style>
+html,body,#root{height:100%;margin:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif}
+#boot{padding:40px;color:#6B7488}
+#loi-luu{position:fixed;left:0;right:0;top:0;z-index:99999;background:#C8202E;color:#fff;
+  padding:10px 16px;font-size:14px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#dn{max-width:360px;margin:9vh auto;padding:0 20px;font-family:'Be Vietnam Pro',system-ui}
+#dn h1{font-size:20px;color:#151B2C}#dn input{width:100%;box-sizing:border-box;padding:12px;margin:8px 0;
+  border:1px solid #D3D9E4;border-radius:10px;font-size:15px}
+#dn button{width:100%;padding:12px;background:#C8202E;color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+#dn .err{color:#C8202E;font-size:13px;min-height:18px}
+</style>
+</head>
+<body>
+<div id="loi-luu"></div>
+<div id="root"><div id="boot">Đang mở ứng dụng lên đơn…</div></div>
+<script type="module" src="/src/sale.js"></script>
+</body>
+</html>

@@ -1772,20 +1772,20 @@ function App() {
       };
       const st = {
         users: await g("c2:users", USER0),
-        brands: await g("c2:brands", BRAND0),
-        vl: await g("c2:vl", VL0),
+        brands: await g("c2:brands", []),
+        vl: await g("c2:vl", []),
         tho: await g("c2:tho", THO0),
         lines: await g("c2:lines", LINE0),
         kgs: await g("c2:kgs", KG0),
-        mau: await g("c2:mau", MAU0),
-        vc: await g("c2:vc", VC0),
+        mau: await g("c2:mau", []),
+        vc: await g("c2:vc", []),
         people: await g("c2:people", PEOPLE0),
         acc: await g("c2:acc", ACC0),
         cards: await g("c2:cards", CARD0),
         conn: await g("c2:conn", CONN0),
         bank: await g("c2:bank", null),
         dsvc: await g("c2:dsvc", {}),
-        sp: await g("c2:sp", SP0),
+        sp: await g("c2:sp", []),
         cfg: await g("c2:cfg", {
           vat: VAT_MAC_DINH,
           gio: ["01:00", "13:00"],
@@ -1841,10 +1841,7 @@ function App() {
         ...NGUONG0,
         ...GV0
       };
-      try {
-        const r = await window.storage.get("c2:session");
-        if (r) setUid(JSON.parse(r.value));
-      } catch (e) {}
+      setUid((window.__saleUser && window.__saleUser.id) || null);   // [BỌC] phiên do trang bọc Supabase xử lý
       setDb(st);
       setReady(true);
     })();
