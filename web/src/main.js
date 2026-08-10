@@ -15,7 +15,7 @@ const anhUrl = ma => ma ? `https://drive.google.com/thumbnail?id=${ma}&sz=w400` 
 const anhBucket = f => f ? `${URL}/storage/v1/object/public/kho-images/${f}` : null
 
 // ── trạng thái ──
-let KHO = [], NCC = [], NHOM = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
+let KHO = [], NCC = [], NHOM = [], TO = [], TK = {}, ANH = {}, PHIEU = [], SO = { nhap: 0, xuat: 0 }
 let locNhom = '*', locKho = '*', ROLE = null, ME = null, ME_ID = null
 const laQuanLy = () => ROLE === 'ceo' || ROLE === 'kho'   // chỉ ceo/kho thấy nút tải ảnh
 // ═══════════ ĐĂNG NHẬP — chỉ EMAIL + mật khẩu (CEO / Thủ kho) ═══════════
@@ -61,12 +61,14 @@ async function taiDuLieu() {
     sb.from('ton').select('vat_tu_id,so_luong,vat_tu:vat_tu_id(ma)'),
     sb.from('v_ton_gia_von').select('vat_tu_id,gia_von_bq,vat_tu:vat_tu_id(ma)'),  // rỗng nếu là thợ
     sb.from('v_gia_tham_khao').select('ma,gia_tham_khao'),                          // rỗng nếu là thợ
-    sb.from('nha_cung_cap').select('id,ten,dien_thoai,dia_chi')
+    sb.from('nha_cung_cap').select('id,ten,dien_thoai,dia_chi'),
+    sb.from('to_san_xuat').select('ma_to,ten,so_nguoi')   // [037] tổ nhận cho phiếu xuất
   ])
   // Lỗi bất kỳ truy vấn -> KHÔNG dựng lại KHO (giữ nguyên, không clobber), trả lỗi cho nơi gọi hiện ra.
   const loi = res.find(r => r.error)
   if (loi) return { ok: false, loi: loi.error.message }
-  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }] = res
+  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }, { data: toList }] = res
+  TO = toList || []
   NHOM = nhom || []
   const tenNhom = Object.fromEntries(NHOM.map(x => [x.id, x.ten]))
   const tonMa = Object.fromEntries((ton || []).map(t => [t.vat_tu?.ma, t.so_luong]))
@@ -301,7 +303,7 @@ function veNcc() { $('#ncc-b').innerHTML = NCC.filter(c => c.id).map(c => `<tr><
 const P = { nhap: null, xuat: null }
 function tien(el) { const v = el.value.replace(/\D/g, ''); el.value = v ? Number(v).toLocaleString('vi-VN') : '' }
 const soTien = el => Number(String(el.value).replace(/\D/g, '')) || 0
-function moiPhieu(loai) { SO[loai]++; P[loai] = { loai, so: (loai === 'nhap' ? 'NK' : 'XK') + '-2026-' + String(SO[loai]).padStart(4, '0'), luc: new Date(), ncc: NCC[0]?.id, ly: 'Sản xuất', ghi: '', tt: 'nhap', dong: [] }; themDong(loai) }
+function moiPhieu(loai) { SO[loai]++; P[loai] = { loai, so: (loai === 'nhap' ? 'NK' : 'XK') + '-2026-' + String(SO[loai]).padStart(4, '0'), luc: new Date(), ncc: NCC[0]?.id, ly: 'Sản xuất', to: loai === 'xuat' ? (TO[0]?.ma_to || null) : null, ghi: '', tt: 'nhap', dong: [] }; themDong(loai) }
 function themDong(loai) { P[loai].dong.push({ ma: KHO[0]?.ma, sl: 0, gia: KHO[0]?.gia || 0 }); vePhieu(loai) }
 function xoaDong(loai, i) { P[loai].dong.splice(i, 1); if (!P[loai].dong.length) themDong(loai); vePhieu(loai) }
 // Đổi VẬT TƯ (select onchange, KHÔNG phải gõ phím) -> vẽ lại toàn phiếu (đổi ĐVT/đơn giá/tồn sau).
@@ -331,7 +333,7 @@ function vePhieu(loai) {
   const khoa = p.tt === 'so', ro = khoa ? 'disabled' : ''
   const tongTien = p.dong.reduce((s, d) => s + d.sl * (d.gia || 0), 0), tongSl = p.dong.reduce((s, d) => s + d.sl, 0)
   const dauNhap = `<div><label>Nhà cung cấp</label><select id="p-ncc" ${ro} onchange="P.nhap.ncc=this.value">${NCC.map(c => `<option value="${c.id}"${c.id === p.ncc ? ' selected' : ''}>${c.ten}</option>`).join('')}</select></div>`
-  const dauXuat = `<div><label>Lý do xuất</label><select ${ro} onchange="P.xuat.ly=this.value">${['Sản xuất', 'Lắp đặt tại nhà khách', 'Hỏng / mất', 'Trả nhà cung cấp'].map(l => `<option${l === p.ly ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
+  const dauXuat = `<div><label>Lý do xuất</label><select ${ro} onchange="P.xuat.ly=this.value">${['Sản xuất', 'Lắp đặt tại nhà khách', 'Hỏng / mất', 'Trả nhà cung cấp'].map(l => `<option${l === p.ly ? ' selected' : ''}>${l}</option>`).join('')}</select></div><div><label>Tổ nhận</label><select ${ro} onchange="P.xuat.to=this.value">${TO.map(t => `<option value="${t.ma_to}"${t.ma_to === p.to ? ' selected' : ''}>${t.ten}</option>`).join('')}</select></div>`
   $('#ph-' + loai).innerHTML = `<div class="ph-dau"><span class="ph-so">${p.so}</span><span class="tt ${khoa ? 'so' : 'nhap-tt'}">${khoa ? 'ĐÃ GHI SỔ' : 'NHÁP'}</span><span style="font-size:13px;color:var(--muted)">Lập lúc ${gio(p.luc)}</span>
     <span class="cach">${khoa ? `<button class="n nho" onclick="moiPhieu('${loai}');vePhieu('${loai}')">Lập phiếu mới</button>` : `<button class="n" onclick="themDong('${loai}')">+ Thêm dòng</button><button class="n chinh" onclick="ghiSo('${loai}')">Ghi sổ</button>`}</span>${khoa ? '' : `<span class="ghi-nhac">Ghi sổ rồi là <b>KHOÁ</b> — muốn sửa phải <b>huỷ phiếu</b> rồi làm lại. (Phiếu chưa ghi sổ sẽ mất nếu tải lại trang.)</span>`}</div>
     <div class="ph-than"><div class="hang"><div><label>Ngày chứng từ</label><input class="ip" type="date" ${ro} value="${p.luc.toISOString().slice(0, 10)}" onchange="P['${loai}'].luc=new Date(this.value);vePhieu('${loai}')"></div>${loai === 'nhap' ? dauNhap : dauXuat}<div><label>Ghi chú</label><input class="ip" ${ro} value="${p.ghi}" placeholder="Số hoá đơn, người giao…" oninput="P['${loai}'].ghi=this.value"></div></div>
@@ -342,7 +344,7 @@ function vePhieu(loai) {
 async function ghiSo(loai) {
   const p = P[loai]; if (!p.dong.some(d => d.sl > 0)) { bao('Chưa dòng nào có số lượng.'); return }
   const dong = []; for (const d of p.dong) { if (d.sl <= 0) continue; const id = await maToId(d.ma); dong.push({ vat_tu_id: id, so_luong: d.sl, don_gia: loai === 'nhap' ? d.gia : null }) }
-  const { data, error } = await sb.rpc('ghi_so_phieu', { p_loai: loai, p_ncc: loai === 'nhap' ? p.ncc : null, p_ly_do: loai === 'xuat' ? p.ly : null, p_ghi_chu: p.ghi, p_dong: dong })
+  const { data, error } = await sb.rpc('ghi_so_phieu', { p_loai: loai, p_ncc: loai === 'nhap' ? p.ncc : null, p_ly_do: loai === 'xuat' ? p.ly : null, p_ghi_chu: p.ghi, p_dong: dong, p_ma_to: loai === 'xuat' ? p.to : null })
   if (error) { bao('Ghi sổ lỗi: ' + error.message); return }
   p.tt = 'so'; p.so = data?.so_phieu || p.so; vePhieu(loai); await taiDuLieu(); veBang(); veDsPhieu(loai)
   bao(`Đã ghi sổ ${p.so}. Tồn + thẻ kho đã cập nhật.`)
