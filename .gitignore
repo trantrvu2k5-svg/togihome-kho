@@ -9,3 +9,11 @@ scratch/
 web/.env
 web/node_modules/
 web/dist/
+web/dist-*/
+dist/
+dist-*/
+.wrangler/
+web/.wrangler/
+**/.wrangler/
+ket_noi_kho.json
+data/ket_noi_kho.json
