@@ -1,171 +1,256 @@
 <!-- LAYOUT app tài chính. taichinh.js fetch file này, chèn vào #root SAU đăng nhập, rồi nối dây DB.
-     KHÔNG có script tính toán ở đây — mọi số do hàm DB trả (bang_gia, gia_bac_tu_gv, tinh_he_so_m, chot_niem_yet). -->
+     Token màu/bo/bóng/nav LẤY TỪ togihome_sale.html (đồng bộ giao diện). KHÔNG có công thức ở đây —
+     mọi số do hàm DB trả (bang_gia, gia_bac_tu_gv, tinh_he_so_m, chot_niem_yet, ket_qua_don_gia, so_sanh). -->
 <style>
-  #tc * { box-sizing: border-box; }
-  #tc { font-family: system-ui, 'Segoe UI', sans-serif; color: #131A2B; font-size: 15px; }
-  #tc .wrap { max-width: 1120px; margin: 0 auto; padding: 14px 16px 90px; }
-  #tc h1 { font-size: 23px; margin: 8px 0 2px; }
-  #tc .sub { color: #4A5468; font-size: 14px; margin-bottom: 20px; }
-  #tc section { background: #fff; border: 1px solid #CDD4E0; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
-  #tc h2 { font-size: 17px; margin: 0 0 14px; padding-bottom: 9px; border-bottom: 1px solid #E1E6EF; }
-  #tc h2 .n { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background: #131A2B; color: #fff; border-radius: 50%; font-size: 14px; margin-right: 9px; }
-  #tc label { display: block; font-size: 13.5px; color: #3A4560; margin-bottom: 4px; font-weight: 500; }
-  #tc input, #tc select { font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid #C0C8D6; border-radius: 7px; width: 100%; }
-  #tc input.money, #tc input[type=number] { text-align: right; }
-  #tc .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 18px; }
-  #tc .tag { font-size: 11.5px; font-weight: 700; margin-left: 6px; padding: 1px 7px; border-radius: 4px; }
-  #tc .tam { background: #FBE1B0; color: #7A5000; } #tc .chot { background: #CDECCD; color: #175E24; }
-  #tc .btn { font: inherit; font-size: 15px; font-weight: 600; padding: 10px 18px; border: 1px solid #131A2B; background: #131A2B; color: #fff; border-radius: 8px; cursor: pointer; }
-  #tc .btn.ghost { background: #fff; color: #131A2B; }
-  #tc .note { color: #3A4560; font-size: 13.5px; margin-top: 10px; line-height: 1.55; } #tc .note b { color: #131A2B; }
-  #tc .qc { display: grid; grid-template-columns: 1fr 1.15fr; gap: 24px; }
-  #tc .qc .inp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; align-content: start; }
-  #tc .cascade .row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dotted #E1E6EF; }
-  #tc .cascade .lbl { color: #3A4560; } #tc .cascade .val { font-variant-numeric: tabular-nums; font-weight: 600; }
-  #tc .cascade .tag2 { font-size: 12px; color: #7A5000; margin-left: 8px; font-weight: 700; }
-  #tc .baokhach { margin: 12px 0; padding: 12px 14px; background: #131A2B; color: #fff; border-radius: 8px; display: flex; justify-content: space-between; align-items: baseline; }
-  #tc .baokhach .big { font-size: 28px; font-weight: 800; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
-  #tc .baokhach .cap { font-size: 12.5px; opacity: .85; }
-  #tc .salemin { display: flex; justify-content: space-between; padding: 4px 2px; font-size: 15px; }
-  #tc .hardstop { color: #8A1620; font-weight: 600; font-size: 13.5px; margin-top: 2px; }
-  #tc .dexuat { margin-top: 14px; padding-top: 12px; border-top: 1px solid #E1E6EF; }
-  #tc .dexuat .out { margin-top: 8px; font-size: 14.5px; } #tc .dexuat .red { color: #C8202E; font-weight: 700; } #tc .dexuat .ok { color: #175E24; font-weight: 600; }
-  #tc .hesom { font-size: 46px; font-weight: 800; letter-spacing: -1px; }
-  #tc .noiday { border: 1px solid #E1E6EF; border-radius: 8px; padding: 12px 16px; margin-top: 10px; max-width: 460px; }
-  #tc .noiday .r { display: flex; justify-content: space-between; padding: 4px 0; font-variant-numeric: tabular-nums; }
-  #tc .noiday .r.tot { border-top: 2px solid #131A2B; margin-top: 4px; padding-top: 8px; font-weight: 800; font-size: 17px; }
-  #tc .thieu { border: 1px dashed #C8202E; background: #FCEEEE; color: #7A121C; border-radius: 8px; padding: 13px 15px; font-size: 14px; margin-top: 14px; line-height: 1.5; }
-  #tc table { width: 100%; border-collapse: collapse; font-size: 15px; }
-  #tc th, #tc td { border: 1px solid #DBE1EB; padding: 9px 11px; text-align: right; }
-  #tc th { background: #EDF1F7; font-size: 12.5px; color: #3A4560; vertical-align: bottom; line-height: 1.3; }
-  #tc th .vat { display: block; font-weight: 800; font-size: 11px; color: #7A5000; margin-top: 2px; }
-  #tc th .novat { display: block; font-weight: 800; font-size: 11px; color: #2F3E5E; margin-top: 2px; }
-  #tc td.ten, #tc th.ten { text-align: left; } #tc td { font-variant-numeric: tabular-nums; } #tc tbody tr:nth-child(even) { background: #F8FAFC; }
-  #tc .kyline { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; } #tc .kyline select { width: auto; }
-  #tc .chotinfo { margin-top: 10px; font-size: 14px; color: #175E24; font-weight: 600; }
-  /* ⑤ Sổ tham số xưởng */
-  #tc h3 { font-size: 15px; margin: 16px 0 8px; color: #2F3E5E; }
-  #tc input.pct { width: 62px; }
-  #tc .tsum { font-weight: 800; } #tc .tsum.bad { color: #C8202E; } #tc .tsum.ok { color: #175E24; }
-  #tc .badge { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; }
-  #tc .b-tam { background: #FBE1B0; color: #7A5000; }
-  #tc .b-tem { background: #DCE9FB; color: #254E8C; } #tc .b-kho { background: #E7E0F7; color: #4B308C; }
-  #tc .b-dem { background: #CDECCD; color: #175E24; } #tc .b-plugin { background: #FDE7CE; color: #8A5200; }
-  #tc .b-thieu { background: #FBD5D8; color: #8A121C; }
-  #tc .to-row td { background: #F3F6FB; font-weight: 600; }
-  #tc .dgcell { font-weight: 700; } #tc .lech-up { color: #175E24; } #tc .lech-dn { color: #C8202E; }
-  #tc .thieu-txt { color: #C8202E; font-weight: 700; font-size: 13px; }
-  #tc .warn { background: #FFF7E6; border: 1px solid #F0D089; border-radius: 8px; padding: 10px 13px; font-size: 13.5px; color: #7A5000; margin-top: 10px; }
-  #tc .s6days { color: #4A5468; font-size: 12px; }
+  #tc, #tc * { box-sizing: border-box; }
+  #tc {
+    --pri:#C8202E; --priH:#A6141F; --priS:#FCECEE; --priB:#F1C0C5;
+    --bg:#EEF1F7; --surface:#fff; --raise:#F8F9FC; --auto:#F4F6FA;
+    --tx:#151B2C; --tx2:#3B4356; --mut:#6B7488; --fnt:#98A1B3;
+    --bd:#E4E8F0; --bd2:#EFF2F7; --bdS:#D3D9E4;
+    --gn:#0B7A4B; --gnB:#DCF5E9; --am:#8A5A00; --amB:#FDF3DC; --rd:#C42B4B; --rdB:#FDE8ED;
+    --sh:0 1px 2px rgba(21,27,44,.05),0 2px 6px rgba(21,27,44,.04);
+    --shC:0 1px 3px rgba(21,27,44,.07),0 6px 18px -8px rgba(21,27,44,.12);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    font-family:'Be Vietnam Pro',system-ui,sans-serif; color:var(--tx); font-size:13.5px; background:var(--bg);
+  }
+  /* ── SHELL: sidebar (như sale) + main ── */
+  #tc .app { display:flex; min-height:100vh; background:var(--bg); }
+  #tc .nav { width:206px; flex:0 0 206px; background:var(--pri); color:#fff; padding:18px 12px; display:flex; flex-direction:column; }
+  #tc .brand { font-size:15px; font-weight:800; letter-spacing:-.01em; padding:2px 10px 4px; }
+  #tc .brandsub { font-size:11px; color:rgba(255,255,255,.7); padding:0 10px 10px; line-height:1.5; }
+  #tc .navsec { font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); padding:14px 10px 5px; }
+  #tc .navi { display:block; width:100%; text-align:left; border:0; background:transparent; color:rgba(255,255,255,.9); font:inherit; font-size:13.5px; font-weight:500; padding:9px 12px; border-radius:9px; cursor:pointer; margin-bottom:2px; }
+  #tc .navi:hover { background:rgba(255,255,255,.12); }
+  #tc .navi.on { background:#fff; color:var(--pri); font-weight:600; box-shadow:0 1px 3px rgba(21,27,44,.14); }
+  #tc .navft { margin-top:auto; padding:12px 10px 0; border-top:1px solid rgba(255,255,255,.18); font-size:11px; color:rgba(255,255,255,.7); line-height:1.55; }
+  #tc .main { flex:1; min-width:0; }
+  #tc .wrap { max-width:1080px; margin:0 auto; padding:22px 24px 90px; }
+  #tc h1 { font-size:21px; letter-spacing:-.02em; margin:2px 0 2px; font-weight:700; }
+  #tc .subline { color:var(--mut); font-size:13px; margin-bottom:18px; }
+  /* ── card ── */
+  #tc .card { background:var(--surface); border-radius:14px; box-shadow:var(--shC); overflow:hidden; margin-bottom:16px; }
+  #tc .ch { padding:14px 18px 12px; border-bottom:1px solid var(--bd2); display:flex; align-items:baseline; gap:10px; }
+  #tc .ch h2 { font-size:16px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  #tc .ch .hint { color:var(--mut); font-size:12.5px; }
+  #tc .cb { padding:16px 18px; }
+  #tc .cardft { padding:10px 18px; border-top:1px solid var(--bd2); font-size:11.5px; color:var(--mut); line-height:1.6; background:var(--raise); }
+  #tc .sec { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--fnt); margin:2px 0 9px; }
+  /* ── form ── */
+  #tc label { display:block; font-size:11.5px; font-weight:600; color:var(--mut); margin-bottom:5px; }
+  #tc input, #tc select { font:inherit; font-size:14px; padding:9px 11px; border:1px solid var(--bdS); border-radius:9px; width:100%; background:#fff; color:var(--tx); }
+  #tc input:focus, #tc select:focus { outline:0; border-color:var(--pri); box-shadow:0 0 0 3px var(--priS); }
+  #tc input.money, #tc input[type=number] { text-align:right; font-variant-numeric:tabular-nums; }
+  #tc .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:13px 16px; }
+  #tc .grp { margin-bottom:6px; }
+  #tc .grp + .grp { margin-top:16px; }
+  /* ── button ── */
+  #tc .btn { padding:9px 16px; border-radius:9px; font:inherit; font-size:14px; font-weight:600; border:1px solid var(--pri); background:var(--pri); color:#fff; box-shadow:var(--sh); cursor:pointer; }
+  #tc .btn:hover { background:var(--priH); border-color:var(--priH); }
+  #tc .btn.ghost { background:var(--surface); color:var(--tx2); border-color:var(--bd); }
+  #tc .btn.ghost:hover { background:var(--auto); }
+  /* ── badge TẠM / ĐÃ CHỐT (bấm để đổi) ── */
+  #tc .tag { font-size:10.5px; font-weight:700; letter-spacing:.02em; margin-left:7px; padding:2px 8px; border-radius:20px; cursor:pointer; user-select:none; border:1px solid transparent; white-space:nowrap; }
+  #tc .tag.tam { background:var(--amB); color:var(--am); }
+  #tc .tag.chot { background:var(--gnB); color:var(--gn); }
+  #tc .tag:hover { border-color:currentColor; }
+  /* ── badge nguồn (màn C) ── */
+  #tc .badge { font-size:11px; font-weight:700; padding:1px 7px; border-radius:5px; margin-left:6px; white-space:nowrap; }
+  #tc .b-tem { background:#E9EDF5; color:#3D5A8C; } #tc .b-kho { background:var(--l2B); color:var(--l2); }
+  #tc .b-dem { background:var(--gnB); color:var(--gn); } #tc .b-plugin { background:var(--l1B); color:var(--l1); }
+  #tc .b-thieu { background:var(--rdB); color:var(--rd); } #tc .b-tam2 { background:var(--amB); color:var(--am); }
+  /* ── table ── */
+  #tc table { width:100%; border-collapse:collapse; font-size:14px; }
+  #tc th, #tc td { border-bottom:1px solid var(--bd2); padding:9px 11px; text-align:right; }
+  #tc thead th { font-size:11.5px; color:var(--mut); font-weight:600; vertical-align:bottom; line-height:1.3; background:var(--raise); border-bottom:1px solid var(--bd); }
+  #tc td.ten, #tc th.ten { text-align:left; }
+  #tc td { font-variant-numeric:tabular-nums; }
+  #tc tbody tr:hover { background:var(--auto); }
+  #tc th .vat { display:block; font-weight:800; font-size:10.5px; color:var(--am); } #tc th .novat { display:block; font-weight:800; font-size:10.5px; color:var(--tx2); }
+  /* ── ★ tính thử ── */
+  #tc .qc { display:grid; grid-template-columns:1fr 1.15fr; gap:24px; }
+  #tc .qc .inp { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; align-content:start; }
+  #tc .cascade .row { display:flex; justify-content:space-between; align-items:baseline; padding:7px 0; border-bottom:1px dotted var(--bd2); }
+  #tc .cascade .lbl { color:var(--tx2); } #tc .cascade .val { font-weight:600; font-variant-numeric:tabular-nums; }
+  #tc .cascade .tag2 { font-size:11px; color:var(--am); margin-left:8px; font-weight:700; }
+  #tc .baokhach { margin:14px 0; padding:14px 16px; background:var(--tx); color:#fff; border-radius:12px; display:flex; justify-content:space-between; align-items:baseline; }
+  #tc .baokhach .big { font-size:28px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  #tc .baokhach .cap { font-size:12px; opacity:.85; }
+  #tc .salemin { display:flex; justify-content:space-between; padding:5px 2px; }
+  #tc .hardstop { color:var(--rd); font-weight:600; font-size:13px; margin-top:2px; }
+  #tc .dexuat { margin-top:14px; padding-top:12px; border-top:1px solid var(--bd2); }
+  #tc .dexuat .out { margin-top:8px; } #tc .dexuat .red { color:var(--pri); font-weight:700; } #tc .dexuat .ok { color:var(--gn); font-weight:600; }
+  /* ── hệ số m ── */
+  #tc .hesom { font-size:44px; font-weight:800; letter-spacing:-.03em; color:var(--tx); font-variant-numeric:tabular-nums; }
+  #tc .noiday { border:1px solid var(--bd); border-radius:10px; padding:12px 16px; margin-top:12px; max-width:460px; }
+  #tc .noiday .r { display:flex; justify-content:space-between; padding:4px 0; font-variant-numeric:tabular-nums; }
+  #tc .thieu { border:1px dashed var(--pri); background:var(--priS); color:#7A121C; border-radius:10px; padding:13px 15px; font-size:13.5px; margin-top:12px; line-height:1.55; }
+  #tc .chotinfo { margin-top:10px; font-size:13.5px; color:var(--gn); font-weight:600; }
+  #tc .kyline { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; } #tc .kyline select { width:auto; }
+  /* ── màn xưởng ── */
+  #tc h3 { font-size:14px; margin:16px 0 8px; color:var(--tx2); font-weight:700; }
+  #tc h3:first-child { margin-top:2px; }
+  #tc input.pct { width:60px; text-align:right; padding:6px 8px; }
+  #tc .tsum { font-weight:800; } #tc .tsum.bad { color:var(--pri); } #tc .tsum.ok { color:var(--gn); }
+  #tc .to-row td { background:var(--raise); font-weight:600; }
+  #tc .dgcell { font-weight:700; } #tc .lech-up { color:var(--gn); } #tc .lech-dn { color:var(--pri); }
+  #tc .thieu-txt { color:var(--pri); font-weight:700; font-size:12.5px; }
+  #tc .warn { background:var(--amB); border:1px solid #F0D089; border-radius:10px; padding:10px 13px; font-size:13px; color:var(--am); margin-top:10px; }
+  #tc .s6days { color:var(--mut); font-size:11.5px; }
+  #tc .tabp { display:none; } #tc .tabp.on { display:block; }
+  /* ── mobile: nav thành hàng ngang (như sale) ── */
+  @media(max-width:1000px){
+    #tc .app { flex-direction:column; }
+    #tc .nav { width:100%; flex:none; flex-direction:row; align-items:center; overflow-x:auto; padding:8px 10px; gap:6px; }
+    #tc .brand,#tc .brandsub,#tc .navsec,#tc .navft { display:none; }
+    #tc .navi { width:auto; white-space:nowrap; margin:0; }
+    #tc .grid,#tc .qc { grid-template-columns:1fr; }
+  }
 </style>
-<div id="tc"><div class="wrap">
-  <h1>Tài chính — định giá & niêm yết</h1>
-  <div class="sub" id="tc_who">Chỉ ceo/ke_toan. Mọi số do DB tính (giá vốn không rời server).</div>
-
-  <section>
-    <h2><span class="n">1</span>Tham số kỳ</h2>
+<div id="tc"><div class="app">
+  <aside class="nav">
+    <div class="brand">Togihome</div>
+    <div class="brandsub">Tài chính</div>
+    <div class="navsec">Khu vực</div>
+    <button class="navi on" data-tab="ban">Định giá bán</button>
+    <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
+    <div class="navft" id="tc_who"></div>
+  </aside>
+  <main class="main"><div class="wrap">
     <div class="kyline">
       <label style="margin:0">Kỳ:</label><select id="ky"></select>
-      <span class="note" style="margin:0">Sửa số → bấm <b>Lưu</b> → ② ③ tính lại theo số đã lưu.</span>
+      <span class="subline" style="margin:0">Đổi kỳ → mọi số tính lại theo kỳ đã chọn.</span>
     </div>
-    <div class="grid">
-      <div><label>Doanh thu mục tiêu / tháng <span class="tag" data-tag></span></label><input class="money" id="dt"></div>
-      <div><label>Số đơn kế hoạch / tháng <span class="tag" data-tag></span></label><input type="number" id="sodon"></div>
-      <div><label>Thuế VAT (%) <span class="tag" data-tag></span></label><input type="number" id="vat"></div>
-      <div><label>Hoa hồng sale (%) <span class="tag" data-tag></span></label><input type="number" id="hhs" step="0.5"></div>
-      <div><label>Hoa hồng quản lý (%) <span class="tag" data-tag></span></label><input type="number" id="hhq" step="0.5"></div>
-      <div><label>Hoa hồng thiết kế (%) <span class="tag" data-tag></span></label><input type="number" id="hht" step="0.5"></div>
-      <div><label>Phí mỗi đơn — hàng lẻ <span class="tag" data-tag></span></label><input class="money" id="phile"></div>
-      <div><label>Phí mỗi đơn — combo <span class="tag" data-tag></span></label><input class="money" id="phicombo"></div>
-      <div><label>Phí mỗi đơn — thiết kế <span class="tag" data-tag></span></label><input class="money" id="phitk"></div>
-      <div><label>Sale tự giảm tối đa (%) <span class="tag" data-tag></span></label><input type="number" id="transale" step="0.5"></div>
-      <div><label>Trưởng nhóm duyệt tới (%) <span class="tag" data-tag></span></label><input type="number" id="trantn" step="0.5"></div>
-      <div><label>Ghi chú kỳ (nguồn nhãn TẠM/ĐÃ CHỐT)</label><input type="text" id="ghichu"></div>
+
+    <!-- ══════════ TAB 1 · ĐỊNH GIÁ BÁN ══════════ -->
+    <div class="tabp on" id="tab-ban">
+      <h1>Định giá & niêm yết</h1>
+      <div class="subline">Tính thử nhanh, tham số kỳ, hệ số nhân, bảng giá, chốt niêm yết. Mọi số do DB tính.</div>
+
+      <!-- Tính thử LÊN ĐẦU (dùng nhiều nhất) -->
+      <section class="card">
+        <div class="ch"><h2>Tính thử một sản phẩm</h2><span class="hint">gõ giá vốn → ra giá sàn báo khách</span></div>
+        <div class="cb"><div class="qc">
+          <div class="inp">
+            <div style="grid-column:1/3"><label>Giá vốn (đ)</label><input class="money" id="qc_gv" value="2.750.000"></div>
+            <div><label>Loại đơn</label><select id="qc_loai"><option value="le">Lẻ</option><option value="combo">Combo</option><option value="du_an">Thiết kế</option></select></div>
+            <div><label>Nhóm nhạy giá</label><input type="number" id="qc_nhom" value="1.00" step="0.05"></div>
+          </div>
+          <div>
+            <div class="cascade" id="qc_cascade"></div>
+            <div class="baokhach"><div><div class="cap">GIÁ SÀN — báo khách, có VAT</div><span class="cap">không bán thấp hơn</span></div><div class="big" id="qc_baokhach">—</div></div>
+            <div class="salemin"><span id="qc_salemin_lbl">Sale được giảm tối đa —</span><b id="qc_salemin">—</b></div>
+            <div class="hardstop">Dưới mức này KHÔNG chốt được.</div>
+            <div class="dexuat"><label style="font-size:12.5px">Giá niêm yết đề xuất (CEO điền, cao hơn sàn) — đ</label>
+              <input class="money" id="qc_dx" placeholder="vd 7.500.000" style="max-width:260px"><div class="out" id="qc_dx_out"></div></div>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- Tham số kỳ — NHÓM + badge theo TỪNG ô -->
+      <section class="card">
+        <div class="ch"><h2>Tham số kỳ</h2><span class="hint">bấm nhãn TẠM/ĐÃ CHỐT để đổi từng ô · Lưu → tính lại</span></div>
+        <div class="cb">
+          <div class="grp"><div class="sec">Mục tiêu kỳ</div><div class="grid">
+            <div><label>Doanh thu mục tiêu / tháng <span class="tag" data-param="dt_muc_tieu"></span></label><input class="money" id="dt"></div>
+            <div><label>Số đơn kế hoạch / tháng <span class="tag" data-param="so_don_ke_hoach"></span></label><input type="number" id="sodon"></div>
+          </div></div>
+          <div class="grp"><div class="sec">Hoa hồng</div><div class="grid">
+            <div><label>Hoa hồng sale (%) <span class="tag" data-param="hh_sale"></span></label><input type="number" id="hhs" step="0.5"></div>
+            <div><label>Hoa hồng quản lý (%) <span class="tag" data-param="hh_quan_ly"></span></label><input type="number" id="hhq" step="0.5"></div>
+            <div><label>Hoa hồng thiết kế (%) <span class="tag" data-param="hh_thiet_ke"></span></label><input type="number" id="hht" step="0.5"></div>
+          </div></div>
+          <div class="grp"><div class="sec">Phí mỗi đơn</div><div class="grid">
+            <div><label>Hàng lẻ <span class="tag" data-param="phi_don_le"></span></label><input class="money" id="phile"></div>
+            <div><label>Combo <span class="tag" data-param="phi_don_combo"></span></label><input class="money" id="phicombo"></div>
+            <div><label>Thiết kế <span class="tag" data-param="phi_don_thiet_ke"></span></label><input class="money" id="phitk"></div>
+          </div></div>
+          <div class="grp"><div class="sec">Chính sách giảm giá</div><div class="grid">
+            <div><label>Sale tự giảm tối đa (%) <span class="tag" data-param="tran_sale"></span></label><input type="number" id="transale" step="0.5"></div>
+            <div><label>Trưởng nhóm duyệt tới (%) <span class="tag" data-param="tran_truong_nhom"></span></label><input type="number" id="trantn" step="0.5"></div>
+          </div></div>
+          <div class="grp"><div class="sec">Thuế</div><div class="grid">
+            <div><label>Thuế VAT (%) <span class="tag" data-param="vat"></span></label><input type="number" id="vat"></div>
+            <div style="grid-column:2/4"><label>Ghi chú kỳ</label><input type="text" id="ghichu"></div>
+          </div></div>
+          <div style="margin-top:16px"><button class="btn" id="btn_luu">Lưu tham số kỳ</button> <span id="luu_msg" class="hint" style="margin-left:10px"></span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="ch"><h2>Hệ số nhân giá vốn (he_so_m)</h2></div>
+        <div class="cb">
+          <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+            <button class="btn ghost" id="btn_tinh">Tính lại</button><div id="hesom_line">= <span class="hesom" id="hesom">—</span></div>
+          </div>
+          <div class="subline" id="hesom_words" style="font-size:14px;margin:10px 0 0"></div>
+          <div class="noiday" id="hesom_break" style="display:none"></div>
+          <div class="thieu" id="thieu_box" style="display:none"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="ch"><h2>Bảng giá — mỗi mẫu một dòng</h2><span class="hint">từ DB thật</span></div>
+        <div class="cb"><table>
+          <thead><tr>
+            <th class="ten">Mẫu</th>
+            <th>Giá vốn<span class="novat">CHƯA VAT</span></th>
+            <th>Tầng 1<span class="novat">CHƯA VAT</span></th>
+            <th>Giá sàn (đơn 1 món)<span class="novat">CHƯA VAT</span></th>
+            <th>Giá sàn — KHÔNG bán thấp hơn<span class="vat">CÓ VAT</span></th>
+            <th>Trần giảm</th>
+          </tr></thead>
+          <tbody id="bang"><tr><td colspan="6" style="text-align:center;color:var(--fnt)">đang tải…</td></tr></tbody>
+        </table></div>
+        <div class="cardft"><b>Đây là ĐÁY, không phải giá bán. Thị trường trả cao hơn thì bán cao hơn.</b> Trần giảm gọi <b>tran_giam_gia()</b> thật.</div>
+      </section>
+
+      <section class="card">
+        <div class="ch"><h2>Chốt niêm yết</h2></div>
+        <div class="cb">
+          <div class="subline" style="font-size:14px;margin:0">Chốt bảng giá trên cho <b>quý</b> chứa kỳ <b id="ky_chot"></b>. <b>Chốt theo QUÝ. Sửa tham số KHÔNG đổi giá đang bán — chỉ đổi khi bấm nút này.</b></div>
+          <div style="margin-top:14px"><button class="btn" id="btn_chot">Chốt niêm yết quý này</button></div>
+          <div class="chotinfo" id="chot_info"></div>
+        </div>
+      </section>
     </div>
-    <div style="margin-top:16px"><button class="btn" id="btn_luu">Lưu tham số kỳ</button> <span id="luu_msg" class="note" style="margin-left:10px"></span></div>
-  </section>
 
-  <section>
-    <h2><span class="n">★</span>Tính thử một sản phẩm</h2>
-    <div class="qc">
-      <div class="inp">
-        <div style="grid-column:1/3"><label>Giá vốn (đ)</label><input class="money" id="qc_gv" value="2.750.000"></div>
-        <div><label>Loại đơn</label><select id="qc_loai"><option value="le">Lẻ</option><option value="combo">Combo</option><option value="du_an">Thiết kế</option></select></div>
-        <div><label>Nhóm nhạy giá</label><input type="number" id="qc_nhom" value="1.00" step="0.05"></div>
-      </div>
-      <div>
-        <div class="cascade" id="qc_cascade"></div>
-        <div class="baokhach"><div><div class="cap">GIÁ SÀN — báo khách, có VAT</div><span class="cap">không bán thấp hơn</span></div><div class="big" id="qc_baokhach">—</div></div>
-        <div class="salemin"><span id="qc_salemin_lbl">Sale được giảm tối đa —</span><b id="qc_salemin">—</b></div>
-        <div class="hardstop">Dưới mức này KHÔNG chốt được.</div>
-        <div class="dexuat"><label style="font-size:14px">Giá niêm yết đề xuất (CEO điền, cao hơn sàn) — đ</label>
-          <input class="money" id="qc_dx" placeholder="vd 7.500.000" style="max-width:260px"><div class="out" id="qc_dx_out"></div></div>
-      </div>
+    <!-- ══════════ TAB 2 · SỔ THAM SỐ XƯỞNG ══════════ -->
+    <div class="tabp" id="tab-xuong">
+      <h1>Sổ tham số xưởng</h1>
+      <div class="subline">Nhập lương tổ + % thời gian cho kỳ <b id="s6_ky"></b> → ra 12 đơn giá. Đơn giá đổi ngay khi gõ, thấy trước khi Lưu.</div>
+
+      <section class="card">
+        <div class="ch"><h2>A. Lương tổ</h2><span class="hint">7 tổ</span></div>
+        <div class="cb"><table><thead><tr>
+          <th class="ten">Tổ</th><th>Số người</th><th>Lương tổ (đ)</th>
+          <th>Overhead phân bổ (đ)</th><th>Bảo hiểm (đ)</th><th>Tổng chi phí tổ (đ)</th>
+        </tr></thead><tbody id="s6_luong"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="ch"><h2>B. % thời gian</h2><span class="hint">mỗi tổ chia cho việc nó làm — tổng phải = 100%</span></div>
+        <div class="cb"><table><thead><tr><th class="ten">Tổ / hoạt động</th><th>% thời gian</th><th>Tổng tổ</th></tr></thead>
+          <tbody id="s6_pct"></tbody></table>
+          <div class="warn">Ô % Lắp ráp (ngăn kéo 25% · cánh 15%) là <b>[TẠM]</b> — chờ tổ trưởng Lắp ráp xác nhận.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="ch"><h2>C. Kết quả — 12 đơn giá hoạt động</h2></div>
+        <div class="cb"><table><thead><tr>
+          <th class="ten">Hoạt động</th><th class="ten">Tổ</th><th>%</th><th>Lương phân bổ (đ)</th>
+          <th>Mẫu số</th><th class="ten">Nguồn mẫu số</th><th>ĐƠN GIÁ (đ)</th><th>So với đang dùng</th>
+        </tr></thead><tbody id="s6_kq"></tbody></table></div>
+        <div class="cardft">
+          <b>Nguồn mẫu số</b>: <span class="badge b-tem">từ tem</span> <span class="badge b-kho">từ kho</span>
+          <span class="badge b-dem">từ phiếu đếm</span> <span class="badge b-plugin">từ plugin (dự tính)</span>
+          <span class="badge b-thieu">THIẾU</span>. Dòng THIẾU nói rõ thiếu gì, <b>không hiện 0</b>.<br>
+          "So với đang dùng": <b>JSON = định mức tháng</b>; <b>màn này = đếm THẬT trong kỳ</b> (số ngày có dữ liệu trong ngoặc). Kỳ mới đếm vài ngày mà lệch nhiều là <b>bình thường</b>.
+        </div>
+        <div class="cb" style="padding-top:0"><button class="btn" id="s6_luu">Lưu sổ tham số xưởng</button>
+          <span class="hint" id="s6_msg" style="margin-left:10px"></span></div>
+      </section>
     </div>
-  </section>
-
-  <section>
-    <h2><span class="n">2</span>Hệ số nhân giá vốn (he_so_m)</h2>
-    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
-      <button class="btn ghost" id="btn_tinh">Tính lại</button><div>= <span class="hesom" id="hesom">—</span></div>
-    </div>
-    <div class="note" id="hesom_words" style="font-size:15px"></div>
-    <div class="noiday" id="hesom_break" style="display:none"></div>
-    <div class="thieu" id="thieu_box" style="display:none"></div>
-  </section>
-
-  <section>
-    <h2><span class="n">3</span>Bảng giá — mỗi mẫu một dòng (từ DB thật)</h2>
-    <table>
-      <thead><tr>
-        <th class="ten">Mẫu</th>
-        <th>Giá vốn<span class="novat">CHƯA VAT</span></th>
-        <th>Tầng 1<span class="novat">CHƯA VAT</span></th>
-        <th>Giá sàn (đơn 1 món)<span class="novat">CHƯA VAT</span></th>
-        <th>Giá sàn — KHÔNG bán thấp hơn<span class="vat">CÓ VAT</span></th>
-        <th>Trần giảm</th>
-      </tr></thead>
-      <tbody id="bang"><tr><td colspan="6" style="text-align:center;color:#8A9">đang tải…</td></tr></tbody>
-    </table>
-    <div class="note"><b>Đây là ĐÁY, không phải giá bán. Thị trường trả cao hơn thì bán cao hơn.</b><br>
-      Trần giảm gọi <b>tran_giam_gia()</b> thật (đã tính nới trần theo sản phẩm/kỳ nếu có).</div>
-  </section>
-
-  <section>
-    <h2><span class="n">4</span>Chốt niêm yết</h2>
-    <div class="note" style="font-size:15px">Chốt bảng giá trên cho <b>quý</b> chứa kỳ <b id="ky_chot"></b>.<br>
-      <b>Chốt theo QUÝ. Sửa tham số ở trên KHÔNG đổi giá đang bán — chỉ đổi khi bấm nút này. Đơn đã chốt giữ nguyên giá của kỳ nó thuộc về.</b></div>
-    <div style="margin-top:14px"><button class="btn" id="btn_chot">Chốt niêm yết quý này</button></div>
-    <div class="chotinfo" id="chot_info"></div>
-  </section>
-
-  <section>
-    <h2><span class="n">5</span>Sổ tham số xưởng — lương tổ ra 12 đơn giá</h2>
-    <div class="note" style="margin:0 0 6px">Nhập ① lương + ② % thời gian cho kỳ <b id="s6_ky"></b>; ③ đơn giá đổi ngay khi gõ, thấy trước khi Lưu.</div>
-
-    <h3>① Lương tổ — 7 tổ</h3>
-    <table><thead><tr>
-      <th class="ten">Tổ</th><th>Số người</th><th>Lương tổ (đ)</th>
-      <th>Overhead phân bổ (đ)</th><th>Bảo hiểm (đ)</th><th>Tổng chi phí tổ (đ)</th>
-    </tr></thead><tbody id="s6_luong"></tbody></table>
-
-    <h3>② % thời gian — mỗi tổ chia cho việc nó làm (tổng phải = 100%)</h3>
-    <table><thead><tr><th class="ten">Tổ / hoạt động</th><th>% thời gian</th><th>Tổng tổ</th></tr></thead>
-      <tbody id="s6_pct"></tbody></table>
-    <div class="warn">Ô % Lắp ráp (ngăn kéo 25% · cánh 15%) là <b>[TẠM]</b> — chờ tổ trưởng Lắp ráp xác nhận.</div>
-
-    <h3>③ Kết quả — 12 đơn giá hoạt động</h3>
-    <table><thead><tr>
-      <th class="ten">Hoạt động</th><th class="ten">Tổ</th><th>%</th><th>Lương phân bổ (đ)</th>
-      <th>Mẫu số</th><th class="ten">Nguồn mẫu số</th><th>ĐƠN GIÁ (đ)</th><th>So với đang dùng</th>
-    </tr></thead><tbody id="s6_kq"></tbody></table>
-    <div class="note">
-      <b>Nguồn mẫu số</b>: <span class="badge b-tem">từ tem</span> <span class="badge b-kho">từ kho</span>
-      <span class="badge b-dem">từ phiếu đếm</span> <span class="badge b-plugin">từ plugin (dự tính)</span>
-      <span class="badge b-thieu">THIẾU</span>. Dòng THIẾU nói rõ thiếu gì, <b>không hiện 0</b>.<br>
-      "So với đang dùng": <b>JSON = định mức tháng</b>; <b>màn này = đếm THẬT trong kỳ</b> (số ngày có dữ liệu ghi trong ngoặc). Kỳ mới đếm vài ngày mà lệch nhiều là <b>bình thường</b>.
-    </div>
-    <div style="margin-top:16px"><button class="btn" id="s6_luu">Lưu sổ tham số xưởng</button>
-      <span class="note" id="s6_msg" style="margin-left:10px"></span></div>
-  </section>
+  </div></main>
 </div></div>

@@ -45,7 +45,7 @@ async function laySauDangNhap(user) {
 async function napApp() {
   const html = await (await fetch('/togihome_taichinh.html')).text()
   $('root').innerHTML = html
-  $('tc_who').textContent = 'Đăng nhập: ' + USER.ho_ten + ' (' + USER.vai_tro + '). Mọi số do DB tính — giá vốn không rời server.'
+  $('tc_who').textContent = USER.ho_ten + ' · ' + USER.vai_tro
   const { data: kys } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ma_ky', { ascending: false })
   $('ky').innerHTML = (kys || []).map(r => `<option>${r.ma_ky}</option>`).join('') || '<option>2026-07</option>'
   // sự kiện
@@ -54,9 +54,38 @@ async function napApp() {
   $('btn_tinh').onclick = refreshHeSoM
   $('btn_chot').onclick = chot
   $('s6_luu').onclick = luuS6
+  document.querySelectorAll('#tc .navi').forEach(b => b.onclick = () => doiTab(b.dataset.tab))            // 2 tab
+  document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))
   await loadKy()
+}
+
+// Chuyển tab — dữ liệu GIỮ NGUYÊN (chỉ ẩn/hiện, không dựng lại DOM).
+function doiTab(t) {
+  document.querySelectorAll('#tc .tabp').forEach(p => p.classList.toggle('on', p.id === 'tab-' + t))
+  document.querySelectorAll('#tc .navi').forEach(b => b.classList.toggle('on', b.dataset.tab === t))
+  window.scrollTo(0, 0)
+}
+
+// ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
+let BADGE = {}   // ten_tham_so -> trang_thai
+async function taiBadges() {
+  const { data } = await sb.from('trang_thai_tham_so').select('ten_tham_so,trang_thai').eq('ma_ky', KY)
+  BADGE = {}; (data || []).forEach(r => BADGE[r.ten_tham_so] = r.trang_thai)
+  document.querySelectorAll('#tc .tag[data-param]').forEach(el => veBadge(el, BADGE[el.dataset.param] || 'tam'))
+}
+function veBadge(el, tt) {
+  el.textContent = tt === 'da_chot' ? 'ĐÃ CHỐT' : 'TẠM'
+  el.className = 'tag ' + (tt === 'da_chot' ? 'chot' : 'tam')
+  el.title = 'Bấm để chuyển ' + (tt === 'da_chot' ? '→ TẠM' : '→ ĐÃ CHỐT')
+}
+async function toggleBadge(param) {
+  const moi = (BADGE[param] === 'da_chot') ? 'tam' : 'da_chot'
+  const el = document.querySelector(`#tc .tag[data-param="${param}"]`)
+  const { error } = await sb.rpc('dat_trang_thai_tham_so', { p_ma_ky: KY, p_ten: param, p_trang_thai: moi })
+  if (error) { if (el) el.title = 'Lỗi: ' + error.message; return }
+  BADGE[param] = moi; if (el) veBadge(el, moi)
 }
 
 async function loadKy() {
@@ -67,13 +96,9 @@ async function loadKy() {
   $('vat').value = t.vat ?? ''; $('hhs').value = t.hh_sale ?? ''; $('hhq').value = t.hh_quan_ly ?? ''; $('hht').value = t.hh_thiet_ke ?? ''
   setMoney('phile', t.phi_don_le); setMoney('phicombo', t.phi_don_combo); setMoney('phitk', t.phi_don_thiet_ke)
   $('transale').value = t.tran_sale ?? ''; $('trantn').value = t.tran_truong_nhom ?? ''; $('ghichu').value = t.ghi_chu ?? ''
-  setTags(t.ghi_chu || '')
+  await taiBadges()   // badge TẠM/ĐÃ CHỐT theo từng tham số (thay 1 cột ghi_chu chung)
   await refreshHeSoM(); await refreshBang(); await refreshQuick(); await refreshChotInfo()
-  await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn ⑤: ' + (e.message || e) } })  // ⑤ hỏng KHÔNG kéo màn cũ
-}
-function setTags(ghichu) {
-  const tam = /TẠM/i.test(ghichu)
-  document.querySelectorAll('#tc [data-tag]').forEach(el => { el.textContent = tam ? 'TẠM' : 'ĐÃ CHỐT'; el.className = 'tag ' + (tam ? 'tam' : 'chot') })
+  await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn C: ' + (e.message || e) } })  // xưởng hỏng KHÔNG kéo màn cũ
 }
 
 // ① Lưu
@@ -85,23 +110,25 @@ async function luuKy() {
     tran_sale: numv('transale'), tran_truong_nhom: numv('trantn'), ghi_chu: $('ghichu').value
   }
   const { error } = await sb.from('tham_so_tai_chinh').update(row).eq('ma_ky', KY)
-  $('luu_msg').textContent = error ? ('❌ ' + error.message) : '✅ đã lưu — ② ③ tính lại theo số mới'
-  if (!error) { setTags(row.ghi_chu || ''); await refreshHeSoM(); await refreshBang(); await refreshQuick() }
+  $('luu_msg').textContent = error ? ('❌ ' + error.message) : '✅ đã lưu — hệ số & bảng giá tính lại theo số mới'
+  if (!error) { await refreshHeSoM(); await refreshBang(); await refreshQuick() }
 }
 
 // ② he_so_m
 async function refreshHeSoM() {
   const { data, error } = await sb.rpc('tinh_he_so_m', { p_ma_ky: KY })
-  const box = $('thieu_box'), brk = $('hesom_break')
-  if (error) { $('hesom').textContent = '—'; $('hesom_words').textContent = ''; brk.style.display = 'none'; box.style.display = 'block'; box.textContent = 'Lỗi: ' + error.message; return }
+  const box = $('thieu_box'), brk = $('hesom_break'), line = $('hesom_line')
+  if (error) { if (line) line.style.display = 'none'; $('hesom_words').textContent = ''; brk.style.display = 'none'; box.style.display = 'block'; box.textContent = 'Lỗi: ' + error.message; return }
   if (data == null) {
-    $('hesom').textContent = '—'; $('hesom_words').textContent = ''; brk.style.display = 'none'
+    // [item 6] KHÔNG để dấu gạch "= —" trống — ẩn hẳn dòng số, nói rõ THIẾU CÁI GÌ.
+    if (line) line.style.display = 'none'; $('hesom_words').textContent = ''; brk.style.display = 'none'
     const thieu = await thieuGi()
     box.style.display = 'block'
-    box.innerHTML = '<b>Chưa tính được he_so_m — THIẾU:</b><br>' + thieu.map(x => '• ' + x).join('<br>') +
-      '<br><span style="color:#5a3">Nhập đủ + có đơn của kỳ rồi bấm “Tính lại”. (Không hiện 0, không để trống.)</span>'
+    box.innerHTML = '<b>Chưa tính được hệ số nhân — THIẾU:</b><br>' + thieu.map(x => '• ' + x).join('<br>') +
+      '<br><span style="color:var(--gn)">Nhập đủ + có đơn của kỳ rồi bấm “Tính lại”. (Không hiện 0, không để trống.)</span>'
     return
   }
+  if (line) line.style.display = ''
   const m = Number(data); box.style.display = 'none'; brk.style.display = 'block'
   $('hesom').textContent = m.toFixed(4).replace('.', ',')
   $('hesom_words').innerHTML = 'Mỗi đồng giá vốn phải bán ra <b>' + m.toFixed(4).replace('.', ',') +
