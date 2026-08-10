@@ -61,17 +61,30 @@ async function capApp() {
   // ③ ④
   $('btDem').onclick = luuDem
   $('btLoi').onclick = luuLoi
+  // ⑤ Quản đốc — CHỈ xuong/ceo (tho ẩn hẳn khỏi nav)
+  if (USER.vai_tro === 'tho') { $('navQD').style.display = 'none' }
+  else {
+    document.querySelectorAll('.qd-seg button').forEach(b => b.onclick = () => doiQdSub(b.dataset.qd))
+    $('kbTo').onchange = veKanban; $('kbDong').onchange = veKanban
+  }
   await taiTo()          // tổ cho ④
   await taiDon()         // đơn cho ② + ④
   await taiViec()        // ①
 }
 
 function doiMan(m) {
-  ['viec', 'tem', 'dem', 'loi'].forEach(k => {
+  if (m === 'qd' && USER.vai_tro === 'tho') return   // tho không vào quản đốc
+  ['viec', 'tem', 'dem', 'loi', 'qd'].forEach(k => {
     $('man-' + k).classList.toggle('on', k === m)
   })
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.man === m))
   window.scrollTo(0, 0)
+  if (m === 'qd') taiQuanDoc()
+}
+function doiQdSub(s) {
+  document.querySelectorAll('.qd-sub').forEach(p => p.classList.toggle('on', p.id === 'qd-' + s))
+  document.querySelectorAll('.qd-seg button').forEach(b => b.classList.toggle('on', b.dataset.qd === s))
+  if (s === 'kanban') taiKanban()
 }
 function toast(t, loi) {
   const el = $('toast'); el.textContent = t; el.classList.toggle('loi', !!loi); el.classList.add('hien')
@@ -235,6 +248,53 @@ async function luuLoi() {
   const { error } = await sb.from('loi_lam_lai').insert(rec)
   if (error) return toast('Ghi lỗi thất bại: ' + error.message, true)
   toast('⚠️ Đã ghi lỗi: ' + rec.loai_loi + ' ×' + rec.so_luong)
+}
+
+// ══════════ ⑤ QUẢN ĐỐC (xuong/ceo) ══════════
+async function taiQuanDoc() {
+  const { data: red } = await sb.rpc('can_ceo_quyet')
+  $('qdRed').innerHTML = (red && red.length)
+    ? `<div class="qd-red"><h3>🚨 Cần CEO quyết</h3>${red.map(r => `<div class="item">${esc(r.mo_ta)}</div>`).join('')}</div>` : ''
+  const { data, error } = await sb.rpc('viec_uu_tien')
+  const box = $('qdList')
+  if (error) { box.innerHTML = `<div class="trong">Lỗi: ${esc(error.message)}</div>`; return }
+  if (!data || !data.length) { box.innerHTML = '<div class="trong">Không có việc nào đang chờ.</div>'; return }
+  box.innerHTML = data.map((v, i) => `
+    <div class="qd-row rk${v.rank_uu_tien}">
+      <div class="stt">${i + 1}</div>
+      <div class="noi">
+        <div class="d1">${esc(v.ma_don)} <span class="to">${esc(v.ten_mon)} · ${esc(v.to_goi_y)}</span></div>
+        <div class="lydo">${esc(v.ly_do)}</div>
+      </div>
+    </div>`).join('')
+}
+
+let KB = []
+const KB_COT = [['cho_cat', 'Chờ cắt'], ['da_cat', 'Đã cắt'], ['dang_lam', 'Đang làm'], ['xong_sx', 'Xong SX'], ['cho_giao', 'Chờ giao']]
+async function taiKanban() {
+  const { data, error } = await sb.rpc('kanban_xuong')
+  KB = error ? [] : (data || [])
+  const tos = [...new Set(KB.map(x => x.to_goi_y))].filter(Boolean).sort()
+  const dongs = [...new Set(KB.map(x => x.dong))].filter(Boolean).sort()
+  const c1 = $('kbTo').value, c2 = $('kbDong').value
+  $('kbTo').innerHTML = '<option value="">Mọi tổ</option>' + tos.map(t => `<option${t === c1 ? ' selected' : ''}>${esc(t)}</option>`).join('')
+  $('kbDong').innerHTML = '<option value="">Mọi dòng</option>' + dongs.map(d => `<option${d === c2 ? ' selected' : ''}>${esc(d)}</option>`).join('')
+  veKanban()
+}
+function veKanban() {
+  const fTo = $('kbTo').value, fDong = $('kbDong').value
+  const rows = KB.filter(x => (!fTo || x.to_goi_y === fTo) && (!fDong || x.dong === fDong))
+  $('kbBoard').innerHTML = KB_COT.map(([code, ten]) => {
+    const cards = rows.filter(x => x.cot === code), u = cards.length > 5
+    return `<div class="kb-col${u ? ' u' : ''}"><h4>${ten} <span>${cards.length}${u ? ' <span class="u-dau">⚠</span>' : ''}</span></h4>` +
+      (cards.map(kbCard).join('') || '<div style="color:#98A1B3;font-size:12px;padding:6px;text-align:center">—</div>') + '</div>'
+  }).join('')
+}
+function kbCard(x) {
+  const cls = x.la_tre ? 'tre' : x.la_gap ? 'gap' : x.la_mau_moi ? 'mau' : ''
+  const bdg = x.la_tre ? '<span class="bdg bdg-tre">TRỄ</span>' : x.la_gap ? '<span class="bdg bdg-gap">GẤP</span>' : x.la_mau_moi ? '<span class="bdg bdg-mau">MẪU MỚI</span>' : ''
+  return `<div class="kb-card ${cls}"><div class="ma">${esc(x.ma_don)}${bdg}</div>` +
+    `<div class="rg">${esc((x.ten_rut_gon || '').slice(0, 26))}</div><div class="mn">${x.so_mon_qua}/${x.so_mon_tong} món</div></div>`
 }
 
 // ══════════ BOOT ══════════

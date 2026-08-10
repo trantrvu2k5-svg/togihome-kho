@@ -95,6 +95,43 @@
   #cong .err{color:var(--do);font-size:13.5px;min-height:20px;margin-top:8px}
   .dangxuat{background:none;border:0;color:#fff;font-size:12px;opacity:.85;cursor:pointer;font-family:inherit;text-decoration:underline}
   #boot{padding:60px 30px;color:var(--mo);text-align:center}
+  /* ── Quản đốc ── */
+  .qd-seg{display:flex;gap:8px;margin:0 0 14px}
+  .qd-seg button{flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--vien);background:#fff;
+    font-family:inherit;font-size:15px;font-weight:700;color:var(--mo);cursor:pointer}
+  .qd-seg button.on{border-color:var(--do);background:var(--do);color:#fff}
+  .qd-sub{display:none}.qd-sub.on{display:block}
+  .qd-red{background:#FDECEC;border:2px solid var(--do);border-radius:14px;padding:14px;margin-bottom:14px}
+  .qd-red h3{margin:0 0 8px;color:var(--do-dam);font-size:15px;display:flex;align-items:center;gap:7px}
+  .qd-red .item{font-size:14px;color:var(--do-dam);padding:6px 0;border-top:1px solid #F6C9CC;line-height:1.5}
+  .qd-red .item:first-of-type{border-top:0}
+  .qd-row{background:var(--the);border-radius:14px;box-shadow:var(--bong);padding:13px 14px;margin-bottom:10px;
+    display:flex;gap:12px;align-items:flex-start;border-left:5px solid var(--vien)}
+  .qd-row.rk1{border-left-color:var(--do)}.qd-row.rk2{border-left-color:var(--vang)}
+  .qd-row.rk3{border-left-color:#E8890C}.qd-row.rk4{border-left-color:var(--vien)}.qd-row.rk5{border-left-color:#7B4FE0}
+  .qd-row .stt{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:var(--muc);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .qd-row .noi{flex:1;min-width:0}
+  .qd-row .d1{font-weight:700;font-size:16px}.qd-row .d1 .to{font-weight:600;color:var(--mo);font-size:13px;margin-left:6px}
+  .qd-row .lydo{font-size:13.5px;color:var(--do-dam);margin-top:3px;font-weight:600}
+  .qd-luat{background:#F0F3F9;border-radius:12px;padding:12px 14px;font-size:13px;color:#41506b;margin-top:6px;line-height:1.7}
+  .qd-luat b{color:var(--muc)}
+  /* kanban */
+  .kb-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+  .kb-filter select{width:auto;font-size:14px;padding:8px 10px}
+  .kb-wrap{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+  .kb-col{flex:0 0 165px;background:#F0F3F9;border-radius:12px;padding:8px}
+  .kb-col h4{margin:0 0 8px;font-size:13px;font-weight:800;padding:6px 8px;border-radius:8px;background:#E4E8F0;color:#41506b;
+    display:flex;justify-content:space-between;align-items:center}
+  .kb-col.u h4{background:var(--vang);color:#fff}
+  .kb-col .u-dau{font-size:15px}
+  .kb-card{background:#fff;border-radius:10px;box-shadow:var(--bong);padding:10px;margin-bottom:8px;border-left:4px solid var(--vien);font-size:13.5px}
+  .kb-card.tre{border-left-color:var(--do)}.kb-card.gap{border-left-color:#E8890C}.kb-card.mau{border-left-color:#7B4FE0}
+  .kb-card .ma{font-weight:800}
+  .kb-card .rg{color:var(--mo);font-size:12.5px;margin:2px 0}
+  .kb-card .mn{font-weight:700;color:#41506b;font-size:12.5px}
+  .kb-card .bdg{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:4px}
+  .bdg-tre{background:#FDECEC;color:var(--do-dam)}.bdg-gap{background:#FDF2E3;color:#8A5200}.bdg-mau{background:#F0EBFD;color:#7B4FE0}
 </style>
 </head>
 <body>
@@ -185,6 +222,31 @@
         <button class="nut nut-do" id="btLoi">⚠️ Ghi lỗi này</button>
         <p class="nho">Lỗi ghi về đơn + món để truy nguồn tổ nào, khâu nào hay hỏng.</p>
       </section>
+
+      <!-- ⑤ QUẢN ĐỐC (chỉ xuong/ceo — tho ẩn) -->
+      <section class="man" id="man-qd">
+        <h2 class="mh">Quản đốc · làm gì trước</h2>
+        <div class="qd-seg">
+          <button id="qdTab1" class="on" data-qd="lam">🧭 Làm gì trước</button>
+          <button id="qdTab2" data-qd="kanban">🗂️ Kanban</button>
+        </div>
+        <div class="qd-sub on" id="qd-lam">
+          <div id="qdRed"></div>
+          <div id="qdList"><div class="trong">Đang tải…</div></div>
+          <div class="qd-luat">
+            <b>Luật xếp (làm từ trên xuống):</b><br>
+            1. Quá hạn chưa giao · 2. Gấp có người duyệt · 3. Đứng yên quá 3 ngày ·
+            4. Còn ít ngày nhất tới hạn · 5. Mẫu mới
+          </div>
+        </div>
+        <div class="qd-sub" id="qd-kanban">
+          <div class="kb-filter">
+            <select id="kbTo"><option value="">Mọi tổ</option></select>
+            <select id="kbDong"><option value="">Mọi dòng</option></select>
+          </div>
+          <div class="kb-wrap" id="kbBoard"><div class="trong">Đang tải…</div></div>
+        </div>
+      </section>
     </main>
 
     <nav>
@@ -192,6 +254,7 @@
       <button data-man="tem"><span class="ic">🏷️</span>In tem</button>
       <button data-man="dem"><span class="ic">🔢</span>Đếm</button>
       <button data-man="loi"><span class="ic">⚠️</span>Ghi lỗi</button>
+      <button id="navQD" data-man="qd"><span class="ic">📋</span>Quản đốc</button>
     </nav>
     <div class="ghi-luu" id="toast"></div>
   </div>
