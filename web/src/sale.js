@@ -21,6 +21,7 @@ const Q = {
   ceo: ALL,
   kho: ALL,                                                    // kho = admin kho, RLS cho full đơn hàng
   sale: ['len_don','sua_don_all','xem_tien','giao_thu','huy_don','khai_bao','bao_cao'],
+  tk_ban_hang: ['len_don','sua_don_all','xem_tien','giao_thu','huy_don','khai_bao','bao_cao'],  // thiết kế bán hàng — quyền GIỐNG sale (giá vốn ẩn bằng RLS)
   thiet_ke: ['thiet_ke'],
   xuong: ['xuong_lam','xuong_dieu','dieu_van','giao_thu','huy_don','bao_cao'],
   tho: ['xuong_lam'],
@@ -29,7 +30,8 @@ const Q = {
 const qMap = vt => Object.fromEntries((Q[vt] || []).map(c => [c, true]))
 
 // ── ÁNH XẠ TRẠNG THÁI: file (9) <-> don_hang (12) ──
-const TT2DB = { bao_gia:'bao_gia', moi:'moi_len_don', tk:'dang_thiet_ke', co_file:'xong_file', da_cat:'da_cat',
+const TT2DB = { bao_gia:'bao_gia', bao_gia_thua:'bao_gia_thua', bao_gia_treo:'bao_gia_treo',
+  moi:'moi_len_don', tk:'dang_thiet_ke', co_file:'xong_file', da_cat:'da_cat',
   dang_lam:'dang_lam', xong_sx:'xong_sx', da_giao:'da_giao', tam_ngung:'tam_ngung', huy:'huy' }
 const DB2TT = Object.fromEntries(Object.entries(TT2DB).map(([a, b]) => [b, a]))
 const toTT = db => DB2TT[db] || 'moi'
@@ -50,6 +52,7 @@ function donToRow(d, khMap) {
     gia_cong_thuc: d.giaCongThuc ?? null, gia_chot: d.giaChot ?? null,
     ma_ns_duyet_giam: nz(d.nsDuyet), ly_do_giam: nz(d.lyDoGiam),
     trang_thai: toDB(d.tt), ly_do_huy: nz(d.lyDo),
+    ly_do_thua: nz(d.lyDoThua), ghi_chu_thua: nz(d.ghiChuThua),
     tk_coc: nz(d.tkCoc), tien_coc: d.coc ?? null, so_tien_thuc_thu: d.daTT ?? null,
     lap_ai: nz(d.lapAi), file_tk: nz(d.fileTK), gio_thiet_ke: d.gioTK ?? null, nguoi_tk: nz(d.nguoiTK),
     don_vi_van_chuyen: nz(d.vanChuyen), khoi_luong_kg: d.kg ?? null, dia_ban: nz(d.diaBan),
@@ -68,6 +71,8 @@ function rowToDon(r) {
     giaCongThuc: r.gia_cong_thuc != null ? Number(r.gia_cong_thuc) : null, giaChot: r.gia_chot != null ? Number(r.gia_chot) : null,
     nsDuyet: r.ma_ns_duyet_giam || '', lyDoGiam: r.ly_do_giam || '',
     tt: toTT(r.trang_thai), lyDo: r.ly_do_huy || '',
+    lyDoThua: r.ly_do_thua || '', ghiChuThua: r.ghi_chu_thua || '',
+    ngayTaoBG: r.ngay_tao_bao_gia || '', ngayKetThucBG: r.ngay_ket_thuc_bao_gia || '',
     tkCoc: r.tk_coc || '', coc: Number(r.tien_coc) || 0, daTT: Number(r.so_tien_thuc_thu) || 0,
     lapAi: r.lap_ai || '', fileTK: r.file_tk || '', gioTK: Number(r.gio_thiet_ke) || 0, nguoiTK: r.nguoi_tk || '',
     vanChuyen: r.don_vi_van_chuyen || '', kg: Number(r.khoi_luong_kg) || 0, diaBan: r.dia_ban || '',
@@ -188,9 +193,12 @@ async function _set(k, jsonStr) {
     const rows = (v || []).map(d => { const r = donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} })
       r.chiet_khau = boVat(r.chiet_khau, vat); r.gia_cong_thuc = boVat(r.gia_cong_thuc, vat); r.gia_chot = boVat(r.gia_chot, vat); return r })
     const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error
-    const mas = (v || []).map(d => d.ma)
-    if (mas.length) { await sb.from('don_hang').delete().not('ma_don', 'in', '(' + mas.map(m => JSON.stringify(m)).join(',') + ')') }
-    else { await sb.from('don_hang').delete().neq('ma_don', '___none___') }
+    // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB
+    //   -> đó là ý đồ XOÁ -> BÁO RÕ, không .delete() im lặng. Muốn bỏ đơn thì chuyển trạng thái (huỷ/tạm ngưng).
+    const mas = new Set((v || []).map(d => d.ma))
+    const { data: hienCo, error: eList } = await sb.from('don_hang').select('ma_don'); if (eList) throw eList
+    const thieu = (hienCo || []).map(r => r.ma_don).filter(ma => !mas.has(ma))
+    if (thieu.length) throw new Error('Không được phép xoá đơn hàng (' + thieu.join(', ') + ') — hãy chuyển trạng thái (huỷ/tạm ngưng) thay vì xoá.')
     return
   }
   if (k === 'c2:ct') {
@@ -200,7 +208,7 @@ async function _set(k, jsonStr) {
     for (const m of (v || [])) { const ma = maCuaAppId(m.donId); (byMa[ma] = byMa[ma] || []).push(m) }
     for (const ma of Object.keys(byMa)) {
       const did = await donIdCuaMa(ma); if (!did) continue
-      await sb.from('don_hang_mon').delete().eq('don_id', did)
+      { const { error } = await sb.from('don_hang_mon').delete().eq('don_id', did); if (error) throw error }
       // gia lưu CHƯA VAT (app nhập CÓ VAT -> ÷(1+vat)); khong_gian = mảng mã.
       const rows = byMa[ma].map(m => ({ don_id: did, sp_id: nz(m.spId), ten: nz(m.ten), vl: nz(m.vl), kt: nz(m.kt),
         so_luong: m.sl ?? 1, gia: boVat(m.gia ?? null, vat), tho: nz(m.tho), ma_mau: nz(m.maMau), chi_tiet: nz(m.ct),
@@ -227,9 +235,15 @@ async function _set(k, jsonStr) {
     if (rows.length) { const { error } = await sb.from('khach').upsert(rows, { onConflict: 'sdt' }); if (error) throw error }
     return
   }
+  if (k === 'c2:gio_bh') {   // tk_ban_hang ghi GIỜ dựng 3D (loai_gio='ban_hang', của MÌNH). RLS chặn nếu sai vai/loại.
+    const uid = (window.__saleUser && window.__saleUser.id) || null
+    const { error } = await sb.from('gio_thiet_ke_thuc').insert({ ma_don: v.ma_don, ma_ns: uid,
+      loai_gio: 'ban_hang', gio_thuc: Number(v.gio) || 0, cap: nz(v.cap) }); if (error) throw error
+    return
+  }
   if (k === 'c2:cfg') {   // vat + giờ + ghi_de + ngưỡng -> cột non-money của kỳ hiện hành (RLS ceo/ke_toan)
     if (v.vat != null) _vatCache = Number(v.vat)
-    const { data: ky } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ngay_ap_dung', { ascending: false }).limit(1).maybeSingle()
+    const { data: ky, error: eKy } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ngay_ap_dung', { ascending: false }).limit(1).maybeSingle(); if (eKy) throw eKy
     if (ky) { const { error } = await sb.from('tham_so_tai_chinh').update({
         vat: v.vat, gio_mo_cua: v.gio, ghi_de: v.ghiDe,
         n_ads: v.nAds, n_cac: v.nCac, n_kg: v.nKg, n_no: v.nNo, n_giam: v.nGiam }).eq('ma_ky', ky.ma_ky)

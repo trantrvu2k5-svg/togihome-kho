@@ -795,6 +795,14 @@ const TT_KHAC = [{
   n: "Báo giá",
   mau: "bao"
 }, {
+  c: "bao_gia_thua",
+  n: "Báo giá · thua",
+  mau: "mut"
+}, {
+  c: "bao_gia_treo",
+  n: "Báo giá · treo",
+  mau: "am"
+}, {
   c: "tam_ngung",
   n: "Tạm ngưng",
   mau: "am"
@@ -803,6 +811,23 @@ const TT_KHAC = [{
   n: "Huỷ",
   mau: "rd"
 }];
+const LY_DO_THUA = [{
+  c: "gia_cao",
+  n: "Giá cao"
+}, {
+  c: "cham",
+  n: "Chậm"
+}, {
+  c: "doi_y",
+  n: "Đổi ý"
+}, {
+  c: "chon_noi_khac",
+  n: "Chọn nơi khác"
+}, {
+  c: "khac",
+  n: "Khác"
+}];
+const LY_DO_THUA_N = c => (LY_DO_THUA.find(x => x.c === c) || {}).n || c || "—";
 const ttOf = c => [...TT, ...TT_KHAC].find(x => x.c === c) || TT[0];
 const ttIdx = c => TT.findIndex(x => x.c === c);
 const ttTruocDo = c => {
@@ -1014,7 +1039,8 @@ const kTra = (d, ct) => tienDon(ct) - (+d.giam || 0);
    Khách trả thẳng thợ thì khoản đó không chạy qua sổ công ty. */
 const lapCty = d => (d.lapAi || "cty") === "cty" ? +d.lap || 0 : 0;
 /* Cước vận chuyển công ty trả nhà xe, nên trừ khỏi doanh thu — giống phí lắp đặt. */
-const dtCua = (d, ct) => loaiOf(d.loai).dt && d.tt !== "bao_gia" ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0;
+const LA_BAO_GIA = t => t === "bao_gia" || t === "bao_gia_thua" || t === "bao_gia_treo";
+const dtCua = (d, ct) => loaiOf(d.loai).dt && !LA_BAO_GIA(d.tt) ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0;
 const phaiThu = (d, ct) => kTra(d, ct) - (+d.coc || 0) - (+d.daTT || 0);
 const canHD = d => !!tkOf(d.tkCoc)?.hd;
 /* Trạng thái thanh toán suy ra từ số, không lưu riêng — số đổi là trạng thái đổi theo */
@@ -1852,11 +1878,19 @@ function App() {
   }, []);
   const [loiLuu, setLoiLuu] = useState("");
   const up = (k, v) => {
+    const prev = db[k]; /* HOÀN TÁC: giữ giá trị trước để trả lại khi DB từ chối */
     setDb(p => ({
       ...p,
       [k]: v
     }));
-    window.storage.set("c2:" + k, JSON.stringify(v)).then(() => setLoiLuu("")).catch(() => setLoiLuu(k));
+    window.storage.set("c2:" + k, JSON.stringify(v)).then(() => setLoiLuu("")).catch(() => {
+      /* ghi hỏng -> KHÔNG để màn hình "trông như đã lưu": trả state local về trước đó */
+      setDb(p => ({
+        ...p,
+        [k]: prev
+      }));
+      setLoiLuu(k);
+    });
   };
   const user = (db?.users || []).find(u => u.id === uid2 && u.on) || null;
   const can = c => qOf(user, c);
@@ -1898,6 +1932,10 @@ function App() {
       } : {}),
       ...(them && them.daTT != null ? {
         daTT: (+x.daTT || 0) + them.daTT
+      } : {}),
+      ...(den === "bao_gia_thua" ? {
+        lyDoThua: them && them.lyDoThua || "",
+        ghiChuThua: them && them.ghiChuThua || ""
       } : {})
     } : x));
     up("ls", [...db.ls, {
@@ -4002,7 +4040,8 @@ function SoDon({
     [fp, setFp] = useState(""),
     [thu, setThu] = useState(null);
   const [ly, setLy] = useState(null),
-    [giao, setGiao] = useState(null);
+    [giao, setGiao] = useState(null),
+    [thua, setThua] = useState(null);
   const COT = [{
     k: "ngay",
     n: "Ngày"
@@ -4631,12 +4670,32 @@ function SoDon({
         den
       });
       setMo2(null);
-    }
+    },
+    onThua: () => {
+      setThua(mo2);
+      setMo2(null);
+    },
+    laTk3D: (window.__saleUser && window.__saleUser.vai_tro) === "tk_ban_hang",
+    onGio3D: (gio, cap) => window.storage.set("c2:gio_bh", JSON.stringify({
+      ma_don: mo2.ma,
+      gio,
+      cap
+    }))
   }), ly && /*#__PURE__*/React.createElement(LyDoModal, {
     d: ly.d,
     den: ly.den,
     onClose: () => setLy(null),
     onOk: r => doiTT(ly.d, ly.den, r)
+  }), thua && /*#__PURE__*/React.createElement(ThuaModal, {
+    d: thua,
+    onClose: () => setThua(null),
+    onOk: (lyDoThua, ghiChuThua) => {
+      doiTT(thua, "bao_gia_thua", null, {
+        lyDoThua,
+        ghiChuThua
+      });
+      setThua(null);
+    }
   }), giao && /*#__PURE__*/React.createElement(ThuModal, {
     d: giao,
     ct: ctCua(giao.id),
@@ -4685,11 +4744,16 @@ function XemDon({
   quyenTT,
   onDoi,
   onGiao,
-  onLyDo
+  onLyDo,
+  onThua,
+  laTk3D,
+  onGio3D
 }) {
   const c = ctCua(d.id),
     k = khOf(d.khachId),
     t = ttOf(d.tt);
+  const [gio3D, setGio3D] = React.useState("");
+  const [gio3DKq, setGio3DKq] = React.useState("");
   const ls = db.ls.filter(x => x.donId === d.id);
   const br = db.brands.find(b => b.c === d.brand);
   const mauOf = m => db.mau.find(x => x.c === m);
@@ -4748,7 +4812,66 @@ function XemDon({
     onDoi: onDoi,
     onGiao: onGiao,
     onLyDo: onLyDo
-  }), /*#__PURE__*/React.createElement("div", {
+  }), d.tt === "bao_gia" && onThua && /*#__PURE__*/React.createElement("div", {
+    className: "note",
+    style: {
+      marginBottom: 12,
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "Báo giá đang chạy"), /*#__PURE__*/React.createElement("span", {
+    className: "mini"
+  }, "Khách chốt không lấy?"), /*#__PURE__*/React.createElement("button", {
+    className: "btn sm",
+    style: {
+      marginLeft: "auto"
+    },
+    onClick: onThua
+  }, "Khách không lấy")), (d.tt === "bao_gia_thua" || d.tt === "bao_gia_treo") && /*#__PURE__*/React.createElement("div", {
+    className: "note am",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("b", null, d.tt === "bao_gia_thua" ? "Báo giá THUA" : "Báo giá TREO"), d.tt === "bao_gia_thua" && /*#__PURE__*/React.createElement("span", null, " · lý do: ", LY_DO_THUA_N(d.lyDoThua), d.ghiChuThua ? " — " + d.ghiChuThua : "")), laTk3D && /*#__PURE__*/React.createElement("div", {
+    className: "note",
+    style: {
+      marginBottom: 12,
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "Giờ dựng 3D"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "0",
+    step: "0.5",
+    value: gio3D,
+    placeholder: "vd 2.5",
+    style: {
+      width: 90
+    },
+    onChange: e => setGio3D(e.target.value)
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "mini"
+  }, "giờ"), /*#__PURE__*/React.createElement("button", {
+    className: "btn sm pri",
+    onClick: () => {
+      const g = +String(gio3D).replace(",", ".");
+      if (!(g > 0)) {
+        setGio3DKq("Nhập số giờ > 0");
+        return;
+      }
+      setGio3DKq("Đang ghi…");
+      onGio3D(g, loaiOf(d.loai).cap).then(() => setGio3DKq("✓ Đã ghi " + gio3D + " giờ")).catch(e => setGio3DKq("✗ Lỗi: " + (e && e.message || e)));
+    }
+  }, "Ghi giờ"), gio3DKq && /*#__PURE__*/React.createElement("span", {
+    className: "mini",
+    style: {
+      marginLeft: 6
+    }
+  }, gio3DKq)), /*#__PURE__*/React.createElement("div", {
     className: "sec",
     style: {
       marginTop: 0
@@ -5595,6 +5718,62 @@ function LyDoModal({
       onClose();
     }
   }, "Xác nhận"))));
+}
+
+/* ---------------- KHÁCH KHÔNG LẤY (báo giá thua) ---------------- */
+function ThuaModal({
+  d,
+  onClose,
+  onOk
+}) {
+  const [ld, setLd] = useState("");
+  const [gc, setGc] = useState("");
+  return /*#__PURE__*/React.createElement("div", {
+    className: "ovl",
+    onMouseDown: e => e.target === e.currentTarget && onClose()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mdl",
+    style: {
+      width: 480
+    },
+    onMouseDown: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("header", null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", null, "Khách không lấy · ", d.ma), /*#__PURE__*/React.createElement("div", {
+    className: "hint"
+  }, "Bắt buộc chọn lý do — để biết vì sao mất đơn")), /*#__PURE__*/React.createElement("div", {
+    className: "sp"
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "x",
+    onClick: onClose
+  }, "×")), /*#__PURE__*/React.createElement("div", {
+    className: "mbd"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "chips",
+    style: {
+      marginBottom: 11
+    }
+  }, LY_DO_THUA.map(g => /*#__PURE__*/React.createElement("button", {
+    key: g.c,
+    type: "button",
+    className: "chip" + (ld === g.c ? " on" : ""),
+    onClick: () => setLd(g.c)
+  }, g.n))), /*#__PURE__*/React.createElement("div", {
+    className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "Ghi chú (tuỳ chọn)"), /*#__PURE__*/React.createElement("input", {
+    value: gc,
+    placeholder: "vd: khách chê giá cao 15%…",
+    onChange: e => setGc(e.target.value)
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "mft"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "sp"
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: onClose
+  }, "Đóng"), /*#__PURE__*/React.createElement("button", {
+    className: "btn pri",
+    disabled: !ld,
+    onClick: () => onOk(ld, gc.trim())
+  }, "Xác nhận thua"))));
 }
 
 /* ---------------- KHÁCH HÀNG ---------------- */
