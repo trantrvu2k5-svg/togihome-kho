@@ -2351,6 +2351,7 @@ function DonModal({
     tkCoc: don.tkCoc || "",
     donGoc: don.donGoc || "",
     ngayGiao: don.ngayGiao || "",
+    ngayHenKhach: don.ngayHenKhach || "",
     giam: don.giam || "",
     lap: don.lap || "",
     lapAi: don.lapAi || "cty",
@@ -2376,6 +2377,7 @@ function DonModal({
     tkCoc: "",
     donGoc: "",
     ngayGiao: "",
+    ngayHenKhach: "",
     giam: "",
     lap: "",
     lapAi: "cty",
@@ -3950,6 +3952,15 @@ function XuongModal({
     onChange: e => setF({
       ...f,
       ngayDuKien: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "fld"
+  }, /*#__PURE__*/React.createElement("label", null, "Hẹn giao khách"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: f.ngayHenKhach,
+    onChange: e => setF({
+      ...f,
+      ngayHenKhach: e.target.value
     })
   })), /*#__PURE__*/React.createElement("div", {
     className: "fld full"

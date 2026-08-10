@@ -58,6 +58,7 @@ function donToRow(d, khMap) {
     don_vi_van_chuyen: nz(d.vanChuyen), khoi_luong_kg: d.kg ?? null, dia_ban: nz(d.diaBan),
     ship_thuc_tra: d.ship ?? null, lap_thuc_tra: d.lap ?? null,
     ngay_di_hang: nz(d.ngayDiHang), ngay_giao: nz(d.ngayGiao), ngay_du_kien: nz(d.ngayDuKien),
+    ngay_hen_khach: nz(d.ngayHenKhach),   // sale hứa giao KHÁCH (khác "dự kiến sản xuất xong"); ban_dau tự bắt ở DB
     lo: nz(d.lo), ghi_chu: nz(d.ghiChu), link: nz(d.link),
     kgs: Array.isArray(d.kgs) ? d.kgs : null, hoa_don: d.hd || null,
     nguoi_tao: null,   // saleId app không phải uuid nguoi_dung -> để null (nguoi_tao đặt sau ở tầng UI)
@@ -77,7 +78,7 @@ function rowToDon(r) {
     lapAi: r.lap_ai || '', fileTK: r.file_tk || '', gioTK: Number(r.gio_thiet_ke) || 0, nguoiTK: r.nguoi_tk || '',
     vanChuyen: r.don_vi_van_chuyen || '', kg: Number(r.khoi_luong_kg) || 0, diaBan: r.dia_ban || '',
     ship: Number(r.ship_thuc_tra) || 0, lap: Number(r.lap_thuc_tra) || 0,
-    ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '',
+    ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '', ngayHenKhach: r.ngay_hen_khach || '',
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
     kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
   }
