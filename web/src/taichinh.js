@@ -53,6 +53,7 @@ async function napApp() {
   $('btn_luu').onclick = luuKy
   $('btn_tinh').onclick = refreshHeSoM
   $('btn_chot').onclick = chot
+  $('s6_luu').onclick = luuS6
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))
   await loadKy()
@@ -68,6 +69,7 @@ async function loadKy() {
   $('transale').value = t.tran_sale ?? ''; $('trantn').value = t.tran_truong_nhom ?? ''; $('ghichu').value = t.ghi_chu ?? ''
   setTags(t.ghi_chu || '')
   await refreshHeSoM(); await refreshBang(); await refreshQuick(); await refreshChotInfo()
+  await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn ⑤: ' + (e.message || e) } })  // ⑤ hỏng KHÔNG kéo màn cũ
 }
 function setTags(ghichu) {
   const tam = /TẠM/i.test(ghichu)
@@ -170,6 +172,109 @@ async function chot() {
   $('chot_info').style.color = '#175E24'
   await refreshChotInfo()
   $('chot_info').textContent = '✅ Đã chốt ' + data + ' mẫu cho kỳ ' + KY + '. ' + $('chot_info').textContent
+}
+
+// ══════════ ⑤ SỔ THAM SỐ XƯỞNG ══════════
+// Cấu trúc CỐ ĐỊNH (7 tổ · 12 hoạt động · tổ nào làm việc nào · % mặc định [TẠM]). Lương + % đã lưu ghi đè.
+const S6_TO = [['cnc','CNC'],['dan_canh','Dán cạnh'],['cha_lot','Chà lót'],['son_pu','Sơn PU'],
+  ['lap_rap','Lắp ráp'],['dong_goi','Đóng gói'],['giuong','Giường']]
+const S6_HD = [
+  ['cat','Cắt CNC','cnc',100,false], ['dan','Dán cạnh','dan_canh',70,false], ['cam','Khoan cam/chốt','dan_canh',30,false],
+  ['lot','Chà nhám + lót','cha_lot',100,false], ['pu','Sơn PU (mặt)','son_pu',70,false], ['son_canh','Sơn cạnh (mặt lộ)','son_pu',30,false],
+  ['cup','Khoan cup bản lề','lap_rap',15,false], ['thung','Lắp ráp thùng','lap_rap',45,false],
+  ['ray','Lắp ray ngăn kéo','lap_rap',25,true], ['canh','Căn chỉnh cánh','lap_rap',15,true],
+  ['goi','Đóng gói','dong_goi',100,false], ['giuong_lap','Lắp ráp giường','giuong',100,false]]
+const S6_TEN_TO = Object.fromEntries(S6_TO)
+const ngCls = t => t === 'từ tem' ? 'b-tem' : t === 'từ kho' ? 'b-kho' : t === 'từ phiếu đếm' ? 'b-dem'
+  : t === 'từ plugin (dự tính)' ? 'b-plugin' : 'b-thieu'
+let S6 = {}   // hoat_dong -> {mau_so, nguon_mau_so, don_gia_dang_dung, so_ngay, trang_thai}
+
+async function taiS6() {
+  $('s6_ky').textContent = KY
+  const { data: lt } = await sb.from('luong_to').select('*').eq('ma_ky', KY)
+  const { data: pb } = await sb.from('phan_bo_hoat_dong').select('*').eq('ma_ky', KY)
+  const ltMap = {}; (lt || []).forEach(r => ltMap[r.ma_to] = r)
+  const pbMap = {}; (pb || []).forEach(r => pbMap[r.ma_to + '|' + r.hoat_dong] = r)
+  // mẫu số + nguồn (ket_qua) · baseline + so_ngay (so_sanh)
+  const [{ data: kq }, { data: ss }] = await Promise.all([
+    sb.rpc('ket_qua_don_gia', { p_ma_ky: KY }), sb.rpc('so_sanh_don_gia', { p_ma_ky: KY })])
+  S6 = {}
+  ;(kq || []).forEach(r => S6[r.hoat_dong] = { mau_so: r.mau_so, nguon_mau_so: r.nguon_mau_so, trang_thai: r.trang_thai })
+  ;(ss || []).forEach(r => { const s = S6[r.hoat_dong] || (S6[r.hoat_dong] = {}); s.don_gia_dang_dung = r.don_gia_dang_dung; s.so_ngay = r.so_ngay_co_du_lieu })
+  veS6Luong(ltMap); veS6Pct(pbMap); capNhatS6()
+}
+
+function veS6Luong(ltMap) {
+  $('s6_luong').innerHTML = S6_TO.map(([ma, ten]) => {
+    const r = ltMap[ma] || {}
+    const mi = (f, v) => `<input class="money s6m" data-s6to="${ma}" data-f="${f}" value="${v == null ? '' : Number(v).toLocaleString('vi-VN')}">`
+    return `<tr><td class="ten">${ten}</td>` +
+      `<td><input data-s6to="${ma}" data-f="nguoi" value="${r.so_nguoi ?? ''}" style="width:70px"></td>` +
+      `<td>${mi('luong', r.luong_to)}</td><td>${mi('oh', r.overhead_phan_bo)}</td><td>${mi('bh', r.bao_hiem)}</td>` +
+      `<td class="tsum" id="s6tong-${ma}">—</td></tr>`
+  }).join('')
+  document.querySelectorAll('#s6_luong input.s6m').forEach(el => el.addEventListener('input', () => { fmtMoneyEl(el); capNhatS6() }))
+  document.querySelectorAll('#s6_luong input[data-f=nguoi]').forEach(el => el.addEventListener('input', capNhatS6))
+}
+function veS6Pct(pbMap) {
+  let h = ''
+  S6_TO.forEach(([ma, ten]) => {
+    const acts = S6_HD.filter(x => x[2] === ma)
+    h += `<tr class="to-row"><td class="ten" colspan="2">${ten}${acts.length > 1 ? '' : ' <span style="font-weight:400;color:#7A8">(1 việc)</span>'}</td><td class="tsum ok" id="s6psum-${ma}">—</td></tr>`
+    acts.forEach(([hd, tenhd, , def, tam]) => {
+      const saved = pbMap[ma + '|' + hd]
+      const v = saved ? saved.phan_tram_thoi_gian : def
+      h += `<tr><td class="ten" style="padding-left:24px">${tenhd}${tam ? '<span class="badge b-tam">TẠM</span>' : ''}</td>` +
+        `<td><input class="pct" data-s6hd="${hd}" value="${v}">%</td><td></td></tr>`
+    })
+  })
+  $('s6_pct').innerHTML = h
+  document.querySelectorAll('#s6_pct input.pct').forEach(el => el.addEventListener('input', capNhatS6))
+}
+const s6el = (to, f) => document.querySelector(`#s6_luong input[data-s6to="${to}"][data-f="${f}"]`)
+const s6money = (to, f) => Number((s6el(to, f)?.value || '').replace(/\D/g, '')) || 0
+const s6int = (to, f) => { const v = parseInt((s6el(to, f)?.value || '').replace(/\D/g, '')); return isNaN(v) ? null : v }
+const s6pct = hd => { const el = document.querySelector(`#s6_pct input[data-s6hd="${hd}"]`); return el ? (parseFloat(el.value) || 0) : 0 }
+const s6tongTo = to => s6money(to, 'luong') + s6money(to, 'oh') + s6money(to, 'bh')
+
+function capNhatS6() {
+  // ① tổng chi phí tổ + ② tổng % (đỏ nếu ≠100)
+  S6_TO.forEach(([ma]) => {
+    $('s6tong-' + ma).textContent = fmt(s6tongTo(ma))
+    const s = S6_HD.filter(x => x[2] === ma).reduce((a, x) => a + s6pct(x[0]), 0)
+    const el = $('s6psum-' + ma); el.textContent = (Math.round(s * 10) / 10) + '%'
+    el.className = 'tsum ' + (Math.abs(s - 100) < 1e-9 ? 'ok' : 'bad')
+  })
+  // ③ 12 dòng — đơn giá tính LIVE = (lương+oh+bh)×% ÷ mẫu số (mẫu số/nguồn/baseline từ DB)
+  $('s6_kq').innerHTML = S6_HD.map(([hd, ten, to]) => {
+    const s = S6[hd] || {}, pct = s6pct(hd), lpb = s6tongTo(to) * pct / 100
+    let mauCell = '—', ngCell = '<span class="badge b-thieu">THIẾU</span>', dgCell, lechCell = '—'
+    if (s.mau_so != null) {
+      mauCell = fmt(s.mau_so); ngCell = `<span class="badge ${ngCls(s.nguon_mau_so)}">${s.nguon_mau_so}</span>`
+      const dg = lpb / Number(s.mau_so); dgCell = `<span class="dgcell">${fmt(dg)}</span>`
+      if (s.don_gia_dang_dung) {
+        const lech = (dg - Number(s.don_gia_dang_dung)) / Number(s.don_gia_dang_dung) * 100
+        lechCell = `<span class="${lech >= 0 ? 'lech-up' : 'lech-dn'}">${lech >= 0 ? '+' : ''}${pct1(lech)}%</span> <span class="s6days">(dùng ${fmt(s.don_gia_dang_dung)}${s.so_ngay != null ? ' · ' + s.so_ngay + ' ngày' : ''})</span>`
+      }
+    } else {
+      const thieu = (s.trang_thai || 'THIẾU mẫu số').replace(/^THIẾU\s*/, '')
+      dgCell = `<span class="thieu-txt">THIẾU ${thieu} — không có tem/kho/phiếu đếm</span>`
+    }
+    return `<tr><td class="ten">${ten}</td><td class="ten">${S6_TEN_TO[to]}</td><td>${Math.round(pct * 10) / 10}%</td>` +
+      `<td>${fmt(lpb)}</td><td>${mauCell}</td><td class="ten">${ngCell}</td><td>${dgCell}</td><td>${lechCell}</td></tr>`
+  }).join('')
+}
+const pct1 = n => (Math.round(Number(n) * 10) / 10).toLocaleString('vi-VN')
+
+async function luuS6() {
+  const bad = S6_TO.filter(([ma]) => Math.abs(S6_HD.filter(x => x[2] === ma).reduce((a, x) => a + s6pct(x[0]), 0) - 100) > 1e-9)
+  if (bad.length) { $('s6_msg').style.color = '#C8202E'; $('s6_msg').textContent = '⚠ Chưa lưu — tổ ' + bad.map(([, t]) => t).join(', ') + ' tổng % ≠ 100%.'; return }
+  const luong = S6_TO.map(([ma]) => ({ ma_to: ma, so_nguoi: s6int(ma, 'nguoi'), luong_to: s6money(ma, 'luong'), overhead_phan_bo: s6money(ma, 'oh'), bao_hiem: s6money(ma, 'bh') }))
+  const phan_bo = S6_HD.map(([hd, , to]) => ({ ma_to: to, hoat_dong: hd, phan_tram_thoi_gian: s6pct(hd) }))
+  const { error } = await sb.rpc('ghi_so_tham_so_xuong', { p_ma_ky: KY, p_luong: luong, p_phan_bo: phan_bo })
+  if (error) { $('s6_msg').style.color = '#C8202E'; $('s6_msg').textContent = '❌ ' + error.message; return }
+  $('s6_msg').style.color = '#175E24'; $('s6_msg').textContent = '✅ Đã lưu — ③ là đơn giá tính từ số vừa lưu.'
+  await taiS6()
 }
 
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }

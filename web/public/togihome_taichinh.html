@@ -43,6 +43,20 @@
   #tc td.ten, #tc th.ten { text-align: left; } #tc td { font-variant-numeric: tabular-nums; } #tc tbody tr:nth-child(even) { background: #F8FAFC; }
   #tc .kyline { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; } #tc .kyline select { width: auto; }
   #tc .chotinfo { margin-top: 10px; font-size: 14px; color: #175E24; font-weight: 600; }
+  /* ⑤ Sổ tham số xưởng */
+  #tc h3 { font-size: 15px; margin: 16px 0 8px; color: #2F3E5E; }
+  #tc input.pct { width: 62px; }
+  #tc .tsum { font-weight: 800; } #tc .tsum.bad { color: #C8202E; } #tc .tsum.ok { color: #175E24; }
+  #tc .badge { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; }
+  #tc .b-tam { background: #FBE1B0; color: #7A5000; }
+  #tc .b-tem { background: #DCE9FB; color: #254E8C; } #tc .b-kho { background: #E7E0F7; color: #4B308C; }
+  #tc .b-dem { background: #CDECCD; color: #175E24; } #tc .b-plugin { background: #FDE7CE; color: #8A5200; }
+  #tc .b-thieu { background: #FBD5D8; color: #8A121C; }
+  #tc .to-row td { background: #F3F6FB; font-weight: 600; }
+  #tc .dgcell { font-weight: 700; } #tc .lech-up { color: #175E24; } #tc .lech-dn { color: #C8202E; }
+  #tc .thieu-txt { color: #C8202E; font-weight: 700; font-size: 13px; }
+  #tc .warn { background: #FFF7E6; border: 1px solid #F0D089; border-radius: 8px; padding: 10px 13px; font-size: 13.5px; color: #7A5000; margin-top: 10px; }
+  #tc .s6days { color: #4A5468; font-size: 12px; }
 </style>
 <div id="tc"><div class="wrap">
   <h1>Tài chính — định giá & niêm yết</h1>
@@ -123,5 +137,35 @@
       <b>Chốt theo QUÝ. Sửa tham số ở trên KHÔNG đổi giá đang bán — chỉ đổi khi bấm nút này. Đơn đã chốt giữ nguyên giá của kỳ nó thuộc về.</b></div>
     <div style="margin-top:14px"><button class="btn" id="btn_chot">Chốt niêm yết quý này</button></div>
     <div class="chotinfo" id="chot_info"></div>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Sổ tham số xưởng — lương tổ ra 12 đơn giá</h2>
+    <div class="note" style="margin:0 0 6px">Nhập ① lương + ② % thời gian cho kỳ <b id="s6_ky"></b>; ③ đơn giá đổi ngay khi gõ, thấy trước khi Lưu.</div>
+
+    <h3>① Lương tổ — 7 tổ</h3>
+    <table><thead><tr>
+      <th class="ten">Tổ</th><th>Số người</th><th>Lương tổ (đ)</th>
+      <th>Overhead phân bổ (đ)</th><th>Bảo hiểm (đ)</th><th>Tổng chi phí tổ (đ)</th>
+    </tr></thead><tbody id="s6_luong"></tbody></table>
+
+    <h3>② % thời gian — mỗi tổ chia cho việc nó làm (tổng phải = 100%)</h3>
+    <table><thead><tr><th class="ten">Tổ / hoạt động</th><th>% thời gian</th><th>Tổng tổ</th></tr></thead>
+      <tbody id="s6_pct"></tbody></table>
+    <div class="warn">Ô % Lắp ráp (ngăn kéo 25% · cánh 15%) là <b>[TẠM]</b> — chờ tổ trưởng Lắp ráp xác nhận.</div>
+
+    <h3>③ Kết quả — 12 đơn giá hoạt động</h3>
+    <table><thead><tr>
+      <th class="ten">Hoạt động</th><th class="ten">Tổ</th><th>%</th><th>Lương phân bổ (đ)</th>
+      <th>Mẫu số</th><th class="ten">Nguồn mẫu số</th><th>ĐƠN GIÁ (đ)</th><th>So với đang dùng</th>
+    </tr></thead><tbody id="s6_kq"></tbody></table>
+    <div class="note">
+      <b>Nguồn mẫu số</b>: <span class="badge b-tem">từ tem</span> <span class="badge b-kho">từ kho</span>
+      <span class="badge b-dem">từ phiếu đếm</span> <span class="badge b-plugin">từ plugin (dự tính)</span>
+      <span class="badge b-thieu">THIẾU</span>. Dòng THIẾU nói rõ thiếu gì, <b>không hiện 0</b>.<br>
+      "So với đang dùng": <b>JSON = định mức tháng</b>; <b>màn này = đếm THẬT trong kỳ</b> (số ngày có dữ liệu ghi trong ngoặc). Kỳ mới đếm vài ngày mà lệch nhiều là <b>bình thường</b>.
+    </div>
+    <div style="margin-top:16px"><button class="btn" id="s6_luu">Lưu sổ tham số xưởng</button>
+      <span class="note" id="s6_msg" style="margin-left:10px"></span></div>
   </section>
 </div></div>

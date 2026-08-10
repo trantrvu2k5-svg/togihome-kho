@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Prototype S6 · Sổ tham số xưởng</title>
+<!--
+  PROTOTYPE TĨNH màn ⑤ "Sổ tham số xưởng" (số GIẢ, chưa gọi DB). Thiết bị: MÁY TÍNH, kế toán ngồi nhập.
+  Dùng đúng #tc CSS + markup section sẽ ghép vào public/togihome_taichinh.html ở BƯỚC 3.
+  ① Lương tổ · ② % thời gian (tổng mỗi tổ = 100%, ĐỎ live) · ③ 12 đơn giá (nguồn mẫu số + lệch %, THIẾU đỏ).
+-->
+<style>
+  body{margin:0;background:#EEF1F6}
+  #tc *{box-sizing:border-box}
+  #tc{font-family:system-ui,'Segoe UI',sans-serif;color:#131A2B;font-size:15px}
+  #tc .wrap{max-width:1120px;margin:0 auto;padding:20px 16px 90px}
+  #tc h1{font-size:23px;margin:8px 0 2px}
+  #tc .sub{color:#4A5468;font-size:14px;margin-bottom:20px}
+  #tc section{background:#fff;border:1px solid #CDD4E0;border-radius:10px;padding:18px 20px;margin-bottom:18px}
+  #tc h2{font-size:17px;margin:0 0 6px;padding-bottom:9px;border-bottom:1px solid #E1E6EF}
+  #tc h2 .n{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;background:#131A2B;color:#fff;border-radius:50%;font-size:14px;margin-right:9px}
+  #tc h3{font-size:15px;margin:16px 0 8px;color:#2F3E5E}
+  #tc .khoi-cap{color:#4A5468;font-size:13.5px;margin:2px 0 12px}
+  #tc table{width:100%;border-collapse:collapse;font-size:15px}
+  #tc th,#tc td{border:1px solid #DBE1EB;padding:8px 10px;text-align:right}
+  #tc th{background:#EDF1F7;font-size:12.5px;color:#3A4560;vertical-align:bottom;line-height:1.3}
+  #tc td.ten,#tc th.ten{text-align:left}
+  #tc td{font-variant-numeric:tabular-nums}
+  #tc tbody tr:nth-child(even){background:#F8FAFC}
+  #tc input{font:inherit;font-size:14.5px;padding:6px 8px;border:1px solid #C0C8D6;border-radius:6px;width:100%;text-align:right;font-variant-numeric:tabular-nums}
+  #tc input.pct{width:64px}
+  #tc .tsum{font-weight:800}
+  #tc .tsum.bad{color:#C8202E}
+  #tc .tsum.ok{color:#175E24}
+  #tc .badge{font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px}
+  #tc .b-tam{background:#FBE1B0;color:#7A5000}
+  #tc .b-tem{background:#DCE9FB;color:#254E8C}#tc .b-kho{background:#E7E0F7;color:#4B308C}
+  #tc .b-dem{background:#CDECCD;color:#175E24}#tc .b-plugin{background:#FDE7CE;color:#8A5200}
+  #tc .b-thieu{background:#FBD5D8;color:#8A121C}
+  #tc .to-row td{background:#F3F6FB;font-weight:600}
+  #tc .dgcell{font-weight:700}
+  #tc .lech-up{color:#175E24}#tc .lech-dn{color:#C8202E}
+  #tc .thieu-txt{color:#C8202E;font-weight:700;font-size:13px}
+  #tc .btn{font:inherit;font-size:15px;font-weight:600;padding:10px 20px;border:1px solid #131A2B;background:#131A2B;color:#fff;border-radius:8px;cursor:pointer}
+  #tc .note{color:#3A4560;font-size:13px;margin-top:10px;line-height:1.55}#tc .note b{color:#131A2B}
+  #tc .ky{font-weight:700}
+  #tc .warn{background:#FFF7E6;border:1px solid #F0D089;border-radius:8px;padding:10px 13px;font-size:13.5px;color:#7A5000;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="tc"><div class="wrap">
+  <h1>Tài chính — <span style="color:#4A5468">màn ⑤ prototype</span></h1>
+  <div class="sub">Kỳ <span class="ky">2026-07</span> · số GIẢ để CEO xem bố cục · chưa nối DB.</div>
+
+  <section>
+    <h2><span class="n">5</span>Sổ tham số xưởng — lương tổ ra 12 đơn giá</h2>
+    <div class="khoi-cap">Kế toán nhập ① lương + ② % thời gian; ③ đơn giá đổi ngay khi gõ, thấy trước khi Lưu.</div>
+
+    <!-- ① LƯƠNG TỔ -->
+    <h3>① Lương tổ — 7 tổ</h3>
+    <table id="t-luong">
+      <thead><tr>
+        <th class="ten">Tổ</th><th>Số người</th><th>Lương tổ (đ)</th>
+        <th>Overhead phân bổ (đ)</th><th>Bảo hiểm (đ)</th><th>Tổng chi phí tổ (đ)</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <!-- ② % THỜI GIAN -->
+    <h3>② % thời gian — mỗi tổ chia cho việc nó làm (tổng phải = 100%)</h3>
+    <table id="t-pct">
+      <thead><tr><th class="ten">Tổ / hoạt động</th><th>% thời gian</th><th>Tổng tổ</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="warn">Ô % Lắp ráp (ngăn kéo 25% · cánh 15%) đang <b>[TẠM]</b> — chờ tổ trưởng Lắp ráp xác nhận.</div>
+
+    <!-- ③ KẾT QUẢ -->
+    <h3>③ Kết quả — 12 đơn giá hoạt động</h3>
+    <table id="t-kq">
+      <thead><tr>
+        <th class="ten">Hoạt động</th><th class="ten">Tổ</th><th>%</th><th>Lương phân bổ (đ)</th>
+        <th>Mẫu số</th><th class="ten">Nguồn mẫu số</th><th>ĐƠN GIÁ (đ)</th><th>So với đang dùng</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">
+      <b>Nguồn mẫu số</b>: <span class="badge b-tem">từ tem</span> <span class="badge b-kho">từ kho</span>
+      <span class="badge b-dem">từ phiếu đếm</span> <span class="badge b-plugin">từ plugin (dự tính)</span>
+      <span class="badge b-thieu">THIẾU</span>. Dòng THIẾU nói rõ thiếu gì, <b>không hiện 0</b>.<br>
+      Cột "so với đang dùng": <b>JSON = định mức tháng</b>; <b>màn này = đếm THẬT trong kỳ</b>. Kỳ mới đếm vài ngày mà lệch nhiều là <b>bình thường</b> (xem cột số ngày có dữ liệu ở bản DB thật).
+    </div>
+    <div style="margin-top:16px"><button class="btn" id="btn-luu">Lưu sổ tham số (prototype — chưa ghi)</button>
+      <span class="note" id="luu-msg" style="margin-left:10px"></span></div>
+  </section>
+</div></div>
+
+<script>
+/* ===== SỐ GIẢ ===== */
+var TO = [
+  {ma:'cnc', ten:'CNC', nguoi:5, luong:30000000, oh:5000000, bh:2000000},
+  {ma:'dan_canh', ten:'Dán cạnh', nguoi:5, luong:36000000, oh:6000000, bh:2400000},
+  {ma:'cha_lot', ten:'Chà lót', nguoi:10, luong:65000000, oh:10800000, bh:4300000},
+  {ma:'son_pu', ten:'Sơn PU', nguoi:4, luong:36000000, oh:6000000, bh:2400000},
+  {ma:'lap_rap', ten:'Lắp ráp', nguoi:8, luong:73000000, oh:12100000, bh:4900000},
+  {ma:'dong_goi', ten:'Đóng gói', nguoi:9, luong:51000000, oh:8500000, bh:3400000},
+  {ma:'giuong', ten:'Giường', nguoi:4, luong:33000000, oh:5500000, bh:2200000},
+];
+// hoạt động: tổ · % · mẫu số giả · nguồn · baseline (đang dùng)
+var HD = [
+  {ma:'cat', ten:'Cắt CNC', to:'cnc', pct:100, mau:6420, nguon:'tem', base:3360},
+  {ma:'dan', ten:'Dán cạnh', to:'dan_canh', pct:70, mau:8100, nguon:'tem', base:2613},
+  {ma:'cam', ten:'Khoan cam/chốt', to:'dan_canh', pct:30, mau:240, nguon:'kho', base:420},
+  {ma:'lot', ten:'Chà nhám + lót', to:'cha_lot', pct:100, mau:520, nguon:'dem', base:10460},
+  {ma:'pu', ten:'Sơn PU (mặt)', to:'son_pu', pct:70, mau:310, nguon:'dem', base:5690},
+  {ma:'cup', ten:'Khoan cup bản lề', to:'lap_rap', pct:15, mau:96, nguon:'kho', base:3194},
+  {ma:'thung', ten:'Lắp ráp thùng', to:'lap_rap', pct:45, mau:84, nguon:'tem', base:5475},
+  {ma:'ray', ten:'Lắp ray ngăn kéo', to:'lap_rap', pct:25, mau:12, nguon:'kho', base:42584, tam:true},
+  {ma:'canh', ten:'Căn chỉnh cánh', to:'lap_rap', pct:15, mau:40, nguon:'tem', base:12775, tam:true},
+  {ma:'goi', ten:'Đóng gói', to:'dong_goi', pct:100, mau:30, nguon:'tem', base:34001},
+  {ma:'son_canh', ten:'Sơn cạnh (mặt lộ)', to:'son_pu', pct:30, mau:45, nguon:'plugin', base:5040},
+  {ma:'giuong_lap', ten:'Lắp ráp giường', to:'giuong', pct:100, mau:null, nguon:null, base:231006},
+];
+var NG_TXT = {tem:'từ tem', kho:'từ kho', dem:'từ phiếu đếm', plugin:'từ plugin (dự tính)'};
+var NG_CLS = {tem:'b-tem', kho:'b-kho', dem:'b-dem', plugin:'b-plugin'};
+
+var fmt = n => (n==null||isNaN(n)) ? '—' : Math.round(n).toLocaleString('vi-VN');
+var money = s => Number(String(s).replace(/\D/g,''))||0;
+var toEl = {};
+
+/* ===== ① LƯƠNG ===== */
+function veLuong(){
+  var tb = document.querySelector('#t-luong tbody'); tb.innerHTML='';
+  TO.forEach(t=>{
+    var tr=document.createElement('tr');
+    tr.innerHTML =
+      `<td class="ten">${t.ten}</td>`+
+      `<td><input class="num" data-to="${t.ma}" data-f="nguoi" value="${t.nguoi}" style="width:70px"></td>`+
+      `<td><input class="mon" data-to="${t.ma}" data-f="luong" value="${fmt(t.luong)}"></td>`+
+      `<td><input class="mon" data-to="${t.ma}" data-f="oh" value="${fmt(t.oh)}"></td>`+
+      `<td><input class="mon" data-to="${t.ma}" data-f="bh" value="${fmt(t.bh)}"></td>`+
+      `<td class="tsum" id="tong-${t.ma}">${fmt(t.luong+t.oh+t.bh)}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input.mon').forEach(el=>el.addEventListener('input',()=>{
+    var v=money(el.value); el.value = v?v.toLocaleString('vi-VN'):''; capNhat();
+  }));
+  tb.querySelectorAll('input.num').forEach(el=>el.addEventListener('input',capNhat));
+}
+function tongTo(ma){
+  var g = f => money(document.querySelector(`#t-luong input[data-to="${ma}"][data-f="${f}"]`).value);
+  return g('luong')+g('oh')+g('bh');
+}
+
+/* ===== ② % ===== */
+function vePct(){
+  var tb=document.querySelector('#t-pct tbody'); tb.innerHTML='';
+  TO.forEach(t=>{
+    var acts = HD.filter(h=>h.to===t.ma);
+    var head=document.createElement('tr'); head.className='to-row';
+    head.innerHTML=`<td class="ten" colspan="2">${t.ten}${acts.length>1?'':' <span style="font-weight:400;color:#7A8">(1 việc)</span>'}</td><td class="tsum ok" id="psum-${t.ma}">100%</td>`;
+    tb.appendChild(head);
+    acts.forEach(h=>{
+      var tr=document.createElement('tr');
+      tr.innerHTML=`<td class="ten" style="padding-left:24px">${h.ten}${h.tam?'<span class="badge b-tam">TẠM</span>':''}</td>`+
+        `<td><input class="pct" data-hd="${h.ma}" value="${h.pct}">%</td><td></td>`;
+      tb.appendChild(tr);
+    });
+  });
+  tb.querySelectorAll('input.pct').forEach(el=>el.addEventListener('input',capNhat));
+}
+function pctHD(ma){ var el=document.querySelector(`#t-pct input[data-hd="${ma}"]`); return el?(parseFloat(el.value)||0):0; }
+function kiemPct(){
+  TO.forEach(t=>{
+    var s = HD.filter(h=>h.to===t.ma).reduce((a,h)=>a+pctHD(h.ma),0);
+    var el=document.getElementById('psum-'+t.ma);
+    el.textContent = s+'%';
+    el.className = 'tsum '+(Math.abs(s-100)<1e-9?'ok':'bad');
+  });
+}
+
+/* ===== ③ KẾT QUẢ ===== */
+function veKQ(){
+  var tb=document.querySelector('#t-kq tbody'); tb.innerHTML='';
+  HD.forEach(h=>{
+    var tr=document.createElement('tr'); tr.id='kq-'+h.ma;
+    tr.innerHTML=`<td class="ten">${h.ten}</td><td class="ten">${TO.find(x=>x.ma===h.to).ten}</td>`+
+      `<td class="c-pct"></td><td class="c-lpb"></td><td class="c-mau"></td>`+
+      `<td class="ten c-ng"></td><td class="dgcell c-dg"></td><td class="c-lech"></td>`;
+    tb.appendChild(tr);
+  });
+}
+function capNhat(){
+  kiemPct();
+  HD.forEach(h=>{
+    var tr=document.getElementById('kq-'+h.ma);
+    var pct = pctHD(h.ma);
+    var lpb = tongTo(h.to) * pct/100;
+    tr.querySelector('.c-pct').textContent = pct+'%';
+    tr.querySelector('.c-lpb').textContent = fmt(lpb);
+    if(h.mau==null){
+      tr.querySelector('.c-mau').textContent='—';
+      tr.querySelector('.c-ng').innerHTML='<span class="badge b-thieu">THIẾU</span>';
+      tr.querySelector('.c-dg').innerHTML='<span class="thieu-txt">THIẾU mẫu số — chưa có tem/kho/phiếu đếm</span>';
+      tr.querySelector('.c-lech').textContent='—';
+      return;
+    }
+    tr.querySelector('.c-mau').textContent=fmt(h.mau);
+    tr.querySelector('.c-ng').innerHTML=`<span class="badge ${NG_CLS[h.nguon]}">${NG_TXT[h.nguon]}</span>`;
+    var dg = lpb / h.mau;
+    tr.querySelector('.c-dg').textContent=fmt(dg);
+    var lech = (dg - h.base)/h.base*100;
+    var s = (lech>=0?'+':'')+ (Math.round(lech*10)/10).toLocaleString('vi-VN') + '%';
+    tr.querySelector('.c-lech').innerHTML = `<span class="${lech>=0?'lech-up':'lech-dn'}">${s}</span> <span style="color:#8A9">(dùng ${fmt(h.base)})</span>`;
+  });
+}
+
+document.getElementById('btn-luu').onclick=()=>{
+  var xau = TO.filter(t=>{var s=HD.filter(h=>h.to===t.ma).reduce((a,h)=>a+pctHD(h.ma),0);return Math.abs(s-100)>1e-9;});
+  var m=document.getElementById('luu-msg');
+  if(xau.length){ m.style.color='#C8202E'; m.textContent='⚠ Chưa lưu — tổ '+xau.map(t=>t.ten).join(', ')+' tổng % ≠ 100%.'; }
+  else { m.style.color='#175E24'; m.textContent='(prototype) hợp lệ — bản thật sẽ ghi luong_to + phan_bo_hoat_dong.'; }
+};
+
+veLuong(); vePct(); veKQ(); capNhat();
+</script>
+</body>
+</html>
