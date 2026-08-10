@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Togihome · Xưởng</title>
+<!--
+  App XƯỞNG (BƯỚC 4 — nối DB thật). Đăng nhập: chỉ xuong/tho/ceo. Đọc qua RPC curated (tho không đọc bảng).
+  Thiết bị đích: ĐIỆN THOẠI, tay bẩn, đứng cạnh máy. 4 màn: ① Việc · ② In tem · ③ Đếm · ④ Ghi lỗi.
+  KHÔNG hiện giá bán / giá vốn / tên khách. Logic ở /src/xuong.js (vite bundle).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --do:#C8202E; --do-dam:#9E1622; --xanh:#1B7F4B; --vang:#B8860B;
+    --nen:#EEF1F6; --the:#FFFFFF; --muc:#151B2C; --mo:#6B7488; --vien:#D3D9E4;
+    --bong:0 1px 3px rgba(20,27,44,.08),0 1px 2px rgba(20,27,44,.05);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow-x:hidden}
+  body{font-family:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;background:var(--nen);color:var(--muc);
+    font-size:16px;line-height:1.4;overscroll-behavior:none}
+  #app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;background:var(--nen)}
+  header{background:var(--do);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:20;
+    display:flex;align-items:center;justify-content:space-between;box-shadow:var(--bong)}
+  header .ten{font-weight:800;font-size:17px;letter-spacing:.2px;white-space:nowrap}
+  header .to{font-size:13px;background:rgba(255,255,255,.18);padding:5px 11px;border-radius:20px;font-weight:600;white-space:nowrap;flex:0 0 auto}
+  header .to b{font-weight:800}
+  main{flex:1;padding:14px 14px 96px;overflow-y:auto}
+  h2.mh{font-size:15px;color:var(--mo);font-weight:600;margin:2px 4px 12px;text-transform:uppercase;letter-spacing:.4px}
+  .the{background:var(--the);border-radius:16px;box-shadow:var(--bong);padding:16px;margin-bottom:12px}
+  .the .mon{font-weight:700;font-size:18px;margin-bottom:2px}
+  .the .phu{color:var(--mo);font-size:14px;margin-bottom:12px}
+  .buoc{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+    background:#F0F3F9;padding:4px 10px;border-radius:8px;color:#41506b}
+  .chip-to{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:6px}
+  .nut{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-size:18px;font-weight:700;
+    font-family:inherit;cursor:pointer;text-align:center;margin-top:10px}
+  .nut-chinh{background:var(--xanh);color:#fff}
+  .nut-do{background:var(--do);color:#fff}
+  .nut-phu{background:#F0F3F9;color:var(--muc)}
+  .nut:active{transform:translateY(1px);filter:brightness(.96)}
+  .nut[disabled]{opacity:.5;cursor:default}
+  select,input[type=number],input[type=text],input[type=email],input[type=password]{width:100%;font-family:inherit;font-size:17px;padding:13px;
+    border:1.5px solid var(--vien);border-radius:12px;background:#fff;color:var(--muc);appearance:none}
+  label.nhan{display:block;font-size:14px;font-weight:600;color:var(--mo);margin:12px 4px 6px}
+  .tam{display:flex;align-items:center;gap:12px;padding:13px 8px;border-bottom:1px solid #EEF1F6;cursor:pointer}
+  .tam:last-child{border-bottom:0}
+  .tam .ck{width:26px;height:26px;flex:0 0 26px;border:2px solid var(--vien);border-radius:7px;
+    display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff}
+  .tam.on .ck{background:var(--xanh);border-color:var(--xanh)}
+  .tam .ten{flex:1;font-weight:600}
+  .tam .kt{color:var(--mo);font-size:13px;font-weight:400}
+  .tam .vt{font-size:12px;color:var(--mo)}
+  .banner{border-radius:12px;padding:12px 14px;font-weight:700;font-size:15px;margin-bottom:12px;display:flex;gap:9px;align-items:center}
+  .banner-do{background:#FDECEC;color:var(--do-dam);border:1.5px solid #F6C9CC}
+  .banner-xanh{background:#E9F6EF;color:var(--xanh);border:1.5px solid #BFE6D0}
+  .banner-mo{background:#F0F3F9;color:var(--mo);border:1.5px solid var(--vien)}
+  .khokho{display:flex;gap:8px;margin:6px 0 4px}
+  .khokho button{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--vien);background:#fff;
+    font-family:inherit;font-size:15px;font-weight:600;color:var(--mo);cursor:pointer}
+  .khokho button.on{border-color:var(--do);background:#FDECEC;color:var(--do-dam)}
+  .odem{background:var(--the);border-radius:16px;box-shadow:var(--bong);padding:16px;margin-bottom:12px;
+    display:flex;align-items:center;gap:14px}
+  .odem .icon{width:52px;height:52px;flex:0 0 52px;border-radius:14px;display:flex;align-items:center;
+    justify-content:center;font-size:26px}
+  .odem .noi{flex:1}
+  .odem .nhan2{font-weight:700;font-size:17px}
+  .odem .dv{color:var(--mo);font-size:13px}
+  .odem input{width:110px;text-align:center;font-size:22px;font-weight:700;padding:11px}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--vien);
+    display:flex;max-width:520px;margin:0 auto;box-shadow:0 -2px 10px rgba(20,27,44,.06)}
+  nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-family:inherit;cursor:pointer;
+    color:var(--mo);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600}
+  nav button .ic{font-size:23px;line-height:1}
+  nav button.on{color:var(--do)}
+  .man{display:none}
+  .man.on{display:block}
+  .ghi-luu{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--muc);color:#fff;
+    padding:11px 20px;border-radius:24px;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);
+    opacity:0;pointer-events:none;transition:opacity .25s;z-index:40;max-width:90%;text-align:center;white-space:pre-line}
+  .ghi-luu.hien{opacity:1}
+  .ghi-luu.loi{background:var(--do-dam)}
+  .nho{font-size:12.5px;color:var(--mo);margin:8px 4px 0;text-align:center}
+  .trong{color:var(--mo);text-align:center;padding:30px 10px;font-size:15px}
+  /* Đăng nhập */
+  #cong{max-width:360px;margin:9vh auto;padding:0 22px;text-align:center}
+  #cong .logo{font-size:40px;margin-bottom:6px}
+  #cong h1{font-size:21px;color:var(--muc);margin:0 0 4px}
+  #cong .sub{color:var(--mo);font-size:14px;margin-bottom:18px}
+  #cong input{margin:7px 0;text-align:left}
+  #cong button{width:100%;padding:15px;background:var(--do);color:#fff;border:0;border-radius:13px;
+    font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:6px}
+  #cong .err{color:var(--do);font-size:13.5px;min-height:20px;margin-top:8px}
+  .dangxuat{background:none;border:0;color:#fff;font-size:12px;opacity:.85;cursor:pointer;font-family:inherit;text-decoration:underline}
+  #boot{padding:60px 30px;color:var(--mo);text-align:center}
+</style>
+</head>
+<body>
+  <!-- Đăng nhập (JS thay bằng #app sau khi vào) -->
+  <div id="cong" style="display:none"></div>
+  <div id="boot">Đang mở ứng dụng xưởng…</div>
+
+  <!-- Ứng dụng (ẩn tới khi đăng nhập) -->
+  <div id="app" style="display:none">
+    <header>
+      <span class="ten">🪚 Togihome Xưởng</span>
+      <span class="to" id="hdTo"></span>
+    </header>
+
+    <main>
+      <!-- ① VIỆC -->
+      <section class="man on" id="man-viec">
+        <h2 class="mh">Việc trong xưởng · theo món</h2>
+        <div id="dsViec"><div class="trong">Đang tải…</div></div>
+        <p class="nho">Món của các đơn đang sản xuất. Không có giá, không có tên khách.</p>
+      </section>
+
+      <!-- ② IN TEM -->
+      <section class="man" id="man-tem">
+        <h2 class="mh">In tem tấm</h2>
+        <label class="nhan">Chọn đơn</label>
+        <select id="chonDon"></select>
+        <div id="temBanner"></div>
+        <label class="nhan">Khổ tem</label>
+        <div class="khokho">
+          <button id="kho7040" class="on" data-kho="70x40">70×40 · 12 tem/trang</button>
+          <button id="kho5030" data-kho="50x30">50×30 · 24 tem/trang</button>
+        </div>
+        <div class="the" style="padding:6px 12px">
+          <div class="tam" id="tamHet" style="border-bottom:2px solid #EEF1F6">
+            <div class="ck" id="ckHet">▪</div>
+            <div class="ten">Chọn / bỏ tất cả <span class="kt" id="soChon"></span></div>
+          </div>
+          <div id="dsTam"></div>
+        </div>
+        <button class="nut nut-chinh" id="btInBo">🖨️ In CẢ BỘ tem</button>
+        <button class="nut nut-phu" id="btInChon">In các tấm đã tick</button>
+      </section>
+
+      <!-- ③ PHIẾU ĐẾM -->
+      <section class="man" id="man-dem">
+        <h2 class="mh">Phiếu đếm hôm nay</h2>
+        <div class="odem">
+          <div class="icon" style="background:#FDECEC">🎨</div>
+          <div class="noi"><div class="nhan2">Sơn PU</div><div class="dv">mét vuông · tổ Sơn PU</div></div>
+          <input type="number" inputmode="decimal" id="demPu" placeholder="0" />
+        </div>
+        <div class="odem">
+          <div class="icon" style="background:#FEF6E7">🪵</div>
+          <div class="noi"><div class="nhan2">Sơn lót</div><div class="dv">mét vuông · tổ Chà lót</div></div>
+          <input type="number" inputmode="decimal" id="demLot" placeholder="0" />
+        </div>
+        <div class="odem">
+          <div class="icon" style="background:#E9F6EF">🛏️</div>
+          <div class="noi"><div class="nhan2">Giường lắp</div><div class="dv">cái · tổ Giường</div></div>
+          <input type="number" inputmode="numeric" id="demGiuong" placeholder="0" />
+        </div>
+        <label class="nhan">Ghi cho</label>
+        <select id="demAi">
+          <option value="">Cả tổ (đơn giá + thưởng tổ)</option>
+          <option value="toi">Riêng tôi</option>
+        </select>
+        <button class="nut nut-chinh" id="btDem">✔️ Lưu phiếu đếm</button>
+        <p class="nho">Chỉ 3 hoạt động này đếm tay. Cắt / dán / bản lề… suy từ tem tự động.</p>
+      </section>
+
+      <!-- ④ GHI LỖI -->
+      <section class="man" id="man-loi">
+        <h2 class="mh">Ghi lỗi · làm lại</h2>
+        <label class="nhan">Đơn</label>
+        <select id="loiDon"></select>
+        <label class="nhan">Món</label>
+        <select id="loiMon"></select>
+        <label class="nhan">Tổ gây lỗi</label>
+        <select id="loiTo"></select>
+        <label class="nhan">Loại lỗi</label>
+        <select id="loiLoai">
+          <option>Sứt cạnh</option><option>Khoan lệch</option><option>Xước mặt</option>
+          <option>Sai kích thước</option><option>Bung keo</option><option>Khác</option>
+        </select>
+        <label class="nhan">Số tấm / món hỏng</label>
+        <input type="number" inputmode="numeric" id="loiSo" value="1" />
+        <button class="nut nut-do" id="btLoi">⚠️ Ghi lỗi này</button>
+        <p class="nho">Lỗi ghi về đơn + món để truy nguồn tổ nào, khâu nào hay hỏng.</p>
+      </section>
+    </main>
+
+    <nav>
+      <button class="on" data-man="viec"><span class="ic">🧰</span>Việc</button>
+      <button data-man="tem"><span class="ic">🏷️</span>In tem</button>
+      <button data-man="dem"><span class="ic">🔢</span>Đếm</button>
+      <button data-man="loi"><span class="ic">⚠️</span>Ghi lỗi</button>
+    </nav>
+    <div class="ghi-luu" id="toast"></div>
+  </div>
+
+  <script type="module" src="/src/xuong.js"></script>
+</body>
+</html>
