@@ -3630,8 +3630,8 @@ function LenhSX({
     let hd, rs, ten;
     if (cd === "sx") {
       ten = "lenh_sx_" + d.ma + ".csv";
-      hd = "ma_don,loai_don,cap,han_giao,ten_san_pham,vat_lieu,ma_mau,kich_thuoc,so_luong,tho,ghi_chu_xuong";
-      rs = ct.map(x => [d.ma, loaiOf(d.loai).n, cap, d.ngayGiao || "", x.ten, db.vl.find(v => v.c === x.vl)?.n, x.maMau, x.kt, x.sl, thoOf(x), (x.ct || "").replace(/\n/g, " ")]);
+      hd = "ma_don,loai_don,cap,han_giao,lo_san_xuat,lap_dat,ten_san_pham,vat_lieu,ma_mau,kich_thuoc,so_luong,tho,ghi_chu_xuong";
+      rs = ct.map(x => [d.ma, loaiOf(d.loai).n, cap, d.ngayGiao || "", d.lo || "", d.lap ? "co" : "khong", x.ten, db.vl.find(v => v.c === x.vl)?.n, x.maMau, x.kt, x.sl, thoOf(x), (x.ct || "").replace(/\n/g, " ")]);
     } else {
       ten = "phieu_giao_" + d.ma + ".csv";
       hd = "ma_don,khach,dien_thoai,dia_chi,tinh,van_chuyen,ngay_di_hang,ten_san_pham,so_luong,con_phai_thu";
@@ -3659,7 +3659,8 @@ function LenhSX({
       e("div", null, e("span", null, "Loại đơn"), e("b", null, loaiOf(d.loai).n)),
       e("div", null, e("span", null, "Cấp"), e("b", null, cap)),
       e("div", null, e("span", null, "Hạn giao"), e("b", { className: "n" }, d.ngayGiao || "chưa có")),
-      e("div", null, e("span", null, "Mã đơn"), e("b", { className: "n" }, d.ma))),
+      e("div", null, e("span", null, "Lô sản xuất"), e("b", { className: "n" }, d.lo || "chưa có")),
+      e("div", { style: { gridColumn: "1 / -1" } }, e("span", null, "Lắp đặt"), e("b", null, d.lap ? "Có — đóng gói vừa (có thợ lắp)" : "Không — đóng kỹ (khách tự mở)"))),
     e("table", { style: { width: "100%", fontSize: 12.5, borderCollapse: "collapse" } },
       e("thead", null, e("tr", { style: { borderBottom: "1.5px solid var(--tx)" } },
         e("th", { style: { textAlign: "left", padding: "6px 6px" } }, "Sản phẩm"),
