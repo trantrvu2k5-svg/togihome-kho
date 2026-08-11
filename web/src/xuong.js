@@ -1,26 +1,27 @@
-// App XƯỞNG — nối DB thật (BƯỚC 4). Đăng nhập chỉ xuong/tho/ceo.
-//   ĐỌC qua RPC curated (tho không đọc bảng): xuong_don_san_xuat · xuong_mon_cua_don · xuong_tem_cua_don.
-//   GHI: tien_mon (①) · ghi_lan_in_tem (②) · phieu_dem_ngay (③) · loi_lam_lai (④).
-//   KHÔNG hiện giá bán/giá vốn/tên khách. SVG tem lấy signed-url từ bucket 'tem-svg' (plugin đẩy).
+// App XƯỞNG bản đầy đủ — bố cục theo mẫu CEO. 5 màn responsive + panel chi tiết món. Đăng nhập xuong/tho/ceo.
+//   Đọc qua RPC curated (tho không đọc bảng). KHÔNG hiện giá bán/giá vốn/tên khách. Quản đốc: chỉ xuong/ceo.
 import { createClient } from '@supabase/supabase-js'
-
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 
-const VAI_VAO = ['xuong', 'tho', 'ceo']            // chỉ 3 vai vào app xưởng
-const TEN_VAI = { xuong: 'Xưởng', tho: 'Thợ', ceo: 'CEO' }
-const BUOC = { cho_cat: 'Chờ cắt', da_cat: 'Đã cắt', dang_lam: 'Đang làm', xong_sx: 'Xong SX' }
-const KE = { cho_cat: 'da_cat', da_cat: 'dang_lam', dang_lam: 'xong_sx' }   // bước KẾ (xong_sx = hết)
-const DEM_TO = { pu: 'son_pu', lot: 'cha_lot', giuong_lap: 'giuong' }        // hoạt động → tổ
+const VAI_VAO = ['xuong', 'tho', 'ceo'], TEN_VAI = { xuong: 'Xưởng', tho: 'Thợ', ceo: 'CEO' }
+const BUOC = { cho_cat: 'Chờ cắt', da_cat: 'Đã cắt', dang_lam: 'Đang làm', xong_sx: 'Xong SX', cho_giao: 'Chờ giao' }
+const KE = { cho_cat: 'da_cat', da_cat: 'dang_lam', dang_lam: 'xong_sx' }
+const TO_BUOC = { cho_cat: 'CNC (cắt)', da_cat: 'Dán cạnh / khoan', dang_lam: 'Lắp ráp' }
+const DEM_TO = { pu: 'son_pu', lot: 'cha_lot', giuong_lap: 'giuong' }
 let USER = null, KHO_TEM = '70x40', TEM = { ma_don: null, pb: null, lan: 0, tam: [], tick: {} }
+let THO_LIST = [], PANEL = { monId: null, ke: null, nguoi: null }
 const $ = id => document.getElementById(id)
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const fmt = n => { n = Number(n); return Number.isFinite(n) ? (n === Math.round(n) ? String(n) : n.toFixed(1)) : '?' }
+const kgv = v => (v && typeof v === 'object') ? (v.ten || v.ma || JSON.stringify(v)) : (v || '')   // khong_gian jsonb
+function bao(t, loi) { const el = $('bao'); el.textContent = t; el.classList.toggle('loi', !!loi); el.classList.add('hien'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('hien'), 2600) }
 
 // ══════════ ĐĂNG NHẬP ══════════
 function manDangNhap(err) {
   $('boot').style.display = 'none'; $('app').style.display = 'none'
   const g = $('cong'); g.style.display = ''
-  g.innerHTML =
-    '<div class="logo">🪚</div><h1>Togihome Xưởng</h1><div class="sub">Đăng nhập để vào việc</div>' +
+  g.innerHTML = '<div class="logo">🪚</div><h1>Togihome Xưởng</h1><div class="sub">Đăng nhập để vào việc</div>' +
     '<input id="e" type="email" placeholder="Email" autocomplete="username">' +
     '<input id="p" type="password" placeholder="Mật khẩu" autocomplete="current-password">' +
     '<button id="b">Vào xưởng</button><div class="err" id="er">' + (err || '') + '</div>'
@@ -30,203 +31,146 @@ function manDangNhap(err) {
     if (error) { $('er').textContent = 'Sai email hoặc mật khẩu.'; return }
     laySauDangNhap(data.user)
   }
-  $('b').onclick = go
-  $('p').onkeydown = e => { if (e.key === 'Enter') go() }
+  $('b').onclick = go; $('p').onkeydown = e => { if (e.key === 'Enter') go() }
 }
-
 async function laySauDangNhap(user) {
-  const { data, error } = await sb.from('nguoi_dung')
-    .select('id,ho_ten,vai_tro,dang_hoat_dong').eq('auth_uid', user.id).maybeSingle()
+  const { data, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro,dang_hoat_dong').eq('auth_uid', user.id).maybeSingle()
   if (error || !data) { await sb.auth.signOut(); return manDangNhap('Tài khoản chưa gán vai trò — báo CEO.') }
   if (!data.dang_hoat_dong) { await sb.auth.signOut(); return manDangNhap('Tài khoản đang bị khoá — báo CEO.') }
   if (!VAI_VAO.includes(data.vai_tro)) { await sb.auth.signOut(); return manDangNhap('Vai "' + data.vai_tro + '" không vào được app xưởng.') }
-  USER = { id: data.id, ten: data.ho_ten, vai_tro: data.vai_tro }
-  capApp()
+  USER = { id: data.id, ten: data.ho_ten, vai_tro: data.vai_tro }; capApp()
 }
 
 // ══════════ VÀO APP ══════════
 async function capApp() {
-  $('cong').style.display = 'none'; $('boot').style.display = 'none'; $('app').style.display = ''
-  $('hdTo').innerHTML = (USER.ten ? USER.ten + ' · ' : '') + '<b>' + (TEN_VAI[USER.vai_tro] || USER.vai_tro) + '</b> ' +
-    '<button class="dangxuat" id="btOut">Thoát</button>'
+  $('cong').style.display = 'none'; $('boot').style.display = 'none'; $('app').style.display = 'flex'
+  $('navDay').style.display = ''    // xoá inline -> CSS media quyết (ẩn desktop / hiện ≤819)
+  $('hdTen').textContent = USER.ten || TEN_VAI[USER.vai_tro]; $('hdVai').textContent = TEN_VAI[USER.vai_tro] || USER.vai_tro
   $('btOut').onclick = async () => { await sb.auth.signOut(); location.reload() }
-  // nav
-  document.querySelectorAll('nav button').forEach(b => b.onclick = () => doiMan(b.dataset.man))
-  // ② handlers
+  document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => b.onclick = () => di(b.dataset.man))
+  if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none' }   // tho KHÔNG thấy quản đốc
+  document.querySelectorAll('.tab button').forEach(b => b.onclick = () => tab(b.dataset.qd))
+  document.querySelectorAll('#s-tem .loc button[data-kho]').forEach(b => b.onclick = () => datKho(b.dataset.kho))
   $('chonDon').onchange = () => taiTem($('chonDon').value)
-  $('tamHet').onclick = chonHet
-  document.querySelectorAll('.khokho button').forEach(b => b.onclick = () => datKho(b.dataset.kho))
-  $('btInBo').onclick = () => inTem('bo')
-  $('btInChon').onclick = () => inTem('chon')
-  // ③ ④
-  $('btDem').onclick = luuDem
-  $('btLoi').onclick = luuLoi
-  // ⑤ Quản đốc — CHỈ xuong/ceo (tho ẩn hẳn khỏi nav)
-  if (USER.vai_tro === 'tho') { $('navQD').style.display = 'none' }
-  else {
-    document.querySelectorAll('.qd-seg button').forEach(b => b.onclick = () => doiQdSub(b.dataset.qd))
-    $('kbTo').onchange = veKanban; $('kbDong').onchange = veKanban
-  }
-  await taiTo()          // tổ cho ④
-  await taiDon()         // đơn cho ② + ④
-  await taiViec()        // ①
+  $('btInBo').onclick = () => inTem('bo'); $('btInChon').onclick = () => inTem('chon')
+  $('btDem').onclick = luuDem; $('btLoi').onclick = luuLoi
+  $('kbTo').onchange = veKanban; $('kbDong').onchange = veKanban
+  $('loiDon').onchange = () => taiMonLoi($('loiDon').value)
+  $('viecLocTo').onchange = veViec; $('viecLocBuoc').onchange = veViec
+  $('mo').onclick = dongPanel
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') dongPanel() })
+  datKho('70x40')
+  const { data: tl } = await sb.rpc('xuong_tho_list'); THO_LIST = tl || []
+  await taiTo(); await taiDon(); await taiViec()
 }
-
-function doiMan(m) {
-  if (m === 'qd' && USER.vai_tro === 'tho') return   // tho không vào quản đốc
-  ['viec', 'tem', 'dem', 'loi', 'qd'].forEach(k => {
-    $('man-' + k).classList.toggle('on', k === m)
-  })
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.man === m))
+function di(m) {
+  if (m === 'qd' && USER.vai_tro === 'tho') return
+  ;['viec', 'tem', 'dem', 'loi', 'qd'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
+    $('n-' + k).classList.toggle('chon', k === m); $('d-' + k).classList.toggle('chon', k === m) })
   window.scrollTo(0, 0)
   if (m === 'qd') taiQuanDoc()
 }
-function doiQdSub(s) {
-  document.querySelectorAll('.qd-sub').forEach(p => p.classList.toggle('on', p.id === 'qd-' + s))
-  document.querySelectorAll('.qd-seg button').forEach(b => b.classList.toggle('on', b.dataset.qd === s))
-  if (s === 'kanban') taiKanban()
+function tab(w) {
+  $('qd-lam').style.display = (w === 'lam') ? 'block' : 'none'; $('qd-kb').style.display = (w === 'kb') ? 'block' : 'none'
+  $('t-lam').classList.toggle('chon', w === 'lam'); $('t-kb').classList.toggle('chon', w === 'kb')
+  if (w === 'kb') taiKanban()
 }
-function toast(t, loi) {
-  const el = $('toast'); el.textContent = t; el.classList.toggle('loi', !!loi); el.classList.add('hien')
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('hien'), 2400)
-}
-const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
-// ══════════ ① VIỆC ══════════
-let DONS = []
+// ══════════ VIỆC ══════════
+let DONS = [], MONS = []   // MONS = [{...món, ma_don}]
 async function taiDon() {
-  const { data, error } = await sb.rpc('xuong_don_san_xuat')
-  DONS = error ? [] : (data || [])
-  // ② chọn đơn (ưu tiên đơn có tem)
+  const { data } = await sb.rpc('xuong_don_san_xuat'); DONS = data || []
   const coTem = DONS.filter(d => d.co_tem)
-  $('chonDon').innerHTML = coTem.length
-    ? coTem.map(d => `<option value="${esc(d.ma_don)}">${esc(d.ma_don)} · ${esc(BUOC[d.trang_thai] || d.trang_thai)}</option>`).join('')
-    : '<option value="">(chưa đơn nào có tem)</option>'
-  if (coTem.length) taiTem(coTem[0].ma_don)
-  else { TEM = { ma_don: null, pb: null, lan: 0, tam: [], tick: {} }; $('temBanner').innerHTML = ''; $('dsTam').innerHTML = '<div class="trong">Chưa có đơn nào được đẩy tem.</div>'; capNhatChon() }
-  // ④ đơn
-  $('loiDon').innerHTML = DONS.length
-    ? DONS.map(d => `<option value="${esc(d.ma_don)}">${esc(d.ma_don)}</option>`).join('')
-    : '<option value="">(chưa có đơn)</option>'
-  $('loiDon').onchange = () => taiMonLoi($('loiDon').value)
+  $('chonDon').innerHTML = coTem.length ? coTem.map(d => `<option value="${esc(d.ma_don)}">${esc(d.ma_don)} · ${esc(BUOC[d.trang_thai] || d.trang_thai)}</option>`).join('') : '<option value="">(chưa đơn nào có tem)</option>'
+  if (coTem.length) taiTem(coTem[0].ma_don); else { TEM = { ma_don: null, pb: null, lan: 0, tam: [], tick: {} }; $('temBanner').innerHTML = ''; $('dsTam').innerHTML = '<div class="trong-rong"><p>Chưa có đơn nào được đẩy tem.</p></div>' }
+  $('loiDon').innerHTML = DONS.length ? DONS.map(d => `<option value="${esc(d.ma_don)}">${esc(d.ma_don)}</option>`).join('') : '<option value="">(chưa có đơn)</option>'
   if (DONS.length) taiMonLoi(DONS[0].ma_don)
 }
-
 async function taiViec() {
-  const box = $('dsViec')
-  if (!DONS.length) { box.innerHTML = '<div class="trong">Chưa có đơn nào đang sản xuất.</div>'; return }
-  box.innerHTML = '<div class="trong">Đang tải…</div>'
-  const parts = []
-  for (const d of DONS) {
-    const { data } = await sb.rpc('xuong_mon_cua_don', { p_ma_don: d.ma_don })
-    for (const m of (data || [])) {
-      const ke = KE[m.trang_thai]
-      parts.push(
-        `<div class="the">
-          <div class="mon">${esc(m.ten || 'Món')} ${Number(m.so_luong) > 1 ? '×' + Number(m.so_luong) : ''}</div>
-          <div class="phu">${esc(d.ma_don)}<span class="chip-to" style="color:#41506b;background:#F0F3F9">${esc(BUOC[m.trang_thai] || m.trang_thai)}</span></div>
-          ${ke ? `<button class="nut nut-chinh" data-mon="${esc(m.id)}" data-ke="${ke}">✅ Xong bước "${esc(BUOC[m.trang_thai])}" → ${esc(BUOC[ke])}</button>`
-               : `<button class="nut nut-phu" disabled>✓ Đã xong sản xuất</button>`}
-        </div>`)
-    }
-  }
-  box.innerHTML = parts.length ? parts.join('') : '<div class="trong">Các đơn chưa có món.</div>'
-  box.querySelectorAll('button[data-mon]').forEach(b => b.onclick = () => xongBuoc(b.dataset.mon, b.dataset.ke))
+  MONS = []
+  for (const d of DONS) { const { data } = await sb.rpc('xuong_mon_cua_don', { p_ma_don: d.ma_don }); (data || []).forEach(m => MONS.push({ ...m, ma_don: d.ma_don })) }
+  const tos = [...new Set(MONS.map(m => TO_BUOC[m.trang_thai]).filter(Boolean))]
+  $('viecLocTo').innerHTML = '<option value="">Tất cả tổ</option>' + tos.map(t => `<option>${esc(t)}</option>`).join('')
+  veViec()
 }
-async function xongBuoc(monId, ke) {
-  const { data, error } = await sb.rpc('tien_mon', { p_mon_id: monId, p_trang_thai: ke })
-  if (error) return toast('Không đẩy được bước: ' + error.message, true)
-  toast('✓ Đã sang bước "' + (BUOC[ke] || ke) + '"')
-  await taiDon(); await taiViec()
+function veViec() {
+  const fTo = $('viecLocTo').value, fBuoc = $('viecLocBuoc').value
+  const rows = MONS.filter(m => m.trang_thai !== 'xong_sx' && (!fTo || TO_BUOC[m.trang_thai] === fTo) && (!fBuoc || m.trang_thai === fBuoc))
+  $('viecDem').textContent = rows.length + ' món đang chờ'
+  const box = $('dsViec')
+  if (!rows.length) { box.innerHTML = '<div class="trong-rong"><h3>Không có món nào đang chờ</h3><p>Các đơn đã xong sản xuất hoặc chưa vào chuyền.</p></div>'; return }
+  box.innerHTML = rows.map(m => {
+    const cho = m.trang_thai === 'cho_cat'
+    return `<button class="mon" data-mon="${esc(m.id)}" data-don="${esc(m.ma_don)}">
+      <div class="mon-than"><div class="mon-ten"><span class="ma">${esc(m.ma_don)}</span><b>${esc(m.ten || 'Món')}</b></div>
+      <p class="mon-phu">${Number(m.so_luong) > 1 ? 'Số lượng ×' + Number(m.so_luong) + ' · ' : ''}bấm để xem chi tiết</p></div>
+      <span class="to">${esc(TO_BUOC[m.trang_thai] || '—')}</span><span class="buoc${cho ? ' cho' : ''}">${esc(BUOC[m.trang_thai])}</span></button>`
+  }).join('')
+  box.querySelectorAll('.mon').forEach(b => b.onclick = () => moMon(b.dataset.mon, b.dataset.don))
 }
 
-// ══════════ ② IN TEM ══════════
+// ══════════ IN TEM ══════════
 async function taiTem(maDon) {
   if (!maDon) return
   const { data, error } = await sb.rpc('xuong_tem_cua_don', { p_ma_don: maDon })
-  if (error) { $('dsTam').innerHTML = '<div class="trong">Lỗi tải tem: ' + esc(error.message) + '</div>'; return }
+  if (error) { $('dsTam').innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
   const rows = data || []
   TEM = { ma_don: maDon, pb: rows.length ? rows[0].phien_ban : null, lan: rows.length ? rows[0].lan_da_in : 0, tam: rows, tick: {} }
-  const lanKe = (TEM.lan || 0) + 1
+  rows.forEach((_, i) => TEM.tick[i] = true)
   const catLai = (TEM.lan || 0) >= 1
-  $('temBanner').innerHTML = TEM.pb == null
-    ? '<div class="banner banner-mo">Đơn này chưa được đẩy tem từ máy thiết kế.</div>'
-    : (catLai
-      ? `<div class="banner banner-do">🔁 CẮT LẠI — phiên bản ${TEM.pb}, đã in ${TEM.lan} lượt. In tiếp = lượt ${lanKe} (KHÔNG phải cắt đầu).</div>`
-      : `<div class="banner banner-xanh">🟢 Phiên bản ${TEM.pb} · chưa in lần nào. In = lượt 1 (cắt đầu).</div>`)
-  $('dsTam').innerHTML = rows.length
-    ? rows.map((t, i) => `<div class="tam" data-i="${i}">
-        <div class="ck">✓</div>
-        <div class="ten">${esc(temTen(t))} <span class="kt">${fmt(t.dai)}×${fmt(t.rong)}×${fmt(t.day)}</span><div class="vt">${esc(t.vai_tro || '')}${t.kien ? ' · kiện ' + t.kien : ''}</div></div>
-      </div>`).join('')
-    : '<div class="trong">Phiên bản này không có tấm nào.</div>'
-  $('dsTam').querySelectorAll('.tam').forEach(el => el.onclick = () => tick(+el.dataset.i))
-  capNhatChon()
+  $('temBanner').innerHTML = TEM.pb == null ? '<div class="canh-bao">Đơn này chưa được đẩy tem từ máy thiết kế.</div>'
+    : (catLai ? `<div class="canh-bao"><b>Lượt in thứ ${TEM.lan + 1}</b>Đơn này đã in tem ${TEM.lan} lượt (phiên bản ${TEM.pb}). In lại được tính là CẮT LẠI.</div>`
+      : `<div class="canh-bao xanh"><b>Phiên bản ${TEM.pb} · chưa in</b>In lần này = lượt 1 (cắt đầu).</div>`)
+  $('dsTam').innerHTML = rows.length ? rows.map((t, i) => `<div class="tam"><input type="checkbox" data-i="${i}" checked><span class="vt">${esc((t.vai_tro || 'tấm').replace(/_/g, ' '))}</span><span class="kt">${fmt(t.dai)}×${fmt(t.rong)}×${fmt(t.day)}</span><span class="sl">×1</span></div>`).join('') : '<div class="trong-rong"><p>Phiên bản này không có tấm nào.</p></div>'
+  $('dsTam').querySelectorAll('input[data-i]').forEach(el => el.onchange = () => { TEM.tick[+el.dataset.i] = el.checked; capNhatTem() })
+  capNhatTem()
 }
-const temTen = t => (t.vai_tro || 'tam').replace(/_/g, ' ')
-const fmt = n => { n = Number(n); return Number.isFinite(n) ? (n === Math.round(n) ? String(n) : n.toFixed(1)) : '?' }
-function tick(i) { TEM.tick[i] = !TEM.tick[i]; $('dsTam').querySelector(`.tam[data-i="${i}"]`).classList.toggle('on', !!TEM.tick[i]); capNhatChon() }
-function chonHet() {
-  const het = TEM.tam.length && Object.keys(TEM.tick).filter(k => TEM.tick[k]).length === TEM.tam.length
-  TEM.tam.forEach((_, i) => { TEM.tick[i] = !het; const el = $('dsTam').querySelector(`.tam[data-i="${i}"]`); if (el) el.classList.toggle('on', !het) })
-  capNhatChon()
-}
-function capNhatChon() {
-  const n = Object.keys(TEM.tick).filter(k => TEM.tick[k]).length, tot = TEM.tam.length
-  $('soChon').textContent = n ? '· ' + n + '/' + tot + ' tấm' : ''
-  $('ckHet').textContent = tot && n === tot ? '✓' : (n ? '–' : '▪')
+function capNhatTem() {
+  const n = Object.values(TEM.tick).filter(Boolean).length, tot = TEM.tam.length
+  $('temDem').textContent = tot ? `${n}/${tot} tấm chọn` : ''
+  const moiTrang = KHO_TEM === '70x40' ? 12 : 24
+  $('temKho').textContent = tot ? `Khổ ${KHO_TEM}mm · ${moiTrang} tem mỗi trang A4` : ''
+  $('btInBo').textContent = tot ? `In cả bộ (${tot} tem)` : 'In cả bộ'
+  $('btInChon').textContent = `In ${n} tấm đã tick`
   const co = TEM.pb != null && tot > 0
-  $('btInBo').disabled = !co; $('btInChon').disabled = !co
+  $('btInBo').disabled = !co; $('btInChon').disabled = !co || !n
 }
-function datKho(k) { KHO_TEM = k; $('kho7040').classList.toggle('on', k === '70x40'); $('kho5030').classList.toggle('on', k === '50x30') }
-
+function datKho(k) { KHO_TEM = k; document.querySelectorAll('#s-tem [data-kho]').forEach(b => b.classList.toggle('chon', b.dataset.kho === k)); document.querySelectorAll('#s-tem [data-kho]').forEach(b => { b.style.background = b.dataset.kho === k ? 'var(--do)' : ''; b.style.color = b.dataset.kho === k ? '#fff' : '' }); capNhatTem() }
 async function inTem(che) {
   if (TEM.pb == null || !TEM.tam.length) return
   const chon = che === 'bo' ? TEM.tam : TEM.tam.filter((_, i) => TEM.tick[i])
-  if (!chon.length) return toast('Chưa tick tấm nào', true)
+  if (!chon.length) return bao('Chưa tick tấm nào', true)
   const maTam = chon.map(t => t.ma_tam)
   const { data, error } = await sb.rpc('ghi_lan_in_tem', { p_ma_don: TEM.ma_don, p_phien_ban: TEM.pb, p_ma_tam: maTam })
-  if (error) return toast('Ghi lượt in lỗi: ' + error.message, true)
-  const moiTrang = KHO_TEM === '70x40' ? 12 : 24, trang = Math.ceil(maTam.length / moiTrang)
-  toast((data.cat_lai ? '⚠ CẮT LẠI · ' : '✓ ') + 'Lượt in ' + data.lan_thu + ' · ' + maTam.length + ' tem · ' + trang + ' trang')
-  await moInTem(chon)
-  taiTem(TEM.ma_don)   // cập nhật lại lan_da_in
+  if (error) return bao('Ghi lượt in lỗi: ' + error.message, true)
+  const trang = Math.ceil(maTam.length / (KHO_TEM === '70x40' ? 12 : 24))
+  bao((data.cat_lai ? '⚠ CẮT LẠI · ' : '✓ ') + 'Lượt in ' + data.lan_thu + ' · ' + maTam.length + ' tem · ' + trang + ' trang')
+  await moInTem(chon); taiTem(TEM.ma_don)
 }
-// Mở cửa sổ IN: lấy signed-url SVG từng tem trong bucket rồi xếp lưới A4, window.print().
 async function moInTem(chon) {
   const paths = chon.map(t => t.duong_dan_svg).filter(Boolean)
-  if (!paths.length) return toast('Đã ghi lượt in. (Chưa có SVG tem — máy thiết kế chưa đẩy.)')
+  if (!paths.length) return bao('Đã ghi lượt in. (Chưa có SVG tem — máy thiết kế chưa đẩy.)')
   const { data, error } = await sb.storage.from('tem-svg').createSignedUrls(paths, 120)
   const urls = (error ? [] : data).filter(x => x.signedUrl).map(x => x.signedUrl)
-  if (!urls.length) return toast('Đã ghi lượt in. SVG tem chưa có trên hệ (máy thiết kế chưa đẩy).')
-  const w = window.open('', '_blank')
-  if (!w) return toast('Đã ghi lượt in. Trình duyệt chặn cửa sổ in — bật popup để in tem.')
+  if (!urls.length) return bao('Đã ghi lượt in. SVG tem chưa có trên hệ.')
+  const w = window.open('', '_blank'); if (!w) return bao('Đã ghi lượt in. Trình duyệt chặn cửa sổ in.')
   const [tw, th] = KHO_TEM === '70x40' ? [70, 40] : [50, 30]
-  w.document.write(`<!doctype html><meta charset=utf-8><title>Tem ${esc(TEM.ma_don)}</title>
-    <style>@page{size:A4;margin:8mm}body{margin:0}.g{display:flex;flex-wrap:wrap;gap:2mm}
-    .t{width:${tw}mm;height:${th}mm;border:.3mm solid #000;overflow:hidden}.t img{width:100%;height:100%}</style>
-    <div class="g">${urls.map(u => `<div class="t"><img src="${u}"></div>`).join('')}</div>
-    <script>let n=${urls.length},d=0;document.querySelectorAll('img').forEach(i=>i.onload=i.onerror=()=>{if(++d>=n)setTimeout(()=>print(),250)})<\/script>`)
+  w.document.write(`<!doctype html><meta charset=utf-8><title>Tem ${esc(TEM.ma_don)}</title><style>@page{size:A4;margin:8mm}body{margin:0}.g{display:flex;flex-wrap:wrap;gap:2mm}.t{width:${tw}mm;height:${th}mm;border:.3mm solid #000;overflow:hidden}.t img{width:100%;height:100%}</style><div class="g">${urls.map(u => `<div class="t"><img src="${u}"></div>`).join('')}</div><script>let n=${urls.length},d=0;document.querySelectorAll('img').forEach(i=>i.onload=i.onerror=()=>{if(++d>=n)setTimeout(()=>print(),250)})<\/script>`)
   w.document.close()
 }
 
-// ══════════ ③ ĐẾM ══════════
+// ══════════ ĐẾM ══════════
 async function luuDem() {
-  const rows = [
-    { hoat_dong: 'pu', so_luong: +$('demPu').value || 0 },
-    { hoat_dong: 'lot', so_luong: +$('demLot').value || 0 },
-    { hoat_dong: 'giuong_lap', so_luong: +$('demGiuong').value || 0 },
-  ].filter(r => r.so_luong > 0)
-  if (!rows.length) return toast('Chưa nhập số nào', true)
+  const rows = [{ hoat_dong: 'pu', so_luong: +$('demPu').value || 0 }, { hoat_dong: 'lot', so_luong: +$('demLot').value || 0 }, { hoat_dong: 'giuong_lap', so_luong: +$('demGiuong').value || 0 }].filter(r => r.so_luong > 0)
+  if (!rows.length) return bao('Chưa nhập số nào', true)
   const ma_ns = $('demAi').value === 'toi' ? USER.id : null
-  const recs = rows.map(r => ({ ma_to: DEM_TO[r.hoat_dong], hoat_dong: r.hoat_dong, so_luong: r.so_luong, ma_ns }))
-  const { error } = await sb.from('phieu_dem_ngay').insert(recs)
-  if (error) return toast('Lưu đếm lỗi: ' + error.message, true)
-  toast('✔️ Đã lưu ' + recs.length + ' dòng đếm' + (ma_ns ? ' (riêng bạn)' : ' (cả tổ)'))
+  const { error } = await sb.from('phieu_dem_ngay').insert(rows.map(r => ({ ma_to: DEM_TO[r.hoat_dong], hoat_dong: r.hoat_dong, so_luong: r.so_luong, ma_ns })))
+  if (error) return bao('Lưu đếm lỗi: ' + error.message, true)
+  bao('✔️ Đã lưu ' + rows.length + ' dòng đếm' + (ma_ns ? ' (riêng bạn)' : ' (cả tổ)'))
   $('demPu').value = ''; $('demLot').value = ''; $('demGiuong').value = ''
 }
 
-// ══════════ ④ GHI LỖI ══════════
+// ══════════ GHI LỖI ══════════
 async function taiTo() {
   const { data } = await sb.from('to_san_xuat').select('ma_to,ten').order('ma_to')
   $('loiTo').innerHTML = (data || []).map(t => `<option value="${esc(t.ma_to)}">${esc(t.ten)}</option>`).join('')
@@ -234,72 +178,128 @@ async function taiTo() {
 let MON_LOI = []
 async function taiMonLoi(maDon) {
   if (!maDon) { MON_LOI = []; $('loiMon').innerHTML = '<option value="">(chưa có đơn)</option>'; return }
-  const { data } = await sb.rpc('xuong_mon_cua_don', { p_ma_don: maDon })
-  MON_LOI = data || []
-  $('loiMon').innerHTML = MON_LOI.length
-    ? MON_LOI.map(m => `<option value="${esc(m.id)}">${esc(m.ten || 'Món')}</option>`).join('')
-    : '<option value="">(đơn chưa có món)</option>'
+  const { data } = await sb.rpc('xuong_mon_cua_don', { p_ma_don: maDon }); MON_LOI = data || []
+  $('loiMon').innerHTML = MON_LOI.length ? MON_LOI.map(m => `<option value="${esc(m.id)}">${esc(m.ten || 'Món')}</option>`).join('') : '<option value="">(đơn chưa có món)</option>'
 }
 async function luuLoi() {
-  const ma_don = $('loiDon').value, mon_id = $('loiMon').value || null
-  if (!ma_don) return toast('Chưa chọn đơn', true)
-  const rec = { ma_to: $('loiTo').value || null, ma_don, mon_id, loai_loi: $('loiLoai').value,
-    so_luong: +$('loiSo').value || 1, ma_ns_ghi: USER.id }
-  const { error } = await sb.from('loi_lam_lai').insert(rec)
-  if (error) return toast('Ghi lỗi thất bại: ' + error.message, true)
-  toast('⚠️ Đã ghi lỗi: ' + rec.loai_loi + ' ×' + rec.so_luong)
+  const ma_don = $('loiDon').value; if (!ma_don) return bao('Chưa chọn đơn', true)
+  const { error } = await sb.from('loi_lam_lai').insert({ ma_to: $('loiTo').value || null, ma_don, mon_id: $('loiMon').value || null, loai_loi: $('loiLoai').value, so_luong: +$('loiSo').value || 1, ma_ns_ghi: USER.id })
+  if (error) return bao('Ghi lỗi thất bại: ' + error.message, true)
+  bao('⚠️ Đã ghi lỗi: ' + $('loiLoai').value); $('loiSo').value = ''
 }
 
-// ══════════ ⑤ QUẢN ĐỐC (xuong/ceo) ══════════
+// ══════════ QUẢN ĐỐC ══════════
 async function taiQuanDoc() {
   const { data: red } = await sb.rpc('can_ceo_quyet')
-  $('qdRed').innerHTML = (red && red.length)
-    ? `<div class="qd-red"><h3>🚨 Cần CEO quyết</h3>${red.map(r => `<div class="item">${esc(r.mo_ta)}</div>`).join('')}</div>` : ''
-  const { data, error } = await sb.rpc('viec_uu_tien')
-  const box = $('qdList')
-  if (error) { box.innerHTML = `<div class="trong">Lỗi: ${esc(error.message)}</div>`; return }
-  if (!data || !data.length) { box.innerHTML = '<div class="trong">Không có việc nào đang chờ.</div>'; return }
-  box.innerHTML = data.map((v, i) => `
-    <div class="qd-row rk${v.rank_uu_tien}">
-      <div class="stt">${i + 1}</div>
-      <div class="noi">
-        <div class="d1">${esc(v.ma_don)} <span class="to">${esc(v.ten_mon)} · ${esc(v.to_goi_y)}</span></div>
-        <div class="lydo">${esc(v.ly_do)}</div>
-      </div>
-    </div>`).join('')
+  $('qdCeo').innerHTML = (red && red.length)
+    ? `<div class="ceo"><h2>Cần CEO quyết</h2><p class="phu">Quản đốc không tự xử được ${red.length === 1 ? 'việc này' : red.length + ' việc này'}.</p>${red.map(r => `<div class="ceo-muc"><p>${esc(r.mo_ta)}</p></div>`).join('')}</div>` : ''
+  const { data, error } = await sb.rpc('viec_uu_tien'); const box = $('qdList')
+  if (error) { box.innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
+  $('qdGio').textContent = (data || []).length + ' việc đang chờ'; $('qdDem').textContent = (data || []).length + ' việc'
+  if (!data || !data.length) { box.innerHTML = '<div class="trong-rong"><h3>Không có việc nào đang chờ</h3></div>'; return }
+  const lyCls = r => r === 1 ? 'ly-tre' : r === 2 ? 'ly-gap' : r === 3 ? 'ly-tac' : r === 5 ? 'ly-mau' : 'ly-thuong'
+  box.innerHTML = data.map((v, i) => `<button class="viec" data-don="${esc(v.ma_don)}"><span class="stt">${i + 1}</span><div class="viec-than"><div class="viec-ten"><span class="ma">${esc(v.ma_don)}</span><b>${esc(v.ten_mon)}</b></div><p class="viec-ly ${lyCls(v.rank_uu_tien)}">${esc(v.ly_do)}</p></div><span class="to">${esc(v.to_goi_y)}</span></button>`).join('')
+  box.querySelectorAll('.viec').forEach(b => b.onclick = () => moDon(b.dataset.don))
 }
-
 let KB = []
 const KB_COT = [['cho_cat', 'Chờ cắt'], ['da_cat', 'Đã cắt'], ['dang_lam', 'Đang làm'], ['xong_sx', 'Xong SX'], ['cho_giao', 'Chờ giao']]
 async function taiKanban() {
-  const { data, error } = await sb.rpc('kanban_xuong')
-  KB = error ? [] : (data || [])
-  const tos = [...new Set(KB.map(x => x.to_goi_y))].filter(Boolean).sort()
-  const dongs = [...new Set(KB.map(x => x.dong))].filter(Boolean).sort()
+  const { data } = await sb.rpc('kanban_xuong'); KB = data || []
+  const tos = [...new Set(KB.map(x => x.to_goi_y))].filter(Boolean).sort(), dongs = [...new Set(KB.map(x => x.dong))].filter(Boolean).sort()
   const c1 = $('kbTo').value, c2 = $('kbDong').value
-  $('kbTo').innerHTML = '<option value="">Mọi tổ</option>' + tos.map(t => `<option${t === c1 ? ' selected' : ''}>${esc(t)}</option>`).join('')
-  $('kbDong').innerHTML = '<option value="">Mọi dòng</option>' + dongs.map(d => `<option${d === c2 ? ' selected' : ''}>${esc(d)}</option>`).join('')
+  $('kbTo').innerHTML = '<option value="">Tất cả tổ</option>' + tos.map(t => `<option${t === c1 ? ' selected' : ''}>${esc(t)}</option>`).join('')
+  $('kbDong').innerHTML = '<option value="">Tất cả dòng</option>' + dongs.map(d => `<option${d === c2 ? ' selected' : ''}>${esc(d)}</option>`).join('')
   veKanban()
 }
 function veKanban() {
   const fTo = $('kbTo').value, fDong = $('kbDong').value
   const rows = KB.filter(x => (!fTo || x.to_goi_y === fTo) && (!fDong || x.dong === fDong))
+  $('kbDem').textContent = rows.length + ' đơn đang chạy'
   $('kbBoard').innerHTML = KB_COT.map(([code, ten]) => {
     const cards = rows.filter(x => x.cot === code), u = cards.length > 5
-    return `<div class="kb-col${u ? ' u' : ''}"><h4>${ten} <span>${cards.length}${u ? ' <span class="u-dau">⚠</span>' : ''}</span></h4>` +
-      (cards.map(kbCard).join('') || '<div style="color:#98A1B3;font-size:12px;padding:6px;text-align:center">—</div>') + '</div>'
+    return `<div><div class="cot-dau${u ? ' u' : ''}"><b>${ten}</b><i>${cards.length}${u ? ' · ứ' : ''}</i></div><div class="cot-than">${cards.map(kbCard).join('') || '<span style="color:var(--chu-mo);font-size:12px;text-align:center;padding:8px">—</span>'}</div></div>`
   }).join('')
+  $('kbBoard').querySelectorAll('.the-don').forEach(b => b.onclick = () => moDon(b.dataset.don))
 }
 function kbCard(x) {
-  const cls = x.la_tre ? 'tre' : x.la_gap ? 'gap' : x.la_mau_moi ? 'mau' : ''
-  const bdg = x.la_tre ? '<span class="bdg bdg-tre">TRỄ</span>' : x.la_gap ? '<span class="bdg bdg-gap">GẤP</span>' : x.la_mau_moi ? '<span class="bdg bdg-mau">MẪU MỚI</span>' : ''
-  return `<div class="kb-card ${cls}"><div class="ma">${esc(x.ma_don)}${bdg}</div>` +
-    `<div class="rg">${esc((x.ten_rut_gon || '').slice(0, 26))}</div><div class="mn">${x.so_mon_qua}/${x.so_mon_tong} món</div></div>`
+  const done = x.cot === 'cho_giao', cls = done ? 'hoanthanh' : x.la_tre ? 'tre' : x.la_gap ? 'gap' : x.la_mau_moi ? 'mau' : ''
+  const pct = x.so_mon_tong ? Math.round(100 * x.so_mon_qua / x.so_mon_tong) : 0
+  const nhan = done ? '<span class="nhan hoanthanh">Chờ giao</span>' : x.la_tre ? '<span class="nhan tre">Trễ</span>' : x.la_gap ? '<span class="nhan gap">Gấp</span>' : x.la_mau_moi ? '<span class="nhan mau">Mẫu mới</span>' : `<span class="nhan thuong">${x.ngay_hen_khach ? 'Có hạn' : 'Bình thường'}</span>`
+  return `<button class="the-don ${cls}" data-don="${esc(x.ma_don)}"><span class="ma">${esc(x.ma_don)}</span><p class="ten">${esc((x.ten_rut_gon || '').slice(0, 30))}</p><div class="thanh-tien"><div style="width:${pct}%"></div></div><div class="the-chan">${nhan}<span class="sm">${x.so_mon_qua}/${x.so_mon_tong}</span></div></button>`
 }
+
+// ══════════ PANEL CHI TIẾT MÓN ══════════
+async function moDon(maDon) {   // từ Kanban/Quản đốc: mở món nút cổ chai của đơn
+  const { data } = await sb.rpc('xuong_mon_cua_don', { p_ma_don: maDon })
+  const m = (data || []).find(x => x.trang_thai !== 'xong_sx') || (data || [])[0]
+  if (m) moMon(m.id, maDon); else bao('Đơn chưa có món')
+}
+async function moMon(monId, maDon) {
+  PANEL = { monId, ke: null, nguoi: null }
+  $('mo').classList.add('hien'); $('panel').classList.add('hien')
+  $('pDau').innerHTML = '<p style="color:var(--chu-mo);padding:6px 0">Đang tải…</p>'; $('pThan').innerHTML = ''
+  const [{ data: ct }, { data: vet }, { data: tem }] = await Promise.all([
+    sb.rpc('xuong_chi_tiet_mon', { p_mon_id: monId }),
+    sb.rpc('xuong_vet_mon', { p_mon_id: monId }),
+    maDon ? sb.rpc('xuong_tem_cua_don', { p_ma_don: maDon }) : Promise.resolve({ data: [] })
+  ])
+  const d = (ct || [])[0]
+  if (!d) { $('pDau').innerHTML = '<p>Không tải được món.</p>'; return }
+  vePanel(d, vet || [], tem || [])
+}
+function vePanel(d, vet, tem) {
+  const ke = KE[d.trang_thai]
+  PANEL.ke = ke; PANEL.nguoi = USER.vai_tro === 'tho' ? USER.id : (THO_LIST[0] && THO_LIST[0].id) || USER.id
+  const conNgay = d.ngay_hen_khach ? Math.ceil((new Date(d.ngay_hen_khach) - new Date()) / 86400000) : null
+  const tre = conNgay != null && conNgay < 0
+  const hanTxt = d.ngay_hen_khach ? `${dmy(d.ngay_hen_khach)} · ${tre ? 'quá ' + (-conNgay) + ' ngày' : 'còn ' + conNgay + ' ngày'}` : 'chưa hẹn'
+  $('pDau').innerHTML =
+    `<div class="hang"><div><span class="ma">${esc(d.ma_don)}</span><h2>${esc(d.ten || 'Món')}</h2>
+      <div class="dong"><span class="vien-nhan">${esc(kgv(d.khong_gian) || '—')}</span><span class="vien-nhan">${esc(BUOC[d.trang_thai] || d.trang_thai)}</span>${d.danh_dau_gap ? '<span class="vien-nhan tre">GẤP</span>' : ''}</div></div>
+      <button class="dong-x" id="pX">×</button></div>` +
+    (ke ? `<div class="hanh-dong"><p>Bước hiện tại: <b>${esc(BUOC[d.trang_thai])}</b> → xong sẽ sang <b>${esc(BUOC[ke])}</b></p>
+      <div class="chon-tho" id="chonTho"></div>
+      <button class="nut-to" id="pXong">Xong bước ${esc(BUOC[d.trang_thai].toLowerCase())}</button></div>`
+      : '<div class="hanh-dong"><p>Món đã <b>xong sản xuất</b>.</p></div>')
+  $('pX').onclick = dongPanel
+  if (ke) {
+    const list = USER.vai_tro === 'tho' ? [{ id: USER.id, ho_ten: USER.ten || 'Tôi' }] : THO_LIST
+    $('chonTho').innerHTML = list.length ? list.map((t, i) => `<button class="${i === 0 ? 'chon' : ''}" data-ns="${t.id}">${esc(t.ho_ten)}</button>`).join('') : '<span style="font-size:12.5px;color:var(--chu-mo)">Ghi cho: ' + esc(USER.ten || '') + '</span>'
+    $('chonTho').querySelectorAll('button').forEach(b => b.onclick = () => { PANEL.nguoi = b.dataset.ns; $('chonTho').querySelectorAll('button').forEach(x => x.classList.toggle('chon', x === b)) })
+    $('pXong').onclick = xongBuoc
+  }
+  // p-than: thông số · ghi chú · ảnh · tấm · phụ kiện · vết
+  const anhArr = Array.isArray(d.anh) ? d.anh : []
+  const tamGop = {}; let metNep = 0
+  tem.forEach(t => { const k = (t.vai_tro || 'tấm') + '|' + fmt(t.dai) + '×' + fmt(t.rong) + '×' + fmt(t.day); tamGop[k] = (tamGop[k] || 0) + 1; (Array.isArray(t.canh_dan) ? t.canh_dan : []).forEach(e => metNep += Number(e && e.dai || 0)) })
+  $('pThan').innerHTML =
+    `<div class="muc"><h3>Thông số</h3><div class="o-luoi">
+      <div class="o"><span>Kích thước</span><b class="mono">${esc(d.kt || '—')}</b></div>
+      <div class="o"><span>Hạn giao</span><b>${esc(hanTxt)}</b></div>
+      <div class="o"><span>Vật liệu</span><b>${esc(d.vl || '—')}</b></div>
+      <div class="o"><span>Mã màu</span><b>${esc(d.ma_mau || '—')}</b></div>
+      <div class="o"><span>Ước xuất xưởng</span><b>${d.ngay_du_kien ? dmy(d.ngay_du_kien) : '—'}</b></div>
+      <div class="o"><span>Hẹn khách ban đầu</span><b>${d.ngay_hen_khach_ban_dau ? dmy(d.ngay_hen_khach_ban_dau) : '—'}</b></div>
+    </div></div>` +
+    `<div class="muc"><h3>Ghi chú</h3>${(d.chi_tiet ? `<div class="ghi"><em>Của món</em>${esc(d.chi_tiet)}</div>` : '') + (d.ghi_chu_don ? `<div class="ghi"><em>Của đơn</em>${esc(d.ghi_chu_don)}</div>` : '')}${(!d.chi_tiet && !d.ghi_chu_don) ? '<p style="color:var(--chu-mo);font-size:13.5px">Không có ghi chú.</p>' : ''}</div>` +
+    `<div class="muc"><h3>Ảnh · bản vẽ</h3><div class="anh">${anhArr.length ? esc(anhArr.length + ' ảnh') : 'Chưa có ảnh'}${d.file_tk ? ' · file dựng hình ' + esc(d.file_tk) : ' · chưa gắn file dựng hình'}</div></div>` +
+    `<div class="muc"><h3>Tấm chi tiết${tem.length ? ' · ' + tem.length + ' tấm (cả đơn)' : ''}</h3>${Object.keys(tamGop).length ? Object.entries(tamGop).map(([k, n]) => { const [vt, kt] = k.split('|'); return `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${esc(vt.replace(/_/g, ' '))}</span><span class="kt">${esc(kt)}</span><span class="sl">×${n}</span></div>` }).join('') + (metNep ? `<p style="margin-top:10px;font-size:13px;color:var(--chu-nhat)">Nẹp dán cạnh: <b>${(metNep / 1000).toFixed(1)} m</b></p>` : '') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có tem — máy thiết kế chưa đẩy.</p>'}</div>` +
+    `<div class="muc"><h3>Phụ kiện</h3><div class="thieu"><b>Chưa có dữ liệu</b>Plugin tính được bản lề, ray, ben hơi nhưng hiện chỉ đẩy số tổng (12 driver), không đẩy chi tiết từng loại. Tổ Lắp ráp vẫn phải tra bản vẽ.</div></div>` +
+    `<div class="muc"><h3>Đã qua tay ai</h3>${vet.length ? vet.map(v => `<div class="vet"><span class="luc">${dmyhm(v.luc)}</span><span class="noi">${v.nguoi_ten ? '<b>' + esc(v.nguoi_ten) + '</b> ' : ''}<span>${v.tu ? 'xong ' + esc(BUOC[v.tu] || v.tu).toLowerCase() + ' → ' : ''}${esc(BUOC[v.den] || v.den).toLowerCase()}</span></span></div>`).join('') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có vết đổi bước.</p>'}</div>`
+}
+async function xongBuoc() {
+  if (!PANEL.ke) return
+  const { error } = await sb.rpc('tien_mon', { p_mon_id: PANEL.monId, p_trang_thai: PANEL.ke, p_nguoi_id: PANEL.nguoi })
+  if (error) return bao('Không đẩy được bước: ' + error.message, true)
+  bao('✓ Đã sang bước "' + (BUOC[PANEL.ke] || PANEL.ke) + '"'); dongPanel()
+  await taiDon(); await taiViec(); if ($('s-qd').style.display === 'block') { taiQuanDoc(); if ($('qd-kb').style.display === 'block') taiKanban() }
+}
+function dongPanel() { $('panel').classList.remove('hien'); $('mo').classList.remove('hien') }
+const dmy = s => { const d = new Date(s); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') }
+const dmyhm = s => { const d = new Date(s); return dmy(s) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
 
 // ══════════ BOOT ══════════
 ;(async () => {
   const { data } = await sb.auth.getSession()
-  if (data.session) laySauDangNhap(data.session.user)
-  else manDangNhap('')
+  if (data.session) laySauDangNhap(data.session.user); else manDangNhap('')
 })()
