@@ -189,7 +189,30 @@ async function luuLoi() {
 }
 
 // ══════════ QUẢN ĐỐC ══════════
+async function taiChoVaoChuyen() {
+  const box = $('qdChoBox'), list = $('qdChoList')
+  const { data, error } = await sb.rpc('xuong_don_cho_vao_chuyen')
+  if (error || !data || !data.length) { box.style.display = 'none'; return }   // ẩn hẳn khi không có đơn
+  box.style.display = 'block'
+  $('qdChoDem').textContent = data.length + (data.length === 1 ? ' đơn' : ' đơn')
+  const TT = { moi_len_don: 'mới lên đơn', xong_file: 'xong file thiết kế' }
+  list.innerHTML = data.map(d => `<div class="cho-don" data-don="${esc(d.ma_don)}">
+    <div class="cd-than"><div class="cd-ten"><span class="ma">${esc(d.ma_don)}</span><b>${d.so_mon} món</b></div>
+    <p class="cd-phu">${esc(TT[d.trang_thai] || d.trang_thai)}${d.ngay_hen_khach ? ' · hẹn giao ' + dmy(d.ngay_hen_khach) : ''}</p></div>
+    <button class="cd-nut">Đưa vào chuyền</button></div>`).join('')
+  list.querySelectorAll('.cho-don').forEach(row => {
+    const btn = row.querySelector('.cd-nut')
+    btn.onclick = async () => {
+      btn.disabled = true; btn.textContent = 'Đang đưa…'
+      const { error: e } = await sb.rpc('dua_vao_chuyen', { p_ma_don: row.dataset.don })
+      if (e) { bao('Không đưa được vào chuyền: ' + e.message, true); btn.disabled = false; btn.textContent = 'Đưa vào chuyền'; return }
+      bao('✓ ' + row.dataset.don + ' đã vào chuyền (chờ cắt)')
+      await taiDon(); await taiViec(); await taiQuanDoc(); if ($('qd-kb').style.display === 'block') taiKanban()
+    }
+  })
+}
 async function taiQuanDoc() {
+  taiChoVaoChuyen()
   const { data: red } = await sb.rpc('can_ceo_quyet')
   $('qdCeo').innerHTML = (red && red.length)
     ? `<div class="ceo"><h2>Cần CEO quyết</h2><p class="phu">Quản đốc không tự xử được ${red.length === 1 ? 'việc này' : red.length + ' việc này'}.</p>${red.map(r => `<div class="ceo-muc"><p>${esc(r.mo_ta)}</p></div>`).join('')}</div>` : ''

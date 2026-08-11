@@ -3611,284 +3611,125 @@ function LenhSX({
   tien,
   onClose
 }) {
+  const [cd, setCd] = useState("sx"); // 'sx' = lệnh sản xuất (cho xưởng, KHÔNG tiền/khách) · 'giao' = phiếu giao hàng
   useEffect(() => {
-    const h = e => {
-      if (e.key === "Escape") onClose();
-    };
+    const h = ev => { if (ev.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+  const e = React.createElement, F = React.Fragment;
   const br = db.brands.find(b => b.c === d.brand);
   const mauOf = c => db.mau.find(m => m.c === c);
   const thoOf = x => x.tho || db.vl.find(v => v.c === x.vl)?.tho || "";
+  const cap = loaiOf(d.loai).cap;
+  const chip = t => e("span", { style: { padding: "1px 8px", borderRadius: 11, background: "var(--raise)", border: "1px solid var(--bd)", fontSize: 11, fontWeight: 600 } }, t);
+  const oKy = t => e("div", { style: { flex: 1, textAlign: "center" } }, t, e("div", { style: { height: 44 } }), e("span", { style: { borderTop: "1px solid var(--tx)", paddingTop: 3 } }, "ký tên"));
+
+  // ── XUẤT CSV theo chế độ. Bản LỆNH SX: KHÔNG cột tiền/khách. Bản GIAO: thông tin giao. ──
   const csv = () => {
-    const hd = "ma_don,ngay,khach,dien_thoai,dia_chi,loai_don,tai_khoan_coc,thuong_hieu,van_chuyen,du_kien_xong,ngay_di_hang,ngay_giao,ten_san_pham,vat_lieu,ma_mau,kich_thuoc,so_luong,tho,chi_tiet" + (tien ? ",don_gia,thanh_tien" : "");
-    const rs = ct.map(x => [d.ma, d.ngay, kh?.ten, kh?.sdt, d.diaChi || kh?.tinh, loaiOf(d.loai).n, tkOf(d.tkCoc)?.n || "", br?.n || "", d.vanChuyen || "", d.ngayDuKien || "", d.ngayDiHang || "", d.ngayGiao || "", x.ten, db.vl.find(v => v.c === x.vl)?.n, x.maMau, x.kt, x.sl, thoOf(x), (x.ct || "").replace(/\n/g, " ")].concat(tien ? [x.gia, x.sl * x.gia] : []).map(v => '"' + String(v == null ? "" : v).split('"').join('""') + '"').join(","));
-    const b = new Blob(["\uFEFF" + [hd, ...rs].join("\n")], {
-      type: "text/csv;charset=utf-8"
-    });
-    const u = URL.createObjectURL(b),
-      a = document.createElement("a");
-    a.href = u;
-    a.download = "lenh_sx_" + d.ma + ".csv";
-    a.click();
-    URL.revokeObjectURL(u);
+    let hd, rs, ten;
+    if (cd === "sx") {
+      ten = "lenh_sx_" + d.ma + ".csv";
+      hd = "ma_don,loai_don,cap,han_giao,ten_san_pham,vat_lieu,ma_mau,kich_thuoc,so_luong,tho,ghi_chu_xuong";
+      rs = ct.map(x => [d.ma, loaiOf(d.loai).n, cap, d.ngayGiao || "", x.ten, db.vl.find(v => v.c === x.vl)?.n, x.maMau, x.kt, x.sl, thoOf(x), (x.ct || "").replace(/\n/g, " ")]);
+    } else {
+      ten = "phieu_giao_" + d.ma + ".csv";
+      hd = "ma_don,khach,dien_thoai,dia_chi,tinh,van_chuyen,ngay_di_hang,ten_san_pham,so_luong,con_phai_thu";
+      rs = ct.map(x => [d.ma, kh?.ten, kh?.sdt, d.diaChi || kh?.tinh, kh?.tinh, d.vanChuyen || "", d.ngayDiHang || "", x.ten, x.sl, phaiThu(d, ct)]);
+    }
+    const enc = a => a.map(v => '"' + String(v == null ? "" : v).split('"').join('""') + '"').join(",");
+    const b = new Blob(["﻿" + [hd, ...rs.map(enc)].join("\n")], { type: "text/csv;charset=utf-8" });
+    const u = URL.createObjectURL(b), a = document.createElement("a");
+    a.href = u; a.download = ten; a.click(); URL.revokeObjectURL(u);
   };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "ovl",
-    onMouseDown: e => e.target === e.currentTarget && onClose()
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "mdl",
-    style: {
-      width: 820
-    },
-    onMouseDown: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement("header", null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", null, "Lệnh sản xuất ", d.ma), /*#__PURE__*/React.createElement("div", {
-    className: "hint"
-  }, "In ra cho xưởng, hoặc xuất file")), /*#__PURE__*/React.createElement("div", {
-    className: "sp"
-  }), /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    onClick: csv
-  }, "Xuất CSV"), /*#__PURE__*/React.createElement("button", {
-    className: "btn pri",
-    onClick: () => window.print()
-  }, "In"), /*#__PURE__*/React.createElement("button", {
-    className: "x",
-    onClick: onClose
-  }, "×")), /*#__PURE__*/React.createElement("div", {
-    className: "mbd"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "prt"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "prthd"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement("h2", null, "LỆNH SẢN XUẤT"), /*#__PURE__*/React.createElement("div", {
-    className: "ma2"
-  }, d.ma), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: "var(--mut)",
-      marginTop: 3
-    }
-  }, "Togihome · ", br?.n || "chưa rõ thương hiệu")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right",
-      fontSize: 12.5
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("b", {
-    className: "n",
-    style: {
-      fontSize: 15
-    }
-  }, d.ngayDuKien || "chưa có")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: "var(--mut)"
-    }
-  }, "ngày dự kiến xong"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "bdg " + loaiOf(d.loai).mau
-  }, loaiOf(d.loai).n)))), /*#__PURE__*/React.createElement("div", {
-    className: "prtg"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Khách hàng"), /*#__PURE__*/React.createElement("b", null, kh?.ten)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Điện thoại"), /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, kh?.sdt)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      gridColumn: "1 / -1"
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "Địa chỉ giao"), /*#__PURE__*/React.createElement("b", null, d.diaChi || kh?.tinh)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Ngày lên đơn"), /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, d.ngay)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Người lên đơn"), /*#__PURE__*/React.createElement("b", null, db.users.find(u => u.id === d.saleId)?.ten || "—")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Đơn vị vận chuyển"), /*#__PURE__*/React.createElement("b", null, d.vanChuyen || "chưa có")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Ngày đi hàng"), /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, d.ngayDiHang || "chưa có")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Lô sản xuất"), /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, d.lo || "chưa có")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", null, "Tài khoản cọc"), /*#__PURE__*/React.createElement("b", null, tkOf(d.tkCoc)?.n || "chưa chọn")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      gridColumn: "1 / -1"
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "Lắp đặt"), /*#__PURE__*/React.createElement("b", null, d.lap ? `${vnd(d.lap)} đ · ${(d.lapAi || "cty") === "cty" ? "công ty thu, trả thợ" : "khách trả thẳng thợ"}` : "không có"))), /*#__PURE__*/React.createElement("table", {
-    style: {
-      width: "100%",
-      fontSize: 12.5,
-      borderCollapse: "collapse"
-    }
-  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
-    style: {
-      borderBottom: "1.5px solid var(--tx)"
-    }
-  }, /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left",
-      padding: "6px 6px"
-    }
-  }, "Sản phẩm"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left"
-    }
-  }, "Vật liệu"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left"
-    }
-  }, "Màu"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left"
-    }
-  }, "Kích thước"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left"
-    }
-  }, "Thợ"), /*#__PURE__*/React.createElement("th", {
-    className: "r"
-  }, "SL"), tien && /*#__PURE__*/React.createElement("th", {
-    className: "r"
-  }, "Thành tiền"))), /*#__PURE__*/React.createElement("tbody", null, ct.map(x => /*#__PURE__*/React.createElement(React.Fragment, {
-    key: x.id
-  }, /*#__PURE__*/React.createElement("tr", {
-    style: {
-      borderTop: "1px solid var(--bd)"
-    }
-  }, /*#__PURE__*/React.createElement("td", {
-    style: {
-      padding: "8px 6px 3px",
-      fontWeight: 600
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 7,
-      alignItems: "center"
-    }
-  }, anhChinh(x) && /*#__PURE__*/React.createElement("img", {
-    src: anhChinh(x),
-    alt: "",
-    style: {
-      width: 34,
-      height: 34,
-      borderRadius: 5,
-      objectFit: "cover",
-      border: "1px solid var(--bd)"
-    }
-  }), /*#__PURE__*/React.createElement("span", null, x.ten))), /*#__PURE__*/React.createElement("td", null, db.vl.find(v => v.c === x.vl)?.n), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "sw",
-    style: {
-      background: mauOf(x.maMau)?.hex,
-      width: 14,
-      height: 14
-    }
-  }), /*#__PURE__*/React.createElement("b", null, mauOf(x.maMau)?.n, " ", x.maMau))), /*#__PURE__*/React.createElement("td", {
-    className: "n"
-  }, x.kt), /*#__PURE__*/React.createElement("td", null, thoOf(x)), /*#__PURE__*/React.createElement("td", {
-    className: "r n"
-  }, x.sl), tien && /*#__PURE__*/React.createElement("td", {
-    className: "r n"
-  }, vnd(x.sl * x.gia))), x.ct && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-    colSpan: tien ? 7 : 6,
-    style: {
-      padding: "0 6px 8px",
-      color: "var(--mut)"
-    }
-  }, "▸ ", x.ct)))))), tien && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 12,
-      paddingTop: 10,
-      borderTop: "1.5px solid var(--tx)",
-      display: "flex",
-      gap: 26,
-      justifyContent: "flex-end",
-      fontSize: 13
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "Khách thanh toán ", /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, vnd(kTra(d, ct)))), /*#__PURE__*/React.createElement("span", null, "Đã thu ", /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, vnd((+d.coc || 0) + (+d.daTT || 0)))), /*#__PURE__*/React.createElement("span", {
-    style: phaiThu(d, ct) > 0 ? {
-      color: "var(--am)"
-    } : null
-  }, "Còn phải thu ", /*#__PURE__*/React.createElement("b", {
-    className: "n"
-  }, vnd(phaiThu(d, ct))))), d.ghiChu && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 12,
-      padding: 9,
-      border: "1px solid var(--bd)",
-      borderRadius: 8,
-      fontSize: 12.5
-    }
-  }, /*#__PURE__*/React.createElement("b", null, "Ghi chú: "), d.ghiChu), d.hd && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 10,
-      fontSize: 12.5
-    }
-  }, /*#__PURE__*/React.createElement("b", null, "Xuất hoá đơn: "), d.hd.ten, " · MST ", d.hd.mst, d.hd.em ? " · " + d.hd.em : ""), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 22,
-      display: "flex",
-      gap: 40,
-      fontSize: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      textAlign: "center"
-    }
-  }, "Người lên đơn", /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 44
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      borderTop: "1px solid var(--tx)",
-      paddingTop: 3
-    }
-  }, "ký tên")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      textAlign: "center"
-    }
-  }, "Quản đốc", /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 44
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      borderTop: "1px solid var(--tx)",
-      paddingTop: 3
-    }
-  }, "ký tên")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      textAlign: "center"
-    }
-  }, "Thợ nhận việc", /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 44
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      borderTop: "1px solid var(--tx)",
-      paddingTop: 3
-    }
-  }, "ký tên"))))), /*#__PURE__*/React.createElement("div", {
-    className: "mft"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "sp"
-  }), /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    onClick: onClose
-  }, "Đóng"))));
+
+  // ── BẢN IN 1: LỆNH SẢN XUẤT (cho xưởng) — KHÔNG tên khách/SĐT/địa chỉ, KHÔNG mọi con số tiền. ──
+  const banSX = e("div", { className: "prt" },
+    e("div", { className: "prthd" },
+      e("div", { style: { flex: 1 } },
+        e("h2", null, "LỆNH SẢN XUẤT"),
+        e("div", { className: "ma2" }, d.ma),
+        e("div", { style: { fontSize: 12, color: "var(--mut)", marginTop: 3 } }, "Togihome · ", br?.n || "chưa rõ thương hiệu")),
+      e("div", { style: { textAlign: "right", fontSize: 12.5 } },
+        e("div", null, e("b", { className: "n", style: { fontSize: 15 } }, d.ngayGiao || "chưa có")),
+        e("div", { style: { color: "var(--mut)" } }, "hạn giao"),
+        e("div", { style: { marginTop: 6, display: "flex", gap: 6, justifyContent: "flex-end" } },
+          e("span", { className: "bdg " + loaiOf(d.loai).mau }, loaiOf(d.loai).n), chip("Cấp " + cap)))),
+    e("div", { className: "prtg" },
+      e("div", null, e("span", null, "Loại đơn"), e("b", null, loaiOf(d.loai).n)),
+      e("div", null, e("span", null, "Cấp"), e("b", null, cap)),
+      e("div", null, e("span", null, "Hạn giao"), e("b", { className: "n" }, d.ngayGiao || "chưa có")),
+      e("div", null, e("span", null, "Mã đơn"), e("b", { className: "n" }, d.ma))),
+    e("table", { style: { width: "100%", fontSize: 12.5, borderCollapse: "collapse" } },
+      e("thead", null, e("tr", { style: { borderBottom: "1.5px solid var(--tx)" } },
+        e("th", { style: { textAlign: "left", padding: "6px 6px" } }, "Sản phẩm"),
+        e("th", { style: { textAlign: "left" } }, "Vật liệu"),
+        e("th", { style: { textAlign: "left" } }, "Màu"),
+        e("th", { style: { textAlign: "left" } }, "Kích thước"),
+        e("th", { style: { textAlign: "left" } }, "Thợ"),
+        e("th", { className: "r" }, "SL"))),
+      e("tbody", null, ct.map(x => e(F, { key: x.id },
+        e("tr", { style: { borderTop: "1px solid var(--bd)" } },
+          e("td", { style: { padding: "8px 6px 3px", fontWeight: 600 } },
+            e("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
+              anhChinh(x) && e("img", { src: anhChinh(x), alt: "", style: { width: 34, height: 34, borderRadius: 5, objectFit: "cover", border: "1px solid var(--bd)" } }),
+              e("span", null, x.ten))),
+          e("td", null, db.vl.find(v => v.c === x.vl)?.n),
+          e("td", null, e("span", { style: { display: "inline-flex", alignItems: "center", gap: 5 } },
+            e("span", { className: "sw", style: { background: mauOf(x.maMau)?.hex, width: 14, height: 14 } }),
+            e("b", null, mauOf(x.maMau)?.n, " ", x.maMau))),
+          e("td", { className: "n" }, x.kt),
+          e("td", null, thoOf(x)),
+          e("td", { className: "r n" }, x.sl)),
+        x.ct && e("tr", null, e("td", { colSpan: 6, style: { padding: "0 6px 8px", color: "var(--mut)" } }, "▸ ", x.ct)))))),
+    d.ghiChu && e("div", { style: { marginTop: 12, padding: 9, border: "1px solid var(--bd)", borderRadius: 8, fontSize: 12.5 } },
+      e("b", null, "Ghi chú cho xưởng: "), d.ghiChu),
+    e("div", { style: { marginTop: 22, display: "flex", gap: 40, fontSize: 12 } },
+      oKy("Người lên đơn"), oKy("Quản đốc"), oKy("Thợ nhận việc")));
+
+  // ── BẢN IN 2: PHIẾU GIAO HÀNG (cho người đi giao) — KHÔNG vật liệu/kích thước/thợ/giá từng món. ──
+  const banGiao = e("div", { className: "prt" },
+    e("div", { className: "prthd" },
+      e("div", { style: { flex: 1 } },
+        e("h2", null, "PHIẾU GIAO HÀNG"),
+        e("div", { className: "ma2" }, d.ma),
+        e("div", { style: { fontSize: 12, color: "var(--mut)", marginTop: 3 } }, "Togihome · ", br?.n || "")),
+      e("div", { style: { textAlign: "right", fontSize: 12.5 } },
+        e("div", null, e("b", { className: "n", style: { fontSize: 15 } }, d.ngayDiHang || "chưa có")),
+        e("div", { style: { color: "var(--mut)" } }, "ngày đi hàng"))),
+    e("div", { className: "prtg" },
+      e("div", null, e("span", null, "Khách hàng"), e("b", null, kh?.ten)),
+      e("div", null, e("span", null, "Điện thoại"), e("b", { className: "n" }, kh?.sdt)),
+      e("div", { style: { gridColumn: "1 / -1" } }, e("span", null, "Địa chỉ giao"), e("b", null, d.diaChi || kh?.tinh)),
+      e("div", null, e("span", null, "Tỉnh / thành"), e("b", null, kh?.tinh)),
+      e("div", null, e("span", null, "Đơn vị vận chuyển"), e("b", null, d.vanChuyen || "chưa có")),
+      e("div", null, e("span", null, "Ngày đi hàng"), e("b", { className: "n" }, d.ngayDiHang || "chưa có"))),
+    e("table", { style: { width: "100%", fontSize: 13, borderCollapse: "collapse" } },
+      e("thead", null, e("tr", { style: { borderBottom: "1.5px solid var(--tx)" } },
+        e("th", { style: { textAlign: "left", padding: "6px 6px" } }, "Sản phẩm"),
+        e("th", { className: "r", style: { width: 70 } }, "SL"))),
+      e("tbody", null, ct.map(x => e("tr", { key: x.id, style: { borderTop: "1px solid var(--bd)" } },
+        e("td", { style: { padding: "8px 6px" } }, x.ten),
+        e("td", { className: "r n" }, x.sl))))),
+    e("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1.5px solid var(--tx)", display: "flex", justifyContent: "flex-end", fontSize: 14 } },
+      e("span", null, "Còn phải thu ", e("b", { className: "n" }, vnd(phaiThu(d, ct)), " đ"))),
+    e("div", { style: { marginTop: 26, display: "flex", gap: 40, fontSize: 12 } },
+      oKy("Người giao hàng"), oKy("Người nhận hàng")));
+
+  return e("div", { className: "ovl", onMouseDown: ev => ev.target === ev.currentTarget && onClose() },
+    e("div", { className: "mdl", style: { width: 820 }, onMouseDown: ev => ev.stopPropagation() },
+      e("header", null,
+        e("div", null,
+          e("h4", null, cd === "sx" ? "Lệnh sản xuất " : "Phiếu giao hàng ", d.ma),
+          e("div", { className: "hint" }, "In ra giấy hoặc xuất file · nút này KHÔNG đổi trạng thái đơn")),
+        e("div", { className: "sp" }),
+        e("button", { className: "btn" + (cd === "sx" ? " pri" : ""), onClick: () => setCd("sx") }, "Lệnh sản xuất"),
+        e("button", { className: "btn" + (cd === "giao" ? " pri" : ""), onClick: () => setCd("giao") }, "Phiếu giao hàng"),
+        e("button", { className: "btn", onClick: csv }, "Xuất CSV"),
+        e("button", { className: "btn pri", onClick: () => window.print() }, "In"),
+        e("button", { className: "x", onClick: onClose }, "×")),
+      e("div", { className: "mbd" }, cd === "sx" ? banSX : banGiao),
+      e("div", { className: "mft" }, e("div", { className: "sp" }), e("button", { className: "btn", onClick: onClose }, "Đóng"))));
 }
 
 /* ---------------- HỘP THOẠI ĐIỀU ĐỘ · XƯỞNG ĐIỀN ---------------- */

@@ -20,8 +20,9 @@ function tach() {
   const at = body.lastIndexOf('@')                       // @ cuối = ngăn cred với host
   const cred = body.slice(0, at), hostpart = body.slice(at + 1)
   const c = cred.indexOf(':')
-  const user = cred.slice(0, c)
-  const password = process.env.DB_PASS || cred.slice(c + 1)   // DB_PASS (biến môi trường, không ghi file) thắng
+  const dec = s => { try { return decodeURIComponent(s) } catch { return s } }   // mật khẩu trong URL bị %-encode (# → %23, @ → %40)
+  const user = dec(cred.slice(0, c))
+  const password = process.env.DB_PASS || dec(cred.slice(c + 1))   // DB_PASS (biến môi trường, không ghi file) thắng; else giải mã từ URL
   const host = (hostpart.split(':')[0] || '')
   return { user, password, host, port: 5432, database: 'postgres' }
 }

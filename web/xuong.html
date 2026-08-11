@@ -67,6 +67,17 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .buoc{font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:20px;background:#E7EFEA;color:var(--xong);white-space:nowrap}
 .buoc.cho{background:var(--nen);color:var(--chu-nhat)}
 .hai-cot{display:grid;grid-template-columns:1fr 344px;gap:20px;align-items:start}
+.cho-box{margin-bottom:20px;border-left:3px solid var(--thieu)}
+.cho-box .cho-phu{margin:2px 18px 10px;font-size:13px;color:var(--chu-nhat)}
+.cho-don{display:flex;gap:14px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--vien)}
+.cho-don:last-child{border-bottom:none}
+.cho-don .cd-than{flex:1;min-width:0}
+.cho-don .cd-ten{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.cho-don .cd-ten b{font-weight:500;font-size:15px}
+.cho-don .cd-phu{font-size:12.5px;color:var(--chu-nhat);margin-top:2px}
+.cho-don .cd-nut{flex-shrink:0;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--bo-nho);background:var(--do);color:#fff;border:none;cursor:pointer;white-space:nowrap}
+.cho-don .cd-nut:hover{background:var(--do-sang)}
+.cho-don .cd-nut:disabled{opacity:.55;cursor:default}
 .viec{display:flex;gap:15px;padding:14px 18px;border-bottom:1px solid var(--vien);align-items:flex-start;width:100%;text-align:left}
 .viec:last-child{border-bottom:none}
 .viec:hover{background:#FAFBFC}
@@ -291,6 +302,11 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         <div class="dau"><div><h1>Quản đốc</h1><p>Làm từ trên xuống. Mỗi dòng có lý do vì sao nó đứng ở đó.</p></div><span class="gio" id="qdGio"></span></div>
         <div class="tab"><button class="chon" id="t-lam" data-qd="lam">Làm gì trước</button><button id="t-kb" data-qd="kb">Kanban</button></div>
         <div id="qd-lam">
+          <div class="the cho-box" id="qdChoBox" style="display:none">
+            <div class="the-dau"><h2>Đơn chờ vào chuyền</h2><em id="qdChoDem"></em></div>
+            <p class="cho-phu">Đơn đã lên nhưng chưa xuống xưởng. Bấm để đưa vào chuyền (bắt đầu cắt).</p>
+            <div id="qdChoList"></div>
+          </div>
           <div class="hai-cot">
             <div>
               <div class="the"><div class="the-dau"><h2>Việc đang chờ</h2><em id="qdDem"></em></div><div id="qdList"><div class="trong-rong"><p>Đang tải…</p></div></div></div>
