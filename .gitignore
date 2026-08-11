@@ -17,3 +17,4 @@ web/.wrangler/
 **/.wrangler/
 ket_noi_kho.json
 data/ket_noi_kho.json
+.env.test
