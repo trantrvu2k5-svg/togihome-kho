@@ -78,7 +78,7 @@ function rowToDon(r) {
     lapAi: r.lap_ai || '', fileTK: r.file_tk || '', gioTK: Number(r.gio_thiet_ke) || 0, nguoiTK: r.nguoi_tk || '',
     vanChuyen: r.don_vi_van_chuyen || '', kg: Number(r.khoi_luong_kg) || 0, diaBan: r.dia_ban || '',
     ship: Number(r.ship_thuc_tra) || 0, lap: Number(r.lap_thuc_tra) || 0,
-    ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '', ngayHenKhach: r.ngay_hen_khach || '',
+    ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '', ngayHenKhach: r.ngay_hen_khach || '', ngayHenKhachBanDau: r.ngay_hen_khach_ban_dau || '',
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
     kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
   }
@@ -280,6 +280,13 @@ window.storage = {
     _chain = run.catch(() => {})   // chuỗi không đứt khi 1 set lỗi
     return run.then(() => { xoa_loi(); return { key: k, value: v } })
       .catch(e => { bao_loi('CHƯA LƯU được "' + k + '": ' + (e.message || e) + ' — dữ liệu chưa xuống Supabase.'); throw e }) },
+}
+
+// ══════════ RPC curated cho sale (bọc HẾT — cột trả về do RPC chọn, KHÔNG phụ thuộc RLS) ══════════
+//   Trả {data, error} thô để React tự xử. dong: app (ban_le…) -> DB (le…) qua DONG_W.
+window.saleApi = {
+  monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
+  leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
 }
 
 // ══════════ ĐĂNG NHẬP + nạp mã app (thứ tự: storage đã gán ở trên -> giờ mới nạp file sale) ══════════

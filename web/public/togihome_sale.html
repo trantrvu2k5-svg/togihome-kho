@@ -2415,6 +2415,33 @@ function DonModal({
   const [thu, setThu] = useState(false); /* đã bấm Lưu chưa */
   const [mode, setMode] = useState(null); /* nút đang xét: 'don' (Lưu đơn/Chuyển) | 'bao' (Lưu báo giá) — banner/border đổi theo */
   const first = useRef(null);
+  // ── "Bao giờ giao được" (curated qua sale_lead_time) + ô Hẹn giao khách (chuyển từ XuongModal về màn chốt) ──
+  const [ltGiao, setLtGiao] = useState(undefined);   // undefined = đang tải · null = lỗi/không có · object = kết quả
+  useEffect(() => {
+    if (!window.saleApi) { setLtGiao(null); return; }
+    let sng = true;
+    window.saleApi.leadTime(don && don.dong || null, null)
+      .then(r => { if (sng) setLtGiao(r.error ? null : r.data && r.data[0] || null); })
+      .catch(() => { if (sng) setLtGiao(null); });
+    return () => { sng = false; };
+  }, [don && don.dong]);
+  const giaoBox = /*#__PURE__*/React.createElement("div", { className: "fld", style: { marginTop: 11 } },
+    /*#__PURE__*/React.createElement("label", null, "Hẹn giao khách"),
+    /*#__PURE__*/React.createElement("input", { type: "date", value: f.ngayHenKhach, onChange: e => setF({ ...f, ngayHenKhach: e.target.value }) }),
+    (() => {
+      const dm = s => s ? s.slice(8) + "/" + s.slice(5, 7) : "";
+      let noi, mau = "var(--mut)";
+      if (ltGiao === undefined) noi = "Đang tính “bao giờ giao được”…";
+      else if (!ltGiao || Number(ltGiao.so_don_can_cu) < 5)
+        noi = "Chưa đủ đơn để đề xuất" + (ltGiao && ltGiao.so_don_can_cu ? " (mới " + ltGiao.so_don_can_cu + " đơn đã xong)" : "") + " — hẹn theo kinh nghiệm.";
+      else {
+        const tb = Math.round(Number(ltGiao.trung_binh));
+        const dx = new Date(Date.now() + tb * 864e5).toISOString().slice(0, 10);
+        noi = "Loại này " + ltGiao.so_don_can_cu + " đơn gần nhất: trung bình " + tb + " ngày, chậm nhất " + ltGiao.cham_nhat + " ngày. Đề xuất hẹn " + dm(dx) + ".";
+        mau = "var(--tx)";
+      }
+      return /*#__PURE__*/React.createElement("div", { className: "hlp", style: { marginTop: 5, color: mau } }, noi);
+    })());
   const rTk = useRef(null),
     rBr = useRef(null),
     rSdt = useRef(null),
@@ -3417,7 +3444,7 @@ function DonModal({
       ...f,
       ghiChu: e.target.value
     })
-  })), don && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  })), giaoBox, don && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, "Xưởng và điều vận điền — sale chỉ xem"), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -3799,16 +3826,18 @@ function XuongModal({
     className: "fld"
   }, /*#__PURE__*/React.createElement("label", null, "Hẹn giao khách"), /*#__PURE__*/React.createElement("input", {
     type: "date",
-    value: f.ngayHenKhach,
-    onChange: e => setF({
-      ...f,
-      ngayHenKhach: e.target.value
-    })
-  })), /*#__PURE__*/React.createElement("div", {
+    value: d.ngayHenKhach || "",
+    readOnly: true,
+    disabled: true,
+    title: "Sửa ở màn Chốt đơn"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "mini",
+    style: { marginTop: 4, color: "var(--mut)" }
+  }, "Chỉ đọc — sale sửa ở màn Chốt đơn")), /*#__PURE__*/React.createElement("div", {
     className: "fld full"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mini"
-  }, "Đơn vị vận chuyển, ngày đi hàng, khối lượng và cước do ", /*#__PURE__*/React.createElement("b", null, "điều vận"), " điền ở màn hình riêng."))), /*#__PURE__*/React.createElement("div", {
+  }, "Đơn vị vận chuyển, ngày đi hàng, khối lượng và cước do ", /*#__PURE__*/React.createElement("b", null, "điều vận"), " điền ở màn hình riêng."))),/*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 14
     }
@@ -4623,6 +4652,26 @@ function XemDon({
     l,
     v
   }) => /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, l), /*#__PURE__*/React.createElement("td", null, v));
+  // ── Tiến độ sản xuất (curated qua sale_mon_cua_don): trạng thái + số ngày tắc từng món + hai số hẹn RIÊNG ──
+  const [monTT, setMonTT] = React.useState(null);
+  useEffect(() => {
+    if (!window.saleApi) { setMonTT([]); return; }
+    window.saleApi.monTrangThai(d.ma).then(r => setMonTT(r.error ? [] : r.data || [])).catch(() => setMonTT([]));
+  }, [d.ma]);
+  const TT_MON = { cho_cat: "Chờ cắt", da_cat: "Đã cắt", dang_lam: "Đang làm", xong_sx: "Xong SX" };
+  const eC = React.createElement;
+  const oNgay = (nhan, val) => eC("div", { style: { flex: 1 } }, eC("div", { style: { fontSize: 11, color: "var(--mut)" } }, nhan), eC("div", { className: "n", style: { fontWeight: 700, fontSize: 14 } }, val || "chưa có"));
+  const bdgTT = st => eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, whiteSpace: "nowrap", background: st === "xong_sx" ? "#E7EFEA" : "#EEF1F5", color: st === "xong_sx" ? "#15805F" : "#5b6472" } }, TT_MON[st] || st);
+  const tienDo = eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
+    eC("div", { style: { display: "flex", gap: 16, marginBottom: 12 } },
+      oNgay("Hẹn khách BAN ĐẦU", d.ngayHenKhachBanDau), oNgay("Hẹn khách HIỆN TẠI", d.ngayHenKhach), oNgay("Dự kiến xong (xưởng)", d.ngayDuKien)),
+    eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", margin: "2px 0 4px" } }, "TRẠNG THÁI TỪNG MÓN"),
+    monTT === null ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Đang tải…")
+      : monTT.length === 0 ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Chưa có món trong đơn.")
+        : monTT.map(m => eC("div", { key: m.mon_id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid var(--bd)" } },
+            eC("span", { style: { flex: 1, fontSize: 13 } }, m.ten),
+            m.trang_thai !== "xong_sx" && m.so_ngay_tac >= 3 && eC("span", { style: { fontSize: 11.5, color: "var(--am)", fontWeight: 600 } }, "tắc " + m.so_ngay_tac + " ngày"),
+            bdgTT(m.trang_thai))));
   return /*#__PURE__*/React.createElement("div", {
     className: "ovl",
     onMouseDown: e => e.target === e.currentTarget && onClose()
@@ -4659,7 +4708,7 @@ function XemDon({
       maxHeight: "68vh",
       overflow: "auto"
     }
-  }, quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
+  }, tienDo, quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
     d: d,
     quyenTT: quyenTT,
     onDoi: onDoi,
