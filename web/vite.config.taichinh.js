@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
+import { doiTenIndex } from './ops/vite_doi_ten.mjs'
 
 // Build ĐỘC LẬP app TÀI CHÍNH — chỉ taichinh.html, ra dist-taichinh. KHÔNG có index.html(kho)/sale.
-// taichinh.html đổi tên thành index.html sau build (root domain tài chính).
+// Plugin doiTenIndex tự đổi taichinh.html → index.html sau build (root domain tài chính) — KHÔNG còn mv tay.
 export default defineConfig({
+  plugins: [doiTenIndex('taichinh.html')],
   build: {
     outDir: 'dist-taichinh',
     emptyOutDir: true,

@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite --port 5180",
     "build": "vite build",
+    "build:kho": "vite build",
+    "build:sale": "vite build --config vite.config.sale.js",
+    "build:taichinh": "vite build --config vite.config.taichinh.js",
+    "build:xuong": "vite build --config vite.config.xuong.js",
     "preview": "vite preview"
   },
   "dependencies": {
