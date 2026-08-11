@@ -54,6 +54,7 @@ async function napApp() {
   $('btn_tinh').onclick = refreshHeSoM
   $('btn_chot').onclick = chot
   $('s6_luu').onclick = luuS6
+  $('gv_ghi').onclick = nhapGiaVonTay
   document.querySelectorAll('#tc .navi').forEach(b => b.onclick = () => doiTab(b.dataset.tab))            // 2 tab
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -66,6 +67,33 @@ function doiTab(t) {
   document.querySelectorAll('#tc .tabp').forEach(p => p.classList.toggle('on', p.id === 'tab-' + t))
   document.querySelectorAll('#tc .navi').forEach(b => b.classList.toggle('on', b.dataset.tab === t))
   window.scrollTo(0, 0)
+  if (t === 'gvdon') taiGiaVonDon()
+}
+
+// ── Giá vốn theo đơn (nhập tay cho đơn plugin không dựng được) ──
+async function taiGiaVonDon() {
+  const { data, error } = await sb.rpc('gia_von_don_ds')
+  const tb = $('gv_ds'), sel = $('gv_don')
+  if (error) { tb.innerHTML = `<tr><td colspan="8">Lỗi: ${error.message}</td></tr>`; return }
+  const rows = data || []
+  const nguonNhan = r => r.co_gia_von ? (r.nguon === 'nhap_tay' ? '<b style="color:var(--pri,#C8202E)">[NHẬP TAY]</b>' : 'plugin') : '<span class="hint">chưa có</span>'
+  tb.innerHTML = rows.map(r => `<tr${r.co_gia_von ? '' : ' style="background:#FFF7F7"'}><td class="n"><b>${r.ma_don}</b></td><td>${r.trang_thai}</td><td>${nguonNhan(r)}</td><td class="r n">${fmt(r.khoi_1)}</td><td class="r n">${fmt(r.khoi_2)}</td><td class="r n">${fmt(r.khoi_3)}</td><td class="r n"><b>${fmt(r.gia_chuyen_giao)}</b></td><td class="hint">${r.co_gia_von ? [r.nguoi_ten || '', r.cap_nhat_luc ? new Date(r.cap_nhat_luc).toLocaleDateString('vi-VN') : '', r.ly_do || ''].filter(Boolean).join(' · ') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="hint">Chưa có đơn.</td></tr>'
+  // đơn CHƯA có giá vốn -> dropdown nhập tay
+  const chua = rows.filter(r => !r.co_gia_von)
+  sel.innerHTML = '<option value="">— chọn đơn chưa có giá vốn —</option>' + chua.map(r => `<option>${r.ma_don}</option>`).join('')
+}
+async function nhapGiaVonTay() {
+  const maDon = $('gv_don').value, ly_do = $('gv_lydo').value.trim()
+  const money = id => Number(($(id).value || '').replace(/\D/g, '')) || 0
+  const msg = $('gv_msg')
+  if (!maDon) { msg.textContent = 'Chọn đơn trước.'; return }
+  if (!ly_do) { msg.textContent = 'Phải nhập lý do.'; return }
+  msg.textContent = 'Đang ghi…'
+  const { error } = await sb.rpc('ghi_gia_von_tay', { ma_don: maDon, khoi_1: money('gv_k1'), khoi_2: money('gv_k2'), khoi_3: money('gv_k3'), ly_do })
+  if (error) { msg.textContent = 'Lỗi: ' + error.message; return }
+  msg.textContent = '✓ Đã ghi giá vốn tay cho ' + maDon
+  ;['gv_k1', 'gv_k2', 'gv_k3', 'gv_lydo'].forEach(id => $(id).value = '')
+  taiGiaVonDon()
 }
 
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──

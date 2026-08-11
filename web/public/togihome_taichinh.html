@@ -114,6 +114,7 @@
     <div class="navsec">Khu vực</div>
     <button class="navi on" data-tab="ban">Định giá bán</button>
     <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
+    <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
     <div class="navft" id="tc_who"></div>
   </aside>
   <main class="main"><div class="wrap">
@@ -250,6 +251,26 @@
         </div>
         <div class="cb" style="padding-top:0"><button class="btn" id="s6_luu">Lưu sổ tham số xưởng</button>
           <span class="hint" id="s6_msg" style="margin-left:10px"></span></div>
+      </section>
+    </div>
+    <div class="tabp" id="tab-gvdon">
+      <h1>Giá vốn theo đơn</h1>
+      <div class="subline">Nhập giá vốn TAY cho đơn plugin không dựng được (giường gỗ tự nhiên · hàng mua ngoài · đơn tự do). Chỉ ceo/kho.</div>
+      <section>
+        <div class="ch"><h2>Nhập tay cho đơn chưa có giá vốn</h2></div>
+        <div class="cb" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <select id="gv_don" style="min-width:200px"><option value="">— chọn đơn chưa có giá vốn —</option></select>
+          <input id="gv_k1" class="money" placeholder="① vật tư" style="width:130px">
+          <input id="gv_k2" class="money" placeholder="② chế biến" style="width:130px">
+          <input id="gv_k3" class="money" placeholder="③ cấp đơn" style="width:130px">
+          <input id="gv_lydo" placeholder="Lý do (bắt buộc): giường gỗ / mua ngoài…" style="flex:1;min-width:220px">
+          <button class="btn" id="gv_ghi">Ghi giá vốn tay</button>
+          <span class="hint" id="gv_msg"></span>
+        </div>
+      </section>
+      <section>
+        <div class="ch"><h2>Danh sách đơn</h2><span class="hint">đơn chưa có giá vốn lên đầu</span></div>
+        <div class="cb"><table><thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Nguồn</th><th class="r">① vật tư</th><th class="r">② chế biến</th><th class="r">③ cấp đơn</th><th class="r">Tổng</th><th>Người · lúc · lý do</th></tr></thead><tbody id="gv_ds"></tbody></table></div>
       </section>
     </div>
   </div></main>
