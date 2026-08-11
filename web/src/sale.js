@@ -30,12 +30,18 @@ const Q = {
 const qMap = vt => Object.fromEntries((Q[vt] || []).map(c => [c, true]))
 
 // ── ÁNH XẠ TRẠNG THÁI: file (9) <-> don_hang (12) ──
+// Ánh xạ app-tt <-> DB trang_thai. PHẢI phủ ĐỦ 15 trạng thái DB và HAI CHIỀU KHỚP (bijective) —
+//   thiếu máng thì đơn cho_cat/cho_giao/nhan_thiet_ke bị đọc 'moi' rồi GHI ĐÈ DB về moi_len_don.
+//   cho_cat/cho_giao/nhan_thiet_ke dùng CHÍNH mã DB làm app-tt (nhãn hiển thị ở togihome_sale.html TT_KHAC).
 const TT2DB = { bao_gia:'bao_gia', bao_gia_thua:'bao_gia_thua', bao_gia_treo:'bao_gia_treo',
-  moi:'moi_len_don', tk:'dang_thiet_ke', co_file:'xong_file', da_cat:'da_cat',
-  dang_lam:'dang_lam', xong_sx:'xong_sx', da_giao:'da_giao', tam_ngung:'tam_ngung', huy:'huy' }
+  moi:'moi_len_don', nhan_thiet_ke:'nhan_thiet_ke', tk:'dang_thiet_ke', co_file:'xong_file',
+  cho_cat:'cho_cat', da_cat:'da_cat', dang_lam:'dang_lam', xong_sx:'xong_sx', cho_giao:'cho_giao',
+  da_giao:'da_giao', tam_ngung:'tam_ngung', huy:'huy' }
 const DB2TT = Object.fromEntries(Object.entries(TT2DB).map(([a, b]) => [b, a]))
-const toTT = db => DB2TT[db] || 'moi'
-const toDB = tt => TT2DB[tt] || 'moi_len_don'
+// FAIL-ĐÓNG: trạng thái lạ -> BÁO console + trả NGUYÊN GIÁ TRỊ (không âm thầm coerce về moi/moi_len_don,
+//   tránh ghi đè phá dữ liệu). Với 15 máng đầy đủ, nhánh cảnh báo gần như không chạy.
+const toTT = db => { if (db in DB2TT) return DB2TT[db]; console.error('[sale] toTT: trạng thái DB KHÔNG có máng ánh xạ: ' + db); return db }
+const toDB = tt => { if (tt in TT2DB) return TT2DB[tt]; console.error('[sale] toDB: app-tt KHÔNG có máng ánh xạ: ' + tt); return tt }
 
 const nz = v => (v === undefined || v === '' ? null : v)
 // dong: app (ban_le/combo) <-> don_hang CHECK (le/combo/du_an)
@@ -131,8 +137,11 @@ async function _get(k) {
   if (k === 'c2:don') { const vat = await getVat(); const { data, error } = await sb.from('don_hang').select('*'); if (error) throw error
     donKeyMap = Object.fromEntries(data.map(r => [r.ma_don, r.ma_don]))
     // giá công thức/chốt/chiết khấu lưu CHƯA VAT -> trả app dạng CÓ VAT (cọc/đã thu GIỮ nguyên).
-    return data.map(r => { const d = rowToDon(r); d.giam = themVat(d.giam, vat) || 0
-      d.giaCongThuc = themVat(d.giaCongThuc, vat); d.giaChot = themVat(d.giaChot, vat); return d }) }
+    const arr = data.map(r => { const d = rowToDon(r); d.giam = themVat(d.giam, vat) || 0
+      d.giaCongThuc = themVat(d.giaCongThuc, vat); d.giaChot = themVat(d.giaChot, vat); return d })
+    // SNAPSHOT để lúc lưu chỉ upsert đơn ĐANG SỬA (đơn không đổi -> không đụng, tránh ghi đè trạng thái).
+    mem['__donSnap'] = Object.fromEntries(arr.map(d => [d.ma, JSON.stringify(d)]))
+    return arr }
   if (k === 'c2:ct') {
     const vat = await getVat()
     const { data, error } = await sb.from('don_hang_mon').select('*, don_hang(ma_don)'); if (error) throw error
@@ -191,9 +200,14 @@ async function _set(k, jsonStr) {
     // khMap theo id app: đơn app dùng khachId; nhưng khách app nằm ở c2:khach (id=sdt). Ghép qua mem nếu có.
     const khByAppId = mem['__khByAppId'] || {}
     // giá công thức/chốt/chiết khấu lưu CHƯA VAT; cọc/đã thu là tiền mặt -> GIỮ nguyên.
-    const rows = (v || []).map(d => { const r = donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} })
+    // CHỈ upsert đơn MỚI hoặc ĐÃ ĐỔI (so với snapshot lúc nạp) — KHÔNG đụng đơn khác trong xưởng.
+    //   Lỗ cũ: upsert CẢ danh sách -> đơn cho_cat/cho_giao bị ghi về moi_len_don khi sale lưu đơn bất kỳ.
+    const snap = mem['__donSnap'] || {}
+    const doiOrMoi = (v || []).filter(d => snap[d.ma] !== JSON.stringify(d))
+    const rows = doiOrMoi.map(d => { const r = donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} })
       r.chiet_khau = boVat(r.chiet_khau, vat); r.gia_cong_thuc = boVat(r.gia_cong_thuc, vat); r.gia_chot = boVat(r.gia_chot, vat); return r })
-    const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error
+    if (rows.length) { const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error }
+    mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.ma, JSON.stringify(d)]))   // cập nhật snapshot
     // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB
     //   -> đó là ý đồ XOÁ -> BÁO RÕ, không .delete() im lặng. Muốn bỏ đơn thì chuyển trạng thái (huỷ/tạm ngưng).
     const mas = new Set((v || []).map(d => d.ma))
@@ -203,18 +217,27 @@ async function _set(k, jsonStr) {
     return
   }
   if (k === 'c2:ct') {
-    // resolve don_id theo ma; xoá món cũ của các đơn liên quan rồi chèn lại (whole-array write).
+    // GIỮ trang_thai + id món CŨ: update theo id (KHÔNG đụng trang_thai), insert món MỚI (mặc định cho_cat),
+    //   xoá món người dùng bỏ. Lỗ cũ: delete-all + insert -> món về cho_cat, mất tiến độ SX + đứt nhật ký món.
     const vat = await getVat()
+    const fields = m => ({ sp_id: nz(m.spId), ten: nz(m.ten), vl: nz(m.vl), kt: nz(m.kt),
+      so_luong: m.sl ?? 1, gia: boVat(m.gia ?? null, vat), tho: nz(m.tho), ma_mau: nz(m.maMau), chi_tiet: nz(m.ct),
+      dung_moi: !!m.dungMoi, anh: m.anh || [], khong_gian: Array.isArray(m.khongGian) ? m.khongGian : [] })
     const byMa = {}
     for (const m of (v || [])) { const ma = maCuaAppId(m.donId); (byMa[ma] = byMa[ma] || []).push(m) }
     for (const ma of Object.keys(byMa)) {
       const did = await donIdCuaMa(ma); if (!did) continue
-      { const { error } = await sb.from('don_hang_mon').delete().eq('don_id', did); if (error) throw error }
-      // gia lưu CHƯA VAT (app nhập CÓ VAT -> ÷(1+vat)); khong_gian = mảng mã.
-      const rows = byMa[ma].map(m => ({ don_id: did, sp_id: nz(m.spId), ten: nz(m.ten), vl: nz(m.vl), kt: nz(m.kt),
-        so_luong: m.sl ?? 1, gia: boVat(m.gia ?? null, vat), tho: nz(m.tho), ma_mau: nz(m.maMau), chi_tiet: nz(m.ct),
-        dung_moi: !!m.dungMoi, anh: m.anh || [], khong_gian: Array.isArray(m.khongGian) ? m.khongGian : [] }))
-      if (rows.length) { const { error } = await sb.from('don_hang_mon').insert(rows); if (error) throw error }
+      const { data: exist } = await sb.from('don_hang_mon').select('id').eq('don_id', did)
+      const exSet = new Set((exist || []).map(x => x.id)); const giu = new Set()
+      for (const m of byMa[ma]) {
+        if (exSet.has(m.id)) {   // món CŨ -> UPDATE (giữ id + trang_thai + nhật ký)
+          giu.add(m.id); const { error } = await sb.from('don_hang_mon').update(fields(m)).eq('id', m.id); if (error) throw error
+        } else {                 // món MỚI -> INSERT (trang_thai mặc định cho_cat)
+          const { error } = await sb.from('don_hang_mon').insert({ don_id: did, ...fields(m) }); if (error) throw error
+        }
+      }
+      const boa = (exist || []).map(x => x.id).filter(id => !giu.has(id))   // món người dùng bỏ khỏi đơn
+      if (boa.length) { const { error } = await sb.from('don_hang_mon').delete().in('id', boa); if (error) throw error }
     }
     return
   }
