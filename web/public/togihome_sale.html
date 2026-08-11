@@ -1052,7 +1052,7 @@ const kTra = (d, ct) => tienDon(ct) - (+d.giam || 0);
 const lapCty = d => (d.lapAi || "cty") === "cty" ? +d.lap || 0 : 0;
 /* Cước vận chuyển công ty trả nhà xe, nên trừ khỏi doanh thu — giống phí lắp đặt. */
 const LA_BAO_GIA = t => t === "bao_gia" || t === "bao_gia_thua" || t === "bao_gia_treo";
-const dtCua = (d, ct) => loaiOf(d.loai).dt && !LA_BAO_GIA(d.tt) ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0;
+const dtCua = (d, ct) => d.laDemo ? 0 : (loaiOf(d.loai).dt && !LA_BAO_GIA(d.tt) ? kTra(d, ct) - lapCty(d) - (+d.ship || 0) : 0);
 const phaiThu = (d, ct) => kTra(d, ct) - (+d.coc || 0) - (+d.daTT || 0);
 const canHD = d => !!tkOf(d.tkCoc)?.hd;
 /* Trạng thái thanh toán suy ra từ số, không lưu riêng — số đổi là trạng thái đổi theo */
