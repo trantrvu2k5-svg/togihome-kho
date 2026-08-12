@@ -310,6 +310,48 @@ window.storage = {
 window.saleApi = {
   monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
   leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
+
+  // ── BẢN THIẾT KẾ (db/051) ──
+  // đọc danh sách bản + ảnh của 1 đơn (RLS cho sale/thiet_ke/tk_ban_hang/ceo; xuong chỉ bản khach_duyet)
+  banCuaDon: maDon => sb.from('ban_thiet_ke')
+    .select('id,ma_don,phien_ban,ghi_chu,trang_thai,luc_gui,luc_phan_hoi,ghi_chu_phan_hoi,file_3d_path,file_3d_byte,anh:anh_ban_thiet_ke(id,duong_dan_nho,duong_dan_to,byte_nho,byte_to,thu_tu)')
+    .eq('ma_don', maDon).order('phien_ban', { ascending: false }),
+  phanHoiBan: (banId, ketQua, ghiChu) => sb.rpc('phan_hoi_ban', { p_ban_id: banId, p_ket_qua: ketQua, p_ghi_chu: ghiChu || '' }),
+  guiBan: (maDon, ghiChu, anh) => sb.rpc('gui_ban_thiet_ke', { p_ma_don: maDon, p_ghi_chu: ghiChu || '', p_anh: anh }),
+  // signed URL để XEM ảnh bucket private trong app (1 giờ đủ cho phiên xem)
+  kyXem: async path => { const { data } = await sb.storage.from('ban-thiet-ke').createSignedUrl(path, 3600); return data?.signedUrl || null },
+  taiAnh: (path, blob, ct) => sb.storage.from('ban-thiet-ke').upload(path, blob, { contentType: ct || 'image/webp', upsert: true }),
+  // Gửi link khách: RPC sinh token+nội dung curated -> app KÝ signed URL 7 ngày -> nạp lại -> trả link
+  linkGuiKhach: async banId => {
+    const { data, error } = await sb.rpc('link_gui_khach', { p_ban_id: banId }); if (error) throw error
+    const urls = []
+    for (const a of (data.anh || [])) {
+      const [nho, to] = await Promise.all([
+        sb.storage.from('ban-thiet-ke').createSignedUrl(a.duong_dan_nho, 604800),
+        sb.storage.from('ban-thiet-ke').createSignedUrl(a.duong_dan_to, 604800)])
+      urls.push({ nho: nho.data?.signedUrl || '', to: to.data?.signedUrl || '', thu_tu: a.thu_tu })
+    }
+    const { error: e2 } = await sb.rpc('nap_anh_link', { p_token: data.token, p_urls: urls }); if (e2) throw e2
+    return location.origin + '/xem-ban.html?t=' + data.token
+  },
+}
+
+// ══════════ NÉN ẢNH HAI CỠ trong trình duyệt (WebP, lùi JPEG). KHÔNG lưu ảnh gốc. ══════════
+//   nhỏ: rộng ≤400px q0.75 (<40KB) · to: rộng ≤1600px q0.82 (<400KB). Làm ở máy người dùng — không tốn máy chủ.
+window.nenAnh = async function (file) {
+  // ⚠ URL ở scope này bị che bởi hằng VITE_SUPABASE_URL (dòng 6) — phải dùng window.URL cho Blob URL.
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = window.URL.createObjectURL(file) })
+  const webpOk = document.createElement('canvas').toDataURL('image/webp').startsWith('data:image/webp')
+  const kieu = webpOk ? 'image/webp' : 'image/jpeg'
+  const ve = (maxW, q) => new Promise(res => {
+    const scale = Math.min(1, maxW / img.width), w = Math.round(img.width * scale), h = Math.round(img.height * scale)
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h
+    cv.getContext('2d').drawImage(img, 0, 0, w, h)
+    cv.toBlob(b => res(b), kieu, q)
+  })
+  const nho = await ve(400, 0.75), to = await ve(1600, 0.82)
+  window.URL.revokeObjectURL(img.src)
+  return { nho, to, byteNho: nho.size, byteTo: to.size, duoi: webpOk ? 'webp' : 'jpg', ct: kieu }
 }
 
 // ══════════ ĐĂNG NHẬP + nạp mã app (thứ tự: storage đã gán ở trên -> giờ mới nạp file sale) ══════════

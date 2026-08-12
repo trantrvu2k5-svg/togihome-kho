@@ -4684,6 +4684,7 @@ function XemDon({
             eC("span", { style: { flex: 1, fontSize: 13 } }, m.ten),
             m.trang_thai !== "xong_sx" && m.so_ngay_tac >= 3 && eC("span", { style: { fontSize: 11.5, color: "var(--am)", fontWeight: 600 } }, "tắc " + m.so_ngay_tac + " ngày"),
             bdgTT(m.trang_thai))));
+  const banBox = eC(KhuBanThietKe, { maDon: d.ma, vaiTro: (window.__saleUser && window.__saleUser.vai_tro) || "" });
   return /*#__PURE__*/React.createElement("div", {
     className: "ovl",
     onMouseDown: e => e.target === e.currentTarget && onClose()
@@ -4720,7 +4721,7 @@ function XemDon({
       maxHeight: "68vh",
       overflow: "auto"
     }
-  }, tienDo, quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
+  }, tienDo, banBox, quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
     d: d,
     quyenTT: quyenTT,
     onDoi: onDoi,
@@ -10499,6 +10500,136 @@ function ThietLap({
     className: "cardft"
   }, "Tài khoản thợ phải gắn tên thợ, nếu không thì bảng việc không lọc được việc của họ."))));
 }
+
+  // ══════════ BẢN THIẾT KẾ (db/051) — khu trong XemDon + màn gửi + lightbox ══════════
+  // Lightbox thuần DOM: bấm ảnh nào (bản thiết kế HOẶC ảnh món) phóng to. Vá lỗi "ảnh bé không phóng to".
+  function moAnhTo(src) {
+    if (!src) return;
+    var old = document.getElementById("__lb"); if (old) old.remove();
+    var lb = document.createElement("div"); lb.id = "__lb";
+    lb.style.cssText = "position:fixed;inset:0;background:rgba(10,14,22,.92);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;cursor:zoom-out";
+    var im = document.createElement("img"); im.src = src; im.style.cssText = "max-width:100%;max-height:100%;border-radius:6px";
+    lb.appendChild(im); lb.onclick = function () { lb.remove(); }; document.body.appendChild(lb);
+  }
+  window.moAnhTo = moAnhTo;
+
+  var NHAN_BTK = { cho_duyet: ["Chờ khách xem", "#FDF3E3", "#7A4A05"], khach_duyet: ["Khách đã duyệt", "#E7EFEA", "#15805F"],
+    khach_doi_y: ["Khách đổi ý", "#FDECEA", "#8E2A22"], chua_dung_yeu_cau: ["Chưa đúng yêu cầu", "#FDECEA", "#8E2A22"], thay_the: ["Bản cũ", "#EFF1F5", "#6B7280"] };
+
+  // 1 ảnh nhỏ trong danh sách: CHỈ tải bản NHỎ (signed). Bấm mới ký + mở bản TO. (egress nhẹ)
+  function AnhNho(props) {
+    var eC = React.createElement; var anh = props.anh;
+    var st = React.useState(null), nho = st[0], setNho = st[1];
+    React.useEffect(function () { var ok = true; window.saleApi.kyXem(anh.duong_dan_nho).then(function (u) { if (ok) setNho(u); }); return function () { ok = false; }; }, [anh.duong_dan_nho]);
+    var xemTo = function () { window.saleApi.kyXem(anh.duong_dan_to).then(function (u) { moAnhTo(u); }); };
+    return eC("div", { onClick: xemTo, style: { position: "relative", cursor: "zoom-in", width: 132, height: 96, flex: "0 0 auto" } },
+      eC("img", { src: nho || "", alt: "", style: { width: 132, height: 96, objectFit: "cover", borderRadius: 7, border: "1px solid #E3E6EC", background: "#EFF1F5", display: "block" } }),
+      eC("span", { style: { position: "absolute", bottom: 5, right: 6, fontSize: 10.5, background: "rgba(26,34,51,.72)", color: "#fff", padding: "2px 6px", borderRadius: 4 } }, "xem to"));
+  }
+
+  function KhuBanThietKe(props) {
+    var eC = React.createElement; var maDon = props.maDon, vaiTro = props.vaiTro;
+    var s1 = React.useState(null), bans = s1[0], setBans = s1[1];
+    var s2 = React.useState(false), gui = s2[0], setGui = s2[1];
+    var s3 = React.useState(""), linkMsg = s3[0], setLinkMsg = s3[1];
+    var laTK = ["thiet_ke", "tk_ban_hang", "ceo"].indexOf(vaiTro) >= 0;
+    var laSale = ["sale", "tk_ban_hang", "ceo"].indexOf(vaiTro) >= 0;
+    var taiLai = function () { return window.saleApi.banCuaDon(maDon).then(function (r) { setBans(r.error ? [] : (r.data || [])); }); };
+    React.useEffect(function () { taiLai(); }, [maDon]);
+    var phanHoi = function (b, kq) {
+      var gc = "";
+      if (kq !== "khach_duyet") {
+        gc = window.prompt(kq === "khach_doi_y" ? "Khách đổi ý — khách muốn đổi gì:" : "Chưa đúng yêu cầu — bản vẽ lệch chỗ nào so với khách nói:");
+        if (!gc || !gc.trim()) return;
+      }
+      window.saleApi.phanHoiBan(b.id, kq, gc).then(function (r) { if (r.error) { alert("Lỗi: " + r.error.message); return; } taiLai(); });
+    };
+    var guiLink = function (b) {
+      setLinkMsg("Đang tạo link…");
+      window.saleApi.linkGuiKhach(b.id).then(function (url) {
+        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {});
+        setLinkMsg("Đã copy link (hạn 7 ngày): " + url);
+      }).catch(function (e) { setLinkMsg("Lỗi tạo link: " + (e.message || e)); });
+    };
+    var nut = function (txt, on, mau, vien) { return eC("button", { onClick: on, style: { fontSize: 13, fontWeight: 500, padding: "8px 14px", borderRadius: 7, border: vien ? "1px solid " + mau : "none", background: vien ? "#fff" : mau, color: vien ? mau : "#fff", cursor: "pointer" } }, txt); };
+    var dau = eC("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+      eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em" } }, "BẢN THIẾT KẾ"),
+      laTK && nut("+ Gửi bản mới", function () { setGui(true); }, "#A82C27"));
+    var body;
+    if (bans === null) body = eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Đang tải…");
+    else if (!bans.length) body = eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Chưa có bản thiết kế nào cho đơn này.");
+    else body = bans.map(function (b) {
+      var duyet = b.trang_thai === "khach_duyet"; var cu = b.trang_thai === "thay_the";
+      var nh = NHAN_BTK[b.trang_thai] || ["", "#EEE", "#666"];
+      var anh = (b.anh || []).slice().sort(function (x, y) { return (x.thu_tu || 0) - (y.thu_tu || 0); });
+      return eC("div", { key: b.id, style: { padding: "13px 14px", marginBottom: 10, border: "1px solid var(--bd)", borderLeft: duyet ? "3px solid #15805F" : "1px solid var(--bd)", borderRadius: 9, background: duyet ? "#F7FBF9" : "#fff", opacity: cu ? .72 : 1 } },
+        eC("div", { style: { display: "flex", alignItems: "center", gap: 9, marginBottom: 4 } },
+          eC("b", { style: { fontSize: 15 } }, "Bản " + b.phien_ban),
+          eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, background: nh[1], color: nh[2] } }, nh[0])),
+        eC("div", { style: { fontSize: 12, color: "var(--mut)", marginBottom: 10 } }, "Gửi " + (b.luc_gui ? String(b.luc_gui).slice(0, 16).replace("T", " ") : "") + " · " + anh.length + " ảnh"),
+        anh.length ? eC("div", { style: { display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 10 } }, anh.map(function (a) { return eC(AnhNho, { key: a.id, anh: a }); })) : null,
+        b.ghi_chu ? eC("div", { style: { background: "#FFFDF4", border: "1px solid #EBE3C8", borderRadius: 7, padding: "9px 11px", fontSize: 13, marginBottom: 10 } }, eC("em", { style: { fontStyle: "normal", fontSize: 11, color: "#9CA3AF", display: "block", marginBottom: 3, textTransform: "uppercase", fontWeight: 700 } }, "Thiết kế ghi"), b.ghi_chu) : null,
+        b.ghi_chu_phan_hoi ? eC("div", { style: { background: "#FDECEA", border: "1px solid #F3C9C4", borderRadius: 7, padding: "9px 11px", fontSize: 13, marginBottom: 10 } }, eC("em", { style: { fontStyle: "normal", fontSize: 11, color: "#9CA3AF", display: "block", marginBottom: 3, textTransform: "uppercase", fontWeight: 700 } }, "Sale ghi khi phản hồi"), b.ghi_chu_phan_hoi) : null,
+        eC("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+          (laSale && b.trang_thai === "cho_duyet") ? nut("Khách duyệt bản này", function () { phanHoi(b, "khach_duyet"); }, "#15805F") : null,
+          (laSale && b.trang_thai === "cho_duyet") ? nut("Khách đổi ý", function () { phanHoi(b, "khach_doi_y"); }, "#A82C27", true) : null,
+          (laSale && b.trang_thai === "cho_duyet") ? nut("Chưa đúng yêu cầu", function () { phanHoi(b, "chua_dung_yeu_cau"); }, "#C0392B", true) : null,
+          (laSale && duyet) ? nut("Gửi link cho khách", function () { guiLink(b); }, "#6155BC") : null));
+    });
+    return eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
+      dau, body,
+      linkMsg ? eC("div", { style: { fontSize: 12.5, color: "var(--tx2)", marginTop: 8, wordBreak: "break-all" } }, linkMsg) : null,
+      gui ? eC(GuiBanModal, { maDon: maDon, onClose: function () { setGui(false); }, onXong: taiLai }) : null);
+  }
+
+  function GuiBanModal(props) {
+    var eC = React.createElement; var maDon = props.maDon;
+    var s1 = React.useState([]), files = s1[0], setFiles = s1[1];
+    var s2 = React.useState(""), ghi = s2[0], setGhi = s2[1];
+    var s3 = React.useState(false), busy = s3[0], setBusy = s3[1];
+    var s4 = React.useState(""), err = s4[0], setErr = s4[1];
+    var themFiles = function (fl) {
+      var list = [].slice.call(fl).filter(function (f) { return f && f.type && f.type.indexOf("image/") === 0; });
+      Promise.all(list.map(function (f) { return window.nenAnh(f).then(function (n) { n.preview = URL.createObjectURL(n.nho); return n; }); }))
+        .then(function (arr) { setFiles(function (x) { return x.concat(arr); }); });
+    };
+    var gui = function () {
+      if (!files.length) { setErr("Phải có ít nhất 1 ảnh."); return; }
+      setBusy(true); setErr("");
+      var stamp = String(Date.now()); var anh = [];
+      var chain = Promise.resolve();
+      files.forEach(function (f, i) {
+        var base = maDon + "/" + stamp + "/" + i;
+        var pn = base + "_nho." + f.duoi, pt = base + "_to." + f.duoi;
+        chain = chain.then(function () { return window.saleApi.taiAnh(pn, f.nho, f.ct); }).then(function (u) { if (u.error) throw u.error; })
+          .then(function () { return window.saleApi.taiAnh(pt, f.to, f.ct); }).then(function (u) { if (u.error) throw u.error; })
+          .then(function () { anh.push({ duong_dan_nho: pn, duong_dan_to: pt, byte_nho: f.byteNho, byte_to: f.byteTo, thu_tu: i }); });
+      });
+      chain.then(function () { return window.saleApi.guiBan(maDon, ghi, anh); })
+        .then(function (r) { if (r.error) throw r.error; props.onXong && props.onXong(); props.onClose(); })
+        .catch(function (e) { setErr("Lỗi gửi: " + (e.message || e)); setBusy(false); });
+    };
+    var thaZone = eC("div", { onDrop: function (e) { e.preventDefault(); themFiles(e.dataTransfer.files); }, onDragOver: function (e) { e.preventDefault(); },
+      onClick: function () { document.getElementById("__btk_file").click(); },
+      style: { border: "2px dashed #C9CDD4", borderRadius: 9, padding: "22px 16px", textAlign: "center", cursor: "pointer", background: "#fff" } },
+      eC("b", { style: { display: "block", fontSize: 14 } }, "Kéo ảnh vào đây"),
+      eC("div", { style: { fontSize: 12.5, color: "var(--mut)", marginTop: 4 } }, "Hoặc bấm để chọn · dán ảnh (Ctrl+V) cũng được · tự nén 2 cỡ WebP"),
+      eC("input", { id: "__btk_file", type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: function (e) { themFiles(e.target.files); } }));
+    var preview = files.length ? eC("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" } }, files.map(function (f, i) {
+      return eC("div", { key: i, style: { position: "relative" } },
+        eC("img", { src: f.preview, style: { width: 90, height: 68, objectFit: "cover", borderRadius: 6, border: "1px solid #E3E6EC" } }),
+        eC("span", { style: { position: "absolute", bottom: 3, right: 4, fontSize: 9.5, background: "rgba(26,34,51,.72)", color: "#fff", padding: "1px 5px", borderRadius: 3 } }, Math.round(f.byteNho / 1024) + "/" + Math.round(f.byteTo / 1024) + "KB"));
+    })) : null;
+    return eC("div", { className: "ovl", onMouseDown: function (e) { if (e.target === e.currentTarget) props.onClose(); }, onPaste: function (e) { var its = [].slice.call((e.clipboardData || {}).items || []).filter(function (i) { return i.type.indexOf("image/") === 0; }); if (its.length) themFiles(its.map(function (i) { return i.getAsFile(); })); } },
+      eC("div", { className: "mdl", style: { width: 560, padding: 0 }, onMouseDown: function (e) { e.stopPropagation(); } },
+        eC("header", null, eC("div", null, eC("h4", null, "Gửi bản thiết kế — " + maDon), eC("div", { style: { fontSize: 12.5, color: "var(--mut)" } }, "Ảnh bắt buộc. File 3D chỉ gửi khi đơn đã chốt.")), eC("button", { className: "x", onClick: props.onClose }, "×")),
+        eC("div", { style: { padding: "16px 18px" } },
+          thaZone, preview,
+          eC("label", { style: { fontSize: 13, color: "var(--mut)", display: "block", margin: "8px 0 4px" } }, "Ghi chú cho sale — đã sửa gì so với bản trước"),
+          eC("textarea", { rows: 3, value: ghi, onChange: function (e) { setGhi(e.target.value); }, placeholder: "Đã hạ kệ tivi 15cm · đổi màu tủ rượu sang N03", style: { width: "100%", padding: "9px 11px", border: "1px solid var(--bd)", borderRadius: 8, fontFamily: "inherit", fontSize: 14, resize: "vertical" } }),
+          err ? eC("div", { style: { color: "#8E2A22", fontSize: 13, marginTop: 8 } }, err) : null,
+          eC("button", { disabled: busy, onClick: gui, style: { marginTop: 14, width: "100%", background: busy ? "#C9CDD4" : "#A82C27", color: "#fff", fontWeight: 600, padding: "12px", borderRadius: 8, border: "none", cursor: busy ? "default" : "pointer", fontSize: 15 } }, busy ? "Đang gửi…" : "Gửi bản cho sale"))));
+  }
 
   try {
     window.ReactDOM.createRoot(document.getElementById("root")).render(R.createElement(App));

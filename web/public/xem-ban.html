@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bản thiết kế</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{ --do:#A82C27; --nen:#EFF1F5; --the:#FFFFFF; --vien:#E3E6EC; --chu:#1A2233; --chu-nhat:#6B7280; --chu-mo:#9CA3AF; --bo:12px; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--nen);color:var(--chu);font-size:15px;line-height:1.55;padding:20px}
+.trang{max-width:760px;margin:0 auto}
+.dau{text-align:center;padding:14px 0 22px}
+.dau h1{font-size:20px;font-weight:700;color:var(--do)}
+.dau p{font-size:13.5px;color:var(--chu-nhat);margin-top:4px}
+.the{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);overflow:hidden;margin-bottom:16px}
+.mon-ten{padding:14px 18px;border-bottom:1px solid var(--vien);font-size:16px;font-weight:600}
+.anh-luoi{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px 18px}
+.anh-luoi img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--vien);cursor:zoom-in;background:var(--nen)}
+.ghi{margin:0 18px 16px;background:#FFFDF4;border:1px solid #EBE3C8;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.6}
+.ghi em{font-style:normal;font-size:11.5px;color:var(--chu-mo);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.trang-thai{padding:40px 20px;text-align:center;color:var(--chu-nhat)}
+.chan{text-align:center;font-size:12px;color:var(--chu-mo);padding:14px 0 4px}
+/* lightbox — bấm ảnh phóng to */
+.lb{position:fixed;inset:0;background:rgba(10,14,22,.92);display:none;align-items:center;justify-content:center;padding:16px;z-index:9;cursor:zoom-out}
+.lb.mo{display:flex}
+.lb img{max-width:100%;max-height:100%;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="trang">
+  <div class="dau"><h1>Bản thiết kế Togihome</h1><p>Bản phối cảnh gửi anh/chị xem. Có góp ý xin nhắn lại nhân viên tư vấn.</p></div>
+  <div id="noi"><div class="trang-thai">Đang tải…</div></div>
+  <div class="chan">Togihome · liên kết chỉ để xem bản thiết kế, có hạn.</div>
+</div>
+<div class="lb" id="lb" onclick="this.classList.remove('mo')"><img id="lbimg" alt=""></div>
+<script>
+var URL_SB = 'https://ugebruuxkslsnbramils.supabase.co';
+var ANON = 'sb_publishable_zIjWBNYyHg0KrqS3XMovIw_lq89OKEj';
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function moTo(src){var l=document.getElementById('lb');document.getElementById('lbimg').src=src;l.classList.add('mo');}
+function loi(m){document.getElementById('noi').innerHTML='<div class="trang-thai">'+esc(m)+'</div>';}
+(function(){
+  var t=new URLSearchParams(location.search).get('t');
+  if(!t){loi('Thiếu mã liên kết.');return;}
+  fetch(URL_SB+'/rest/v1/rpc/xem_link_khach',{method:'POST',
+    headers:{'apikey':ANON,'Authorization':'Bearer '+ANON,'Content-Type':'application/json','Content-Profile':'kho','Accept-Encoding':'identity'},
+    body:JSON.stringify({p_token:t})})
+  .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+  .then(function(x){
+    if(!x.ok){ var msg=(x.j&&x.j.message)||''; loi(/hết hạn/.test(msg)?'Liên kết đã hết hạn. Xin nhân viên tư vấn gửi lại.':'Không mở được bản thiết kế.'); return; }
+    var d=x.j||{}; var anh=d.anh||[], mon=d.mon||[];
+    var h='';
+    // ẢNH (bản to, ký sẵn) — bấm phóng to
+    if(anh.length){ h+='<div class="the"><div class="anh-luoi">';
+      anh.slice().sort(function(a,b){return (a.thu_tu||0)-(b.thu_tu||0);}).forEach(function(a){
+        var to=a.to||a.nho||''; var nho=a.nho||a.to||'';
+        h+='<img src="'+esc(nho)+'" data-to="'+esc(to)+'" onclick="moTo(this.getAttribute(\'data-to\'))" alt="ảnh thiết kế">';
+      });
+      h+='</div></div>'; }
+    // GHI CHÚ thiết kế
+    if(d.ghi_chu){ h+='<div class="the" style="padding-top:2px"><div class="ghi" style="margin:14px 18px"><em>Ghi chú thiết kế</em>'+esc(d.ghi_chu)+'</div></div>'; }
+    // TÊN MÓN
+    if(mon.length){ h+='<div class="the"><div class="mon-ten">Các món trong đơn</div><div style="padding:12px 18px">';
+      mon.forEach(function(m){ h+='<div style="padding:5px 0;border-bottom:1px solid var(--vien)">'+esc(m.ten)+'</div>'; });
+      h+='</div></div>'; }
+    if(!h)h='<div class="trang-thai">Bản thiết kế chưa có ảnh.</div>';
+    document.getElementById('noi').innerHTML=h;
+  })
+  .catch(function(){loi('Lỗi mạng — thử lại sau.');});
+})();
+</script>
+</body>
+</html>
