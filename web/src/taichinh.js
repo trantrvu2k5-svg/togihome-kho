@@ -46,6 +46,13 @@ async function napApp() {
   const html = await (await fetch('/togihome_taichinh.html')).text()
   $('root').innerHTML = html
   $('tc_who').textContent = USER.ho_ten + ' · ' + USER.vai_tro
+  // ĐĂNG XUẤT: signOut + XOÁ HẲN token localStorage TRƯỚC reload. Nếu chỉ signOut rồi reload, việc xoá
+  //   storage async có thể bị reload cắt ngang -> token còn -> tải lại thẳng app, KHÔNG ra màn đăng nhập.
+  $('tc_out').onclick = async () => {
+    try { await sb.auth.signOut() } catch (e) {}
+    try { Object.keys(localStorage).filter(k => /^sb-|supabase/i.test(k)).forEach(k => localStorage.removeItem(k)) } catch (e) {}
+    location.reload()
+  }
   const { data: kys } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ma_ky', { ascending: false })
   $('ky').innerHTML = (kys || []).map(r => `<option>${r.ma_ky}</option>`).join('') || '<option>2026-07</option>'
   // sự kiện
@@ -57,7 +64,7 @@ async function napApp() {
   $('gv_ghi').onclick = nhapGiaVonTay
   if (USER.vai_tro === 'ceo') $('nav_tk').style.display = 'block'   // tab Quản lý tài khoản CHỈ ceo (RPC cũng guard)
   $('tk_them').onclick = themNguoi
-  document.querySelectorAll('#tc .navi').forEach(b => b.onclick = () => doiTab(b.dataset.tab))            // 2 tab
+  document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))

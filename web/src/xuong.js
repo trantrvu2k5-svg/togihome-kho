@@ -46,8 +46,15 @@ async function capApp() {
   $('cong').style.display = 'none'; $('boot').style.display = 'none'; $('app').style.display = 'flex'
   $('navDay').style.display = ''    // xoá inline -> CSS media quyết (ẩn desktop / hiện ≤819)
   $('hdTen').textContent = USER.ten || TEN_VAI[USER.vai_tro]; $('hdVai').textContent = TEN_VAI[USER.vai_tro] || USER.vai_tro
-  $('btOut').onclick = async () => { await sb.auth.signOut(); location.reload() }
-  document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => b.onclick = () => di(b.dataset.man))
+  // ĐĂNG XUẤT: signOut + XOÁ HẲN token localStorage TRƯỚC reload (tránh reload cắt ngang -> token còn -> vào lại app).
+  const thoat = async () => {
+    try { await sb.auth.signOut() } catch (e) {}
+    try { Object.keys(localStorage).filter(k => /^sb-|supabase/i.test(k)).forEach(k => localStorage.removeItem(k)) } catch (e) {}
+    location.reload()
+  }
+  $('btOut').onclick = thoat
+  if ($('btOutM')) $('btOutM').onclick = thoat   // nút Thoát ở thanh dưới (mobile — sidebar ẩn ≤819px)
+  document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => { if (b.dataset.man) b.onclick = () => di(b.dataset.man) })   // bỏ nút không có data-man (vd Thoát)
   if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none' }   // tho KHÔNG thấy quản đốc
   document.querySelectorAll('.tab button').forEach(b => b.onclick = () => tab(b.dataset.qd))
   document.querySelectorAll('#s-tem .loc button[data-kho]').forEach(b => b.onclick = () => datKho(b.dataset.kho))

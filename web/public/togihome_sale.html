@@ -215,8 +215,12 @@ td input.ce::placeholder{color:#C6CDD9}
 @media(max-width:1000px){.grid2,.grid2b{grid-template-columns:1fr}}
 @media(max-width:940px){
  .ca{flex-direction:column}.main{height:auto}
- .nav{width:100%;flex:none;flex-direction:row;overflow-x:auto;padding:7px 9px}
- .brand,.navft,.navsec{display:none}
+ .nav{width:100%;flex:none;flex-direction:row;align-items:center;overflow-x:auto;padding:7px 9px}
+ .brand,.navsec{display:none}
+ /* GIỮ nút Đăng xuất trên mobile (trước đây ẩn cả .navft → mất nút). Ẩn tên+mô tả, đẩy nút sang phải. */
+ .navft{display:flex;align-items:center;padding:0;margin:0 0 0 auto;flex:0 0 auto}
+ .navft .who,.navft .mota{display:none}
+ .navft .nav-out{width:auto;padding:7px 13px;white-space:nowrap;margin:0}
  .nav a{white-space:nowrap;margin:0 2px}
  .body{overflow:visible;padding:14px}
 }
@@ -796,7 +800,7 @@ const TT_KHAC = [{
   mau: "c2"
 }, {
   c: "cho_cat",
-  n: "Có file · chờ cắt",
+  n: "Chờ cắt",
   mau: "c3"
 }, {
   c: "cho_giao",
@@ -841,6 +845,11 @@ const LY_DO_THUA = [{
 }];
 const LY_DO_THUA_N = c => (LY_DO_THUA.find(x => x.c === c) || {}).n || c || "—";
 const ttOf = c => [...TT, ...TT_KHAC].find(x => x.c === c) || TT[0];
+// THỨ TỰ THẺ theo DÒNG CHẢY đơn (thẻ LUÔN hiện, kể cả 0 đơn — không để trạng thái "biến mất").
+//   Báo giá là bước ĐẦU; Chờ cắt nằm giữa Xong file thiết kế và Đã cắt; Đã giao là thẻ CUỐI.
+const TT_DONG_CHAY = ['bao_gia', 'moi', 'nhan_thiet_ke', 'tk', 'co_file', 'cho_cat', 'da_cat', 'dang_lam', 'xong_sx', 'cho_giao', 'da_giao'];
+// NHÁNH KẾT THÚC (không phải bước trong dòng chảy) — tách riêng, hiện khi có đơn.
+const TT_KET_THUC = ['bao_gia_thua', 'bao_gia_treo', 'tam_ngung', 'huy'];
 const ttIdx = c => TT.findIndex(x => x.c === c);
 const ttTruocDo = c => {
   const i = ttIdx(c);
@@ -2033,6 +2042,7 @@ function App() {
   }, /*#__PURE__*/React.createElement("div", {
     className: "who"
   }, /*#__PURE__*/React.createElement("b", null, user.ten), /*#__PURE__*/React.createElement("em", null, MAU[user.mau]?.n || "Quyền riêng")), /*#__PURE__*/React.createElement("div", {
+    className: "mota",
     style: {
       padding: "0 9px 8px",
       fontSize: 11,
@@ -2040,7 +2050,7 @@ function App() {
       lineHeight: 1.5
     }
   }, "Xem được mọi đơn. Lên đơn, sửa đơn của mình khi còn ở Mới lên đơn, và thu tiền."), /*#__PURE__*/React.createElement("button", {
-    className: "btn sm",
+    className: "btn sm nav-out",
     style: {
       width: "100%",
       background: "rgba(255,255,255,.14)",
@@ -4150,37 +4160,45 @@ function SoDon({
     style: {
       gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))"
     }
-  }, TT.map((t, i) => /*#__PURE__*/React.createElement("button", {
-    key: t.c,
-    className: "tile " + "abcde"[i],
+  }, TT_DONG_CHAY.map((c, i) => { const t = ttOf(c); return /*#__PURE__*/React.createElement("button", {
+    key: c,
+    className: "tile " + "abcde"[i % 5],
     style: {
       textAlign: "left",
       cursor: "pointer",
-      border: ft === t.c ? "2px solid var(--pri)" : null
+      border: ft === c ? "2px solid var(--pri)" : null
     },
-    onClick: () => setFt(ft === t.c ? "" : t.c)
+    onClick: () => setFt(ft === c ? "" : c)
   }, /*#__PURE__*/React.createElement("div", {
     className: "lb"
   }, t.n), /*#__PURE__*/React.createElement("div", {
     className: "vv n"
-  }, dem(t.c)), /*#__PURE__*/React.createElement("div", {
+  }, dem(c)), /*#__PURE__*/React.createElement("div", {
     className: "dl"
-  }, ft === t.c ? "đang lọc · bấm để bỏ" : "bấm để lọc"))), TT_KHAC.map(t => dem(t.c) > 0 && /*#__PURE__*/React.createElement("button", {
-    key: t.c,
+  }, ft === c ? "đang lọc · bấm để bỏ" : "bấm để lọc")); })),
+  /*#__PURE__*/React.createElement("div", {
+    className: "tiles",
+    style: {
+      gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
+      marginTop: 10,
+      opacity: .92
+    }
+  }, TT_KET_THUC.map(c => dem(c) > 0 && (() => { const t = ttOf(c); return /*#__PURE__*/React.createElement("button", {
+    key: c,
     className: "tile f",
     style: {
       textAlign: "left",
       cursor: "pointer",
-      border: ft === t.c ? "2px solid var(--pri)" : null
+      border: ft === c ? "2px solid var(--pri)" : null
     },
-    onClick: () => setFt(ft === t.c ? "" : t.c)
+    onClick: () => setFt(ft === c ? "" : c)
   }, /*#__PURE__*/React.createElement("div", {
     className: "lb"
   }, t.n), /*#__PURE__*/React.createElement("div", {
     className: "vv n"
-  }, dem(t.c)), /*#__PURE__*/React.createElement("div", {
+  }, dem(c)), /*#__PURE__*/React.createElement("div", {
     className: "dl"
-  }, "bấm để lọc")))), (() => {
+  }, "nhánh kết thúc · bấm để lọc")); })())), (() => {
     const kdt = dons.filter(d => !loaiOf(d.loai).dt && !["da_giao", "huy"].includes(d.tt));
     const no = dons.filter(d => d.tt !== "huy" && phaiThu(d, ctCua(d.id)) > 0);
     const tNo = no.reduce((s, d) => s + phaiThu(d, ctCua(d.id)), 0);

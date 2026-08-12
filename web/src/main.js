@@ -44,7 +44,12 @@ async function vaoApp(user) {
   if (!document.getElementById('btn-out')) {
     const b = document.createElement('button'); b.id = 'btn-out'; b.textContent = 'Đăng xuất'
     b.style.cssText = 'margin-left:10px;background:#fff;color:#C0392B;border:0;border-radius:3px;padding:3px 11px;font-size:12px;font-weight:600;cursor:pointer'
-    b.onclick = async () => { await sb.auth.signOut(); location.reload() }
+    // ĐĂNG XUẤT: signOut + XOÁ HẲN token localStorage TRƯỚC reload (tránh reload cắt ngang -> token còn -> vào lại app).
+    b.onclick = async () => {
+      try { await sb.auth.signOut() } catch (e) {}
+      try { Object.keys(localStorage).filter(k => /^sb-|supabase/i.test(k)).forEach(k => localStorage.removeItem(k)) } catch (e) {}
+      location.reload()
+    }
     document.querySelector('header').appendChild(b)
   }
   await taiDuLieu()
