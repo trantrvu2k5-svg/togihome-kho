@@ -55,6 +55,8 @@ async function napApp() {
   $('btn_chot').onclick = chot
   $('s6_luu').onclick = luuS6
   $('gv_ghi').onclick = nhapGiaVonTay
+  if (USER.vai_tro === 'ceo') $('nav_tk').style.display = 'block'   // tab Quản lý tài khoản CHỈ ceo (RPC cũng guard)
+  $('tk_them').onclick = themNguoi
   document.querySelectorAll('#tc .navi').forEach(b => b.onclick = () => doiTab(b.dataset.tab))            // 2 tab
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -68,6 +70,49 @@ function doiTab(t) {
   document.querySelectorAll('#tc .navi').forEach(b => b.classList.toggle('on', b.dataset.tab === t))
   window.scrollTo(0, 0)
   if (t === 'gvdon') taiGiaVonDon()
+  if (t === 'taikhoan') taiTaiKhoan()
+}
+
+// ── QUẢN LÝ TÀI KHOẢN (chỉ ceo — RPC guard fail-đóng; ghi THẲNG DB) ──
+const VAI9 = ['sale', 'tk_ban_hang', 'thiet_ke', 'truong_nhom_sale', 'xuong', 'tho', 'kho', 'ke_toan', 'ceo']
+const escTk = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+async function taiTaiKhoan() {
+  const tb = $('tk_ds'); if (!tb) return
+  const { data, error } = await sb.rpc('qly_ds_nguoi_dung')
+  if (error) { tb.innerHTML = '<tr><td colspan="5">Lỗi: ' + escTk(error.message) + '</td></tr>'; return }
+  tb.innerHTML = (data || []).map(u => {
+    const opts = VAI9.map(v => '<option' + (v === u.vai_tro ? ' selected' : '') + '>' + v + '</option>').join('')
+    return '<tr' + (u.dang_hoat_dong ? '' : ' style="opacity:.5"') + '>'
+      + '<td>' + escTk(u.ho_ten) + '</td><td>' + escTk(u.email) + '</td>'
+      + '<td><select data-id="' + u.id + '" class="tk_vai_sel">' + opts + '</select></td>'
+      + '<td>' + (u.dang_hoat_dong ? 'Đang hoạt động' : 'Đã tắt') + '</td>'
+      + '<td style="white-space:nowrap"><button class="btn ghost tk_bat" data-id="' + u.id + '" data-on="' + (u.dang_hoat_dong ? '0' : '1') + '">' + (u.dang_hoat_dong ? 'Tắt' : 'Bật') + '</button> '
+      + '<button class="btn ghost tk_mk" data-id="' + u.id + '">Đặt lại MK</button></td></tr>'
+  }).join('') || '<tr><td colspan="5">Chưa có người dùng.</td></tr>'
+  document.querySelectorAll('.tk_vai_sel').forEach(s => s.onchange = () => doiVai(s.dataset.id, s.value))
+  document.querySelectorAll('.tk_bat').forEach(b => b.onclick = () => batTat(b.dataset.id, b.dataset.on === '1'))
+  document.querySelectorAll('.tk_mk').forEach(b => b.onclick = () => datMatKhau(b.dataset.id))
+}
+async function themNguoi() {
+  $('tk_msg').textContent = 'Đang thêm…'
+  const { error } = await sb.rpc('qly_them_nguoi', { p_email: $('tk_email').value.trim(), p_ho_ten: $('tk_ten').value.trim(), p_vai: $('tk_vai').value, p_mat_khau: $('tk_mk').value })
+  if (error) { $('tk_msg').textContent = 'Lỗi: ' + error.message; return }
+  $('tk_msg').textContent = 'Đã thêm ' + $('tk_email').value.trim()
+  $('tk_email').value = ''; $('tk_ten').value = ''; $('tk_mk').value = ''
+  taiTaiKhoan()
+}
+async function doiVai(id, vai) {
+  const { error } = await sb.rpc('qly_doi_vai', { p_ns_id: id, p_vai: vai })
+  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : ('Đã đổi vai → ' + vai); if (!error) taiTaiKhoan()
+}
+async function batTat(id, on) {
+  const { error } = await sb.rpc('qly_bat_tat', { p_ns_id: id, p_on: on })
+  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : (on ? 'Đã bật hoạt động' : 'Đã tắt hoạt động'); if (!error) taiTaiKhoan()
+}
+async function datMatKhau(id) {
+  const mk = prompt('Mật khẩu mới (tối thiểu 6 ký tự):'); if (!mk) return
+  const { error } = await sb.rpc('qly_dat_mat_khau', { p_ns_id: id, p_mat_khau: mk })
+  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : 'Đã đặt lại mật khẩu'
 }
 
 // ── Giá vốn theo đơn (nhập tay cho đơn plugin không dựng được) ──

@@ -115,6 +115,7 @@
     <button class="navi on" data-tab="ban">Định giá bán</button>
     <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
+    <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
   </aside>
   <main class="main"><div class="wrap">
@@ -271,6 +272,30 @@
       <section>
         <div class="ch"><h2>Danh sách đơn</h2><span class="hint">đơn chưa có giá vốn lên đầu</span></div>
         <div class="cb"><table><thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Nguồn</th><th class="r">① vật tư</th><th class="r">② chế biến</th><th class="r">③ cấp đơn</th><th class="r">Tổng</th><th>Người · lúc · lý do</th></tr></thead><tbody id="gv_ds"></tbody></table></div>
+      </section>
+    </div>
+    <div class="tabp" id="tab-taikhoan">
+      <h1>Quản lý tài khoản</h1>
+      <div class="subline">Chỉ CEO. Thêm người · đổi vai trò · tắt/bật hoạt động (KHÔNG xoá — giữ vết) · đặt lại mật khẩu.</div>
+      <section>
+        <div class="ch"><h2>Thêm người mới</h2></div>
+        <div class="cb" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <input id="tk_email" placeholder="email@togihome.local" style="min-width:210px">
+          <input id="tk_ten" placeholder="Họ tên" style="min-width:150px">
+          <select id="tk_vai" style="min-width:150px">
+            <option value="sale">sale</option><option value="tk_ban_hang">tk_ban_hang</option>
+            <option value="thiet_ke">thiet_ke</option><option value="truong_nhom_sale">truong_nhom_sale</option>
+            <option value="xuong">xuong</option><option value="tho">tho</option>
+            <option value="kho">kho</option><option value="ke_toan">ke_toan</option><option value="ceo">ceo</option>
+          </select>
+          <input id="tk_mk" placeholder="Mật khẩu (≥6)" style="width:150px">
+          <button class="btn" id="tk_them">Thêm người</button>
+          <span class="hint" id="tk_msg"></span>
+        </div>
+      </section>
+      <section>
+        <div class="ch"><h2>Danh sách người dùng</h2><span class="hint">tài khoản đã tắt xuống cuối</span></div>
+        <div class="cb"><table><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Hoạt động</th><th>Thao tác</th></tr></thead><tbody id="tk_ds"></tbody></table></div>
       </section>
     </div>
   </div></main>

@@ -364,6 +364,7 @@ async function napApp() {
 async function laySauDangNhap(user) {
   const { data, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro,dang_hoat_dong').eq('auth_uid', user.id).maybeSingle()
   if (error || !data) { manDangNhap('Tài khoản chưa được gán vai trò trong kho.nguoi_dung — báo CEO.'); await sb.auth.signOut(); return }
+  if (!data.dang_hoat_dong) { await sb.auth.signOut(); manDangNhap('Tài khoản đã bị tắt hoạt động — báo CEO.'); return }
   window.__saleUser = { id: data.id, ten: data.ho_ten, vai_tro: data.vai_tro, on: data.dang_hoat_dong, q: qMap(data.vai_tro) }
   napApp()
 }
@@ -383,6 +384,15 @@ function manDangNhap(err) {
   }
   document.getElementById('b').onclick = go
   document.getElementById('p').onkeydown = e => { if (e.key === 'Enter') go() }
+}
+
+// ĐĂNG XUẤT THẬT: signOut Supabase (xoá token localStorage) + xoá __saleUser + về màn đăng nhập.
+//   KHÔNG để lại phiên/token nào trong trình duyệt. React app gọi window.dangXuat.
+window.dangXuat = async () => {
+  try { await sb.auth.signOut() } catch (e) {}
+  try { Object.keys(localStorage).filter(k => /^sb-|supabase/i.test(k)).forEach(k => localStorage.removeItem(k)) } catch (e) {}
+  window.__saleUser = null
+  location.reload()
 }
 
 ;(async () => {

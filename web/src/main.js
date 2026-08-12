@@ -34,8 +34,9 @@ async function dangNhap() {
 }
 
 async function vaoApp(user) {
-  const { data: nd, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro').eq('auth_uid', user.id).maybeSingle()
+  const { data: nd, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro,dang_hoat_dong').eq('auth_uid', user.id).maybeSingle()
   if (error || !nd) { $('#lg-err').textContent = 'Tài khoản chưa được gán vai trò trong kho.nguoi_dung — báo CEO.'; await sb.auth.signOut(); return }
+  if (!nd.dang_hoat_dong) { $('#lg-err').textContent = 'Tài khoản đã bị tắt hoạt động — báo CEO.'; await sb.auth.signOut(); return }
   ROLE = nd.vai_tro; ME = nd.ho_ten; ME_ID = nd.id
   $('#login').classList.remove('on')
   $('#ai').textContent = `${nd.ho_ten} · ${ROLE.toUpperCase()}`

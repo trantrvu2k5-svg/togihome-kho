@@ -761,7 +761,7 @@ const TT = [{
   nut: "Xong file"
 }, {
   c: "co_file",
-  n: "Có file · chờ cắt",
+  n: "Xong file thiết kế",
   mau: "c3",
   tiep: "da_cat",
   nut: "Đã cắt xong"
@@ -779,7 +779,7 @@ const TT = [{
   nut: "Xong sản xuất"
 }, {
   c: "xong_sx",
-  n: "Chờ giao",
+  n: "Xong sản xuất",
   mau: "c3",
   tiep: "da_giao",
   nut: "Đã giao xong"
@@ -1907,8 +1907,9 @@ function App() {
   const user = (db?.users || []).find(u => u.id === uid2 && u.on) || null;
   const can = c => qOf(user, c);
   const out = () => {
+    // ĐĂNG XUẤT THẬT: signOut Supabase + xoá token + về màn đăng nhập (trang bọc sale.js).
+    if (window.dangXuat) { window.dangXuat(); return; }
     setUid(null);
-    window.storage.set("c2:session", JSON.stringify(null)).catch(() => {});
   };
   if (!db || !ready) return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1917,13 +1918,14 @@ function App() {
       color: "#6B7488"
     }
   }, "Đang mở dữ liệu…");
-  if (!user) return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS), /*#__PURE__*/React.createElement(DangNhap, {
-    users: db.users,
-    onLogin: id => {
-      setUid(id);
-      window.storage.set("c2:session", JSON.stringify(id)).catch(() => {});
-    }
-  }));
+  // Xác thực THẬT do trang bọc (sale.js) lo. Tới đây mà !user = phiên hết hạn / tài khoản bị tắt / chưa gán
+  //   vai trò. KHÔNG dựng lại màn đăng nhập giả (DangNhap cũ nổ vì user không có email) — báo sạch + đăng xuất.
+  if (!user) return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, CSS),
+    /*#__PURE__*/React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" } },
+      /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", maxWidth: 380, padding: 24 } },
+        /*#__PURE__*/React.createElement("h3", { style: { fontSize: 18, marginBottom: 8 } }, "Không nhận ra tài khoản"),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--mut)", fontSize: 14, marginBottom: 18 } }, "Phiên đăng nhập hết hạn hoặc tài khoản đã bị tắt hoạt động. Đăng nhập lại để tiếp tục."),
+        /*#__PURE__*/React.createElement("button", { onClick: out, style: { background: "#A82C27", color: "#fff", fontWeight: 600, padding: "11px 22px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 15 } }, "Đăng xuất & đăng nhập lại"))));
   const donCua = () => true; /* mọi người xem được mọi đơn */
   const dons = db.don.filter(donCua);
   const ctCua = id => db.ct.filter(x => x.donId === id);
