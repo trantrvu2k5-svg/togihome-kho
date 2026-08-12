@@ -111,16 +111,20 @@ drop policy if exists dlb_doc on kho.dung_lai_ban;
 create policy dlb_doc on kho.dung_lai_ban for select using (
   kho.current_vai_tro() = any (array['ceo','thiet_ke','tk_ban_hang','kho','xuong']));
 
--- ════════ Giờ ƯỚC theo CẤP (chuẩn hoá khối lượng) — [GIẢ ĐỊNH] bám tiền lệ sale (có sẵn 0,3h / dựng mới 3h) ════════
+-- ════════ Giờ ƯỚC theo CẤP (chuẩn hoá khối lượng) — GIỮ SỐ GV0, [TẠM — chưa đo thực tế] ════════
+--   CEO chốt (2026-08-12): giữ số đã đứng trong GV0, KHÔNG hạ. Ước DƯ an toàn hơn ước thiếu
+--   (ước 15 thực 8 → giá vốn tính dư, đơn vẫn lãi; ước 5 thực 15 → lỗ mà không ai biết).
+--   Ba số [TẠM]: khi có 5–10 đơn full căn chạy qua, do_lech_uoc (uoc_lech_gio_tb) cho biết số thật.
+--   NỢ: full căn nhiều loại (căn hộ/nhà phố/biệt thự…) — CHƯA tách, tách khi có dữ liệu thật.
 create or replace function kho.gio_uoc_cap(p_cap text) returns numeric language sql immutable as $$
   select case p_cap
-    when 'full_can'         then 5.0
-    when 'thiet_ke_rieng'   then 3.0
-    when 'co_mon_dung_moi'  then 3.0
-    when 'co_file_san'      then 0.3
-    when 'toan_mon_co_san'  then 0.3
-    when 'cat_lai'          then 0.3
-    when 'bao_hanh'         then 0.3
+    when 'full_can'         then 15.0   -- gio_l3 [TẠM]
+    when 'thiet_ke_rieng'   then 3.0    -- gio_l2 [TẠM]
+    when 'co_mon_dung_moi'  then 3.0    -- gio_l2 [TẠM] (combo có món dựng mới)
+    when 'co_file_san'      then 0.3    -- gio_l1 [TẠM]
+    when 'toan_mon_co_san'  then 0.3    -- gio_l1 [TẠM]
+    when 'cat_lai'          then 0.3    -- gio_l1 [TẠM]
+    when 'bao_hanh'         then 0.3    -- gio_l1 [TẠM]
     else 1.0 end $$;
 
 -- ════════ 5a. THÀNH TÍCH THIẾT KẾ SẢN XUẤT ════════
