@@ -268,16 +268,23 @@ async function moMon(monId, maDon) {
   PANEL = { monId, ke: null, nguoi: null }
   $('mo').classList.add('hien'); $('panel').classList.add('hien')
   $('pDau').innerHTML = '<p style="color:var(--chu-mo);padding:6px 0">Đang tải…</p>'; $('pThan').innerHTML = ''
-  const [{ data: ct }, { data: vet }, { data: tem }] = await Promise.all([
+  const [{ data: ct }, { data: vet }, { data: tem }, fileRes] = await Promise.all([
     sb.rpc('xuong_chi_tiet_mon', { p_mon_id: monId }),
     sb.rpc('xuong_vet_mon', { p_mon_id: monId }),
-    maDon ? sb.rpc('xuong_tem_cua_don', { p_ma_don: maDon }) : Promise.resolve({ data: [] })
+    maDon ? sb.rpc('xuong_tem_cua_don', { p_ma_don: maDon }) : Promise.resolve({ data: [] }),
+    maDon ? sb.rpc('xuong_file_cua_don', { p_ma_don: maDon }) : Promise.resolve({ data: [] })
   ])
   const d = (ct || [])[0]
   if (!d) { $('pDau').innerHTML = '<p>Không tải được món.</p>'; return }
-  vePanel(d, vet || [], tem || [])
+  vePanel(d, vet || [], tem || [], (fileRes && fileRes.data) || [])
 }
-function vePanel(d, vet, tem) {
+const LOAI_FILE = { dxf: '▤ DXF', cutlist: '▦ Cutlist', anh_ban_ve: '🖼 Ảnh bản vẽ', khac: '📄 File' }
+async function taiFileXuong(path) {
+  const { data } = await sb.storage.from('file-san-xuat').createSignedUrl(path, 3600, { download: true })
+  if (data && data.signedUrl) window.open(data.signedUrl, '_blank'); else bao('Không tải được file', true)
+}
+function vePanel(d, vet, tem, files) {
+  files = files || []
   const ke = KE[d.trang_thai]
   PANEL.ke = ke; PANEL.nguoi = USER.vai_tro === 'tho' ? USER.id : (THO_LIST[0] && THO_LIST[0].id) || USER.id
   const conNgay = d.ngay_hen_khach ? Math.ceil((new Date(d.ngay_hen_khach) - new Date()) / 86400000) : null
@@ -314,8 +321,10 @@ function vePanel(d, vet, tem) {
     `<div class="muc"><h3>Ghi chú</h3>${(d.chi_tiet ? `<div class="ghi"><em>Của món</em>${esc(d.chi_tiet)}</div>` : '') + (d.ghi_chu_don ? `<div class="ghi"><em>Của đơn</em>${esc(d.ghi_chu_don)}</div>` : '')}${(!d.chi_tiet && !d.ghi_chu_don) ? '<p style="color:var(--chu-mo);font-size:13.5px">Không có ghi chú.</p>' : ''}</div>` +
     `<div class="muc"><h3>Ảnh · bản vẽ</h3><div class="anh">${anhArr.length ? esc(anhArr.length + ' ảnh') : 'Chưa có ảnh'}${d.file_tk ? ' · file dựng hình ' + esc(d.file_tk) : ' · chưa gắn file dựng hình'}</div></div>` +
     `<div class="muc"><h3>Tấm chi tiết${tem.length ? ' · ' + tem.length + ' tấm (cả đơn)' : ''}</h3>${Object.keys(tamGop).length ? Object.entries(tamGop).map(([k, n]) => { const [vt, kt] = k.split('|'); return `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${esc(vt.replace(/_/g, ' '))}</span><span class="kt">${esc(kt)}</span><span class="sl">×${n}</span></div>` }).join('') + (metNep ? `<p style="margin-top:10px;font-size:13px;color:var(--chu-nhat)">Nẹp dán cạnh: <b>${(metNep / 1000).toFixed(1)} m</b></p>` : '') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có tem — máy thiết kế chưa đẩy.</p>'}</div>` +
+    `<div class="muc"><h3>File từ thiết kế${files.length ? ' · ' + files.length + ' file' : ''}</h3>${files.length ? files.map(f => `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${LOAI_FILE[f.loai_file] || f.loai_file}${f.ten_goc ? ' · ' + esc(f.ten_goc) : ''}</span><span class="kt">${f.co_byte ? Math.round(f.co_byte / 1024) + ' KB' : ''}</span><button class="nut-phu" data-taixuong="${esc(f.duong_dan)}" style="width:auto;padding:5px 12px">Tải về</button></div>`).join('') + '<p style="margin-top:9px;font-size:12.5px;color:var(--chu-mo)">Nguồn: <b>thiết kế tải lên</b>. Khối "Tấm chi tiết" ở trên đến <b>từ plugin</b>.</p>' : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có file thiết kế tải lên. Tem/tấm ở trên (nếu có) đến từ plugin.</p>'}</div>` +
     `<div class="muc"><h3>Phụ kiện</h3><div class="thieu"><b>Chưa có dữ liệu</b>Plugin tính được bản lề, ray, ben hơi nhưng hiện chỉ đẩy số tổng (12 driver), không đẩy chi tiết từng loại. Tổ Lắp ráp vẫn phải tra bản vẽ.</div></div>` +
     `<div class="muc"><h3>Đã qua tay ai</h3>${vet.length ? vet.map(v => `<div class="vet"><span class="luc">${dmyhm(v.luc)}</span><span class="noi">${v.nguoi_ten ? '<b>' + esc(v.nguoi_ten) + '</b> ' : ''}<span>${v.tu ? 'xong ' + esc(BUOC[v.tu] || v.tu).toLowerCase() + ' → ' : ''}${esc(BUOC[v.den] || v.den).toLowerCase()}</span></span></div>`).join('') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có vết đổi bước.</p>'}</div>`
+  $('pThan').querySelectorAll('[data-taixuong]').forEach(b => b.onclick = () => taiFileXuong(b.dataset.taixuong))
 }
 async function xongBuoc() {
   if (!PANEL.ke) return

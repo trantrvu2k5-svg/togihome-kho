@@ -10574,7 +10574,7 @@ function ThietLap({
     var nut = function (txt, on, mau, vien) { return eC("button", { onClick: on, style: { fontSize: 13, fontWeight: 500, padding: "8px 14px", borderRadius: 7, border: vien ? "1px solid " + mau : "none", background: vien ? "#fff" : mau, color: vien ? mau : "#fff", cursor: "pointer" } }, txt); };
     var dau = eC("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
       eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em" } }, "BẢN THIẾT KẾ"),
-      laTK && nut("+ Gửi bản mới", function () { setGui(true); }, "#A82C27"));
+      laTK ? eC("span", { style: { fontSize: 11.5, color: "var(--mut)" } }, "Gửi bản ở app Thiết kế") : null);
     var body;
     if (bans === null) body = eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Đang tải…");
     else if (!bans.length) body = eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Chưa có bản thiết kế nào cho đơn này.");

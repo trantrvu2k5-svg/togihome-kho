@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Togihome · Thiết kế</title>
+<!-- App THIẾT KẾ — bám mẫu CEO (app_thiet_ke_day_du.html + thanh_tich_hai_vai.html). 3 màn: Việc của tôi ·
+     Bảng công việc (kanban 5 cột) · Giờ & chi phí (+ 2 bảng thành tích tách vai). Logic ở /src/thietke.js.
+     Hai vai: thiet_ke = THIẾT KẾ SẢN XUẤT · tk_ban_hang = THIẾT KẾ BÁN HÀNG. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --do:#A82C27; --do-sang:#C4362F; --do-nhat:#FDECEA;
+  --nen:#EFF1F5; --the:#FFFFFF; --vien:#E3E6EC;
+  --chu:#1A2233; --chu-nhat:#6B7280; --chu-mo:#9CA3AF;
+  --xong:#15805F; --xong-nhat:#E7EFEA;
+  --cho:#C77C15; --cho-nhat:#FDF3E3;
+  --tim:#6155BC; --tim-nhat:#EFEDFB; --tre:#C0392B;
+  --bo:12px; --bo-nho:7px; --rong-max:1560px; --thanh:212px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--nen);color:var(--chu);font-size:15px;line-height:1.5}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:-.02em}
+button,select,input{cursor:pointer;border:none;background:none;font-family:inherit;font-size:inherit;color:inherit}
+input{cursor:text;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:8px 11px;background:var(--the)}
+select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px;background:var(--the);font-size:13.5px}
+:focus-visible{outline:2px solid var(--do-sang);outline-offset:2px}
+
+.khung{display:flex;min-height:100vh}
+.thanh{width:var(--thanh);flex-shrink:0;background:var(--do);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.thanh-ten{padding:20px 18px 16px;color:#fff;font-weight:700;font-size:17px}
+.thanh-ten span{display:block;font-size:12px;font-weight:400;opacity:.72;margin-top:2px}
+.thanh-muc{display:flex;align-items:center;gap:11px;padding:11px 18px;color:rgba(255,255,255,.82);font-size:14.5px;border-left:3px solid transparent;width:100%;text-align:left}
+.thanh-muc:hover{color:#fff;background:rgba(255,255,255,.07)}
+.thanh-muc.chon{color:#fff;background:rgba(0,0,0,.16);border-left-color:#fff;font-weight:600}
+.thanh-muc i{font-style:normal;font-size:17px;width:20px;text-align:center}
+.thanh-duoi{margin-top:auto;padding:16px 18px;border-top:1px solid rgba(255,255,255,.14)}
+.thanh-duoi p{color:#fff;font-size:13.5px;font-weight:500}
+.thanh-duoi small{color:rgba(255,255,255,.66);font-size:12px}
+.thanh-duoi button{color:rgba(255,255,255,.9);font-size:12.5px;text-decoration:underline;margin-top:6px}
+
+.than{flex:1;min-width:0;padding:24px 28px 40px}
+.trong{max-width:var(--rong-max);margin:0 auto}
+.dau{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.dau h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.dau p{font-size:13.5px;color:var(--chu-nhat);margin-top:3px}
+.vien-tron{font-size:13px;color:var(--chu-nhat);background:var(--the);border:1px solid var(--vien);padding:7px 14px;border-radius:20px}
+.vien-tron b{font-family:'JetBrains Mono',monospace;color:var(--chu)}
+.vien-tron.day{background:var(--cho-nhat);border-color:#F0DFB0;color:#7A4A05}
+
+.loc{display:flex;gap:9px;align-items:center;margin-bottom:15px;flex-wrap:wrap}
+.loc .phai{margin-left:auto;font-size:13px;color:var(--chu-nhat)}
+
+.the{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);overflow:hidden;margin-bottom:20px}
+.the-dau{padding:13px 18px;border-bottom:1px solid var(--vien);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.the-dau h2{font-size:15.5px;font-weight:600}
+.the-dau em{font-style:normal;font-size:13px;color:var(--chu-mo)}
+
+.nhan{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.n-bh{background:var(--cho-nhat);color:#7A4A05}
+.n-xuong{background:var(--xong-nhat);color:var(--xong)}
+.n-mau{background:var(--tim-nhat);color:var(--tim)}
+.n-tre{background:var(--do-nhat);color:#8E2A22}
+
+/* ===== KANBAN ===== */
+.bang{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.cot-dau{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#E4E8EE;border-radius:var(--bo) var(--bo) 0 0}
+.cot-dau b{font-size:13px;font-weight:600}
+.cot-dau i{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chu-nhat)}
+.cot-dau.day{background:#FBEBD2}
+.cot-dau.day b,.cot-dau.day i{color:#7A4A05}
+.cot-than{background:rgba(255,255,255,.55);border:1px solid var(--vien);border-top:none;border-radius:0 0 var(--bo) var(--bo);padding:8px;min-height:280px;display:flex;flex-direction:column;gap:8px}
+.the-viec{background:var(--the);border:1px solid var(--vien);border-left:3px solid var(--chu-mo);border-radius:var(--bo-nho);padding:10px;text-align:left;width:100%;display:block}
+.the-viec.bh{border-left-color:var(--cho)}
+.the-viec.xuong{border-left-color:var(--xong)}
+.the-viec.mau{border-left-color:var(--tim)}
+.the-viec.tre{border-left-color:var(--tre)}
+.the-viec .ma{font-size:12px;display:block;margin-bottom:2px}
+.the-viec .ten{font-size:12.5px;color:var(--chu);margin-bottom:6px;line-height:1.35}
+.the-viec .loai{font-size:11px;color:var(--chu-nhat);margin-bottom:7px}
+.gio-hang{display:flex;align-items:center;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11.5px;padding-top:6px;border-top:1px dashed var(--vien)}
+.gio-hang .uoc{color:var(--chu-mo)}
+.gio-hang .thuc{color:var(--chu);font-weight:700}
+.gio-hang .thuc.vuot{color:var(--tre)}
+.the-viec .ai{font-size:11px;color:var(--chu-nhat);margin-top:5px}
+.vong-sua{display:inline-block;font-size:10.5px;font-weight:600;background:var(--do-nhat);color:#8E2A22;padding:2px 7px;border-radius:20px;margin-top:5px}
+.trong-cot{font-size:12px;color:var(--chu-mo);text-align:center;padding:14px 4px}
+
+/* ===== VIỆC CỦA TÔI ===== */
+.don{display:flex;gap:15px;padding:14px 18px;border-bottom:1px solid var(--vien);align-items:center}
+.don:last-child{border-bottom:none}
+.don:hover{background:#FAFBFC}
+.stt{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:var(--chu-mo);width:20px;flex-shrink:0;text-align:right}
+.don-than{flex:1;min-width:0}
+.don-ten{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:3px}
+.don-ten .mono{font-size:13.5px}
+.don-ten b{font-weight:500;font-size:15px}
+.don-phu{font-size:12.5px;color:var(--chu-nhat)}
+.don-ly{font-size:12.5px;display:flex;align-items:center;gap:8px;margin-top:4px}
+.don-ly::before{content:"";width:3px;height:12px;border-radius:2px;background:currentColor;flex-shrink:0}
+.ly-tre{color:var(--tre)} .ly-gap{color:var(--cho)} .ly-thuong{color:var(--chu-nhat)}
+.o-gio{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.o-gio input{width:62px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;padding:7px 9px}
+.o-gio span{font-size:12.5px;color:var(--chu-nhat);white-space:nowrap}
+.nut-nho{font-size:13px;font-weight:500;padding:8px 14px;border-radius:var(--bo-nho);border:1px solid var(--do);color:var(--do);background:var(--the);white-space:nowrap;flex-shrink:0}
+.nut-nho:hover{background:var(--do);color:#fff}
+.nut-nho:disabled{opacity:.5;cursor:default;border-color:var(--vien);color:var(--chu-mo);background:var(--the)}
+.nut-xam{border-color:var(--vien);color:var(--chu)}
+.nut-xam:hover{background:var(--nen);color:var(--chu);border-color:var(--chu-mo)}
+
+/* ===== BÁO CÁO ===== */
+.o-luoi{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.o-so{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);padding:15px 17px}
+.o-so.do{background:var(--do-nhat);border-color:#F3C9C4}
+.o-so p{font-size:13px;color:var(--chu-nhat);margin-bottom:5px}
+.o-so.do p{color:#9B4038}
+.o-so b{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.o-so.do b{color:#7C1D18}
+.o-so small{display:block;font-size:12.5px;color:var(--chu-mo);margin-top:6px;line-height:1.5}
+
+.so-sanh{padding:14px 18px;border-bottom:1px solid var(--vien)}
+.so-sanh:last-child{border-bottom:none}
+.ss-dau{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:9px}
+.ss-dau b{font-size:14.5px;font-weight:500}
+.ss-dau .lech{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+.lech.xau{color:var(--tre)} .lech.tot{color:var(--xong)}
+.thanh-doi{display:flex;flex-direction:column;gap:5px}
+.thanh-doi .hang{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.thanh-doi .nhan-h{width:52px;color:var(--chu-nhat);flex-shrink:0}
+.thanh-doi .rang{flex:1;height:16px;background:var(--nen);border-radius:4px;overflow:hidden}
+.thanh-doi .rang div{height:100%;border-radius:4px}
+.thanh-doi .so{width:74px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12.5px;flex-shrink:0}
+.ss-can-cu{font-size:12px;color:var(--chu-mo);margin-top:7px}
+
+.chia{display:flex;height:24px;border-radius:5px;overflow:hidden;margin-bottom:10px}
+.chia div{height:100%}
+.chu-giai{display:flex;flex-wrap:wrap;gap:7px 18px;font-size:12.5px}
+.chu-giai span{display:flex;align-items:center;gap:6px;color:var(--chu-nhat)}
+.chu-giai i{width:10px;height:10px;border-radius:2px;display:inline-block;font-style:normal}
+.chu-giai b{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chu)}
+
+.nhac{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:12px 14px;font-size:13px;color:#6B4A08;line-height:1.6;margin-top:14px}
+.nhac b{display:block;margin-bottom:2px}
+.nhac.do{background:var(--do-nhat);border-color:#F3C9C4;color:#7C1D18}
+.nhac.xanh{background:var(--xong-nhat);border-color:#B8DCCC;color:#0F5C45}
+
+/* ===== THÀNH TÍCH (thanh_tich_hai_vai) ===== */
+.vai-lon{font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;white-space:nowrap;letter-spacing:.03em}
+.v-bh{background:var(--cho-nhat);color:#7A4A05}
+.v-sx{background:var(--xong-nhat);color:var(--xong)}
+.tt-bang{width:100%;border-collapse:collapse}
+.tt-bang th{text-align:right;font-size:11.5px;font-weight:600;color:var(--chu-mo);padding:10px 13px;border-bottom:1px solid var(--vien);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+.tt-bang th:first-child,.tt-bang td:first-child{text-align:left;padding-left:18px}
+.tt-bang th:last-child,.tt-bang td:last-child{padding-right:18px}
+.tt-bang td{padding:13px;border-bottom:1px solid var(--vien);text-align:right;font-size:14px}
+.tt-bang tr:last-child td{border-bottom:none}
+.tt-bang tbody tr:hover{background:#FAFBFC}
+.ten-nguoi b{font-weight:500;font-size:15px}
+.so-chinh{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px}
+.phu-nho{display:block;font-size:11.5px;color:var(--chu-mo);font-weight:400;font-family:'Be Vietnam Pro',sans-serif;margin-top:2px}
+.tot{color:var(--xong)} .xau{color:var(--tre)} .vua{color:var(--cho)}
+.nen-xam{color:var(--chu-mo);font-weight:400;font-family:'Be Vietnam Pro',sans-serif;font-size:13px}
+.kha-thi{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.03em;margin-left:7px;vertical-align:1px}
+.kt-auto{background:var(--xong-nhat);color:var(--xong)}
+.kt-bam{background:var(--cho-nhat);color:#7A4A05}
+.kt-nhap{background:var(--do-nhat);color:#8E2A22}
+.giai-thich{padding:15px 18px;border-top:1px solid var(--vien);background:#FAFBFC}
+.giai-thich h3{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--chu-mo);margin-bottom:11px}
+.ct{display:flex;gap:12px;padding:9px 0;border-bottom:1px dashed var(--vien);font-size:13.5px;align-items:flex-start}
+.ct:last-child{border-bottom:none}
+.ct .nhan-ct{width:150px;flex-shrink:0;font-weight:500}
+.ct .noi{flex:1;color:var(--chu-nhat);line-height:1.55}
+.hop-kt{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;padding:16px 18px}
+.o-kt{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:14px 15px}
+.o-kt.auto{background:var(--xong-nhat);border-color:#B8DCCC}
+.o-kt.bam{background:var(--cho-nhat);border-color:#F0DFB0}
+.o-kt.nhap{background:var(--do-nhat);border-color:#F3C9C4}
+.o-kt b{display:block;font-size:13.5px;margin-bottom:5px}
+.o-kt.auto b{color:#0F5C45} .o-kt.bam b{color:#7A4A05} .o-kt.nhap b{color:#7C1D18}
+.o-kt p{font-size:12.5px;line-height:1.6;color:var(--chu-nhat)}
+.o-kt ul{list-style:none;font-size:12.5px;line-height:1.75;color:var(--chu-nhat);margin-top:7px}
+.o-kt li::before{content:"· "}
+.khong-do{background:#F5F6F8;border:1px dashed #C9CFD8;border-radius:var(--bo-nho);padding:14px 16px;margin:16px 18px}
+.khong-do b{display:block;font-size:13.5px;margin-bottom:7px}
+.khong-do ul{list-style:none;font-size:13px;color:var(--chu-nhat);line-height:1.85}
+.khong-do li::before{content:"—  ";color:var(--chu-mo)}
+.giai-thich .the-dau{padding:0 0 4px;border:none}
+
+.trong-rong{padding:44px 24px;text-align:center}
+.trong-rong h3{font-size:16px;font-weight:600;margin-bottom:7px}
+.trong-rong p{font-size:14px;color:var(--chu-nhat);max-width:430px;margin:0 auto;line-height:1.65}
+.bao{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--chu);color:#fff;padding:11px 20px;border-radius:22px;font-size:14px;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .22s;z-index:60;max-width:90%;text-align:center}
+.bao.hien{opacity:1}.bao.loi{background:var(--do)}
+.thanh-day{display:none}
+
+@media (max-width:1100px){ .bang{grid-template-columns:repeat(5,minmax(190px,1fr));overflow-x:auto;padding-bottom:8px} }
+@media (max-width:900px){ .tt-bang{display:block;overflow-x:auto;white-space:nowrap} }
+@media (max-width:819px){
+  .thanh{display:none}
+  .than{padding:18px 15px 88px}
+  .don{flex-wrap:wrap}
+  .thanh-day{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--the);border-top:1px solid var(--vien);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .thanh-day button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;font-size:11.5px;color:var(--chu-nhat)}
+  .thanh-day button i{font-style:normal;font-size:19px}
+  .thanh-day button.chon{color:var(--do);font-weight:600}
+}
+/* ===== PANEL chi tiết đơn (trượt phải) ===== */
+.mo{position:fixed;inset:0;background:rgba(15,20,30,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.mo.hien{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:500px;max-width:100%;background:var(--the);z-index:40;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(15,20,30,.13)}
+.panel.hien{transform:translateX(0)}
+.p-dau{padding:18px 22px 15px;border-bottom:1px solid var(--vien);flex-shrink:0}
+.p-dau .hang{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.p-dau .ma{font-size:14px;color:var(--chu-nhat)}
+.p-dau h2{font-size:20px;font-weight:700;margin:2px 0 8px}
+.p-dau .dong{display:flex;gap:8px;flex-wrap:wrap}
+.vien-nhan{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--nen);color:var(--chu-nhat)}
+.dong-x{font-size:24px;line-height:1;color:var(--chu-mo);padding:2px 6px;cursor:pointer;background:none;border:none}
+.p-than{flex:1;overflow-y:auto;padding:0 22px 22px}
+.muc{padding:16px 0;border-bottom:1px solid var(--vien)}
+.muc:last-child{border-bottom:none}
+.muc h3{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--chu-mo);margin-bottom:11px}
+.o-cap{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}
+.o-cap .o{display:flex;flex-direction:column;gap:2px}
+.o-cap .o span{font-size:12px;color:var(--chu-mo)}
+.o-cap .o b{font-size:14.5px;font-weight:500}
+.mon-p{padding:10px 0;border-bottom:1px dashed var(--vien);font-size:13.5px}
+.mon-p:last-child{border-bottom:none}
+.mon-p b{font-weight:600}
+.mon-p .kt{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--chu-nhat)}
+.mon-p .phu{font-size:12.5px;color:var(--chu-nhat);margin-top:2px}
+.vet{display:flex;gap:11px;padding:8px 0;font-size:13.5px}
+.vet .luc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chu-mo);white-space:nowrap;padding-top:1px;width:96px;flex-shrink:0}
+.ghitxt{background:#FFFDF4;border:1px solid #EBE3C8;border-radius:var(--bo-nho);padding:11px 13px;font-size:13.5px;line-height:1.55}
+.p-nut{padding:13px 22px;border-top:1px solid var(--vien);display:flex;gap:9px;flex-shrink:0;flex-wrap:wrap}
+.nut-chinh{background:var(--do);color:#fff;font-weight:600;padding:11px 18px;border-radius:var(--bo-nho);font-size:14.5px}
+.nut-chinh:hover{background:var(--do-sang)} .nut-chinh:disabled{opacity:.5;cursor:default}
+.nut-vien{border:1px solid var(--vien);background:var(--the);padding:10px 16px;border-radius:var(--bo-nho);font-size:14px}
+.trong-rong.nho{padding:20px}
+/* ===== MODAL (Gửi bản · Giao · Chuyển) ===== */
+.hopm{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);background:var(--the);border-radius:var(--bo);width:460px;max-width:calc(100% - 32px);max-height:88vh;overflow-y:auto;z-index:45;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;box-shadow:0 14px 44px rgba(15,20,30,.25)}
+.hopm.hien{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.hopm-dau{padding:16px 20px;border-bottom:1px solid var(--vien);display:flex;justify-content:space-between;align-items:center}
+.hopm-dau h3{font-size:16px;font-weight:600}
+.hopm-than{padding:18px 20px}
+.hopm-than label{display:block;font-size:13px;font-weight:500;color:var(--chu-nhat);margin:12px 0 5px}
+.hopm-than label:first-child{margin-top:0}
+.hopm-than textarea,.hopm-than select{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:9px 11px;font-family:inherit;font-size:14px;background:var(--the)}
+.hopm-than textarea{resize:vertical;min-height:64px}
+.tha-anh{border:2px dashed var(--vien);border-radius:var(--bo-nho);padding:20px;text-align:center;color:var(--chu-nhat);font-size:13.5px;cursor:pointer}
+.tha-anh.keo{border-color:var(--do);background:var(--do-nhat)}
+.anh-luoi{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+.anh-luoi .o-anh{position:relative}
+.anh-luoi img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid var(--vien)}
+.anh-luoi .xoa{position:absolute;top:-6px;right:-6px;background:var(--do);color:#fff;border-radius:50%;width:20px;height:20px;font-size:13px;line-height:20px;text-align:center;border:none;cursor:pointer}
+.hopm-nut{padding:14px 20px;border-top:1px solid var(--vien);display:flex;gap:9px;justify-content:flex-end}
+@media (max-width:819px){ .panel{width:100%} }
+
+/* Đăng nhập */
+#cong{max-width:360px;margin:10vh auto;padding:0 22px;text-align:center}
+#cong .logo{font-size:38px;margin-bottom:6px}
+#cong h1{font-size:22px;margin:0 0 4px}
+#cong .sub{color:var(--chu-nhat);font-size:14px;margin-bottom:18px}
+#cong input{margin:7px 0;text-align:left;width:100%}
+#cong button{width:100%;padding:13px;background:var(--do);color:#fff;border-radius:var(--bo-nho);font-size:16px;font-weight:600;margin-top:6px}
+#cong .err{color:var(--do);font-size:13.5px;min-height:20px;margin-top:8px}
+#boot{padding:60px 30px;color:var(--chu-nhat);text-align:center}
+</style>
+</head>
+<body>
+  <div id="cong" style="display:none"></div>
+  <div id="boot">Đang mở ứng dụng thiết kế…</div>
+
+  <div id="app" class="khung" style="display:none">
+    <nav class="thanh">
+      <div class="thanh-ten">Togihome Thiết kế<span id="hdVaiPhu">Phần của thiết kế</span></div>
+      <button class="thanh-muc chon" id="n-viec" data-man="viec"><i>📐</i>Việc của tôi</button>
+      <button class="thanh-muc" id="n-bang" data-man="bang"><i>📋</i>Bảng công việc</button>
+      <button class="thanh-muc" id="n-gio" data-man="gio"><i>📊</i>Giờ &amp; chi phí</button>
+      <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
+    </nav>
+
+    <main class="than"><div class="trong">
+
+      <!-- ===== 1 · VIỆC CỦA TÔI ===== -->
+      <section id="s-viec">
+        <div class="dau">
+          <div><h1>Việc của tôi</h1><p>Nhận việc ở đây. Mở SketchUp là thấy đúng đơn của mình.</p></div>
+          <span class="vien-tron" id="dangCam">Đang cầm <b>—</b></span>
+        </div>
+        <div class="the">
+          <div class="the-dau"><h2>Đang làm</h2><em>ghi giờ ngay khi xong buổi, đừng để cuối tuần nhớ lại</em></div>
+          <div id="dsDangLam"><div class="trong-rong"><p>Đang tải…</p></div></div>
+        </div>
+        <div class="the">
+          <div class="the-dau"><h2>Chờ nhận</h2><em id="choDem">xếp sẵn theo mức cần làm trước</em></div>
+          <div id="dsChoNhan"><div class="trong-rong"><p>Đang tải…</p></div></div>
+        </div>
+      </section>
+
+      <!-- ===== 2 · BẢNG CÔNG VIỆC ===== -->
+      <section id="s-bang" style="display:none">
+        <div class="dau">
+          <div><h1>Bảng công việc</h1><p>Cả đội đang ở đâu. Bước chuyển tự động theo sự kiện — không ai kéo thả.</p></div>
+          <span class="vien-tron" id="bangDem">—</span>
+        </div>
+        <div class="loc">
+          <select id="locVai"><option value="">Xem cả hai nhóm</option><option value="tk_ban_hang">Thiết kế bán hàng</option><option value="thiet_ke">Thiết kế sản xuất</option></select>
+          <select id="locNguoi"><option value="">Mọi người</option></select>
+          <select id="locLoai"><option value="">Mọi loại đơn</option></select>
+          <span class="phai">Viền thẻ: cam = bán hàng · xanh = sản xuất · tím = mẫu mới · đỏ = trễ</span>
+        </div>
+        <div class="bang" id="kbBoard"></div>
+        <div class="nhac" id="kbNhac" style="display:none"></div>
+      </section>
+
+      <!-- ===== 3 · GIỜ & CHI PHÍ ===== -->
+      <section id="s-gio" style="display:none">
+        <div class="dau">
+          <div><h1>Giờ &amp; chi phí thiết kế</h1><p>Giờ ước dùng để tính giá vốn. Giờ thực nói ước đúng hay sai.</p></div>
+          <select id="chonKy"></select>
+        </div>
+
+        <div class="o-luoi" id="oSo"></div>
+
+        <div class="the">
+          <div class="the-dau"><h2>Ước so với thực — theo loại đơn</h2><em>số ước đang dùng để tính giá vốn theo cấp đơn</em></div>
+          <div id="uocThuc"><div class="trong-rong"><p>Đang tải…</p></div></div>
+        </div>
+
+        <div class="the">
+          <div class="the-dau"><h2>Giờ đi đâu</h2><em id="gioDiDauTong"></em></div>
+          <div id="gioDiDau" style="padding:16px 18px"></div>
+        </div>
+
+        <!-- THÀNH TÍCH — hai vai tách -->
+        <div class="the">
+          <div class="the-dau"><div><h2>Thiết kế sản xuất</h2><em>ra file cắt đúng, xưởng cắt được ngay — ba trong bốn chỉ số tự động</em></div><span class="vai-lon v-sx">Sản xuất</span></div>
+          <div id="ttXuongWrap">
+            <table class="tt-bang"><thead><tr>
+              <th>Người</th>
+              <th>Việc xong<br>chuẩn hoá <span class="kha-thi kt-auto">TỰ ĐỘNG</span></th>
+              <th>File đúng<br>lần đầu <span class="kha-thi kt-auto">TỰ ĐỘNG</span></th>
+              <th>Lỗi xưởng<br>bắt được <span class="kha-thi kt-bam">1 CÚ BẤM</span></th>
+              <th>Ước lệch<br>trung bình <span class="kha-thi kt-nhap">GHI GIỜ</span></th>
+            </tr></thead><tbody id="ttXuong"></tbody></table>
+          </div>
+        </div>
+
+        <div class="the">
+          <div class="the-dau"><div><h2>Thiết kế bán hàng</h2><em>ra phương án 3D nhanh và đúng ý để khách gật — khó đo hơn</em></div><span class="vai-lon v-bh">Bán hàng</span></div>
+          <div id="ttBanHangWrap">
+            <table class="tt-bang"><thead><tr>
+              <th>Người</th>
+              <th>Ra phương án<br>đầu tiên <span class="kha-thi kt-auto">TỰ ĐỘNG</span></th>
+              <th>Sale trả về vì<br>hiểu sai <span class="kha-thi kt-bam">1 CÚ BẤM</span></th>
+              <th>Việc xong<br>chuẩn hoá <span class="kha-thi kt-auto">TỰ ĐỘNG</span></th>
+              <th>Tỷ lệ khách chốt<br><span class="nen-xam">chỉ để nhìn</span></th>
+            </tr></thead><tbody id="ttBanHang"></tbody></table>
+          </div>
+        </div>
+
+        <!-- Đo được tới đâu (giữ nguyên như mẫu) -->
+        <div class="the">
+          <div class="the-dau"><div><h2>Đo được tới đâu</h2><em>chỉ số nào cũng đo được thì vô nghĩa — cái quan trọng là ai phải làm gì thêm</em></div></div>
+          <div class="hop-kt">
+            <div class="o-kt auto"><b>Tự động — không ai làm gì thêm</b><ul>
+              <li>Việc xong chuẩn hoá</li><li>File đúng lần đầu (phiên bản tem)</li>
+              <li>Ra phương án đầu tiên</li><li>Tỷ lệ khách chốt</li></ul>
+              <p style="margin-top:9px">Chạy được ngay khi có đơn thật. Không chờ ai.</p></div>
+            <div class="o-kt bam"><b>Một cú bấm, trong việc họ đang làm sẵn</b><ul>
+              <li>Sale bấm "Trả về — chưa đúng yêu cầu" hoặc "Khách đổi ý"</li>
+              <li>Thợ chọn "lỗi do file" khi ghi lỗi</li></ul>
+              <p style="margin-top:9px">Hai nút, đặt đúng chỗ người ta đang thao tác. Không có màn nhập riêng.</p></div>
+            <div class="o-kt nhap"><b>Phải nhập tay — dễ hỏng nhất</b><ul><li>Giờ thực của thiết kế</li></ul>
+              <p style="margin-top:9px">Nếu tháng đầu không ai ghi đủ thì bỏ chỉ số "ước lệch", ba chỉ số kia vẫn chạy. Đừng để một ô nhập kéo sập cả bảng.</p></div>
+          </div>
+          <div class="nhac xanh"><b>Nguyên tắc: không ai phải phân loại lý do sửa</b>
+            Để thiết kế tự chọn thì ai cũng chọn "khách đổi ý". Thay bằng <b>xem ai trả về</b>: sale trả về là chuyện khách/yêu cầu; quản đốc trả về là file sai. Hai người khác nhau, không ai tự chấm mình.</div>
+        </div>
+
+        <!-- Cố ý không đo (giữ nguyên như mẫu) -->
+        <div class="the">
+          <div class="the-dau"><div><h2>Cố ý không đo</h2><em>đo được cả, nhưng đo vào là hỏng hành vi</em></div></div>
+          <div class="khong-do"><ul>
+            <li><b style="display:inline">Số đơn xong mỗi tháng.</b> Đếm đầu việc thì ai cũng chọn đơn lẻ có mẫu sẵn, đơn full căn không ai nhận.</li>
+            <li><b style="display:inline">Số giờ ghi được.</b> Ghi nhiều thành chăm chỉ thì người ta ghi khống, và giờ mất giá trị cho việc tính giá vốn.</li>
+            <li><b style="display:inline">Tỷ lệ chốt dùng để xếp hạng.</b> Hiện ra thì được, xếp hạng thì không — thiết kế không quyết giá, không chọn khách.</li>
+            <li><b style="display:inline">Điểm gộp một con số.</b> Gộp thì không còn biết ai nhanh mà ẩu, ai chậm mà chắc.</li>
+            <li><b style="display:inline">So thẳng người bán hàng với người xưởng.</b> Hai việc khác nhau, hai bảng riêng, không xếp chung.</li>
+          </ul></div>
+        </div>
+      </section>
+
+    </div></main>
+  </div>
+
+  <nav class="thanh-day" id="navDay" style="display:none">
+    <button class="chon" id="d-viec" data-man="viec"><i>📐</i>Việc</button>
+    <button id="d-bang" data-man="bang"><i>📋</i>Bảng</button>
+    <button id="d-gio" data-man="gio"><i>📊</i>Giờ</button>
+    <button id="btOutM"><i>🚪</i>Thoát</button>
+  </nav>
+
+  <!-- Panel chi tiết đơn -->
+  <div class="mo" id="mo"></div>
+  <aside class="panel" id="panel">
+    <div class="p-dau" id="pDau"></div>
+    <div class="p-than" id="pThan"></div>
+    <div class="p-nut" id="pNut" style="display:none"></div>
+  </aside>
+
+  <!-- Modal (Gửi bản 3D · Giao việc · Chuyển việc) -->
+  <div class="mo" id="moM"></div>
+  <div class="hopm" id="hopM">
+    <div class="hopm-dau"><h3 id="hopMTen"></h3><button class="dong-x" id="hopMX">×</button></div>
+    <div class="hopm-than" id="hopMThan"></div>
+    <div class="hopm-nut" id="hopMNut"></div>
+  </div>
+
+  <div class="bao" id="bao"></div>
+  <script type="module" src="/src/thietke.js"></script>
+</body>
+</html>

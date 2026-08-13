@@ -20,6 +20,7 @@ async function asK(uid,q,a=[]){ await c.query('set local role authenticated')
 const q1 = async (s,a=[]) => (await c.query(s,a)).rows[0]
 try{
   await c.query('begin')
+  await c.query('drop function if exists kho.gui_ban_thiet_ke(text,text,jsonb,jsonb)').catch(()=>{})
   await c.query(sql)
   await c.query("set local role postgres").catch(()=>{})
 

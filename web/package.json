@@ -10,7 +10,8 @@
     "build:sale": "vite build --config vite.config.sale.js",
     "build:taichinh": "vite build --config vite.config.taichinh.js",
     "build:xuong": "vite build --config vite.config.xuong.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:thietke": "vite build --config vite.config.thietke.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

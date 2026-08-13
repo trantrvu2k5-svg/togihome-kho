@@ -18,6 +18,7 @@ async function asK(uid,q,a=[]){ await c.query('set local role authenticated')
   await c.query('reset role'); await c.query("select set_config('request.jwt.claims','',true)"); return{r,e} }
 try{
   await c.query('begin')
+  await c.query('drop function if exists kho.gui_ban_thiet_ke(text,text,jsonb,jsonb)').catch(()=>{})
   await c.query(sql)
   await c.query("set local role postgres").catch(()=>{})
 

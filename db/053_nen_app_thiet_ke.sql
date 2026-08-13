@@ -50,9 +50,11 @@ begin
     where ma_ns_thiet_ke = v_ns and coalesce(buoc_thiet_ke,'') <> 'xong_file';
   if v_dang >= 5 then
     raise exception 'nhan_viec_thiet_ke: bạn đang cầm % đơn (tối đa 5) — xong bớt rồi nhận thêm', v_dang; end if;
+  -- buoc_thiet_ke là bộ đếm thiết kế THẬT; trang_thai đơn chỉ nhích khi ĐANG ở nấc hợp lệ 'moi_len_don'
+  --   (máy trạng thái đơn cấm nhảy bao_gia→nhan_thiet_ke; đơn báo giá vẫn nhận việc được, chỉ không đổi trang_thai).
   update kho.don_hang
      set ma_ns_thiet_ke = v_ns, luc_nhan_thiet_ke = now(), buoc_thiet_ke = 'dang_dung',
-         trang_thai = case when trang_thai in ('moi_len_don','bao_gia','bao_gia_treo') then 'nhan_thiet_ke' else trang_thai end
+         trang_thai = case when trang_thai = 'moi_len_don' then 'nhan_thiet_ke' else trang_thai end
    where ma_don = p_ma_don;
   return jsonb_build_object('ok', true, 'ma_don', p_ma_don, 'buoc', 'dang_dung');
 end $$;
