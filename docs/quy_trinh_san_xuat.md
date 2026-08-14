@@ -11,6 +11,17 @@
 ## 12 hoạt động = `don_gia_baseline(hoat_dong)` — KHÔNG đẻ bảng thứ hai
 `cam · canh · cat · cup · dan · giuong_lap · goi · lot · pu · ray · son_canh · thung`. (Phủ sóng + tổ + đơn giá: báo cáo `phu_song_hoat_dong.md`.)
 
+Chi tiết một số hoạt động (dòng đã có sẵn trong `don_gia_baseline`, KHÔNG đụng dữ liệu):
+- **`son_canh`** — tổ **Sơn PU** · driver = **mét cạnh sơn** · nguồn số = **gõ tay** (hoặc **cutlist** nếu có). Là hoạt động thật, tách khỏi `pu` (sơn mặt) khi đo theo mét cạnh.
+
+### Nguồn số đơn vị của mỗi hoạt động — BA nguồn
+Mỗi con số (số đơn vị để nhân đơn giá) phải ghi rõ nguồn:
+- `cutlist` — plugin sinh ra, tin cao.
+- `go_tay` — người nhập, tin trung bình.
+- `uoc` — áng chừng, chờ quét thật chỉnh lại.
+
+**Cutlist KHÔNG phải điều kiện bắt buộc.** Món dựng tự do + hàng gỗ tự nhiên KHÔNG có cutlist — đó là bình thường, không phải lỗi. Hệ thống **chỉ chặn khi KHÔNG CÓ nguồn nào cả** (thiếu cả ba), KHÔNG chặn vì thiếu riêng cutlist. (QD-06 — chưa code, lô A1b.)
+
 ## RPC
 - `quy_trinh_cua_loi(ma_loi)` → `{chua_co_quy_trinh, buoc:[...]}` (fail-đóng: luôn kèm cờ).
 - `kiem_quy_trinh(ma_loi)` → mảng lỗi (rỗng = sạch): buoc_truoc trỏ thu_tu không tồn tại · chu trình · không với tới từ khởi đầu · không có bước khởi đầu.
