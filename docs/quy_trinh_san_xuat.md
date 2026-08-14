@@ -1,43 +1,64 @@
 # Quy trình sản xuất (routing) — tham chiếu
 
 > Nguyên tắc ranh giới hoạt động: xem `CLAUDE.md` mục "Quy trình sản xuất".
-> DB: `db/061_quy_trinh_san_xuat.sql` (v-kho-55). Test: `web/ops/test_061.mjs`.
+> DB: `db/061` (nền) + `db/062` (dùng chung + giờ 2 phần + tự chạy + 3 nguồn). Test: `test_061` · `test_062`.
 
-## Bảng
-- **`quy_trinh_buoc`** — routing theo LÕI, đồ thị có nhánh (nội bộ, không đẩy web):
-  `ma_loi` FK→san_pham_loi · `thu_tu` (bội 100) · `buoc_truoc int[]` (rỗng = khởi đầu) · `nhanh` · `hoat_dong` FK→`don_gia_baseline` · `to_phu_trach` · `gio_chuan` [TẠM] · `la_tam` · `ghi_chu` · unique(ma_loi, thu_tu).
-- **`tram`** — trạm QR: `ma_tram` PK · `ten` · `hoat_dong` FK · `dang_dung`. Một trạm một hoạt động; một hoạt động nhiều trạm.
+## Kiến trúc — quy trình DÙNG CHUNG nhiều lõi
+Xưởng đẻ hàng trăm lõi/năm nhưng chỉ ~10–25 quy trình thật. Tủ áo 1m8 / 2m4 / đóng riêng một căn = CÙNG quy trình, chỉ khác **số đơn vị** của món.
+- **`quy_trinh`** — `ma_quy_trinh` PK · `ten` · `mo_ta` · `dang_dung`.
+- **`quy_trinh_buoc`** — thuộc QUY TRÌNH (không phải lõi): `ma_quy_trinh` FK · `thu_tu` (bội 100) · `buoc_truoc int[]` (rỗng = khởi đầu, ĐỒ THỊ có nhánh — đọc buoc_truoc, cấm suy thu_tu-1) · `nhanh` · `hoat_dong` FK→`don_gia_baseline` · `loai_buoc` ('nguoi'|'tu_chay') · **`gio_co_dinh`** (gá đặt, không theo kích thước) · **`gio_moi_don_vi`** (× số đơn vị) · `la_tam`. unique(ma_quy_trinh, thu_tu).
+- **`san_pham_loi.ma_quy_trinh`** FK (NULL = lõi chưa gán). Gán lõi = 1 dòng update, KHÔNG nhân bản bước.
+- **`tram`** — trạm QR: `ma_tram` PK · `hoat_dong` FK · `dang_dung`.
 
-## 12 hoạt động = `don_gia_baseline(hoat_dong)` — KHÔNG đẻ bảng thứ hai
-`cam · canh · cat · cup · dan · giuong_lap · goi · lot · pu · ray · son_canh · thung`. (Phủ sóng + tổ + đơn giá: báo cáo `phu_song_hoat_dong.md`.)
+## 13 hoạt động = `don_gia_baseline(hoat_dong, ten)` — KHÔNG đẻ bảng thứ hai
+| mã | tên | tổ |
+|---|---|---|
+| cat | Cắt CNC | cnc |
+| dan | Dán cạnh | dan_canh |
+| cam | Khoan cam/chốt | dan_canh |
+| lot | Chà nhám+sơn lót | cha_lot |
+| pu | Sơn PU (màu+bóng) | son_pu |
+| son_canh | Sơn cạnh | son_pu |
+| cup | Khoan cup bản lề | lap_rap |
+| thung | Lắp ráp thùng | lap_rap |
+| ray | Ghép+lắp ray ngăn kéo | lap_rap |
+| canh | Lắp+căn chỉnh cánh | lap_rap |
+| goi | Đóng gói | dong_goi |
+| giuong_lap | Lắp ráp giường (gỗ TN) | giuong |
+| cho_kho | Chờ khô (tự chạy, đơn giá công 0) | son_pu |
 
-Chi tiết một số hoạt động (dòng đã có sẵn trong `don_gia_baseline`, KHÔNG đụng dữ liệu):
-- **`son_canh`** — tổ **Sơn PU** · driver = **mét cạnh sơn** · nguồn số = **gõ tay** (hoặc **cutlist** nếu có). Là hoạt động thật, tách khỏi `pu` (sơn mặt) khi đo theo mét cạnh.
+**CNC = `cat`** (cắt+khoan một lần gá). `cam` = khoan cam/chốt RIÊNG, chạy SAU dán cạnh. `thung`/`canh` là việc lắp ráp thật (không phải gói gộp). Không dòng nào chết.
 
-### Nguồn số đơn vị của mỗi hoạt động — BA nguồn
-Mỗi con số (số đơn vị để nhân đơn giá) phải ghi rõ nguồn:
-- `cutlist` — plugin sinh ra, tin cao.
-- `go_tay` — người nhập, tin trung bình.
-- `uoc` — áng chừng, chờ quét thật chỉnh lại.
-
-**Cutlist KHÔNG phải điều kiện bắt buộc.** Món dựng tự do + hàng gỗ tự nhiên KHÔNG có cutlist — đó là bình thường, không phải lỗi. Hệ thống **chỉ chặn khi KHÔNG CÓ nguồn nào cả** (thiếu cả ba), KHÔNG chặn vì thiếu riêng cutlist. (QD-06 — chưa code, lô A1b.)
+## Số đơn vị của món — BA nguồn (`so_don_vi_mon`)
+`ma_bien_the` + `hoat_dong` → `so_don_vi` · `nguon` ∈ {`cutlist` (tin cao) · `go_tay` (trung bình) · `uoc` (chờ quét)}.
+**Cutlist KHÔNG bắt buộc** — món tự do / gỗ tự nhiên không có cutlist là bình thường. Chặn chỉ khi thiếu **CẢ BA** nguồn.
 
 ## RPC
-- `quy_trinh_cua_loi(ma_loi)` → `{chua_co_quy_trinh, buoc:[...]}` (fail-đóng: luôn kèm cờ).
-- `kiem_quy_trinh(ma_loi)` → mảng lỗi (rỗng = sạch): buoc_truoc trỏ thu_tu không tồn tại · chu trình · không với tới từ khởi đầu · không có bước khởi đầu.
+- `quy_trinh_cua_loi(ma_loi)` → `{chua_co_quy_trinh, ma_quy_trinh, buoc:[...]}` (fail-đóng: luôn kèm cờ).
+- `kiem_quy_trinh(ma_quy_trinh)` → mảng lỗi (rỗng = sạch): buoc_truoc trỏ thu_tu không tồn tại · chu trình · không với tới · không có bước khởi đầu.
+- `gio_du_kien_cua_mon(ma_bien_the)` → giờ từng bước + tổng + **nguồn** từng số. Fail-đóng 3 mã RIÊNG: `LOI_CHUA_GAN_QUY_TRINH` · `THIEU_SO_DON_VI` (thiếu cả ba nguồn) · `THIEU_DON_GIA` (hoạt động chưa khai mẫu số). Bước `tu_chay` bỏ qua, không báo thiếu. Thiếu → `tong_gio=null`, KHÔNG trả 0.
 
-## Quy trình tủ quần áo MẪU (5 bước có nhánh — CNC cắt+khoan gộp một hoạt động)
-
-Nhánh THÙNG và CÁNH chạy song song sau bước CNC, gộp lại ở Lắp ráp:
-
+## Quy trình MẪU đã seed: `TU-AO-MELAMINE` (8 bước, giờ [TẠM])
 ```
-100 CNC (cắt+khoan)  buoc_truoc {}          [khởi đầu]
-200 Dán cạnh         buoc_truoc {100}       nhánh thùng
-210 Chà lót          buoc_truoc {100}       nhánh cánh
-310 Sơn PU           buoc_truoc {210}       nhánh cánh
-400 Lắp ráp          buoc_truoc {200,310}   ← GỘP hai nhánh
+100 cat   {}         chung   Cắt CNC
+200 dan   {100}      chung   Dán cạnh
+250 cam   {200}      chung   Khoan cam/chốt
+300 thung {250}      thùng   Lắp ráp thùng
+310 cup   {250}      cánh    Khoan cup bản lề
+320 ray   {300}      kéo     Ghép+lắp ray
+400 canh  {300,310}  chung   Lắp+căn chỉnh cánh   ← gộp thùng+cánh
+500 goi   {400,320}  chung   Đóng gói
 ```
 
-⚠ **Mã bước CNC (100): chờ chốt `cam` vs `cat`.** `don_gia_baseline`: `cam`→tổ dan_canh (420đ, 0 lần dùng) · `cat`→tổ cnc (3.360đ). CEO ghi `cam`; nếu bước CNC thuộc tổ CNC thì có thể là `cat`. Xem `phu_song_hoat_dong.md`. SQL mẫu hiện để `cam`, đổi `cat` nếu chốt vậy.
+## Gán quy trình cho lõi tủ áo + xem giờ dự kiến (CEO tự nhập)
+```sql
+-- 1) gán lõi vào quy trình dùng chung (thay <MA_LOI>):
+update kho.san_pham_loi set ma_quy_trinh = 'TU-AO-MELAMINE' where ma_loi = '<MA_LOI>';
 
-Kiểm sau khi nhập: `select kho.kiem_quy_trinh('<ma_loi>');` phải trả `[]`.
+-- 2) nhập số đơn vị của một biến thể (thay <MA_BT>; nguồn cutlist|go_tay|uoc):
+insert into kho.so_don_vi_mon(ma_bien_the, hoat_dong, so_don_vi, nguon) values
+  ('<MA_BT>','cat',24,'go_tay'), ('<MA_BT>','dan',60,'go_tay') /* … đủ các hoạt động của quy trình … */;
+
+-- 3) xem giờ dự kiến (kèm nguồn từng số):
+select kho.gio_du_kien_cua_mon('<MA_BT>');
+```
