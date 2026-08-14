@@ -51,3 +51,16 @@ trình, **GIỜ (và giá vốn) của đơn ĐÃ bàn giao vẫn đổi theo** 
 - **Chưa vá (cố ý, CEO chốt L-13a):** lô này chỉ đóng băng SỐ. Đóng băng PHÚT (snapshot đơn giá/phút lúc bàn
   giao) để **lô sau**. Tab Quy trình (L-13) khi cảnh báo "món đã bàn giao giữ số cũ" phải nói RÕ: giữ **số**,
   còn **giờ** vẫn có thể đổi cho tới khi vá nốt phút.
+
+## ĐÃ VÁ — đóng băng phút + đơn giá (db/071, QD-16)
+Lỗ hở "số băng nhưng GIỜ chưa" (QD-15) **đã đóng**: bàn giao chốt cả phút (`gio_moi_don_vi_chot`/
+`gio_co_dinh_chot`) và đơn giá (`don_gia_chot`). Sửa quy trình/đơn giá về sau KHÔNG đổi giờ+giá vốn đơn đã
+bàn giao (đo: đơn cho_cat 23,15 giữ 23,15 khi sửa phút; đơn chưa bàn giao 23,15→27,82). test_071 8/0.
+
+**Đơn cũ thiếu số chốt (VIỆC 3):** quét prod → **0 đơn** cho_cat+ có số chuan (các đơn demo cho_cat đều là món
+tự do chưa nhập số). Không đơn nào cần vá, không chép số hiện tại vào (tránh bịa lịch sử). Hàm giờ vẫn trả cờ
+`thieu_so_chot` nếu sau này gặp đơn cũ như vậy — không im lặng.
+
+**Residual nhỏ CÒN LẠI:** bước `tu_chay` (chờ khô) KHÔNG có dòng số → phút của nó không đóng băng được qua cơ
+chế cột-trên-số-row; giờ bước tu_chay vẫn LIVE. Quy trình đang dùng (TU-AO-MELAMINE) không có tu_chay nên đơn
+hiện tại không dính. Đóng băng tu_chay để lô sau nếu có quy trình dùng nó cho hàng đã bàn giao.
