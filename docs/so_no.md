@@ -32,3 +32,13 @@ suy từ `toTT` (thiếu máng) → đơn đang ở `cho_cat`/`cho_giao` bị gh
 (1) `dua_vao_chuyen` (ceo/xuong), (2) tem tự bắc cầu (món → đơn). L-10b thêm cửa thứ ba
 `day_so_san_xuat` (ceo/thiet_ke). Sale KHÔNG tự đẩy sang cho_cat (đúng — vai sale chỉ tới moi_len_don);
 đó không phải "kẹt", mà là chờ operator (xưởng/thiết kế) kéo vào chuyền.
+
+## Dữ liệu demo LỆCH seed — CỐ Ý (đừng tưởng lỗi)
+Hai chỗ trạng thái đơn demo khác seed db/063 là **cố ý**, CEO đã duyệt giữ nguyên (2026-08-14):
+- **CAN-A-DEMO:** `ma_ns_thiet_ke` + `buoc_thiet_ke` gán ở L-11 (seed = null/null). GIỮ — để đơn có người cầm,
+  minh hoạ màn "Việc của tôi" và luồng bàn giao. **KHÔNG phải lỗi.**
+- **DEMO-13:** gán qua RPC app (giao_viec/nhan_viec) ở phiên trước L-12. GIỮ — đây là đơn dùng thử **món tự do**
+  (2 món sp_id=null). **KHÔNG phải lỗi.**
+
+⚠ **Trái lại: mọi khác biệt của `so_don_vi_mon` với seed db/063 thì LÀ LỖI — phải DỪNG và soi.**
+(Bối cảnh: L-10b từng ghi đè số Kệ tivi thành 18 → giờ đơn phình 34,10→47,96; xem ~/Downloads/soi_gio_48.md.)

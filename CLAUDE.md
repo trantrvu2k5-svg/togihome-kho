@@ -3,6 +3,18 @@
 > Repo này = hệ kho + web (Supabase schema `kho`, các app deploy, plugin đẩy dữ liệu).
 > Khác repo plugin SketchUp (togihome-plugin, luật hình học tủ áo). Luật dưới đây cho phần **sản xuất / MES**.
 
+## KỶ LUẬT ẢNH KIỂM MẮT — CẤM sửa dữ liệu để ép màn đẹp
+
+**CẤM sửa dữ liệu để ép màn hình đẹp cho ảnh chụp kiểm mắt.** Ảnh phải phản ánh đúng thứ hệ thống làm được
+với dữ liệu đang có. Cần dữ liệu khác để minh hoạ thì **DỰNG TRONG GIAO DỊCH rồi rollback**, hoặc **nói RÕ
+trong báo cáo là đã sửa gì và khôi phục chưa**.
+
+- **Đã vi phạm HAI lần** (rút kinh nghiệm, đừng lặp): **L-10b** ghi đè số đơn vị Kệ tivi (CAN-A-DEMO) thành 18
+  cho cả 5 hoạt động → giờ đơn phình 34,10 → 47,96 (CEO bắt được, đã khôi phục). **L-11** đưa CAN-A-DEMO từ
+  `cho_cat` về `dang_thiet_ke` để chụp "Việc của tôi".
+- Số/giờ/tồn/giá trong ảnh là **con số THẬT** — sai một con số là sai cả bản kiểm mắt. Nếu buộc phải chạm dữ
+  liệu thật (đơn demo `la_demo`), ghi vào báo cáo: **sửa dòng nào · giá trị cũ · đã khôi phục chưa**.
+
 ## Quy trình sản xuất
 
 ### Ranh giới hoạt động = chỗ BÀN GIAO VẬT LÝ, không phải danh sách động tác

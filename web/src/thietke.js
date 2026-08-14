@@ -86,7 +86,13 @@ async function capApp() {
     location.reload()
   }
   $('btOut').onclick = thoat; if ($('btOutM')) $('btOutM').onclick = thoat
-  document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => { if (b.dataset.man) b.onclick = () => di(b.dataset.man) })
+  document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => {
+    if (b.dataset.man) b.onclick = () => {
+      // vào "Nhập số sản xuất" từ thanh trái = DANH SÁCH đơn chờ (bỏ ?don); card mới mở đơn cụ thể
+      if (b.dataset.man === 'nhapso') { const u = new URL(location.href); u.searchParams.delete('don'); history.replaceState({}, '', u) }
+      di(b.dataset.man)
+    }
+  })
   // Tab NHẬP SỐ SẢN XUẤT chỉ cho thiet_ke + ceo
   if (['thiet_ke', 'ceo'].includes(USER.vai_tro)) { $('n-nhapso').style.display = ''; $('d-nhapso').style.display = '' }
   $('nsHdDau').onclick = () => { const t = $('nsHdThan'), n = $('nsHdNhan'); const an = t.style.display !== 'none'; t.style.display = an ? 'none' : 'block'; n.textContent = an ? 'mở ra ▼' : 'thu gọn ▲' }
@@ -135,7 +141,8 @@ async function taiViec() {
     const ly = tre ? `<p class="don-ly ly-tre">Quá hạn giao khách${r.vong_sua ? ' · đã sửa ' + r.vong_sua + ' vòng' : ''}</p>`
       : (r.danh_dau_gap ? `<p class="don-ly ly-gap">Gấp — CEO đánh dấu${r.ngay_hen_khach ? ' · hạn ' + r.ngay_hen_khach : ''}</p>`
         : `<p class="don-ly ly-thuong">${r.ngay_hen_khach ? 'Hạn ' + r.ngay_hen_khach : 'Chưa có hạn'} · bước: ${COT[r.buoc_thiet_ke] || '—'}</p>`)
-    const nsN = nutNhapSo(r.trang_thai, USER.vai_tro, r.ma_don)   // nút Nhập số sản xuất (chỉ thiet_ke/ceo · đơn đã chốt)
+    // MỘT nút bàn giao (QD-14): đơn đã chốt → "Gửi file sản xuất cho xưởng" (mở màn nhập số, KHÔNG gửi ngay)
+    const nsN = nutNhapSo(r.trang_thai, USER.vai_tro, r.ma_don)
     return `<div class="don"><div class="don-than">
       <div class="don-ten"><span class="mono">${esc(r.ma_don)}</span><b>${esc(r.ten)}</b>${nhanTT(r)}</div>
       <p class="don-phu">${esc(loaiCap(r.cap_thiet_ke))} · ${r.so_mon || 0} món · ước ${g1(r.gio_uoc)} giờ · đã ghi ${g1(r.gio_da_ghi)}</p>${ly}</div>
@@ -143,12 +150,10 @@ async function taiViec() {
       <button class="nut-nho" data-ghi="${esc(r.ma_don)}">Ghi giờ</button>
       ${laBaoGia(r.trang_thai)
         ? `<button class="nut-nho nut-xam" data-guiban="${esc(r.ma_don)}">Gửi bản 3D cho sale</button>`
-        : `<button class="nut-nho nut-xam" data-guifile="${esc(r.ma_don)}">Gửi file sản xuất cho xưởng</button>`}
-      ${nsN ? `<button class="nut-nho nut-xam" data-nhapso="${esc(r.ma_don)}">${nsN.text}</button>` : ''}</div>`
+        : (nsN ? `<button class="nut-nho nut-xam" data-nhapso="${esc(r.ma_don)}">${nsN.text}</button>` : '')}</div>`
   }).join('') : `<div class="trong-rong"><h3>${laTruong() ? 'Bạn không cầm đơn — chỉ giao/chuyển' : 'Chưa cầm đơn nào'}</h3><p>${laTruong() ? 'Giao đơn cho thiết kế ở khối "Chờ nhận" bên dưới.' : 'Nhận việc từ khối "Chờ nhận" bên dưới.'}</p></div>`
   $('dsDangLam').querySelectorAll('[data-ghi]').forEach(b => b.onclick = () => ghiGio(b.dataset.ghi))
   $('dsDangLam').querySelectorAll('[data-guiban]').forEach(b => b.onclick = () => moGuiBan(b.dataset.guiban))
-  $('dsDangLam').querySelectorAll('[data-guifile]').forEach(b => b.onclick = () => moGuiFile(b.dataset.guifile))
   $('dsDangLam').querySelectorAll('[data-nhapso]').forEach(b => b.onclick = () => moNhapSo(b.dataset.nhapso))
   // Chờ nhận (RPC đã lọc theo vai: thiet_ke chỉ SX · tk_ban_hang chỉ báo giá · ceo/trưởng cả hai)
   DS_CHO = dsCho; veChoNhan()
@@ -367,10 +372,13 @@ async function moChuyen(maDon, aiCam) {
 }
 
 // ══════════ ② BẢNG CÔNG VIỆC ══════════
+let SOTT = {}   // tình trạng số theo ma_don (cho thẻ kanban) — nhap_so_bang()
 async function taiBang() {
   const { data, error } = await sb.rpc('tk_bang_cong_viec')
   if (error) { $('kbBoard').innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
   BANG = data || []
+  const { data: st } = await sb.rpc('nhap_so_bang')   // dòng "N/N số" / "thiếu K số" / "chưa gán quy trình"
+  SOTT = {}; (st || []).forEach(o => { SOTT[o.ma_don] = o })
   const nguoi = [...new Set(BANG.map(r => r.ai_cam).filter(Boolean))].sort()
   $('locNguoi').innerHTML = '<option value="">Mọi người</option>' + nguoi.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
   const loais = [...new Set(BANG.map(r => r.cap_thiet_ke).filter(Boolean))]
@@ -402,6 +410,13 @@ function veKanban() {
     $('kbNhac').innerHTML = `<b>Cột "Sửa theo góp ý" đang ứ — ${suaRows.length} việc</b>Chỗ giờ chảy máu mà không ai thấy: khách xem 3D rồi đổi ý nhiều vòng. Tháng nào cũng ứ thì vấn đề ở khâu chốt yêu cầu với khách, không phải ở thiết kế viên.`
   }
 }
+// dòng trạng thái SỐ trên thẻ kanban (B1): đủ "N/N số" · thiếu "thiếu K số" (cảnh báo) · "chưa gán quy trình"
+function dongSoTT(maDon) {
+  const o = SOTT[maDon]; if (!o || o.tinh_trang === 'trong') return ''
+  if (o.tinh_trang === 'du') return `<p class="so-tt">${o.so_mon}/${o.so_mon} số</p>`
+  if (o.tinh_trang === 'chua_gan') return `<p class="so-tt thieu">chưa gán quy trình</p>`
+  return `<p class="so-tt thieu">thiếu ${o.dem_thieu + o.dem_chua_gan} số</p>`
+}
 function the(r) {
   const tre = treKhong(r.ngay_hen_khach) && r.cot !== 'xong_file'
   const cls = tre ? 'tre' : vcTuViec(r.viec).cls   // viền theo VIỆC (bán hàng/sản xuất/mẫu mới)
@@ -410,6 +425,7 @@ function the(r) {
     <span class="mono ma">${esc(r.ma_don)}</span>
     <p class="ten">${esc(r.ten)}</p>
     <p class="loai">${esc(loaiCap(r.cap_thiet_ke))}</p>
+    ${dongSoTT(r.ma_don)}
     <div class="gio-hang"><span class="uoc">ước ${g1(r.gio_uoc)}</span>${thuc}</div>
     ${r.ai_cam ? `<p class="ai">${esc(r.ai_cam)}${r.vai_cam ? ' · ' + (r.vai_cam === 'tk_ban_hang' ? 'bán hàng' : 'sản xuất') : ''}</p>` : ''}
     ${r.vong_sua ? `<span class="vong-sua">sửa vòng ${r.vong_sua}</span>` : ''}</button>`
@@ -434,6 +450,10 @@ async function moPanel(maDon) {
       <div class="phu">${m.kt ? '<span class="kt">' + esc(m.kt) + '</span> · ' : ''}${esc(m.vl || '—')}${m.mau ? ' · màu ' + esc(m.mau) : ''}</div>
       ${m.chi_tiet ? '<div class="phu">' + esc(m.chi_tiet) + '</div>' : ''}</div>`).join('') || '<p class="don-phu">Chưa có món.</p>'
   const lich = (d.lich_su || []).map(v => `<div class="vet"><span class="luc">${gioLuc(v.luc)}</span><span>${esc(v.viec)}</span></div>`).join('') || '<p class="don-phu">Chưa có mốc nào.</p>'
+  // GIỜ SẢN XUẤT [TẠM] (khác hẳn giờ thiết kế) — từ gio_du_kien_cua_don; chưa đủ số → "chưa đủ số", KHÔNG 0
+  let gioSX = 'chưa tính'
+  try { const { data: gd, error: ge } = await sb.rpc('gio_du_kien_cua_don', { p_ma_don: maDon })
+    if (!ge && gd) gioSX = gd.ok ? g1(gd.tong_gio_don) + ' giờ' : 'chưa đủ số' } catch (e) {}
   const bkd = d.ban_khach_duyet
   const tuiDung = bkd && bkd.nguoi_ban_hang && bkd.nguoi_ban_hang === USER.ten   // kiêm: chính mình dựng 3D
   const banKDHtml = bkd ? `<div class="muc"><h3>Bản khách đã duyệt — dựng file cho khớp</h3>
@@ -445,7 +465,8 @@ async function moPanel(maDon) {
     <div class="muc"><div class="o-cap">
       <div class="o"><span>Loại + cấp</span><b>${esc(loaiCap(d.cap_thiet_ke))}</b></div>
       <div class="o"><span>Người cầm</span><b>${esc(d.ai_cam || 'Chưa ai nhận')}${d.vai_cam ? ' · ' + (d.vai_cam === 'tk_ban_hang' ? 'bán hàng' : 'sản xuất') : ''}</b></div>
-      <div class="o"><span>Giờ ước / thực</span><b>${g1(d.gio_uoc)} / ${g1(d.gio_thuc)} giờ</b></div>
+      <div class="o"><span>Giờ thiết kế (ước/thực)</span><b>${g1(d.gio_uoc)} / ${g1(d.gio_thuc)} giờ</b></div>
+      <div class="o"><span>Giờ sản xuất [TẠM]</span><b>${esc(gioSX)}</b></div>
       <div class="o"><span>Số vòng sửa</span><b>${d.vong_sua || 0}</b></div>
       <div class="o"><span>Hạn giao khách</span><b>${d.ngay_hen_khach || '—'}</b></div>
     </div></div>
@@ -488,9 +509,9 @@ function panelActions(d) {
         : `<button class="nut-chinh" id="pGuiBan">${d.buoc_thiet_ke === 'sua_gop_y' ? 'Gửi bản mới' : 'Gửi bản 3D cho sale'}</button>`
       body = saleBox + ghiHtml + nut
     } else {
-      const nut = (d.buoc_thiet_ke === 'xong_file' || d.da_gui_xuong) ? `<span class="don-phu" style="color:var(--xong)">Đã gửi xưởng</span>`
-        : `<button class="nut-chinh" id="pGuiFile">Gửi file sản xuất cho xưởng</button>`
-      body = ghiHtml + nut
+      // MỘT nút bàn giao (QD-14): mở màn nhập số của đúng đơn (đã gửi → "Xem số đã nhập")
+      const nsN = nutNhapSo(d.trang_thai, USER.vai_tro, d.ma_don)
+      body = ghiHtml + (nsN ? `<button class="nut-chinh" id="pNhapSo">${nsN.text}</button>` : '')
     }
   } else {                                               // NGƯỜI KHÁC cầm
     body = `<span class="don-phu">Đơn này do <b>${esc(d.ai_cam)}</b> đang cầm</span>`
@@ -504,7 +525,7 @@ function wireActions(d) {
   if ($('pGiao')) $('pGiao').onclick = () => moGiao(d.ma_don)
   if ($('pChuyen')) $('pChuyen').onclick = () => moChuyen(d.ma_don, d.ai_cam)
   if ($('pGuiBan')) $('pGuiBan').onclick = () => moGuiBan(d.ma_don)
-  if ($('pGuiFile')) $('pGuiFile').onclick = () => moGuiFile(d.ma_don)
+  if ($('pNhapSo')) $('pNhapSo').onclick = () => { dongPanel(); moNhapSo(d.ma_don) }
 }
 async function ghiGioPanel(maDon) {
   const so = Number($('pGio') && $('pGio').value)
@@ -594,7 +615,7 @@ function veTTBanHang(rows, err) {
 }
 
 // ══════════════════ TAB NHẬP SỐ SẢN XUẤT ══════════════════
-let NS = { ma_don: null, data: null, sel: null, qtds: null, hdMo: {} }   // ma_don LẤY TỪ URL ?don=
+let NS = { ma_don: null, data: null, sel: null, qtds: null, hdMo: {}, files: [], _lastDon: null }   // sel = mon_id · ma_don từ ?don
 const DV_TEN = { cat: 'số tấm chi tiết', dan: 'mét cạnh', cam: 'số lỗ', thung: 'số tấm carcass', cup: 'số cup', ray: 'số ngăn kéo', canh: 'số cánh', goi: 'số kiện', lot: 'm² bề mặt', pu: 'm² sơn', son_canh: 'mét cạnh sơn', giuong_lap: 'số giường', cho_kho: '—' }
 const TEN_TO = { cnc: 'CNC', dan_canh: 'Dán cạnh', cha_lot: 'Chà lót', son_pu: 'Sơn PU', lap_rap: 'Lắp ráp', dong_goi: 'Đóng gói', giuong: 'Giường' }
 const HD_TO = { cat: 'cnc', dan: 'dan_canh', cam: 'dan_canh', lot: 'cha_lot', pu: 'son_pu', son_canh: 'son_pu', cup: 'lap_rap', thung: 'lap_rap', ray: 'lap_rap', canh: 'lap_rap', goi: 'dong_goi', giuong_lap: 'giuong', cho_kho: 'son_pu' }
@@ -614,43 +635,107 @@ const NHANH_CLS = n => n === 'thùng' ? ' nhanh-thung' : n === 'cánh' ? ' nhanh
 function tinhBt(s) { s = String(s || '').replace(/\s/g, ''); if (s === '') return null; if (!/^[0-9]+([+*][0-9]+)*$/.test(s)) return NaN; return s.split('+').reduce((a, t) => a + t.split('*').reduce((p, f) => p * Number(f), 1), 0) }
 const gioT = n => n == null ? '—' : g1(n)   // giờ luôn kèm [TẠM] ở chỗ hiển thị
 
-function nsRong(msg) {   // màn rỗng / lỗi tải — KHÔNG hiện đơn nào
+function nsRong(msg) {   // lỗi tải / đơn rỗng — KHÔNG hiện đơn nào
+  nsAnLuoi()
   $('nsDau').innerHTML = '<div><h1>Nhập số sản xuất</h1><p>' + esc(msg) + '</p></div>'
   const hd = document.querySelector('#s-nhapso .hd'); if (hd) hd.style.display = 'none'
   $('nsTong').innerHTML = ''; $('nsMonDs').innerHTML = ''
   $('nsPhai').innerHTML = '<div class="nhac"><b>Chưa mở đơn nào</b>' + esc(msg) + '</div>'
 }
-function nsLoiDon(m) {   // fail-đóng: dịch mã lỗi ra lý do rõ
+function nsLoiDon(m) {   // fail-đóng: dịch mã lỗi ra lý do rõ — KHÔNG bao giờ để trống/0 món im lặng
   let ly = m
   if (/DON_KHONG_TON_TAI/.test(m)) ly = 'Mã đơn không tồn tại.'
   else if (/DON_CHUA_CHOT/.test(m)) ly = 'Đơn này còn là báo giá, chưa chốt — lên đơn trước.'
   else if (/chỉ ceo\/thiet_ke/.test(m)) ly = 'Bạn không có quyền xem đơn này.'
+  else ly = 'Không đọc được món của đơn này — báo kỹ thuật, ĐỪNG coi là đơn rỗng. (' + m + ')'
   nsRong(ly)
 }
+function nsAnLuoi() { const e = $('nsMonDs'); if (e) e.style.display = 'none'; const k = document.querySelector('#s-nhapso .khung'); if (k) k.style.gridTemplateColumns = '1fr' }
+function nsHienLuoi() { const e = $('nsMonDs'); if (e) e.style.display = ''; const k = document.querySelector('#s-nhapso .khung'); if (k) k.style.gridTemplateColumns = '' }
+
+// A3 — thanh trái không có ?don → DANH SÁCH đơn chờ nhập số (đã chốt, chưa gửi xưởng), KHÔNG màn rỗng
+async function nsDanhSachCho() {
+  nsAnLuoi()
+  const hd = document.querySelector('#s-nhapso .hd'); if (hd) hd.style.display = 'none'
+  $('nsDau').innerHTML = '<div><h1>Đơn chờ nhập số</h1><p>Bấm một đơn để nhập số đơn vị rồi gửi file cho xưởng.</p></div>'
+  $('nsTong').innerHTML = ''; $('nsMonDs').innerHTML = ''; $('nsPhai').innerHTML = '<p class="don-phu" style="padding:6px 2px">Đang tải…</p>'
+  const { data, error } = await sb.rpc('nhap_so_don_cho')
+  if (error) { $('nsPhai').innerHTML = '<div class="nhac do"><b>Lỗi</b>' + esc(error.message) + '</div>'; return }
+  const ds = data || []
+  if (!ds.length) { $('nsPhai').innerHTML = '<div class="mon-ds"><div class="dau-ds">Đơn chờ nhập số</div><div style="padding:22px 15px;color:var(--chu-mo);font-size:13.5px">Không có đơn nào chờ nhập số.</div></div>'; return }
+  const card = ds.map(o => {
+    const tt = o.tinh_trang === 'du' ? { c: 'tt-xong', t: o.so_mon + '/' + o.so_mon + ' số' }
+      : o.tinh_trang === 'chua_gan' ? { c: 'tt-chua', t: 'chưa gán quy trình' }
+      : o.tinh_trang === 'thieu' ? { c: 'tt-thieu', t: 'thiếu ' + (o.dem_thieu + o.dem_chua_gan) + ' số' }
+      : { c: 'tt-chua', t: 'chưa có món' }
+    return '<button class="mon" data-godon="' + esc(o.ma_don) + '"><b>' + esc(o.ten) + '</b>' +
+      '<span class="qt"><span class="mono">' + esc(o.ma_don) + '</span> · ' + o.so_mon + ' món</span>' +
+      '<span class="tt ' + tt.c + '">' + tt.t + '</span></button>'
+  }).join('')
+  $('nsPhai').innerHTML = '<div class="mon-ds"><div class="dau-ds">' + ds.length + ' đơn chờ</div>' + card + '</div>'
+  $('nsPhai').querySelectorAll('[data-godon]').forEach(b => b.onclick = () => moNhapSo(b.dataset.godon))
+}
+
 async function taiNhapSo() {
   if (!['thiet_ke', 'ceo'].includes(USER.vai_tro)) { nsRong('Chỉ Thiết kế sản xuất và CEO vào được màn này.'); return }
   const md = new URLSearchParams(location.search).get('don')
-  if (!md) { nsRong('Mở màn này từ một đơn cụ thể — ví dụ /?don=DH-2026-0142. Chưa có mã đơn nên không hiện đơn nào.'); return }
+  if (!md) { await nsDanhSachCho(); return }        // A3: không ?don → danh sách đơn chờ
+  nsHienLuoi()
   const hd = document.querySelector('#s-nhapso .hd'); if (hd) hd.style.display = ''
   $('nsDau').innerHTML = '<div><h1>Đang tải…</h1></div>'; $('nsTong').innerHTML = ''; $('nsMonDs').innerHTML = ''; $('nsPhai').innerHTML = ''
   if (!NS.qtds) { const { data } = await sb.rpc('quy_trinh_ds'); NS.qtds = data || [] }
   const { data, error } = await sb.rpc('nhap_so_don_don_hang', { p_ma_don: md })
   if (error) { nsLoiDon(error.message); return }
+  if (md !== NS._lastDon) { NS.files = []; NS._lastDon = md }   // đổi đơn → xoá file đã đính kèm
   NS.ma_don = md; NS.data = data
-  if (!NS.sel || !data.mon.find(m => m.sp_id === NS.sel)) NS.sel = (data.mon[0] || {}).sp_id
+  if (!NS.sel || !data.mon.find(m => m.mon_id === NS.sel)) NS.sel = (data.mon[0] || {}).mon_id
   renderNsDau(); renderNsTong(); renderNsMonDs(); await renderNsPhai()
+}
+// nút cuối = BÀN GIAO XƯỞNG (QD-14): mở khoá khi đủ 3 chốt (số · file cắt · khách duyệt), nhãn ghi RÕ thiếu gì
+function nsLyDoKhoa() {
+  const d = NS.data
+  if (d.da_vao_chuyen) return null
+  if (d.so_thieu_mon > 0) return 'còn ' + d.so_thieu_mon + ' món thiếu số/quy trình'
+  if (!d.day_duoc) return 'đơn chưa ở trạng thái gửi được'
+  if (NS.files.length === 0) return 'chưa đính kèm file cắt'
+  if (!d.co_khach_duyet && !d.le_mau_san) return 'chưa có bản thiết kế khách duyệt'
+  return null
 }
 function renderNsDau() {
   const d = NS.data
   let nhan, dis
   if (d.da_vao_chuyen) { nhan = 'Đã vào chuyền — chờ cắt'; dis = true }
-  else if (d.day_duoc) { nhan = 'Đẩy xuống xưởng'; dis = false }
-  else if (d.so_thieu_mon > 0) { nhan = 'Đẩy xuống xưởng — còn ' + d.so_thieu_mon + ' món thiếu số'; dis = true }
-  else { nhan = 'Đẩy xuống xưởng — đơn chưa ở trạng thái đẩy'; dis = true }
+  else { const ly = nsLyDoKhoa(); if (ly) { nhan = 'Chưa gửi được — ' + ly; dis = true } else { nhan = 'Gửi file sản xuất cho xưởng'; dis = false } }
+  const attach = d.da_vao_chuyen ? '' :
+    '<div class="ns-file"><div class="ns-tha" id="nsThaFile">+ Đính kèm file cắt (DXF/CSV/ảnh)<input type="file" id="nsInpFile" multiple hidden></div><div id="nsFileList"></div></div>'
   $('nsDau').innerHTML = '<div><span class="ma mono">' + esc(d.ma_don) + '</span><h1>' + esc(d.ten_don || d.ma_don) +
-    '</h1><p>Gán quy trình cho từng món và nhập số đơn vị. Đủ số thì đẩy được xuống xưởng.</p></div>' +
-    '<button class="nut-day" id="nsNutDay"' + (dis ? ' disabled' : '') + '>' + esc(nhan) + '</button>'
-  $('nsNutDay').onclick = nsDay
+    '</h1><p>Gán quy trình cho từng món và nhập số đơn vị. Đủ số + file cắt + bản khách duyệt thì gửi được cho xưởng.</p></div>' +
+    '<div class="ns-giao">' + attach +
+    '<button class="nut-day" id="nsNutDay"' + (dis ? ' disabled' : '') + '>' + esc(nhan) + '</button></div>'
+  $('nsNutDay').onclick = nsBanGiao
+  if ($('nsThaFile')) {
+    const z = $('nsThaFile'), inp = $('nsInpFile')
+    z.onclick = () => inp.click()
+    z.ondragover = e => { e.preventDefault(); z.classList.add('keo') }
+    z.ondragleave = () => z.classList.remove('keo')
+    z.ondrop = e => { e.preventDefault(); z.classList.remove('keo'); nsThemFile(e.dataTransfer.files) }
+    inp.onchange = () => nsThemFile(inp.files)
+    nsVeFile()
+  }
+}
+async function nsThemFile(fileList) {
+  for (const f of Array.from(fileList || [])) {
+    const loai = loaiFile(f.name); let blob = f, byte = f.size
+    if (loai === 'anh_ban_ve') { try { const n = await nenAnh(f); blob = n.to; byte = n.byteTo } catch (e) {} }
+    NS.files.push({ file: f, blob, loai, ten: f.name, byte })
+  }
+  nsVeFile(); renderNsDau()   // cập nhật nhãn nút (đủ file thì mở khoá)
+}
+function nsVeFile() {
+  const el = $('nsFileList'); if (!el) return
+  el.innerHTML = NS.files.map((f, i) => '<div class="ns-tam">' + (LOAI_ICON[f.loai] || '📎') + ' ' + esc(f.ten) +
+    ' <span class="kt">' + Math.round(f.byte / 1024) + ' KB</span><button class="xoa" data-xf="' + i + '">×</button></div>').join('')
+  el.querySelectorAll('[data-xf]').forEach(b => b.onclick = () => { NS.files.splice(+b.dataset.xf, 1); nsVeFile(); renderNsDau() })
 }
 function renderNsTong() {
   const t = NS.data.dai_tong
@@ -671,23 +756,26 @@ function renderNsMonDs() {
     if (m.trang_thai === 'du') { cls = 'tt-xong'; tt = 'Đủ số · ' + g1(m.tong_gio) + ' giờ [TẠM]' }
     else if (m.trang_thai === 'thieu') { cls = 'tt-thieu'; tt = 'Thiếu ' + m.so_thieu + ' số' }
     else { cls = 'tt-chua'; tt = 'Chưa gán quy trình' }
-    const qt = esc(m.kt || '') + ' · ' + esc(m.ten_quy_trinh || 'chưa gán quy trình')
-    return '<button class="mon' + (m.sp_id === NS.sel ? ' chon' : '') + '" data-mon="' + esc(m.sp_id) + '"><b>' + esc(m.ten) +
+    const qt = (m.kt ? esc(m.kt) + ' · ' : '') + esc(m.ten_quy_trinh || 'chưa gán quy trình')
+    return '<button class="mon' + (m.mon_id === NS.sel ? ' chon' : '') + '" data-mon="' + esc(m.mon_id) + '"><b>' + esc(m.ten) +
       '</b><span class="qt">' + qt + '</span><span class="tt ' + cls + '">' + tt + '</span></button>'
   }).join('')
   $('nsMonDs').innerHTML = '<div class="dau-ds">' + d.so_mon + ' món<em>' + (d.so_mon - d.so_thieu_mon) + ' xong · ' + d.so_thieu_mon + ' thiếu</em></div>' + nut
   $('nsMonDs').querySelectorAll('[data-mon]').forEach(b => b.onclick = () => { NS.sel = b.dataset.mon; renderNsMonDs(); renderNsPhai() })
 }
 async function renderNsPhai() {
-  const m = NS.data.mon.find(x => x.sp_id === NS.sel)
+  const m = NS.data.mon.find(x => x.mon_id === NS.sel)
   if (!m) { $('nsPhai').innerHTML = ''; return }
-  const { data: ct } = await sb.rpc('nhap_so_chi_tiet_mon', { p_ma_bt: NS.sel })
-  const idx = NS.data.mon.findIndex(x => x.sp_id === NS.sel) + 1
-  const opts = NS.qtds.map(q => '<option value="' + esc(q.ma_quy_trinh) + '"' + (q.ma_quy_trinh === (ct && ct.ma_quy_trinh) ? ' selected' : '') + '>' + esc(q.ten) + ' — ' + q.so_buoc + ' bước</option>').join('')
-  let h = '<div class="the"><div class="the-dau"><div><h2>' + esc(m.ten) + '</h2><p>' + esc(m.kt) + ' mm · lõi ' + esc(m.ma_loi || '—') + '</p></div>' +
+  const { data: ct } = await sb.rpc('nhap_so_chi_tiet_mon', { p_mon: NS.sel })
+  const idx = NS.data.mon.findIndex(x => x.mon_id === NS.sel) + 1
+  // gợi ý quy trình từ lõi: pre-select gán > gợi ý
+  const chon = (ct && (ct.ma_quy_trinh || ct.goi_y)) || ''
+  const opts = NS.qtds.map(q => '<option value="' + esc(q.ma_quy_trinh) + '"' + (q.ma_quy_trinh === chon ? ' selected' : '') + '>' + esc(q.ten) + ' — ' + q.so_buoc + ' bước</option>').join('')
+  const goiyTxt = (ct && !ct.ma_quy_trinh && ct.goi_y) ? '<span class="goi-y">gợi ý từ lõi ' + esc(m.sp_id || '') + ' — đổi được</span>' : ''
+  let h = '<div class="the"><div class="the-dau"><div><h2>' + esc(m.ten) + '</h2><p>' + (m.kt ? esc(m.kt) + ' mm' : 'món tự do') + (m.sp_id ? ' · ' + esc(m.sp_id) : '') + '</p></div>' +
     '<span class="mono" style="font-size:13px;color:var(--chu-nhat)">món ' + idx + '/' + NS.data.so_mon + '</span></div>'
   // chọn quy trình + preview bước
-  h += '<div class="qt-chon"><label>Quy trình sản xuất</label>' +
+  h += '<div class="qt-chon"><label>Quy trình sản xuất ' + goiyTxt + '</label>' +
     '<select id="nsQt"><option value="">— chọn quy trình —</option>' + opts + '</select>'
   if (ct && !ct.chua_gan) {
     h += '<div class="qt-buoc">' + ct.buoc.map((b, i) => '<span class="buoc' + NHANH_CLS(b.nhanh) + '">' + esc(b.ten_hoat_dong || b.hoat_dong) + '</span>' + (i < ct.buoc.length - 1 ? '<span class="mui">→</span>' : '')).join('') + '</div>' +
@@ -764,21 +852,33 @@ function nsBindDong(b) {
 }
 async function nsLuu(hd, bieu_thuc, nguon, root) {
   if (Number.isNaN(tinhBt(bieu_thuc))) return  // rác — không lưu
-  const { error } = await sb.rpc('luu_so_don_vi', { p_ma_bt: NS.sel, p_hoat_dong: hd, p_bieu_thuc: bieu_thuc, p_nguon: nguon })
+  const { error } = await sb.rpc('luu_so_don_vi', { p_mon: NS.sel, p_hoat_dong: hd, p_bieu_thuc: bieu_thuc, p_nguon: nguon })
   if (error) { bao('Lưu lỗi: ' + error.message, true); return }
   bao('Đã lưu ' + (DV_TEN[hd] || hd))
   await taiNhapSo()   // cập nhật giờ dòng + tổng món + trạng thái đơn
 }
 async function nsGanQt() {
   const qt = $('nsQt').value; if (!qt) return
-  const { error } = await sb.rpc('gan_quy_trinh_mon', { p_ma_bt: NS.sel, p_ma_qt: qt })
+  const { error } = await sb.rpc('gan_quy_trinh_mon', { p_mon: NS.sel, p_ma_qt: qt })
   if (error) { bao('Gán lỗi: ' + error.message, true); return }
   await taiNhapSo()
 }
-async function nsDay() {
-  const { error } = await sb.rpc('day_so_san_xuat', { p_ma_don: NS.ma_don })
-  if (error) { bao(error.message.replace(/^.*(CHUA_GAN_QUY_TRINH|THIEU_SO_DON_VI|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT):\s*/, ''), true); return }
-  bao('Đã đẩy xuống xưởng — đơn vào chờ cắt ✓'); await taiNhapSo()
+// BÀN GIAO XƯỞNG (QD-14): tải file lên storage rồi gọi ban_giao_xuong (gác 3 chốt + đẩy cho_cat)
+async function nsBanGiao() {
+  const btn = $('nsNutDay'); if (!btn) return
+  btn.disabled = true; const cu = btn.textContent; btn.textContent = 'Đang tải file…'
+  try {
+    const stamp = Date.now(), ds = []
+    for (let i = 0; i < NS.files.length; i++) {
+      const f = NS.files[i], safe = f.ten.replace(/[^\w.\-]/g, '_'), path = NS.ma_don + '/' + stamp + '_' + i + '_' + safe
+      const up = await sb.storage.from('file-san-xuat').upload(path, f.blob)
+      if (up.error) throw new Error(up.error.message)
+      ds.push({ loai_file: f.loai, duong_dan: path, ten_goc: f.ten, co_byte: f.byte })
+    }
+    const { error } = await sb.rpc('ban_giao_xuong', { p_ma_don: NS.ma_don, p_danh_sach: ds, p_ghi_chu: null })
+    if (error) { bao(error.message.replace(/^.*(THIEU_FILE_CAT|CHUA_KHACH_DUYET|THIEU_SO_DON_VI|CHUA_GAN_QUY_TRINH|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT):\s*/, ''), true); btn.disabled = false; btn.textContent = cu; return }
+    bao('Đã gửi file + số cho xưởng — đơn vào chờ cắt ✓'); NS.files = []; await taiNhapSo()
+  } catch (e) { bao('Gửi lỗi: ' + e.message, true); btn.disabled = false }
 }
 function nsNhacCuoi() {
   return '<div class="nhac"><b>Vì sao phải nhập tay</b>Món dựng bằng plugin thì bấm "Lấy từ plugin", các số tự về trong một giây. Món dựng tự do trong SketchUp và hàng gỗ tự nhiên không có sẵn số — đếm rồi gõ. Đó là chuyện bình thường, không phải lỗi.</div>'

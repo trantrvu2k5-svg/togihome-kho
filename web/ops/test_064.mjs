@@ -7,10 +7,12 @@ const OLD = { master: 21.75, nho: 12.65, don: 75.79 }
 const c = new pg.Client(await docConfig()); await c.connect()
 let P = 0, F = 0
 const ok = (n, v, e = '') => { console.log((v ? '✅' : '❌') + ' ' + n + (!v && e ? '  — ' + e : '')); v ? P++ : F++ }
-async function gio(ma) {
+// khoá theo MÓN (db/069): tra món-id của CAN-A-DEMO theo biến thể rồi tính giờ
+async function gio(sp) {
   await c.query('savepoint sp'); await c.query('set local role authenticated')
   await c.query("select set_config('request.jwt.claims',$1,true)", [JSON.stringify({ sub: CEO, role: 'authenticated' })])
-  const r = (await c.query(`select kho.gio_du_kien_cua_mon($1) g`, [ma])).rows[0].g
+  const mid = (await c.query(`select id from kho.don_hang_mon where sp_id=$1 and don_id=(select id from kho.don_hang where ma_don='CAN-A-DEMO') limit 1`, [sp])).rows[0].id
+  const r = (await c.query(`select kho.gio_du_kien_cua_mon($1) g`, [mid])).rows[0].g
   await c.query('rollback to savepoint sp'); await c.query('reset role'); await c.query("select set_config('request.jwt.claims','',true)"); return r
 }
 try {

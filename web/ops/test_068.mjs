@@ -24,48 +24,50 @@ async function asK(uid, s, a = []) {
   try { r = (await c.query(s, a)).rows; await c.query('release savepoint k') } catch (x) { e = x.message; try { await c.query('rollback to savepoint k') } catch (_) {} }
   await c.query('reset role'); await c.query("select set_config('request.jwt.claims','',true)"); return { r, e }
 }
-const BT = 'CAN-A-TUAO-MASTER-BT'
 
+const midOf = async (sp) => (await q1(`select id from kho.don_hang_mon where sp_id=$1 and don_id=(select id from kho.don_hang where ma_don='CAN-A-DEMO') limit 1`, [sp])).id
 try {
   await c.query('begin')
+  const MID = await midOf('CAN-A-TUAO-MASTER-BT')   // khoá theo MÓN (db/069)
+  const F1 = `'[{"loai_file":"dxf","duong_dan":"x/a.dxf","ten_goc":"a.dxf","co_byte":10}]'::jsonb`   // 1 file cắt giả
 
   // ═══ 1 · BIỂU THỨC lưu và mở lại ═══
   console.log('\n── 1 · biểu thức lưu nguyên văn, mở lại đúng ──')
-  await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'cat','2+1+1+4+4','go_tay')`, [BT])
-  const row = await q1(`select bieu_thuc, so_don_vi from kho.so_don_vi_mon where ma_bien_the=$1 and hoat_dong='cat'`, [BT])
+  await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'cat','2+1+1+4+4','go_tay')`, [MID])
+  const row = await q1(`select bieu_thuc, so_don_vi from kho.so_don_vi_mon where mon_id=$1 and hoat_dong='cat'`, [MID])
   console.log(`   lưu "2+1+1+4+4" → DB: bieu_thuc="${row.bieu_thuc}" so_don_vi=${row.so_don_vi}`)
   ok('✅ mở lại thấy ĐÚNG biểu thức "2+1+1+4+4" (🟥 vế chỉ lưu kết quả → "12")', row.bieu_thuc === '2+1+1+4+4' && Number(row.so_don_vi) === 12)
-  await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'cup','4*4','go_tay')`, [BT])
-  ok('✅ nhân "4*4" → so_don_vi=16', Number((await q1(`select so_don_vi from kho.so_don_vi_mon where ma_bien_the=$1 and hoat_dong='cup'`, [BT])).so_don_vi) === 16)
+  await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'cup','4*4','go_tay')`, [MID])
+  ok('✅ nhân "4*4" → so_don_vi=16', Number((await q1(`select so_don_vi from kho.so_don_vi_mon where mon_id=$1 and hoat_dong='cup'`, [MID])).so_don_vi) === 16)
 
   // ═══ 2 · BIỂU THỨC RÁC bị chặn (server) ═══
   console.log('\n── 2 · biểu thức rác bị chặn, KHÔNG lưu ──')
-  const rac1 = await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'dan','12; drop table x','go_tay')`, [BT])
+  const rac1 = await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'dan','12; drop table x','go_tay')`, [MID])
   ok('✅ "12; drop table" → RPC báo lỗi, KHÔNG lưu', rac1.e != null && /BIEU_THUC_RAC/.test(rac1.e), rac1.e || '(lọt!)')
-  const rac2 = await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'dan','abc','go_tay')`, [BT])
+  const rac2 = await asK(U.thiet_ke, `select kho.luu_so_don_vi($1,'dan','abc','go_tay')`, [MID])
   ok('✅ "abc" → RPC báo lỗi, KHÔNG lưu', rac2.e != null)
   // CHECK constraint tầng cột (chèn thẳng)
   let chenRac = false
-  try { await c.query('savepoint r2'); await c.query(`insert into kho.so_don_vi_mon(ma_bien_the,hoat_dong,so_don_vi,nguon,bieu_thuc) values($1,'goi',1,'go_tay','x;y')`, [BT]); chenRac = true; await c.query('rollback to savepoint r2') } catch (e) { await c.query('rollback to savepoint r2') }
+  try { await c.query('savepoint r2'); await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon,bieu_thuc) values($1,'goi',1,'go_tay','x;y')`, [MID]); chenRac = true; await c.query('rollback to savepoint r2') } catch (e) { await c.query('rollback to savepoint r2') }
   ok('✅ CHECK cột chặn bieu_thuc ký tự lạ (chèn thẳng)', !chenRac)
 
-  // ═══ 3 · FAIL-ĐÓNG SERVER · đẩy khi còn thiếu ═══
-  console.log('\n── 3 · đẩy xuống xưởng — server chặn khi thiếu (quan trọng nhất) ──')
-  await c.query('savepoint s3'); await c.query(`delete from kho.so_don_vi_mon where ma_bien_the='CAN-A-BEP-TREN-BT'`)  // 1 món thiếu
-  const dThieu = await as(U.thiet_ke, `select kho.day_so_san_xuat('CAN-A-DEMO')`)
-  console.log(`   🟥 vế chưa vá: client tự cho đẩy · ✅ server: ${dThieu.e ? dThieu.e.replace(/^.*(CON_MON_THIEU.*)$/, '$1').slice(0, 60) : '(lọt!)'}`)
-  ok('✅ gọi thẳng API đẩy khi thiếu → SERVER CHẶN', dThieu.e != null && /CON_MON_THIEU|thiếu/.test(dThieu.e), dThieu.e || '(LỌT!)')
-  // trạng thái đơn KHÔNG bị đổi
-  await c.query('rollback to savepoint s3')   // (đẩy thành công: xem test 9)
+  // ═══ 3 · FAIL-ĐÓNG SERVER · bàn giao khi còn thiếu số ═══
+  console.log('\n── 3 · bàn giao xưởng — server chặn khi thiếu số (quan trọng nhất) ──')
+  await c.query('savepoint s3'); await c.query(`delete from kho.so_don_vi_mon where mon_id=$1`, [await midOf('CAN-A-BEP-TREN-BT')])  // 1 món thiếu
+  const dThieu = await as(U.thiet_ke, `select kho.ban_giao_xuong('CAN-A-DEMO', ${F1}, null)`)
+  console.log(`   🟥 vế chưa vá: client tự cho gửi · ✅ server: ${dThieu.e ? dThieu.e.slice(0, 70) : '(lọt!)'}`)
+  ok('✅ gọi thẳng API bàn giao khi thiếu số → SERVER CHẶN (THIEU_SO_DON_VI)', dThieu.e != null && /THIEU_SO_DON_VI/.test(dThieu.e), dThieu.e || '(LỌT!)')
+  await c.query('rollback to savepoint s3')
 
-  // ═══ 4 · CỔNG VAI (ĐƯỢC = qua cổng vai, dù có thể vướng thiếu-số) ═══
+  // ═══ 4 · CỔNG VAI (ĐƯỢC = qua cổng vai, dù có thể vướng thiếu file/khách-duyệt) ═══
   console.log('\n── 4 · cổng vai (thiet_ke/ceo vào · khác chặn) ──')
   const quaCong = e => !/chỉ ceo\/thiet_ke/.test(e || '')
-  for (const rpc of ['nhap_so_don_don_hang', 'day_so_san_xuat']) {
-    ok(`thiet_ke ${rpc} → ĐƯỢC (qua cổng vai)`, quaCong((await as(U.thiet_ke, `select kho.${rpc}('CAN-A-DEMO')`)).e))
-    ok(`ceo ${rpc} → ĐƯỢC (qua cổng vai)`, quaCong((await as(U.ceo, `select kho.${rpc}('CAN-A-DEMO')`)).e))
-    for (const v of ['sale', 'xuong', 'tho', 'ke_toan']) ok(`${v} ${rpc} → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(U[v], `select kho.${rpc}('CAN-A-DEMO')`)).e || ''), '(lọt!)')
-    ok(`vai NULL ${rpc} → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(null, `select kho.${rpc}('CAN-A-DEMO')`)).e || ''))
+  const goi = { nhap_so_don_don_hang: `kho.nhap_so_don_don_hang('CAN-A-DEMO')`, ban_giao_xuong: `kho.ban_giao_xuong('CAN-A-DEMO', ${F1}, null)` }
+  for (const rpc of Object.keys(goi)) {
+    ok(`thiet_ke ${rpc} → ĐƯỢC (qua cổng vai)`, quaCong((await as(U.thiet_ke, `select ${goi[rpc]}`)).e))
+    ok(`ceo ${rpc} → ĐƯỢC (qua cổng vai)`, quaCong((await as(U.ceo, `select ${goi[rpc]}`)).e))
+    for (const v of ['sale', 'xuong', 'tho', 'ke_toan']) ok(`${v} ${rpc} → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(U[v], `select ${goi[rpc]}`)).e || ''), '(lọt!)')
+    ok(`vai NULL ${rpc} → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(null, `select ${goi[rpc]}`)).e || ''))
   }
 
   // ═══ 5 · ĐƠN 1 MÓN ẨN DẢI TỔNG ═══
@@ -88,24 +90,26 @@ try {
   const chuaChot = await as(U.ceo, `select kho.nhap_so_don_don_hang('CAN-A-BAOGIA')`)
   ok('✅ đơn chưa chốt (báo giá) → DON_CHUA_CHOT', /DON_CHUA_CHOT/.test(chuaChot.e || ''), chuaChot.e || '(lọt!)')
 
-  // ═══ 9 · ĐẨY THÀNH CÔNG đổi trạng thái ═══
-  console.log('\n── 9 · đẩy thành công → cho_cat (trước/sau) ──')
-  const HD_KE = ['cat', 'dan', 'cam', 'thung', 'goi']
-  for (const hd of HD_KE) await c.query(`insert into kho.so_don_vi_mon(ma_bien_the,hoat_dong,so_don_vi,nguon) values('CAN-A-KE-TIVI-BT',$1,5,'go_tay') on conflict do nothing`, [hd])
+  // ═══ 9 · BÀN GIAO THÀNH CÔNG (đủ 3 chốt) đổi trạng thái + lưu file ═══
+  console.log('\n── 9 · bàn giao thành công → cho_cat + file (trước/sau) ──')
+  // CAN-A-DEMO đã đủ số (6 món 'du'); thêm chốt KHÁCH DUYỆT
+  await c.query(`insert into kho.ban_thiet_ke(ma_don,phien_ban,ma_ns_gui,trang_thai) values('CAN-A-DEMO',1,'38c5252b-6e59-4651-8edb-d1c38afed0b6','khach_duyet')`)
   const tt_truoc = (await q1(`select trang_thai from kho.don_hang where ma_don='CAN-A-DEMO'`)).trang_thai
-  const day = await asK(U.thiet_ke, `select kho.day_so_san_xuat('CAN-A-DEMO')`)
+  const file_truoc = Number((await q1(`select count(*) n from kho.file_san_xuat where ma_don='CAN-A-DEMO'`)).n)
+  const bgKq = await asK(U.thiet_ke, `select kho.ban_giao_xuong('CAN-A-DEMO', ${F1}, 'test bàn giao') r`)
   const tt_sau = (await q1(`select trang_thai from kho.don_hang where ma_don='CAN-A-DEMO'`)).trang_thai
-  console.log(`   TRƯỚC=${tt_truoc} → SAU=${tt_sau} · rpc=${day.e || JSON.stringify(day.r[0])}`)
-  ok('✅ thiet_ke đẩy (đủ số) → đơn chuyển cho_cat', day.e === null && tt_sau === 'cho_cat' && tt_truoc !== 'cho_cat')
+  const file_sau = Number((await q1(`select count(*) n from kho.file_san_xuat where ma_don='CAN-A-DEMO'`)).n)
+  console.log(`   TRƯỚC=${tt_truoc} file=${file_truoc} → SAU=${tt_sau} file=${file_sau} · rpc=${bgKq.e || JSON.stringify(bgKq.r[0])}`)
+  ok('✅ thiet_ke bàn giao (đủ số + file + khách duyệt) → cho_cat + lưu file', bgKq.e === null && tt_sau === 'cho_cat' && tt_truoc !== 'cho_cat' && file_sau > file_truoc)
 
-  // ═══ 10 · ĐẨY LẠI đơn đã vào chuyền → CHẶN ═══
-  console.log('\n── 10 · đẩy lại đơn đã vào chuyền ──')
-  const dayLai = await as(U.thiet_ke, `select kho.day_so_san_xuat('CAN-A-DEMO')`)   // giờ đã cho_cat
-  ok('✅ đẩy lại đơn đã cho_cat → DA_VAO_CHUYEN (🟥 vế chưa vá đẩy được lần 2)', /DA_VAO_CHUYEN/.test(dayLai.e || ''), dayLai.e || '(LỌT!)')
+  // ═══ 10 · BÀN GIAO LẠI đơn đã vào chuyền → CHẶN ═══
+  console.log('\n── 10 · bàn giao lại đơn đã vào chuyền ──')
+  const dayLai = await as(U.thiet_ke, `select kho.ban_giao_xuong('CAN-A-DEMO', ${F1}, null)`)   // giờ đã cho_cat
+  ok('✅ bàn giao lại đơn đã cho_cat → DA_VAO_CHUYEN (🟥 vế chưa vá gửi được lần 2)', /DA_VAO_CHUYEN/.test(dayLai.e || ''), dayLai.e || '(LỌT!)')
 
   // ═══ 11 · vai khác VẪN chặn (mở quyền thiet_ke không nới vai khác) ═══
-  console.log('\n── 11 · vai khác vẫn chặn đẩy ──')
-  for (const v of ['sale', 'tho', 'ke_toan']) ok(`${v} đẩy → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(U[v], `select kho.day_so_san_xuat('CAN-A-DEMO')`)).e || ''), '(lọt!)')
+  console.log('\n── 11 · vai khác vẫn chặn bàn giao ──')
+  for (const v of ['sale', 'tho', 'ke_toan']) ok(`${v} bàn giao → CHẶN`, /chỉ ceo\/thiet_ke/.test((await as(U[v], `select kho.ban_giao_xuong('CAN-A-DEMO', ${F1}, null)`)).e || ''), '(lọt!)')
 
   await c.query('rollback')
   console.log(`\n══ KẾT QUẢ 068: ${P} pass · ${F} fail ══`)

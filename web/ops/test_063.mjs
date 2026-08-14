@@ -13,7 +13,9 @@ async function asCeo(s, a = []) {
   try { r = (await c.query(s, a)).rows } catch (x) { e = x.message }
   await c.query('rollback to savepoint sp'); await c.query('reset role'); await c.query("select set_config('request.jwt.claims','',true)"); return { r, e }
 }
-const gioMon = (ma) => asCeo(`select kho.gio_du_kien_cua_mon($1) g`, [ma]).then(x => x.r[0].g)
+// khoá theo MÓN (db/069): tra món-id của CAN-A-DEMO theo biến thể
+const midOf = async (sp) => (await q1(`select id from kho.don_hang_mon where sp_id=$1 and don_id=(select id from kho.don_hang where ma_don='CAN-A-DEMO') limit 1`, [sp])).id
+const gioMon = async (sp) => (await asCeo(`select kho.gio_du_kien_cua_mon($1) g`, [await midOf(sp)])).r[0].g
 const gioDon = (ma) => asCeo(`select kho.gio_du_kien_cua_don($1) g`, [ma]).then(x => x.r[0].g)
 
 try {
@@ -41,7 +43,7 @@ try {
   console.log('\n── 3 · fail-đóng cấp đơn ──')
   const donDu = await gioDon('CAN-A-DEMO')
   console.log(`   ĐỦ số: ok=${donDu.ok} tong_gio_don=${donDu.tong_gio_don}h`)
-  await c.query('savepoint s3'); await c.query(`delete from kho.so_don_vi_mon where ma_bien_the='CAN-A-BEP-TREN-BT'`)
+  await c.query('savepoint s3'); await c.query(`delete from kho.so_don_vi_mon where mon_id=(select id from kho.don_hang_mon where sp_id='CAN-A-BEP-TREN-BT' and don_id=(select id from kho.don_hang where ma_don='CAN-A-DEMO'))`)
   const donThieu = await gioDon('CAN-A-DEMO')
   console.log(`   🟥 vế chưa vá: cộng 5 món còn lại rồi trả tổng như đủ`)
   console.log(`   ✅ vế đã vá: ok=${donThieu.ok} tong_gio_don=${donThieu.tong_gio_don} · thiếu: ${JSON.stringify((donThieu.thieu_mon || []).map(m => m.ten))}`)

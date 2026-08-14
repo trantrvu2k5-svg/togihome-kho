@@ -42,7 +42,7 @@ try {
   // #2 — đơn CHƯA CHỐT (còn báo giá) KHÔNG có nút; đã chốt thì có
   for (const t of ['bao_gia', 'bao_gia_treo', 'bao_gia_thua'])
     ok(`#2 đơn "${t}" (chưa chốt) → KHÔNG nút`, nutNhapSo(t, 'thiet_ke', 'X') === null)
-  ok('đơn "moi_len_don" (đã chốt, chưa đẩy) → nút "Nhập số sản xuất"', nutNhapSo('moi_len_don', 'thiet_ke', 'X')?.text === 'Nhập số sản xuất')
+  ok('đơn "moi_len_don" (đã chốt, chưa gửi) → nút "Gửi file sản xuất cho xưởng"', nutNhapSo('moi_len_don', 'thiet_ke', 'X')?.text === 'Gửi file sản xuất cho xưởng')
   ok('đơn "cho_cat" (đã đẩy) → nút đổi "Xem số đã nhập"', nutNhapSo('cho_cat', 'thiet_ke', 'X')?.text === 'Xem số đã nhập')
   ok('đơn "dang_lam" (đã đẩy) → "Xem số đã nhập"', nutNhapSo('dang_lam', 'thiet_ke', 'X')?.text === 'Xem số đã nhập')
 
@@ -87,6 +87,67 @@ try {
   console.log(`   SAU: T-LOIB=${bTT2}`)
   ok('LỖI B: đơn ĐI được moi_len_don → cho_cat (🟥 đứng ở moi_len_don = kẹt)', bTT2 === 'cho_cat', vao.e || `kẹt ở ${bTT2}`)
 
+  // ═══════════ L-12 · KHOÁ THEO MÓN + BÀN GIAO 3 CHỐT (test 13-17) ═══════════
+  const NS_TK = '38c5252b-6e59-4651-8edb-d1c38afed0b6'   // nguoi_dung.id của thiet_ke demo
+  const FILE = `'[{"loai_file":"dxf","duong_dan":"x/a.dxf","ten_goc":"a.dxf","co_byte":10}]'::jsonb`
+  const HD8 = ['cat', 'dan', 'cam', 'thung', 'cup', 'ray', 'canh', 'goi']
+  const row1 = async (s, a = []) => (await c.query(s, a)).rows[0]
+
+  // ═══ 13 · MÓN TỰ DO (sp_id=null) hiện ra + gán quy trình + nhập số được ═══
+  console.log('\n══ 13 · món tự do DEMO-13 — hiện 2 món, gán + nhập số ══')
+  const d13 = (await as(U.ceo, `select kho.nhap_so_don_don_hang('DEMO-13') d`)).r[0].d
+  console.log(`   DEMO-13: so_mon=${d13.so_mon} ten_don="${d13.ten_don}" · món: ${d13.mon.map(m => m.ten + '(' + m.sp_id + ')').join(', ')}`)
+  ok('#13 DEMO-13 (2 món tự do sp_id=null) → hiện ĐÚNG 2 món (🟥 vế cũ inner join = 0 món)', d13.so_mon === 2 && d13.mon.length === 2 && d13.mon.every(m => m.sp_id === null))
+  ok('#13 tên đơn có nội dung (không rỗng)', typeof d13.ten_don === 'string' && d13.ten_don.length > 0)
+  const mid13 = d13.mon[0].mon_id
+  await asK(U.ceo, `select kho.gan_quy_trinh_mon($1,'TU-AO-MELAMINE')`, [mid13])
+  const ct13 = (await as(U.ceo, `select kho.nhap_so_chi_tiet_mon($1) r`, [mid13])).r[0].r
+  for (const b of ct13.buoc) if (b.loai_buoc !== 'tu_chay') await asK(U.ceo, `select kho.luu_so_don_vi($1,$2,'5','go_tay')`, [mid13, b.hoat_dong])
+  const g13 = (await as(U.ceo, `select kho.gio_du_kien_cua_mon($1) g`, [mid13])).r[0].g
+  ok('#13 món tự do gán quy trình + nhập số → ĐỦ (ok=true, có giờ)', g13.ok === true && Number(g13.tong_gio) > 0, JSON.stringify(g13).slice(0, 80))
+
+  // ═══ 14 · MÓN CÓ LÕI → gợi ý quy trình từ lõi + đổi được ═══
+  console.log('\n══ 14 · món có lõi gợi ý quy trình, đổi được ══')
+  const midM = (await row1(`select id from kho.don_hang_mon where sp_id='CAN-A-TUAO-MASTER-BT' and don_id=(select id from kho.don_hang where ma_don='CAN-A-DEMO') limit 1`)).id
+  const ct14 = (await as(U.ceo, `select kho.nhap_so_chi_tiet_mon($1) r`, [midM])).r[0].r
+  ok('#14 món có lõi → gợi ý quy trình lõi (goi_y=TU-AO-MELAMINE, không chua_gan)', ct14.goi_y === 'TU-AO-MELAMINE' && ct14.chua_gan === false, JSON.stringify({ goi_y: ct14.goi_y, chua_gan: ct14.chua_gan }))
+  await asK(U.ceo, `select kho.gan_quy_trinh_mon($1,'KE-HO-MELAMINE')`, [midM])
+  const ct14b = (await as(U.ceo, `select kho.nhap_so_chi_tiet_mon($1) r`, [midM])).r[0].r
+  ok('#14 ĐỔI được sang quy trình khác (ma_quy_trinh=KE-HO-MELAMINE, ghi đè gợi ý)', ct14b.ma_quy_trinh === 'KE-HO-MELAMINE', JSON.stringify({ ma: ct14b.ma_quy_trinh }))
+
+  // ═══ 15 · BA CHỐT bàn giao, mỗi cái MÃ RIÊNG ═══
+  console.log('\n══ 15 · ba chốt bàn giao — mỗi cái mã lỗi riêng ══')
+  const dz = (await row1(`insert into kho.don_hang(ma_don,trang_thai) values('T-BG','dang_thiet_ke') returning id`)).id
+  const mz = (await row1(`insert into kho.don_hang_mon(don_id,ten,ma_quy_trinh) values($1,'Món BG','TU-AO-MELAMINE') returning id`, [dz])).id
+  for (const hd of HD8) await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon) values($1,$2,5,'go_tay')`, [mz, hd])
+  await c.query(`insert into kho.ban_thiet_ke(ma_don,phien_ban,ma_ns_gui,trang_thai) values('T-BG',1,$1,'khach_duyet')`, [NS_TK])
+  const e15a = await as(U.ceo, `select kho.ban_giao_xuong('T-BG','[]'::jsonb,null)`)   // đủ số+duyệt, KHÔNG file
+  ok('#15 (a) thiếu file → THIEU_FILE_CAT', /THIEU_FILE_CAT/.test(e15a.e || ''), e15a.e || '(lọt!)')
+  await c.query('savepoint b15'); await c.query(`delete from kho.ban_thiet_ke where ma_don='T-BG'`)
+  const e15b = await as(U.ceo, `select kho.ban_giao_xuong('T-BG',${FILE},null)`)   // đủ số+file, CHƯA duyệt
+  ok('#15 (b) chưa khách duyệt → CHUA_KHACH_DUYET', /CHUA_KHACH_DUYET/.test(e15b.e || ''), e15b.e || '(lọt!)')
+  await c.query('rollback to savepoint b15')
+  await c.query('savepoint c15'); await c.query(`delete from kho.so_don_vi_mon where mon_id=$1 and hoat_dong='cat'`, [mz])
+  const e15c = await as(U.ceo, `select kho.ban_giao_xuong('T-BG',${FILE},null)`)   // file+duyệt, THIẾU số
+  ok('#15 (c) thiếu số → THIEU_SO_DON_VI', /THIEU_SO_DON_VI/.test(e15c.e || ''), e15c.e || '(lọt!)')
+  await c.query('rollback to savepoint c15')
+  ok('#15 ba mã lỗi RIÊNG BIỆT (không gộp một câu chung)', /THIEU_FILE_CAT/.test(e15a.e) && /CHUA_KHACH_DUYET/.test(e15b.e) && /THIEU_SO_DON_VI/.test(e15c.e))
+
+  // ═══ 16 · ĐỦ 3 CHỐT → bàn giao thành công (cho_cat + lưu file) ═══
+  console.log('\n══ 16 · đủ 3 chốt → bàn giao thành công ══')
+  const t16a = (await row1(`select trang_thai from kho.don_hang where ma_don='T-BG'`)).trang_thai
+  const f16a = Number((await row1(`select count(*) n from kho.file_san_xuat where ma_don='T-BG'`)).n)
+  const bg16 = await asK(U.ceo, `select kho.ban_giao_xuong('T-BG',${FILE},'ok') r`)
+  const t16b = (await row1(`select trang_thai from kho.don_hang where ma_don='T-BG'`)).trang_thai
+  const f16b = Number((await row1(`select count(*) n from kho.file_san_xuat where ma_don='T-BG'`)).n)
+  console.log(`   TRƯỚC=${t16a} file=${f16a} → SAU=${t16b} file=${f16b} · rpc=${bg16.e || JSON.stringify(bg16.r[0])}`)
+  ok('#16 đủ 3 chốt → cho_cat + lưu file (🟥 vế thiếu chốt vẫn qua)', bg16.e === null && t16b === 'cho_cat' && t16a !== 'cho_cat' && f16b > f16a)
+
+  // ═══ 17 · KHÔNG hai đường: chỉ ban_giao_xuong đẩy cho_cat từ thiết kế ═══
+  console.log('\n══ 17 · một đường bàn giao (day_so_san_xuat đã gỡ) ══')
+  const conDay = Number((await row1(`select count(*) n from pg_proc where proname='day_so_san_xuat'`)).n)
+  ok('#17 day_so_san_xuat ĐÃ GỠ — chỉ còn ban_giao_xuong đẩy cho_cat từ thiết kế', conDay === 0, conDay + ' còn tồn tại (hai đường!)')
+
   console.log(`\n══ KẾT QUẢ 069: ${P} pass · ${F} fail ══`)
-} catch (e) { console.error('LỖI TEST:', e.message); F++ }
+} catch (e) { console.error('LỖI TEST:', e.message, '\n', (e.stack || '').split('\n').slice(1, 4).join('\n')); F++ }
 finally { await c.query('rollback'); await c.end(); process.exit(F ? 1 : 0) }
