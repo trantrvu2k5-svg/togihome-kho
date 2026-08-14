@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Togihome · Sản phẩm</title>
+<!-- App SẢN PHẨM — bám mẫu CEO (app_san_pham_ba_tang.html). Lô này 2 tab: Cây sản phẩm · Danh sách.
+     Bốn tab kia (thêm mới, tra cứu, trùng nhau, bộ, thương hiệu) lô sau. Vai: ceo · ke_toan. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --do:#A82C27; --do-sang:#C4362F; --do-nhat:#FDECEA;
+  --nen:#EFF1F5; --the:#FFFFFF; --vien:#E3E6EC;
+  --chu:#1A2233; --chu-nhat:#6B7280; --chu-mo:#9CA3AF;
+  --xong:#15805F; --xong-nhat:#E7EFEA; --cho:#C77C15; --cho-nhat:#FDF3E3;
+  --tim:#6155BC; --tim-nhat:#EFEDFB; --lam:#2C4C78; --lam-nhat:#E8EEF6;
+  --vang:#B45309; --vang-nhat:#FEF3C7;
+  --bo:12px; --bo-nho:7px; --thanh:210px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--nen);color:var(--chu);font-size:15px;line-height:1.5}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:-.02em}
+button,select,input,textarea{cursor:pointer;border:none;background:none;font-family:inherit;font-size:inherit;color:inherit}
+input,select{cursor:text;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:9px 11px;background:var(--the);font-size:14px}
+select{cursor:pointer}
+:focus-visible{outline:2px solid var(--do-sang);outline-offset:2px}
+.khung{display:flex;min-height:100vh}
+.thanh{width:var(--thanh);flex-shrink:0;background:var(--do);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.thanh-ten{padding:20px 18px 16px;color:#fff;font-weight:700;font-size:17px}
+.thanh-ten span{display:block;font-size:12px;font-weight:400;opacity:.72;margin-top:2px}
+.thanh-muc{display:flex;align-items:center;gap:11px;padding:11px 18px;color:rgba(255,255,255,.82);font-size:14.5px;border-left:3px solid transparent;width:100%;text-align:left}
+.thanh-muc:hover{color:#fff;background:rgba(255,255,255,.07)}
+.thanh-muc.chon{color:#fff;background:rgba(0,0,0,.16);border-left-color:#fff;font-weight:600}
+.thanh-muc i{font-style:normal;font-size:16px;width:19px;text-align:center}
+.thanh-muc em{font-style:normal;margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;opacity:.8}
+.thanh-duoi{margin-top:auto;padding:16px 18px;border-top:1px solid rgba(255,255,255,.14)}
+.thanh-duoi p{color:#fff;font-size:13.5px;font-weight:500}
+.thanh-duoi small{color:rgba(255,255,255,.66);font-size:12px}
+.thanh-duoi button{color:rgba(255,255,255,.9);font-size:12.5px;text-decoration:underline;margin-top:6px}
+.than{flex:1;min-width:0;padding:24px 28px 40px}
+.trong{max-width:1420px;margin:0 auto}
+.dau{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.dau h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.dau p{font-size:13.5px;color:var(--chu-nhat);margin-top:3px;max-width:640px;line-height:1.55}
+.nut-chinh{background:var(--do);color:#fff;font-weight:600;padding:10px 18px;border-radius:var(--bo-nho);font-size:14.5px}
+.nut-chinh:hover{background:var(--do-sang)}
+.nut-vien{border:1px solid var(--vien);background:var(--the);color:var(--chu);font-weight:500;padding:9px 15px;border-radius:var(--bo-nho);font-size:14px}
+.nut-vien:hover{border-color:var(--do);color:var(--do)}
+.the{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);overflow:hidden;margin-bottom:18px}
+.loc{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--vien)}
+.loc select,.loc input{width:auto;min-width:150px}
+.loc .dem{margin-left:auto;font-size:13px;color:var(--chu-nhat)}
+.nhan{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.n-loi{background:var(--tim-nhat);color:var(--tim)}
+.n-bt{background:var(--xong-nhat);color:var(--xong)}
+.n-ny{background:var(--do-nhat);color:#8E2A22}
+.n-combo{background:#F0EEF9;color:var(--tim)}
+.n-vang{background:var(--vang-nhat);color:var(--vang);cursor:pointer}
+/* ===== BA TẦNG ===== */
+.loi{padding:17px 18px;background:#FAFBFC;border-bottom:1px solid var(--vien)}
+.loi-dau{display:flex;gap:15px;align-items:flex-start;flex-wrap:wrap}
+.loi-anh{width:120px;height:90px;background:var(--nen);border:1px solid var(--vien);border-radius:var(--bo-nho);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--chu-mo);flex-shrink:0;overflow:hidden}
+.loi-anh img{width:100%;height:100%;object-fit:cover}
+.loi-than{flex:1;min-width:220px}
+.loi-ma{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:3px}
+.loi-ten{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.loi-ten b{font-size:17px;font-weight:600}
+.loi-meta{font-size:13px;color:var(--chu-nhat);margin-bottom:9px}
+.loi-so{display:flex;gap:20px;flex-wrap:wrap}
+.loi-so div span{display:block;font-size:11.5px;color:var(--chu-mo)}
+.loi-so div b{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700}
+.bt{padding:13px 18px 13px 34px;border-bottom:1px solid var(--vien);position:relative;background:#FDFDFE}
+.bt::before{content:"";position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--vien)}
+.bt-dau{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bt-ma{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:var(--xong)}
+.bt-vl{flex:1;min-width:180px;font-size:14px}
+.bt-vl small{display:block;font-size:12px;color:var(--chu-mo);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.bt-gv{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;white-space:nowrap}
+.bt-gv span{display:block;font-size:11px;color:var(--chu-mo);font-weight:400;font-family:'Be Vietnam Pro',sans-serif}
+.ny{display:flex;gap:12px;padding:11px 18px 11px 52px;border-bottom:1px solid var(--vien);align-items:center;position:relative;flex-wrap:wrap}
+.ny:last-child{border-bottom:none}
+.ny::before{content:"";position:absolute;left:34px;top:0;bottom:0;width:2px;background:var(--vien)}
+.ny::after{content:"";position:absolute;left:34px;top:50%;width:11px;height:2px;background:var(--vien)}
+.ny-brand{width:110px;flex-shrink:0}
+.ny-brand b{font-size:13.5px;font-weight:600;display:block}
+.ny-brand small{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--chu-mo)}
+.ny-ten{flex:1;min-width:200px;font-size:14px}
+.ny-ten small{display:block;font-size:11.5px;color:var(--chu-mo);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.ny-so{text-align:right;width:120px;flex-shrink:0}
+.ny-so b{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;display:block}
+.ny-so span{font-size:11px;color:var(--chu-mo)}
+.ny-ban{text-align:right;width:70px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--chu-nhat)}
+/* ===== DANH SÁCH ===== */
+.hang{display:flex;gap:14px;padding:12px 18px;border-bottom:1px solid var(--vien);align-items:center}
+.hang:last-child{border-bottom:none}
+.hang:hover{background:#FAFBFC}
+.hang-anh{width:54px;height:54px;border-radius:var(--bo-nho);background:var(--nen);flex-shrink:0;overflow:hidden;border:1px solid var(--vien)}
+.hang-anh img{width:100%;height:100%;object-fit:cover}
+.hang-than{flex:1;min-width:0}
+.hang-ten{font-size:14.5px;font-weight:500;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.hang-phu{font-size:12.5px;color:var(--chu-nhat);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.hang-gia{text-align:right;flex-shrink:0}
+.hang-gia b{font-family:'JetBrains Mono',monospace;font-size:14.5px;font-weight:700;display:block}
+.hang-gia span{font-size:11.5px;color:var(--chu-mo)}
+.hang-ban{width:64px;text-align:right;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--chu-nhat)}
+.nhac{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:12px 14px;font-size:13px;color:#6B4A08;line-height:1.6;margin:14px 18px}
+.nhac.do{background:var(--do-nhat);border-color:#F3C9C4;color:#7C1D18}
+.nhac b{display:block;margin-bottom:2px}
+.trong-rong{padding:44px 24px;text-align:center;color:var(--chu-nhat)}
+.loi-anh img,.hang-anh img{cursor:zoom-in}
+/* phóng to ảnh */
+.lb{position:fixed;inset:0;background:rgba(9,11,15,.86);display:none;align-items:center;justify-content:center;padding:24px;z-index:80;cursor:zoom-out}
+.lb.hien{display:flex}
+.lb img{max-width:96%;max-height:96%;border-radius:8px;box-shadow:0 14px 50px rgba(0,0,0,.55);background:#fff}
+.bao{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--chu);color:#fff;padding:11px 20px;border-radius:22px;font-size:14px;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .22s;z-index:60}
+.bao.hien{opacity:1}.bao.loi{background:var(--do)}
+/* modal sửa */
+.mo{position:fixed;inset:0;background:rgba(15,20,30,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.mo.hien{opacity:1;pointer-events:auto}
+.hopm{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);background:var(--the);border-radius:var(--bo);width:440px;max-width:calc(100% - 32px);z-index:45;opacity:0;pointer-events:none;transition:all .2s;box-shadow:0 14px 44px rgba(15,20,30,.25)}
+.hopm.hien{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.hopm-dau{padding:16px 20px;border-bottom:1px solid var(--vien);display:flex;justify-content:space-between;align-items:center}
+.hopm-dau h3{font-size:16px;font-weight:600}.dong-x{font-size:24px;color:var(--chu-mo)}
+.hopm-than{padding:18px 20px}.hopm-than label{display:block;font-size:13px;color:var(--chu-nhat);margin:10px 0 4px}
+.hopm-than label:first-child{margin-top:0}.hopm-than input{width:100%}
+.hopm-nut{padding:14px 20px;border-top:1px solid var(--vien);display:flex;gap:9px;justify-content:flex-end}
+/* mobile: thanh bên → thanh TRÊN gọn (giữ tab + đăng xuất truy cập được) */
+@media (max-width:819px){
+  .khung{flex-direction:column}
+  .thanh{width:100%;height:auto;position:sticky;top:0;flex-direction:row;flex-wrap:wrap;align-items:center;padding:9px 12px;gap:7px;z-index:30}
+  .thanh-ten{padding:0;font-size:15px;flex:1 1 100%;margin-bottom:2px}
+  .thanh-ten span{display:none}
+  .thanh-muc{width:auto;padding:8px 13px;border-left:none;border-radius:20px}
+  .thanh-muc.chon{border-left:none;background:rgba(0,0,0,.22)}
+  .thanh-muc em{margin-left:6px}
+  .thanh-duoi{margin:0 0 0 auto;padding:0;border-top:none;display:flex;align-items:center;gap:8px}
+  .thanh-duoi p{font-size:12.5px}.thanh-duoi small,.thanh-duoi br{display:none}
+  .thanh-duoi button{margin-top:0}
+  .than{padding:16px 13px 40px}
+  .loc select,.loc input{min-width:120px;flex:1 1 40%}
+  .loc .dem{flex:1 1 100%;margin-left:0}
+  /* hàng danh sách: xếp gọn — ảnh+tên một dòng, giá+bán xuống dòng dưới */
+  .hang{flex-wrap:wrap;row-gap:6px}
+  .hang-than{flex:1 1 0;min-width:0}
+  .hang-gia{flex:1 1 100%;text-align:left;padding-left:68px;display:flex;gap:10px;align-items:baseline}
+  .hang-gia b{font-size:14px}.hang-gia span{order:2}
+  .hang-ban{width:auto;padding-left:68px;text-align:left}
+  .ny-brand{width:auto}
+  /* cây: niêm yết xuống dòng thoáng hơn */
+  .ny{padding-left:40px}.ny::before,.ny::after{left:24px}.ny-so{width:auto;text-align:left}
+}
+#cong{max-width:360px;margin:10vh auto;padding:0 22px;text-align:center}
+#cong .logo{font-size:38px;margin-bottom:6px}#cong h1{font-size:22px;margin:0 0 4px}
+#cong .sub{color:var(--chu-nhat);font-size:14px;margin-bottom:18px}
+#cong input{margin:7px 0;text-align:left;width:100%}
+#cong button{width:100%;padding:13px;background:var(--do);color:#fff;border-radius:var(--bo-nho);font-size:16px;font-weight:600;margin-top:6px}
+#cong .err{color:var(--do);font-size:13.5px;min-height:20px;margin-top:8px}
+#boot{padding:60px 30px;color:var(--chu-nhat);text-align:center}
+</style>
+</head>
+<body>
+  <div id="cong" style="display:none"></div>
+  <div id="boot">Đang mở ứng dụng sản phẩm…</div>
+  <div id="app" class="khung" style="display:none">
+    <nav class="thanh">
+      <div class="thanh-ten">Togihome Sản phẩm<span>Ba tầng · lõi · biến thể · niêm yết</span></div>
+      <button class="thanh-muc chon" id="n-cay" data-tab="cay"><i>🌳</i>Cây sản phẩm<em id="emCay"></em></button>
+      <button class="thanh-muc" id="n-ds" data-tab="ds"><i>📋</i>Danh sách</button>
+      <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
+    </nav>
+    <main class="than"><div class="trong">
+      <section id="s-cay">
+        <div class="dau"><div><h1>Cây sản phẩm</h1><p>Lõi là thiết kế. Biến thể là vật liệu/kích thước. Niêm yết là brand bán ra. Cùng lõi nghĩa là cùng một sản phẩm, dù tên khác nhau.</p></div></div>
+        <div class="the">
+          <div class="loc">
+            <select id="cLocBrand"><option value="">Mọi brand</option></select>
+            <select id="cLocNhom"><option value="">Mọi nhóm</option></select>
+            <select id="cLocNguon"><option value="">Mọi nguồn</option></select>
+            <span class="dem" id="cDem">—</span>
+          </div>
+          <div id="cayBody"><div class="trong-rong">Đang tải…</div></div>
+        </div>
+      </section>
+      <section id="s-ds" style="display:none">
+        <div class="dau"><div><h1>Danh sách niêm yết</h1><p>Xếp theo bán chạy. Nhãn vàng = cần soát: vật liệu đoán chưa xác nhận, hoặc kích thước chưa có số. Bấm nhãn để sửa.</p></div></div>
+        <div class="the">
+          <div class="loc">
+            <select id="dLocBrand"><option value="">Mọi brand</option></select>
+            <select id="dLocNhom"><option value="">Mọi nhóm</option></select>
+            <select id="dLocNguon"><option value="">Mọi nguồn</option></select>
+            <span class="dem" id="dDem">—</span>
+          </div>
+          <div id="dsBody"><div class="trong-rong">Đang tải…</div></div>
+        </div>
+      </section>
+    </div></main>
+  </div>
+  <div class="mo" id="mo"></div>
+  <div class="hopm" id="hopM"><div class="hopm-dau"><h3 id="hopMTen"></h3><button class="dong-x" id="hopMX">×</button></div>
+    <div class="hopm-than" id="hopMThan"></div><div class="hopm-nut" id="hopMNut"></div></div>
+  <div class="lb" id="lb"><img alt="ảnh sản phẩm"></div>
+  <div class="bao" id="bao"></div>
+  <script type="module" src="/src/sanpham.js"></script>
+</body>
+</html>

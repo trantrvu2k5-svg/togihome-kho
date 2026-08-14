@@ -11,7 +11,8 @@
     "build:taichinh": "vite build --config vite.config.taichinh.js",
     "build:xuong": "vite build --config vite.config.xuong.js",
     "preview": "vite preview",
-    "build:thietke": "vite build --config vite.config.thietke.js"
+    "build:thietke": "vite build --config vite.config.thietke.js",
+    "build:sanpham": "vite build --config vite.config.sanpham.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
