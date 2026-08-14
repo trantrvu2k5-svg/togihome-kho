@@ -15,6 +15,14 @@ trong báo cáo là đã sửa gì và khôi phục chưa**.
 - Số/giờ/tồn/giá trong ảnh là **con số THẬT** — sai một con số là sai cả bản kiểm mắt. Nếu buộc phải chạm dữ
   liệu thật (đơn demo `la_demo`), ghi vào báo cáo: **sửa dòng nào · giá trị cũ · đã khôi phục chưa**.
 
+## KỶ LUẬT CODE — CẤM đặt tên class CSS 1–2 ký tự
+
+**CẤM đặt tên class CSS một hoặc hai ký tự** trong app dùng chung stylesheet. Class mới phải có **tiền tố theo
+màn** (vd `qt-nhat`, `ns-mo`).
+- **Đã dính:** class `.mo` (nghĩa "muted/nhạt") của tab Quy trình đụng `.mo` (nền modal, `position:fixed; inset:0`)
+  của app Sản phẩm → hai ô Tổ và Dùng ở bị kéo khỏi lưới, trông như **trống rỗng**. **Không test nào bắt được,
+  chỉ mắt bắt** (L-13d). Vá bằng đổi `s mo` → `s nhat`.
+
 ## Quy trình sản xuất
 
 ### Ranh giới hoạt động = chỗ BÀN GIAO VẬT LÝ, không phải danh sách động tác

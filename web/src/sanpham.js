@@ -5,8 +5,14 @@ import { createClient } from '@supabase/supabase-js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 
-const VAI_VAO = ['ceo', 'ke_toan']
-const TEN_VAI = { ceo: 'CEO', ke_toan: 'Kế toán' }
+const VAI_VAO = ['ceo', 'ke_toan', 'thiet_ke']   // thiet_ke vào cho tab Quy trình
+const TEN_VAI = { ceo: 'CEO', ke_toan: 'Kế toán', thiet_ke: 'Thiết kế sản xuất' }
+const laQT = () => ['ceo', 'thiet_ke'].includes(USER.vai_tro)   // vai được vào tab Quy trình
+const laCatalog = () => ['ceo', 'ke_toan'].includes(USER.vai_tro) // vai xem Cây/Danh sách
+// tổ + đơn vị đếm + đơn vị ngắn cho tab Quy trình
+const TEN_TO = { cnc: 'CNC', dan_canh: 'Dán cạnh', cha_lot: 'Chà lót', son_pu: 'Sơn PU', lap_rap: 'Lắp ráp', dong_goi: 'Đóng gói', giuong: 'Giường' }
+const DV_DEM = { cat: 'số tấm chi tiết', dan: 'mét cạnh', cam: 'số lỗ', thung: 'số tấm carcass', cup: 'số cup', ray: 'số ngăn kéo', canh: 'số cánh', goi: 'số kiện', lot: 'm² bề mặt', pu: 'm² bề mặt sơn', son_canh: 'mét cạnh sơn', giuong_lap: 'giường' }
+const DV_NGAN = { cat: 'tấm', dan: 'mét', cam: 'lỗ', thung: 'tấm', cup: 'cup', ray: 'ngăn', canh: 'cánh', goi: 'kiện', lot: 'm²', pu: 'm²', son_canh: 'mét', giuong_lap: 'giường' }
 
 let USER = null, TAB = 'cay', OPTS = null
 let DS = []                 // danh sách niêm yết (phẳng, đã lọc, xếp bán chạy)
@@ -72,17 +78,26 @@ async function capApp() {
   $('mo').onclick = dongSua; $('hopMX').onclick = dongSua
   $('lb').onclick = () => $('lb').classList.remove('hien')
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('lb').classList.remove('hien'); if ($('hopM').classList.contains('hien')) dongSua() } })
-  await napOptions()
-  di('cay')
+  // tab theo vai: Cây/Danh sách cho ceo/ke_toan · Quy trình cho ceo/thiet_ke
+  $('n-cay').style.display = laCatalog() ? '' : 'none'
+  $('n-ds').style.display = laCatalog() ? '' : 'none'
+  $('n-quytrinh').style.display = laQT() ? '' : 'none'
+  if (laCatalog()) await napOptions()
+  di(laCatalog() ? 'cay' : 'quytrinh')
 }
 
 function di(tab) {
+  if (tab === 'quytrinh' && !laQT()) return
+  if ((tab === 'cay' || tab === 'ds') && !laCatalog()) return
   TAB = tab
   document.querySelectorAll('.thanh-muc').forEach(b => b.classList.toggle('chon', b.dataset.tab === tab))
   $('s-cay').style.display = tab === 'cay' ? '' : 'none'
   $('s-ds').style.display = tab === 'ds' ? '' : 'none'
-  if (tab === 'cay') veCay(); else veDanhSach()
+  $('s-quytrinh').style.display = tab === 'quytrinh' ? '' : 'none'
+  if (tab === 'cay') veCay(); else if (tab === 'ds') veDanhSach(); else if (tab === 'quytrinh') veQuyTrinh()
 }
+// modal chung (dùng #mo/#hopM có sẵn)
+function moModal(ten, thanHtml, nutHtml) { $('hopMTen').textContent = ten; $('hopMThan').innerHTML = thanHtml; $('hopMNut').innerHTML = nutHtml || ''; $('mo').classList.add('hien'); $('hopM').classList.add('hien') }
 
 // ══════════ TUỲ CHỌN LỌC ══════════
 async function napOptions() {
@@ -253,6 +268,217 @@ async function luuSua() {
   bao('Đã lưu biến thể ' + SUA.ma_bien_the)
   dongSua()
   if (TAB === 'ds') veDanhSach(); else veCay()
+}
+
+// ══════════════════ TAB QUY TRÌNH ══════════════════
+let QT = { ds: [], hd: [], sel: null, ct: null }
+const dinhPhut = n => n == null ? '' : Number(n).toFixed(1).replace('.', ',')
+const docPhut = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : NaN }
+function qtLoiText(msg) {
+  if (/MA_TRUNG/.test(msg)) return 'Mã quy trình đã tồn tại — chọn mã khác.'
+  if (/QT_LOI/.test(msg)) {   // server đã ghi câu ĐÚNG lỗi + tên bước; chỉ lấy phần đó
+    const chi = msg.replace(/^[\s\S]*?QT_LOI:\s*/, '').replace(/\s*\n\s*/g, ' · ').trim()
+    return 'Không lưu — ' + (chi || 'quy trình hỏng.')
+  }
+  if (/chỉ ceo\/thiet_ke/.test(msg)) return 'Bạn không có quyền sửa quy trình.'
+  return msg
+}
+
+async function veQuyTrinh() {
+  const [ds, hd] = await Promise.all([sb.rpc('qt_ds'), sb.rpc('hoat_dong_ds')])
+  if (ds.error) { $('qtDs').innerHTML = '<div class="ds-dau">Lỗi</div><p style="padding:14px;color:var(--tre)">' + esc(ds.error.message) + '</p>'; return }
+  QT.ds = ds.data || []; QT.hd = hd.data || []
+  if ($('emQuytrinh')) $('emQuytrinh').textContent = QT.ds.length
+  if (!QT.sel || !QT.ds.find(q => q.ma_quy_trinh === QT.sel)) QT.sel = (QT.ds[0] || {}).ma_quy_trinh
+  renderQtDs()
+  if (QT.sel) await chonQt(QT.sel); else $('qtPhai').innerHTML = ''
+  if ($('qtMoi')) $('qtMoi').onclick = () => moChep(null)
+}
+function renderQtDs() {
+  const list = QT.ds.map(q => `<button class="qt ${q.ma_quy_trinh === QT.sel ? 'chon' : ''}" data-qt="${esc(q.ma_quy_trinh)}">
+    <span class="ma">${esc(q.ma_quy_trinh)}</span><b>${esc(q.ten)}</b>
+    <span class="du">${q.so_buoc} bước · <b>${q.so_mon_dung}</b> món đang dùng</span></button>`).join('')
+  $('qtDs').innerHTML = `<div class="ds-dau">${QT.ds.length} quy trình<em>đang dùng</em></div>${list}
+    <div class="nhac xanh" style="margin:14px 15px"><b>Cần quy trình cho hàng sơn PU?</b>Bấm "Quy trình mới" rồi chép từ một quy trình có sẵn, chèn thêm chà lót, sơn PU, chờ khô. Nhanh hơn dựng từ đầu và ít sai hơn.</div>`
+  $('qtDs').querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { QT.sel = b.dataset.qt; renderQtDs(); chonQt(QT.sel) })
+}
+async function chonQt(ma) {
+  const { data, error } = await sb.rpc('qt_chi_tiet', { p_qt: ma })
+  if (error) { $('qtPhai').innerHTML = '<p style="padding:14px;color:var(--tre)">' + esc(error.message) + '</p>'; return }
+  QT.ct = data; renderQtPhai()
+}
+// "Chạy sau bước" HIỆN CHỮ (đọc là chính); bấm mở hộp chọn nhiều (sửa là hiếm)
+function textTruoc(b) {
+  const t = b.buoc_truoc || []
+  if (!t.length) return '<span class="dau-tien">bước đầu tiên</span>'
+  return 'sau ' + t.map(tt => { const x = QT.ct.buoc.find(y => y.thu_tu === tt); return tt + ' · ' + esc(x ? (x.ten_hoat_dong || x.hoat_dong) : '?') }).join(', ')
+}
+function qtBuocRow(b) {
+  const tenTo = TEN_TO[b.ma_to] || b.ma_to || '—', dvDem = DV_DEM[b.hoat_dong] || 'đơn vị', dvNgan = DV_NGAN[b.hoat_dong] || 'đv'
+  const nhanhCls = b.nhanh === 'thùng' ? 'n-thung' : b.nhanh === 'cánh' ? 'n-canh' : 'n-chung'
+  const tuChay = b.loai_buoc === 'tu_chay'
+  return `<div class="buoc ${tuChay ? 'tu-chay' : ''}" data-b="${b.thu_tu}">
+    <span class="stt">${b.thu_tu}</span>
+    <div class="hd"><b>${esc(b.ten_hoat_dong || b.hoat_dong)}</b><small>${esc(dvDem)} · tổ ${esc(tenTo)}</small></div>
+    ${tuChay ? '<div style="font-size:12.5px;color:var(--chu-mo)">tự chạy (chờ khô)</div>'
+      : `<button class="bt-doc" data-btmo="${b.thu_tu}" title="Bấm để đổi bước chạy trước">${textTruoc(b)}</button>`}
+    <div class="o-phut">${tuChay
+      ? `<input value="${dinhPhut((b.gio_co_dinh || 0) * 60)}" disabled><span class="dv">phút</span>`
+      : `<input data-phut value="${dinhPhut(b.phut)}" inputmode="decimal"><span class="dv">phút</span>`}</div>
+    <div><span class="nhanh ${nhanhCls}">${esc(b.nhanh || 'chung')}</span></div>
+    <div class="tien">${b.don_gia != null ? Number(b.don_gia).toLocaleString('vi-VN') : '—'}<small>đ/${esc(dvNgan)}</small></div>
+    <button class="xoa" data-xoa="${b.thu_tu}" title="Xoá bước">×</button></div>`
+}
+function renderQtPhai() {
+  const c = QT.ct
+  const rows = c.buoc.map(qtBuocRow).join('')
+  // sơ đồ đường đi (đơn giản: chip theo thứ tự, màu theo nhánh)
+  const chip = c.buoc.map((b, i) => {
+    const cl = b.loai_buoc === 'tu_chay' ? 'kho' : b.nhanh === 'thùng' ? 'thung' : b.nhanh === 'cánh' ? 'canh' : ''
+    const mui = i < c.buoc.length - 1 ? '<span class="mui">→</span>' : ''
+    return `<span class="o-b ${cl}">${esc(b.ten_hoat_dong || b.hoat_dong)}</span>${mui}`
+  }).join('')
+  $('qtPhai').innerHTML = `
+    <div class="the">
+      <div class="the-dau">
+        <div><h2>${esc(c.ten)}</h2><p><span class="mono" style="font-size:12.5px">${esc(c.ma_quy_trinh)}</span> · ${c.so_buoc} bước · ${c.so_mon_dung} món đang dùng</p></div>
+        <div class="the-nut"><button class="nut-vien" id="qtChep">Chép thành quy trình mới</button><button class="nut-vien" id="qtXemMon">Xem ${c.so_mon_dung} món</button></div>
+      </div>
+      ${c.so_mon_dung > 0 ? `<div class="canh"><b>${c.so_mon_dung} món đang dùng quy trình này</b>Sửa sẽ đổi giờ và giá vốn của các món CHƯA bàn giao xuống xưởng. Món ĐÃ bàn giao giữ nguyên số, giờ và giá vốn tại lúc bàn giao.</div>` : ''}
+      <div class="so-do"><h3>Đường đi — nhìn hình trước, chi tiết sau</h3><div class="chuoi">${chip}</div></div>
+      <div class="b-dau"><div>Thứ tự</div><div>Hoạt động</div><div>Chạy sau bước</div><div>Phút mỗi đơn vị</div><div>Nhánh</div><div>Đơn giá</div><div></div></div>
+      ${rows || '<p style="padding:16px;color:var(--chu-mo)">Chưa có bước nào.</p>'}
+      <div class="them-buoc"><button id="qtThem">+ Thêm bước</button></div>
+      <div class="nhac"><b>Gõ bằng phút, không gõ bằng giờ</b>Không ai nghĩ bằng đơn vị 0,0333 giờ. Gõ 2 phút thì biết ngay đúng hay sai.</div>
+    </div>
+    <div class="the">
+      <div class="the-dau"><div><h2>12 hoạt động — đơn giá và tổ</h2><p>Dùng chung cho mọi quy trình. Đơn giá là tiền công thuần, vật tư nằm khối riêng.</p></div></div>
+      <div class="hd-dau"><div>Hoạt động</div><div>Tổ</div><div>Đơn giá</div><div>Phút/đơn vị</div><div>Dùng ở</div></div>
+      ${QT.hd.map(h => `<div class="hd-dong">
+        <div class="n"><b>${esc(h.ten)}</b><small>${esc(DV_DEM[h.hoat_dong] || '')}</small></div>
+        <div class="s nhat">${esc(TEN_TO[h.ma_to] || h.ma_to)}</div>
+        <div class="s">${Number(h.don_gia || 0).toLocaleString('vi-VN')}</div>
+        <div class="s">${h.phut != null ? dinhPhut(h.phut) : '—'}${h.la_tam ? '<span class="tam">TẠM</span>' : ''}</div>
+        <div class="s nhat">${h.dung_o ? h.dung_o + ' QT' : '<span class="chua-qt">chưa vào quy trình nào</span>'}</div></div>`).join('')}
+      <div class="nhac"><b>Số giờ còn TẠM — chưa có số đo thật</b>Khi máy quét chạy, giờ thật sẽ tự thay vào và dấu TẠM mất dần.</div>
+    </div>`
+  // bind
+  $('qtChep').onclick = () => moChep(c.ma_quy_trinh)
+  $('qtXemMon').onclick = xemMon
+  $('qtThem').onclick = moThemBuoc
+  $('qtPhai').querySelectorAll('[data-phut]').forEach(inp => inp.onchange = () => xacNhanRoiLuu(() => luuBuoc(Number(inp.closest('[data-b]').dataset.b))))
+  $('qtPhai').querySelectorAll('[data-btmo]').forEach(btn => btn.onclick = () => moChonTruoc(Number(btn.dataset.btmo)))
+  $('qtPhai').querySelectorAll('[data-xoa]').forEach(b => b.onclick = () => xoaBuoc(Number(b.dataset.xoa)))
+}
+// hộp chọn "chạy sau bước" (chọn nhiều), không có chính nó
+function moChonTruoc(thu_tu) {
+  const b = QT.ct.buoc.find(x => x.thu_tu === thu_tu); if (!b) return
+  const other = QT.ct.buoc.filter(x => x.thu_tu !== thu_tu)
+  const truoc = b.buoc_truoc || []
+  const rows = other.length ? other.map(x => `<label style="display:flex;align-items:center;gap:9px;padding:9px 4px;border-bottom:1px solid var(--vien);font-size:14px;cursor:pointer">
+    <input type="checkbox" value="${x.thu_tu}" ${truoc.includes(x.thu_tu) ? 'checked' : ''}><span><span class="mono" style="font-size:12.5px">${x.thu_tu}</span> · ${esc(x.ten_hoat_dong || x.hoat_dong)}</span></label>`).join('')
+    : '<p style="color:var(--chu-mo);font-size:13px">Chưa có bước khác — bước này là bước đầu tiên.</p>'
+  moModal('Bước ' + thu_tu + ' chạy sau bước nào',
+    `<p style="font-size:12.5px;color:var(--chu-nhat);margin-bottom:6px">Bỏ chọn hết = bước đầu tiên.</p>${rows}`,
+    `<button class="nut-vien" id="ctHuy">Huỷ</button><button class="nut-chinh" id="ctOk">Xong</button>`)
+  $('ctHuy').onclick = dongSua
+  $('ctOk').onclick = () => {
+    const bt = [...$('hopMThan').querySelectorAll('input:checked')].map(i => Number(i.value))
+    dongSua(); xacNhanRoiLuu(() => luuBuocTruoc(thu_tu, bt))
+  }
+}
+async function luuBuocTruoc(thu_tu, bt) {
+  const b = QT.ct.buoc.find(x => x.thu_tu === thu_tu); if (!b) return
+  const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: b.phut || 0 })
+  if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
+  bao('Đã đổi bước chạy trước'); await veQuyTrinh()
+}
+// hộp xác nhận khi quy trình đang có món dùng — tách hai con số (đếm thật)
+function xacNhanRoiLuu(fn) {
+  const c = QT.ct
+  if (!c || c.so_mon_dung === 0) return fn()
+  moModal('Xác nhận sửa quy trình',
+    `<div class="canh" style="border-radius:8px;border-width:1px"><b>${c.so_mon_dung} món đang dùng quy trình này.</b>Sửa sẽ đổi giờ và giá vốn của các món CHƯA bàn giao xuống xưởng. Món ĐÃ bàn giao giữ nguyên số, giờ và giá vốn tại lúc bàn giao.</div>
+     <p style="margin-top:12px;font-size:14.5px;line-height:1.7"><b class="mono">${c.mon_chua_ban_giao}</b> món chưa bàn giao — <b style="color:var(--do)">sẽ đổi</b>.<br><b class="mono">${c.mon_da_ban_giao}</b> món đã bàn giao — <b style="color:var(--xong)">giữ nguyên</b>.</p>`,
+    `<button class="nut-vien" id="xnHuy">Huỷ</button><button class="nut-chinh" id="xnOk">Đồng ý, lưu</button>`)
+  $('xnHuy').onclick = () => { dongSua(); veQuyTrinh() }
+  $('xnOk').onclick = () => { dongSua(); fn() }
+}
+async function luuBuoc(thu_tu) {
+  const row = $('qtPhai').querySelector(`[data-b="${thu_tu}"]`); if (!row) return
+  const b = QT.ct.buoc.find(x => x.thu_tu === thu_tu); if (!b) return
+  const inp = row.querySelector('[data-phut]')
+  const phut = inp ? docPhut(inp.value) : (b.phut || 0)
+  if (inp && (!isFinite(phut) || phut < 0)) { bao('Phút phải là số ≥ 0', true); veQuyTrinh(); return }
+  const sel = row.querySelector('[data-bt]')
+  const bt = sel ? [...sel.selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n)) : (b.buoc_truoc || [])
+  const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: phut })
+  if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }   // fail-đóng: tải lại số cũ
+  bao('Đã lưu bước ' + thu_tu); await veQuyTrinh()
+}
+function xoaBuoc(thu_tu) {
+  xacNhanRoiLuu(async () => {
+    const { error } = await sb.rpc('qt_xoa_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu })
+    if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
+    bao('Đã xoá bước ' + thu_tu); await veQuyTrinh()
+  })
+}
+function moThemBuoc() {
+  const c = QT.ct
+  const maxTt = c.buoc.reduce((m, b) => Math.max(m, b.thu_tu), 0)
+  const hdOpts = QT.hd.map(h => `<option value="${esc(h.hoat_dong)}">${esc(h.ten)} · tổ ${esc(TEN_TO[h.ma_to] || h.ma_to)}</option>`).join('')
+  const btOpts = c.buoc.map(b => `<option value="${b.thu_tu}">${b.thu_tu} · ${esc(b.ten_hoat_dong || b.hoat_dong)}</option>`).join('')
+  moModal('Thêm bước — ' + c.ma_quy_trinh,
+    `<label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin-bottom:5px">Hoạt động</label>
+     <select id="tbHd" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px">${hdOpts}</select>
+     <label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin:12px 0 5px">Nhánh</label>
+     <select id="tbNhanh" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px"><option value="chung">chung</option><option value="thùng">thùng</option><option value="cánh">cánh</option></select>
+     <label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin:12px 0 5px">Phút mỗi đơn vị</label>
+     <input id="tbPhut" inputmode="decimal" placeholder="ví dụ 2,0" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px;font-family:'JetBrains Mono',monospace">
+     <label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin:12px 0 5px">Chạy sau bước (bỏ trống = bước đầu tiên)</label>
+     <select id="tbTruoc" multiple size="${Math.min(Math.max(c.buoc.length, 1), 5)}" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:6px">${btOpts || '<option disabled>— chưa có bước —</option>'}</select>`,
+    `<button class="nut-vien" id="tbHuy">Huỷ</button><button class="nut-chinh" id="tbOk">Thêm bước</button>`)
+  $('tbHuy').onclick = dongSua
+  $('tbOk').onclick = () => xacNhanRoiLuu(async () => {
+    const phut = docPhut($('tbPhut').value)
+    if (!isFinite(phut) || phut < 0) { bao('Phút phải là số ≥ 0', true); return }
+    const bt = [...$('tbTruoc').selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n))
+    dongSua()
+    const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: maxTt + 100, p_hoat_dong: $('tbHd').value, p_buoc_truoc: bt, p_nhanh: $('tbNhanh').value, p_phut: phut })
+    if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
+    bao('Đã thêm bước'); await veQuyTrinh()
+  })
+}
+function moChep(nguon) {
+  const opts = QT.ds.map(q => `<option value="${esc(q.ma_quy_trinh)}" ${q.ma_quy_trinh === nguon ? 'selected' : ''}>${esc(q.ma_quy_trinh)} — ${esc(q.ten)}</option>`).join('')
+  moModal('Quy trình mới (chép từ có sẵn)',
+    `<label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin-bottom:5px">Chép từ</label>
+     <select id="cpNguon" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px">${opts}</select>
+     <label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin:12px 0 5px">Mã quy trình mới</label>
+     <input id="cpMa" placeholder="VD: TU-AO-PU" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px;font-family:'JetBrains Mono',monospace;text-transform:uppercase">
+     <label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin:12px 0 5px">Tên</label>
+     <input id="cpTen" placeholder="VD: Tủ áo sơn PU" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px">`,
+    `<button class="nut-vien" id="cpHuy">Huỷ</button><button class="nut-chinh" id="cpOk">Tạo quy trình</button>`)
+  $('cpHuy').onclick = dongSua
+  $('cpOk').onclick = async () => {
+    const ma = $('cpMa').value.trim().toUpperCase(), ten = $('cpTen').value.trim(), ng = $('cpNguon').value
+    if (!ma || !ten) { bao('Cần mã và tên mới', true); return }
+    dongSua()
+    const { error } = await sb.rpc('qt_chep', { p_ma_moi: ma, p_ten_moi: ten, p_nguon: ng })
+    if (error) { bao(qtLoiText(error.message), true); return }
+    bao('Đã tạo quy trình ' + ma); QT.sel = ma; await veQuyTrinh()
+  }
+}
+async function xemMon() {
+  const { data, error } = await sb.rpc('qt_so_mon', { p_qt: QT.sel })
+  if (error) { bao(error.message, true); return }
+  const ds = data || [], chua = ds.filter(m => !m.da_ban_giao), da = ds.filter(m => m.da_ban_giao)
+  const li = arr => arr.length ? arr.map(m => `<div style="padding:7px 0;border-bottom:1px solid var(--vien);font-size:13.5px"><span class="mono" style="font-size:12px">${esc(m.ma_don)}</span> · ${esc(m.ten)}</div>`).join('') : '<p style="color:var(--chu-mo);font-size:13px;padding:6px 0">(không có)</p>'
+  moModal('Món dùng ' + QT.sel + ' (' + ds.length + ')',
+    `<p style="font-size:13.5px;font-weight:600;color:var(--do);margin-bottom:4px">${chua.length} món CHƯA bàn giao — sửa quy trình sẽ đổi</p>${li(chua)}
+     <p style="font-size:13.5px;font-weight:600;color:var(--xong);margin:14px 0 4px">${da.length} món ĐÃ bàn giao — giữ nguyên số cũ</p>${li(da)}`,
+    `<button class="nut-chinh" id="xmDong">Đóng</button>`)
+  $('xmDong').onclick = dongSua
 }
 
 // ══════════ KHỞI ĐỘNG ══════════

@@ -158,6 +158,81 @@ select{cursor:pointer}
 #cong button{width:100%;padding:13px;background:var(--do);color:#fff;border-radius:var(--bo-nho);font-size:16px;font-weight:600;margin-top:6px}
 #cong .err{color:var(--do);font-size:13.5px;min-height:20px;margin-top:8px}
 #boot{padding:60px 30px;color:var(--chu-nhat);text-align:center}
+
+/* ===== TAB QUY TRÌNH — bám tab_quy_trinh.html, scope #s-quytrinh ===== */
+#s-quytrinh .luoi{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
+#s-quytrinh .ds{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);overflow:hidden}
+#s-quytrinh .ds-dau{padding:12px 15px;border-bottom:1px solid var(--vien);font-size:13.5px;font-weight:600}
+#s-quytrinh .ds-dau em{font-style:normal;font-weight:400;color:var(--chu-nhat);float:right}
+#s-quytrinh .qt{display:block;width:100%;text-align:left;padding:12px 15px;border-bottom:1px solid var(--vien);border-left:3px solid transparent}
+#s-quytrinh .qt:last-of-type{border-bottom:none}
+#s-quytrinh .qt:hover{background:#FAFBFC}
+#s-quytrinh .qt.chon{background:var(--do-nhat);border-left-color:var(--do)}
+#s-quytrinh .qt b{display:block;font-size:14px;font-weight:500;margin-bottom:2px}
+#s-quytrinh .qt .ma{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--chu-mo);display:block;margin-bottom:4px}
+#s-quytrinh .qt .du{font-size:12px;color:var(--chu-nhat)}
+#s-quytrinh .qt .du b{display:inline;font-weight:700;font-family:'JetBrains Mono',monospace}
+#s-quytrinh .the-dau{padding:14px 18px;border-bottom:1px solid var(--vien);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+#s-quytrinh .the-dau h2{font-size:16px;font-weight:600}
+#s-quytrinh .the-dau p{font-size:13px;color:var(--chu-nhat);margin-top:3px}
+#s-quytrinh .the-nut{display:flex;gap:8px;flex-wrap:wrap}
+#s-quytrinh .the-nut .nut-vien{font-size:13px;padding:8px 14px;white-space:nowrap}
+#s-quytrinh .canh{background:var(--cho-nhat);border-top:1px solid #EBDBB6;border-bottom:1px solid #EBDBB6;padding:12px 18px;font-size:13px;color:#7A4A05;line-height:1.6}
+#s-quytrinh .canh b{display:block;margin-bottom:2px}
+#s-quytrinh .b-dau{display:grid;grid-template-columns:52px 1fr 148px 122px 96px 84px 40px;gap:11px;padding:9px 18px;background:#FAFBFC;border-bottom:1px solid var(--vien);font-size:11.5px;color:var(--chu-mo);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+#s-quytrinh .buoc{display:grid;grid-template-columns:52px 1fr 148px 122px 96px 84px 40px;gap:11px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--vien)}
+#s-quytrinh .buoc:last-of-type{border-bottom:none}
+#s-quytrinh .buoc:hover{background:#FAFBFC}
+#s-quytrinh .buoc.tu-chay{background:#FFFDF6}
+#s-quytrinh .buoc .stt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--chu-nhat)}
+#s-quytrinh .buoc .hd b{display:block;font-size:14px;font-weight:500}
+#s-quytrinh .buoc .hd small{display:block;font-size:11.5px;color:var(--chu-mo);margin-top:1px}
+#s-quytrinh .nhanh{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-block}
+#s-quytrinh .n-thung{background:#EEF3FA;color:#2C5480}
+#s-quytrinh .n-canh{background:var(--tim-nhat);color:var(--tim)}
+#s-quytrinh .n-chung{background:var(--nen);color:var(--chu-nhat)}
+#s-quytrinh .buoc select{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:5px 7px;background:var(--the);font-size:12px}
+#s-quytrinh .bt-doc{text-align:left;font-size:12.5px;color:var(--chu);line-height:1.45;padding:3px 0;width:100%;border-bottom:1px dashed transparent}
+#s-quytrinh .bt-doc:hover{color:var(--do);border-bottom-color:#E3B7B3}
+#s-quytrinh .bt-doc .dau-tien{color:var(--chu-mo)}
+#s-quytrinh .chua-qt{color:var(--chu-mo);font-weight:400;font-size:11px}
+#s-quytrinh .o-phut{position:relative}
+#s-quytrinh .o-phut input{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 40px 7px 9px;font-family:'JetBrains Mono',monospace;font-size:13.5px;font-weight:700}
+#s-quytrinh .o-phut input:focus{border-color:var(--do);outline:none}
+#s-quytrinh .o-phut input:disabled{background:#F6F7F9;color:var(--chu-mo)}
+#s-quytrinh .o-phut .dv{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11.5px;color:var(--chu-mo);pointer-events:none}
+#s-quytrinh .buoc .tien{text-align:right;font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:var(--chu-nhat)}
+#s-quytrinh .buoc .tien small{display:block;font-family:'Be Vietnam Pro',sans-serif;font-size:10.5px;font-weight:400;color:var(--chu-mo)}
+#s-quytrinh .buoc .xoa{color:var(--chu-mo);font-size:15px;text-align:center}
+#s-quytrinh .buoc .xoa:hover{color:var(--tre)}
+#s-quytrinh .tam{font-size:10.5px;font-weight:600;color:#7A4A05;background:var(--cho-nhat);padding:1px 6px;border-radius:20px;margin-left:5px}
+#s-quytrinh .them-buoc{padding:12px 18px;border-top:1px solid var(--vien);background:#FAFBFC}
+#s-quytrinh .them-buoc button{border:1px dashed var(--vien);width:100%;padding:10px;border-radius:var(--bo-nho);font-size:13.5px;color:var(--chu-nhat);font-weight:500;background:none}
+#s-quytrinh .them-buoc button:hover{border-color:var(--do);color:var(--do)}
+#s-quytrinh .so-do{padding:15px 18px;border-top:1px solid var(--vien)}
+#s-quytrinh .so-do h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--chu-mo);font-weight:700;margin-bottom:10px}
+#s-quytrinh .chuoi{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#s-quytrinh .o-b{border:1px solid var(--vien);background:var(--nen);border-radius:20px;padding:4px 11px;font-size:12.5px;white-space:nowrap}
+#s-quytrinh .o-b.thung{background:#EEF3FA;border-color:#CFDDEE}
+#s-quytrinh .o-b.canh{background:var(--tim-nhat);border-color:#D6D1F3}
+#s-quytrinh .o-b.kho{background:var(--cho-nhat);border-color:#EBDBB6;color:#7A4A05}
+#s-quytrinh .mui{color:var(--chu-mo);font-size:12px}
+#s-quytrinh .hd-dong{display:grid;grid-template-columns:1fr 118px 96px 96px 80px;gap:11px;padding:10px 18px;border-bottom:1px solid var(--vien);font-size:13.5px;align-items:center}
+#s-quytrinh .hd-dong:last-child{border-bottom:none}
+#s-quytrinh .hd-dong .n b{font-weight:500}
+#s-quytrinh .hd-dong .n small{display:block;font-size:11.5px;color:var(--chu-mo)}
+#s-quytrinh .hd-dong .s{text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
+#s-quytrinh .hd-dong .s.nhat{color:var(--chu-nhat);font-weight:500}
+#s-quytrinh .hd-dau{display:grid;grid-template-columns:1fr 118px 96px 96px 80px;gap:11px;padding:9px 18px;background:#FAFBFC;border-bottom:1px solid var(--vien);font-size:11.5px;color:var(--chu-mo);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+#s-quytrinh .hd-dau div:not(:first-child){text-align:right}
+#s-quytrinh .nhac.xanh{background:var(--xong-nhat);border-color:#B8DCCC;color:#0F5C45}
+@media (max-width:1100px){
+  #s-quytrinh .luoi{grid-template-columns:1fr}
+  #s-quytrinh .b-dau,#s-quytrinh .hd-dau{display:none}
+  #s-quytrinh .buoc{grid-template-columns:1fr;gap:8px}
+  #s-quytrinh .hd-dong{grid-template-columns:1fr;gap:5px}
+  #s-quytrinh .hd-dong .s{text-align:left}
+}
 </style>
 </head>
 <body>
@@ -168,6 +243,7 @@ select{cursor:pointer}
       <div class="thanh-ten">Togihome Sản phẩm<span>Ba tầng · lõi · biến thể · niêm yết</span></div>
       <button class="thanh-muc chon" id="n-cay" data-tab="cay"><i>🌳</i>Cây sản phẩm<em id="emCay"></em></button>
       <button class="thanh-muc" id="n-ds" data-tab="ds"><i>📋</i>Danh sách</button>
+      <button class="thanh-muc" id="n-quytrinh" data-tab="quytrinh" style="display:none"><i>⚙️</i>Quy trình<em id="emQuytrinh"></em></button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
     </nav>
     <main class="than"><div class="trong">
@@ -193,6 +269,16 @@ select{cursor:pointer}
             <span class="dem" id="dDem">—</span>
           </div>
           <div id="dsBody"><div class="trong-rong">Đang tải…</div></div>
+        </div>
+      </section>
+      <section id="s-quytrinh" style="display:none">
+        <div class="dau">
+          <div><h1>Quy trình sản xuất</h1><p>Làm gì, theo thứ tự nào, mất bao lâu mỗi đơn vị. Nhiều món dùng chung một quy trình.</p></div>
+          <button class="nut-chinh" id="qtMoi">+ Quy trình mới</button>
+        </div>
+        <div class="luoi">
+          <div class="ds" id="qtDs"></div>
+          <div id="qtPhai"></div>
         </div>
       </section>
     </div></main>
