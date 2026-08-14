@@ -2,6 +2,7 @@
 //   Vào: thiet_ke (SẢN XUẤT) · tk_ban_hang (BÁN HÀNG) · ceo · truong_nhom_thiet_ke. Đọc qua RPC curated (KHÔNG giá/khách).
 //   ceo/trưởng nhóm KHÔNG nhận việc — chỉ GIAO/CHUYỂN. Gửi bản 3D làm ngay ở đây (gui_ban_thiet_ke).
 import { createClient } from '@supabase/supabase-js'
+import { nutNhapSo } from './nut_nhap_so.js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 
@@ -134,6 +135,7 @@ async function taiViec() {
     const ly = tre ? `<p class="don-ly ly-tre">Quá hạn giao khách${r.vong_sua ? ' · đã sửa ' + r.vong_sua + ' vòng' : ''}</p>`
       : (r.danh_dau_gap ? `<p class="don-ly ly-gap">Gấp — CEO đánh dấu${r.ngay_hen_khach ? ' · hạn ' + r.ngay_hen_khach : ''}</p>`
         : `<p class="don-ly ly-thuong">${r.ngay_hen_khach ? 'Hạn ' + r.ngay_hen_khach : 'Chưa có hạn'} · bước: ${COT[r.buoc_thiet_ke] || '—'}</p>`)
+    const nsN = nutNhapSo(r.trang_thai, USER.vai_tro, r.ma_don)   // nút Nhập số sản xuất (chỉ thiet_ke/ceo · đơn đã chốt)
     return `<div class="don"><div class="don-than">
       <div class="don-ten"><span class="mono">${esc(r.ma_don)}</span><b>${esc(r.ten)}</b>${nhanTT(r)}</div>
       <p class="don-phu">${esc(loaiCap(r.cap_thiet_ke))} · ${r.so_mon || 0} món · ước ${g1(r.gio_uoc)} giờ · đã ghi ${g1(r.gio_da_ghi)}</p>${ly}</div>
@@ -141,11 +143,13 @@ async function taiViec() {
       <button class="nut-nho" data-ghi="${esc(r.ma_don)}">Ghi giờ</button>
       ${laBaoGia(r.trang_thai)
         ? `<button class="nut-nho nut-xam" data-guiban="${esc(r.ma_don)}">Gửi bản 3D cho sale</button>`
-        : `<button class="nut-nho nut-xam" data-guifile="${esc(r.ma_don)}">Gửi file sản xuất cho xưởng</button>`}</div>`
+        : `<button class="nut-nho nut-xam" data-guifile="${esc(r.ma_don)}">Gửi file sản xuất cho xưởng</button>`}
+      ${nsN ? `<button class="nut-nho nut-xam" data-nhapso="${esc(r.ma_don)}">${nsN.text}</button>` : ''}</div>`
   }).join('') : `<div class="trong-rong"><h3>${laTruong() ? 'Bạn không cầm đơn — chỉ giao/chuyển' : 'Chưa cầm đơn nào'}</h3><p>${laTruong() ? 'Giao đơn cho thiết kế ở khối "Chờ nhận" bên dưới.' : 'Nhận việc từ khối "Chờ nhận" bên dưới.'}</p></div>`
   $('dsDangLam').querySelectorAll('[data-ghi]').forEach(b => b.onclick = () => ghiGio(b.dataset.ghi))
   $('dsDangLam').querySelectorAll('[data-guiban]').forEach(b => b.onclick = () => moGuiBan(b.dataset.guiban))
   $('dsDangLam').querySelectorAll('[data-guifile]').forEach(b => b.onclick = () => moGuiFile(b.dataset.guifile))
+  $('dsDangLam').querySelectorAll('[data-nhapso]').forEach(b => b.onclick = () => moNhapSo(b.dataset.nhapso))
   // Chờ nhận (RPC đã lọc theo vai: thiet_ke chỉ SX · tk_ban_hang chỉ báo giá · ceo/trưởng cả hai)
   DS_CHO = dsCho; veChoNhan()
 }
@@ -190,6 +194,11 @@ async function nhanViec(maDon) {
   const { error } = await sb.rpc('nhan_viec_thiet_ke', { p_ma_don: maDon })
   if (error) { bao(error.message, true); return }
   bao(`Đã nhận ${maDon}`); taiViec()
+}
+// Dẫn vào màn Nhập số sản xuất của ĐÚNG đơn: đặt ?don=<ma_don> rồi mở tab (đọc lại URL).
+function moNhapSo(maDon) {
+  const u = new URL(location.href); u.searchParams.set('don', maDon); history.pushState({}, '', u)
+  di('nhapso')
 }
 
 // ══════════ MODAL chung ══════════
