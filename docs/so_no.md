@@ -42,3 +42,12 @@ Hai chỗ trạng thái đơn demo khác seed db/063 là **cố ý**, CEO đã d
 
 ⚠ **Trái lại: mọi khác biệt của `so_don_vi_mon` với seed db/063 thì LÀ LỖI — phải DỪNG và soi.**
 (Bối cảnh: L-10b từng ghi đè số Kệ tivi thành 18 → giờ đơn phình 34,10→47,96; xem ~/Downloads/soi_gio_48.md.)
+
+## CÒN HỞ — số đóng băng nhưng GIỜ chưa (db/070, QD-15)
+Mốc `chuan` chốt lúc bàn giao đóng băng **SỐ ĐƠN VỊ** (trigger cấm sửa). NHƯNG `gio_du_kien_cua_mon/_don`
+vẫn nhân số đó với **PHÚT của `quy_trinh_buoc` HIỆN TẠI**. Nên nếu sửa PHÚT (gio_moi_don_vi) của một quy
+trình, **GIỜ (và giá vốn) của đơn ĐÃ bàn giao vẫn đổi theo** — dù số đã đóng băng.
+- **Đo được:** đơn cho_cat dùng TU-AO-MELAMINE, sửa phút bước cat 0,10→0,50 → giờ đơn 23,15→27,82.
+- **Chưa vá (cố ý, CEO chốt L-13a):** lô này chỉ đóng băng SỐ. Đóng băng PHÚT (snapshot đơn giá/phút lúc bàn
+  giao) để **lô sau**. Tab Quy trình (L-13) khi cảnh báo "món đã bàn giao giữ số cũ" phải nói RÕ: giữ **số**,
+  còn **giờ** vẫn có thể đổi cho tới khi vá nốt phút.

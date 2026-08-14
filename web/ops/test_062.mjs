@@ -15,7 +15,7 @@ async function asCeo(s, a = []) {
 }
 const gio = (mid) => asCeo(`select kho.gio_du_kien_cua_mon($1) g`, [mid]).then(x => x.r ? x.r[0].g : { _err: x.e })
 const HD8 = ['cat', 'dan', 'cam', 'thung', 'cup', 'ray', 'canh', 'goi']   // 8 hoạt động của TU-AO-MELAMINE
-const setDV = async (mid, val, nguon = 'go_tay') => { for (const hd of HD8) await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon) values($1,$2,$3,$4) on conflict (mon_id,hoat_dong) do update set so_don_vi=excluded.so_don_vi,nguon=excluded.nguon`, [mid, hd, val, nguon]) }
+const setDV = async (mid, val, nguon = 'go_tay') => { for (const hd of HD8) await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,moc,so_don_vi,nguon) values($1,$2,'chuan',$3,$4) on conflict (mon_id,hoat_dong,moc) do update set so_don_vi=excluded.so_don_vi,nguon=excluded.nguon`, [mid, hd, val, nguon]) }
 
 try {
   await c.query('begin')
