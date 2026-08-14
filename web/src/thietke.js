@@ -86,6 +86,9 @@ async function capApp() {
   }
   $('btOut').onclick = thoat; if ($('btOutM')) $('btOutM').onclick = thoat
   document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => { if (b.dataset.man) b.onclick = () => di(b.dataset.man) })
+  // Tab NHẬP SỐ SẢN XUẤT chỉ cho thiet_ke + ceo
+  if (['thiet_ke', 'ceo'].includes(USER.vai_tro)) { $('n-nhapso').style.display = ''; $('d-nhapso').style.display = '' }
+  $('nsHdDau').onclick = () => { const t = $('nsHdThan'), n = $('nsHdNhan'); const an = t.style.display !== 'none'; t.style.display = an ? 'none' : 'block'; n.textContent = an ? 'mở ra ▼' : 'thu gọn ▲' }
   $('locVai').onchange = veKanban; $('locNguoi').onchange = veKanban; $('locLoai').onchange = veKanban
   $('chonKy').onchange = taiGio
   // panel + modal đóng
@@ -96,15 +99,17 @@ async function capApp() {
   const kys = [...new Set(['2099-08', thang])]
   $('chonKy').innerHTML = kys.map(k => `<option value="${k}">Kỳ ${k}</option>`).join('')
   const { data: cd } = await sb.rpc('tk_che_do'); CHE_DO = cd || 'tu_nhan'
-  await taiViec()
+  // URL có ?don= và vai thiet_ke/ceo → mở thẳng tab Nhập số cho đơn đó
+  if (new URLSearchParams(location.search).get('don') && ['thiet_ke', 'ceo'].includes(USER.vai_tro)) di('nhapso')
+  else await taiViec()
 }
 function di(m) {
-  ;['viec', 'bang', 'gio'].forEach(k => {
+  ;['viec', 'bang', 'gio', 'nhapso'].forEach(k => {
     $('s-' + k).style.display = (k === m) ? 'block' : 'none'
-    $('n-' + k).classList.toggle('chon', k === m); $('d-' + k).classList.toggle('chon', k === m)
+    const n = $('n-' + k), d = $('d-' + k); if (n) n.classList.toggle('chon', k === m); if (d) d.classList.toggle('chon', k === m)
   })
   window.scrollTo(0, 0)
-  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio()
+  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio(); if (m === 'nhapso') taiNhapSo()
 }
 
 // ══════════ ① VIỆC CỦA TÔI ══════════
@@ -577,6 +582,197 @@ function veTTBanHang(rows, err) {
       <td><span class="so-chinh">${g1(r.viec_xong_chuan_hoa)}</span><span class="phu-nho">giờ chuẩn · ${r.so_don_can_cu} đơn</span></td>
       <td>${r.ty_le_khach_chot == null ? '<span class="nen-xam">—</span>' : `<span class="so-chinh nen-xam">${r.ty_le_khach_chot}%</span><span class="phu-nho">chỉ để nhìn</span>`}</td></tr>`
   }).join('')
+}
+
+// ══════════════════ TAB NHẬP SỐ SẢN XUẤT ══════════════════
+let NS = { ma_don: null, data: null, sel: null, qtds: null, hdMo: {} }   // ma_don LẤY TỪ URL ?don=
+const DV_TEN = { cat: 'số tấm chi tiết', dan: 'mét cạnh', cam: 'số lỗ', thung: 'số tấm carcass', cup: 'số cup', ray: 'số ngăn kéo', canh: 'số cánh', goi: 'số kiện', lot: 'm² bề mặt', pu: 'm² sơn', son_canh: 'mét cạnh sơn', giuong_lap: 'số giường', cho_kho: '—' }
+const TEN_TO = { cnc: 'CNC', dan_canh: 'Dán cạnh', cha_lot: 'Chà lót', son_pu: 'Sơn PU', lap_rap: 'Lắp ráp', dong_goi: 'Đóng gói', giuong: 'Giường' }
+const HD_TO = { cat: 'cnc', dan: 'dan_canh', cam: 'dan_canh', lot: 'cha_lot', pu: 'son_pu', son_canh: 'son_pu', cup: 'lap_rap', thung: 'lap_rap', ray: 'lap_rap', canh: 'lap_rap', goi: 'dong_goi', giuong_lap: 'giuong', cho_kho: 'son_pu' }
+// Nội dung "?" NGUYÊN VĂN từ file mẫu (8 hoạt động)
+const HD_DONG = {
+  cat: { dem: ['Đếm <b>số tấm gỗ</b> phải cắt ra, tính cả tấm hậu và tấm hộp kéo', '<b>Không</b> tính kính, thép, sào treo — không qua máy cắt', 'Một tấm cắt ra hai mảnh giống nhau vẫn là hai'], canh: 'Đây là số <b style="display:inline">tấm chi tiết</b>, không phải số tấm ván nguyên mua về. Máy chạy theo số mảnh phải cắt và số lần nạp/dỡ.', vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Thùng 24 tấm (hông, đáy, nóc, vách, hậu, đợt).<br>Cánh 12 tấm (4 cánh, mỗi cánh 3 mảnh ghép).<br>Hộp kéo 9 tấm (3 ngăn × 3 mảnh).', tinh: 'gõ: 24+12+9 → = 45 tấm' },
+  dan: { dem: ['Chỉ đếm <b>cạnh lộ ra ngoài</b> — cạnh nhìn thấy được sau khi lắp', 'Cạnh áp tường, cạnh giáp tấm khác thì <b>không dán</b>, không đếm', 'Cộng chiều dài các cạnh dán, đổi ra <b>mét</b>'], canh: 'Đây là bước tốn giờ nhất của hầu hết món. Đếm dư 10 mét là dôi hơn một giờ rưỡi — soi kỹ cạnh nào thật sự lộ.', vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Cánh: 4 cánh dán 4 cạnh → 4 × (2,2+2,2+0,6+0,6) = 22,4 m<br>Thùng: hông/nóc/đáy chỉ dán cạnh trước → ~14 m<br>Đợt và vách: dán cạnh trước → ~13,6 m', tinh: 'gõ: 22.4+14+13.6 → = 50 m' },
+  cam: { dem: ['Đếm <b>số lỗ</b>, không phải số tấm có lỗ', 'Mỗi mối nối hai tấm dùng 2–3 bộ cam tuỳ chiều sâu', 'Tấm sâu trên 600 thì thêm một cặp'], canh: 'Dễ nhầm nhất: đếm "12 tấm có khoan cam" rồi gõ 12. Sai — phải là tổng số lỗ trên cả 12 tấm.', vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Đếm được 40 mối nối giữa các tấm thùng.<br>Sâu 600 nên mỗi mối 3 bộ cam.', tinh: 'gõ: 40*3 → = 120 lỗ' },
+  thung: { dem: ['Chỉ tấm làm nên <b>thùng</b>: hông, đáy, nóc, vách, hậu, đợt', '<b>Không</b> tính cánh — cánh có bước riêng', '<b>Không</b> tính tấm hộp kéo — thuộc bước ngăn kéo'], canh: 'Gõ nhầm cả 45 tấm vào đây là tính dôi công lắp gấp bốn lần. Số này luôn nhỏ hơn số tấm cắt.', vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: '2 hông · 1 đáy · 1 nóc · 4 hậu · 4 đợt', tinh: 'gõ: 2+1+1+4+4 → = 12 tấm' },
+  cup: { dem: ['Số bản lề = <b>số cánh × số bản lề mỗi cánh</b>', 'Số bản lề mỗi cánh theo <b>chiều cao cánh</b> — xem luật của xưởng', 'Cánh lùa không có bản lề, không đếm'], canh: 'Con số bản lề theo chiều cao trong ví dụ là <b style="display:inline">tham khảo</b>. Xưởng có luật riêng thì theo luật xưởng.', vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Cánh cao 2200, theo luật xưởng dùng 4 bản lề mỗi cánh.<br>4 cánh mở.', tinh: 'gõ: 4*4 → = 16 cup' },
+  ray: { dem: ['Đếm <b>số ngăn kéo</b>, không đếm số ray', 'Một ngăn kéo dùng một đôi ray — công tính theo ngăn', 'Ngăn kéo chìm và ngăn kéo lộ đếm như nhau'], canh: null, vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Buồng giữa có 3 ngăn kéo xếp dọc.', tinh: 'gõ: 3 → = 3 ngăn' },
+  canh: { dem: ['Đếm <b>số cánh</b> phải treo và căn chỉnh khe hở', 'Cánh lùa vẫn đếm — vẫn tốn công căn', 'Mặt ngăn kéo không tính là cánh'], canh: null, vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: '4 cánh mở, không có cánh lùa.', tinh: 'gõ: 4 → = 4 cánh' },
+  goi: { dem: ['Đếm <b>số kiện</b> bọc ra để bốc lên xe', 'Món to phải tách nhiều kiện cho vừa xe và vừa thang máy', 'Cánh thường bó riêng một kiện'], canh: null, vdT: 'Ví dụ — tủ áo 4 cánh 2m4', vd: 'Thùng bó 1 kiện, cánh bó riêng 1 kiện.', tinh: 'gõ: 2 → = 2 kiện' }
+}
+const NHANH_CLS = n => n === 'thùng' ? ' nhanh-thung' : n === 'cánh' ? ' nhanh-canh' : ''
+// eval biểu thức: chỉ + và * · null=rỗng · NaN=rác
+function tinhBt(s) { s = String(s || '').replace(/\s/g, ''); if (s === '') return null; if (!/^[0-9]+([+*][0-9]+)*$/.test(s)) return NaN; return s.split('+').reduce((a, t) => a + t.split('*').reduce((p, f) => p * Number(f), 1), 0) }
+const gioT = n => n == null ? '—' : g1(n)   // giờ luôn kèm [TẠM] ở chỗ hiển thị
+
+function nsRong(msg) {   // màn rỗng / lỗi tải — KHÔNG hiện đơn nào
+  $('nsDau').innerHTML = '<div><h1>Nhập số sản xuất</h1><p>' + esc(msg) + '</p></div>'
+  const hd = document.querySelector('#s-nhapso .hd'); if (hd) hd.style.display = 'none'
+  $('nsTong').innerHTML = ''; $('nsMonDs').innerHTML = ''
+  $('nsPhai').innerHTML = '<div class="nhac"><b>Chưa mở đơn nào</b>' + esc(msg) + '</div>'
+}
+function nsLoiDon(m) {   // fail-đóng: dịch mã lỗi ra lý do rõ
+  let ly = m
+  if (/DON_KHONG_TON_TAI/.test(m)) ly = 'Mã đơn không tồn tại.'
+  else if (/DON_CHUA_CHOT/.test(m)) ly = 'Đơn này còn là báo giá, chưa chốt — lên đơn trước.'
+  else if (/chỉ ceo\/thiet_ke/.test(m)) ly = 'Bạn không có quyền xem đơn này.'
+  nsRong(ly)
+}
+async function taiNhapSo() {
+  if (!['thiet_ke', 'ceo'].includes(USER.vai_tro)) { nsRong('Chỉ Thiết kế sản xuất và CEO vào được màn này.'); return }
+  const md = new URLSearchParams(location.search).get('don')
+  if (!md) { nsRong('Mở màn này từ một đơn cụ thể — ví dụ /?don=DH-2026-0142. Chưa có mã đơn nên không hiện đơn nào.'); return }
+  const hd = document.querySelector('#s-nhapso .hd'); if (hd) hd.style.display = ''
+  $('nsDau').innerHTML = '<div><h1>Đang tải…</h1></div>'; $('nsTong').innerHTML = ''; $('nsMonDs').innerHTML = ''; $('nsPhai').innerHTML = ''
+  if (!NS.qtds) { const { data } = await sb.rpc('quy_trinh_ds'); NS.qtds = data || [] }
+  const { data, error } = await sb.rpc('nhap_so_don_don_hang', { p_ma_don: md })
+  if (error) { nsLoiDon(error.message); return }
+  NS.ma_don = md; NS.data = data
+  if (!NS.sel || !data.mon.find(m => m.sp_id === NS.sel)) NS.sel = (data.mon[0] || {}).sp_id
+  renderNsDau(); renderNsTong(); renderNsMonDs(); await renderNsPhai()
+}
+function renderNsDau() {
+  const d = NS.data
+  let nhan, dis
+  if (d.da_vao_chuyen) { nhan = 'Đã vào chuyền — chờ cắt'; dis = true }
+  else if (d.day_duoc) { nhan = 'Đẩy xuống xưởng'; dis = false }
+  else if (d.so_thieu_mon > 0) { nhan = 'Đẩy xuống xưởng — còn ' + d.so_thieu_mon + ' món thiếu số'; dis = true }
+  else { nhan = 'Đẩy xuống xưởng — đơn chưa ở trạng thái đẩy'; dis = true }
+  $('nsDau').innerHTML = '<div><span class="ma mono">' + esc(d.ma_don) + '</span><h1>' + esc(d.ten_don || d.ma_don) +
+    '</h1><p>Gán quy trình cho từng món và nhập số đơn vị. Đủ số thì đẩy được xuống xưởng.</p></div>' +
+    '<button class="nut-day" id="nsNutDay"' + (dis ? ' disabled' : '') + '>' + esc(nhan) + '</button>'
+  $('nsNutDay').onclick = nsDay
+}
+function renderNsTong() {
+  const t = NS.data.dai_tong
+  if (!t) { $('nsTong').innerHTML = ''; return }   // đơn 1 món → ẩn dải
+  const tos = Object.entries(t.theo_to || {}).sort((a, b) => b[1] - a[1])
+  const max = tos.length ? tos[0][1] : 1
+  const bars = tos.map(([k, v]) => '<div class="hang"><span class="ten">' + esc(TEN_TO[k] || k) + '</span><div class="rang"><div style="width:' + Math.round(v / max * 100) + '%"></div></div><span class="sl">' + g1(v) + '</span></div>').join('')
+  $('nsTong').innerHTML = '<div class="tong"><div class="o"><p>Tổng giờ dự kiến</p><b>' + g1(t.tong_gio) + '</b>' +
+    '<small>[TẠM] · mới tính ' + t.dem_du + '/' + t.so_mon + ' món</small></div>' +
+    '<div class="o"><p>Món nặng nhất</p><b>' + (t.mon_nang_nhat ? g1(t.mon_nang_nhat.gio) : '—') + '</b><small>' +
+    (t.mon_nang_nhat ? esc(t.mon_nang_nhat.ten) + ' — quyết ngày giao' : '') + '</small></div>' +
+    '<div class="to"><p style="font-size:12.5px;color:var(--chu-nhat);margin-bottom:7px">Giờ theo tổ · [TẠM]</p>' + bars + '</div></div>'
+}
+function renderNsMonDs() {
+  const d = NS.data
+  const nut = d.mon.map(m => {
+    let tt = '', cls = ''
+    if (m.trang_thai === 'du') { cls = 'tt-xong'; tt = 'Đủ số · ' + g1(m.tong_gio) + ' giờ [TẠM]' }
+    else if (m.trang_thai === 'thieu') { cls = 'tt-thieu'; tt = 'Thiếu ' + m.so_thieu + ' số' }
+    else { cls = 'tt-chua'; tt = 'Chưa gán quy trình' }
+    const qt = esc(m.kt || '') + ' · ' + esc(m.ten_quy_trinh || 'chưa gán quy trình')
+    return '<button class="mon' + (m.sp_id === NS.sel ? ' chon' : '') + '" data-mon="' + esc(m.sp_id) + '"><b>' + esc(m.ten) +
+      '</b><span class="qt">' + qt + '</span><span class="tt ' + cls + '">' + tt + '</span></button>'
+  }).join('')
+  $('nsMonDs').innerHTML = '<div class="dau-ds">' + d.so_mon + ' món<em>' + (d.so_mon - d.so_thieu_mon) + ' xong · ' + d.so_thieu_mon + ' thiếu</em></div>' + nut
+  $('nsMonDs').querySelectorAll('[data-mon]').forEach(b => b.onclick = () => { NS.sel = b.dataset.mon; renderNsMonDs(); renderNsPhai() })
+}
+async function renderNsPhai() {
+  const m = NS.data.mon.find(x => x.sp_id === NS.sel)
+  if (!m) { $('nsPhai').innerHTML = ''; return }
+  const { data: ct } = await sb.rpc('nhap_so_chi_tiet_mon', { p_ma_bt: NS.sel })
+  const idx = NS.data.mon.findIndex(x => x.sp_id === NS.sel) + 1
+  const opts = NS.qtds.map(q => '<option value="' + esc(q.ma_quy_trinh) + '"' + (q.ma_quy_trinh === (ct && ct.ma_quy_trinh) ? ' selected' : '') + '>' + esc(q.ten) + ' — ' + q.so_buoc + ' bước</option>').join('')
+  let h = '<div class="the"><div class="the-dau"><div><h2>' + esc(m.ten) + '</h2><p>' + esc(m.kt) + ' mm · lõi ' + esc(m.ma_loi || '—') + '</p></div>' +
+    '<span class="mono" style="font-size:13px;color:var(--chu-nhat)">món ' + idx + '/' + NS.data.so_mon + '</span></div>'
+  // chọn quy trình + preview bước
+  h += '<div class="qt-chon"><label>Quy trình sản xuất</label>' +
+    '<select id="nsQt"><option value="">— chọn quy trình —</option>' + opts + '</select>'
+  if (ct && !ct.chua_gan) {
+    h += '<div class="qt-buoc">' + ct.buoc.map((b, i) => '<span class="buoc' + NHANH_CLS(b.nhanh) + '">' + esc(b.ten_hoat_dong || b.hoat_dong) + '</span>' + (i < ct.buoc.length - 1 ? '<span class="mui">→</span>' : '')).join('') + '</div>' +
+      '<div class="chu-giai-nhanh"><span><i style="background:#CFDDEE"></i>nhánh thùng</span><span><i style="background:#D6D1F3"></i>nhánh cánh</span><span>hai nhánh chạy song song, gộp ở bước lắp cánh</span></div>'
+  }
+  h += '</div>'
+  if (!ct || ct.chua_gan) {
+    h += '<div class="nhac do"><b>Chưa gán quy trình</b>Chọn quy trình ở trên để hiện bảng nhập số đơn vị. Món này chưa đẩy xuống xưởng được.</div></div>'
+    $('nsPhai').innerHTML = h + nsNhacCuoi()
+    $('nsQt').onchange = nsGanQt
+    return
+  }
+  // bảng nhập
+  const nguoiBuoc = ct.buoc.filter(b => b.loai_buoc !== 'tu_chay')
+  h += '<div class="nhap-dau"><h3>Số đơn vị — ' + nguoiBuoc.length + ' số</h3><button class="nut-plugin" id="nsPlugin">Lấy từ plugin</button></div>' +
+    '<div class="dv-dau"><div>Hoạt động</div><div>Số đơn vị</div><div>Nguồn</div><div>Giờ</div></div>'
+  let tongMon = 0, duHet = true
+  ct.buoc.forEach(b => {
+    if (b.loai_buoc === 'tu_chay') { h += nsDongTuChay(b); if (b.gio != null) tongMon += Number(b.gio); return }
+    const co = b.so_don_vi != null
+    if (!co) duHet = false; else tongMon += Number(b.gio || 0)
+    h += nsDongNhap(b, co)
+  })
+  h += '<div class="tong-mon"><span>Tổng món này</span><b>' + (duHet ? g1(tongMon) + ' giờ [TẠM]' : '— (còn thiếu số)') + '</b></div></div>'
+  $('nsPhai').innerHTML = h + nsNhacCuoi()
+  // bind
+  $('nsQt').onchange = nsGanQt
+  $('nsPlugin').onclick = () => bao('Chưa nối plugin — nhập tay hoặc chọn Ước', true)
+  ct.buoc.filter(b => b.loai_buoc !== 'tu_chay').forEach(b => nsBindDong(b))
+}
+function nsDongNhap(b, co) {
+  const val = co ? esc(b.bieu_thuc != null ? b.bieu_thuc : String(b.so_don_vi)) : ''
+  const bang = co ? '<span class="bang">= ' + g1(b.so_don_vi).replace(',0', '') + '</span>' : ''
+  const ng = b.nguon || 'go_tay'
+  const nguon = ['cutlist', 'go_tay', 'uoc'].map(x => '<button data-ng="' + x + '"' + (co && ng === x ? ' class="chon"' : (!co && x === 'go_tay' ? '' : '')) + '>' + ({ cutlist: 'Plugin', go_tay: 'Gõ tay', uoc: 'Ước' }[x]) + '</button>').join('')
+  const gio = co ? '<div class="gio">' + g1(b.gio) + '<small>giờ [TẠM]</small></div>' : '<div class="gio trong">—</div>'
+  return '<div class="dong-nhom" data-hd="' + esc(b.hoat_dong) + '">' +
+    '<div class="dv"><div class="nhan"><span class="dv-ten"><b>' + esc(b.ten_hoat_dong || b.hoat_dong) + '</b>' +
+    (HD_DONG[b.hoat_dong] ? '<button class="nut-hd" data-hdbtn>?</button>' : '') + '</span><small>' + esc(DV_TEN[b.hoat_dong] || 'số đơn vị') + '</small></div>' +
+    '<div class="o-nhap"><input' + (co ? '' : ' class="trong"') + ' value="' + val + '"' + (co ? '' : ' placeholder="chưa nhập"') + '>' + bang + '</div>' +
+    '<div class="nguon">' + nguon + '</div>' + gio + '</div>' +
+    (HD_DONG[b.hoat_dong] ? nsHdDong(b.hoat_dong) : '') + '</div>'
+}
+function nsDongTuChay(b) {
+  return '<div class="dong-nhom"><div class="dv"><div class="nhan"><span class="dv-ten"><b>' + esc(b.ten_hoat_dong || b.hoat_dong) + '</b></span><small>tự chạy — không nhập số</small></div>' +
+    '<div style="font-size:12.5px;color:var(--chu-mo)">hệ thống tự suy</div><div></div>' +
+    '<div class="gio">' + g1(b.gio) + '<small>giờ [TẠM]</small></div></div></div>'
+}
+function nsHdDong(hd) {
+  const g = HD_DONG[hd]; const mo = NS.hdMo[hd]
+  return '<div class="hd-dong" data-hdbox="' + hd + '"' + (mo ? '' : ' style="display:none"') + '><div class="cot">' +
+    '<div><h4>Đếm cái gì</h4><ul>' + g.dem.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
+    (g.canh ? '<div class="canh">' + g.canh + '</div>' : '') + '</div>' +
+    '<div class="vd"><b>' + esc(g.vdT) + '</b>' + g.vd + '<span class="tinh">' + esc(g.tinh) + '</span></div></div></div>'
+}
+function nsBindDong(b) {
+  const root = $('nsPhai').querySelector('.dong-nhom[data-hd="' + b.hoat_dong + '"]'); if (!root) return
+  const inp = root.querySelector('input'), oNhap = root.querySelector('.o-nhap')
+  const hdbtn = root.querySelector('[data-hdbtn]')
+  if (hdbtn) hdbtn.onclick = () => { NS.hdMo[b.hoat_dong] = !NS.hdMo[b.hoat_dong]; const box = root.querySelector('[data-hdbox]'); box.style.display = NS.hdMo[b.hoat_dong] ? 'block' : 'none'; hdbtn.classList.toggle('mo', NS.hdMo[b.hoat_dong]) }
+  let ng = b.nguon || 'go_tay'
+  root.querySelectorAll('.nguon [data-ng]').forEach(nb => nb.onclick = () => { ng = nb.dataset.ng; root.querySelectorAll('.nguon [data-ng]').forEach(x => x.classList.toggle('chon', x === nb)); nsLuu(b.hoat_dong, inp.value, ng, root) })
+  // live "= N" + lỗi
+  const live = () => {
+    oNhap.querySelector('.loi-txt') && oNhap.querySelector('.loi-txt').remove()
+    let bang = oNhap.querySelector('.bang'); if (!bang) { bang = document.createElement('span'); bang.className = 'bang'; oNhap.appendChild(bang) }
+    const v = tinhBt(inp.value)
+    if (Number.isNaN(v)) { inp.classList.add('loi'); bang.textContent = ''; const e = document.createElement('div'); e.className = 'loi-txt'; e.textContent = 'Chỉ nhận số, dấu + và dấu *'; root.querySelector('.dv').appendChild(e); return false }
+    inp.classList.remove('loi'); bang.textContent = v == null ? '' : '= ' + g1(v).replace(',0', '')
+    return true
+  }
+  inp.oninput = live
+  inp.onchange = () => { if (live()) nsLuu(b.hoat_dong, inp.value, ng, root) }
+}
+async function nsLuu(hd, bieu_thuc, nguon, root) {
+  if (Number.isNaN(tinhBt(bieu_thuc))) return  // rác — không lưu
+  const { error } = await sb.rpc('luu_so_don_vi', { p_ma_bt: NS.sel, p_hoat_dong: hd, p_bieu_thuc: bieu_thuc, p_nguon: nguon })
+  if (error) { bao('Lưu lỗi: ' + error.message, true); return }
+  bao('Đã lưu ' + (DV_TEN[hd] || hd))
+  await taiNhapSo()   // cập nhật giờ dòng + tổng món + trạng thái đơn
+}
+async function nsGanQt() {
+  const qt = $('nsQt').value; if (!qt) return
+  const { error } = await sb.rpc('gan_quy_trinh_mon', { p_ma_bt: NS.sel, p_ma_qt: qt })
+  if (error) { bao('Gán lỗi: ' + error.message, true); return }
+  await taiNhapSo()
+}
+async function nsDay() {
+  const { error } = await sb.rpc('day_so_san_xuat', { p_ma_don: NS.ma_don })
+  if (error) { bao(error.message.replace(/^.*(CHUA_GAN_QUY_TRINH|THIEU_SO_DON_VI|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT):\s*/, ''), true); return }
+  bao('Đã đẩy xuống xưởng — đơn vào chờ cắt ✓'); await taiNhapSo()
+}
+function nsNhacCuoi() {
+  return '<div class="nhac"><b>Vì sao phải nhập tay</b>Món dựng bằng plugin thì bấm "Lấy từ plugin", các số tự về trong một giây. Món dựng tự do trong SketchUp và hàng gỗ tự nhiên không có sẵn số — đếm rồi gõ. Đó là chuyện bình thường, không phải lỗi.</div>'
 }
 
 // ══════════ BOOT ══════════
