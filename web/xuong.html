@@ -139,6 +139,12 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .nut-chinh:hover{background:var(--do-sang)}
 .nut-chinh:disabled{opacity:.5;cursor:default}
 .nut-phu{border:1px solid var(--vien);background:var(--the);padding:10px 18px;border-radius:var(--bo-nho);font-size:14px}
+.phan-trang{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 2px 2px;font-size:13.5px;color:var(--chu-nhat)}
+.phan-trang .so{font-weight:500}
+.phan-trang .nut{display:flex;gap:8px}
+.phan-trang .nut button{border:1px solid var(--vien);background:var(--the);padding:8px 15px;border-radius:var(--bo-nho);font-size:13.5px;font-weight:600;color:var(--chu)}
+.phan-trang .nut button:disabled{opacity:.45;cursor:default}
+.phan-trang .nut button:not(:disabled):hover{border-color:var(--do);color:var(--do)}
 .dem-luoi{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
 .o-dem{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);padding:17px 18px}
 .o-dem label{display:block;font-size:14px;font-weight:600;margin-bottom:3px}
@@ -354,6 +360,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
           <span class="dem">Bấm một món để mở chi tiết</span>
         </div>
         <div class="the" id="dsViec"><div class="trong-rong"><p>Đang tải…</p></div></div>
+        <div class="phan-trang" id="viecTrang"></div>
       </section>
 
       <!-- ===== TRẠM QUÉT ===== -->
@@ -469,7 +476,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
           </div>
           <div class="hai-cot">
             <div>
-              <div class="the"><div class="the-dau"><h2>Việc đang chờ</h2><em id="qdDem"></em></div><div id="qdList"><div class="trong-rong"><p>Đang tải…</p></div></div></div>
+              <div class="the"><div class="the-dau"><h2>Việc đang chờ</h2><em id="qdDem"></em></div><div id="qdList"><div class="trong-rong"><p>Đang tải…</p></div></div><div class="phan-trang" id="qdTrang"></div></div>
               <div class="luat"><h3>Luật xếp</h3><ol>
                 <li><span>1</span>Quá hạn chưa giao</li><li><span>2</span>Gấp có người duyệt</li>
                 <li><span>3</span>Đứng yên quá 3 ngày</li><li><span>4</span>Còn ít ngày nhất tới hạn</li><li><span>5</span>Mẫu mới</li></ol></div>
@@ -480,6 +487,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         <div id="qd-kb" style="display:none">
           <div class="loc"><select id="kbTo"><option value="">Tất cả tổ</option></select><select id="kbDong"><option value="">Tất cả dòng</option></select><span class="dem" id="kbDem"></span></div>
           <div class="bang" id="kbBoard"></div>
+          <div class="phan-trang" id="kbTrang"></div>
           <p class="chu-thich">
             <span class="cham" style="background:var(--tre)"></span>Trễ &nbsp;
             <span class="cham" style="background:var(--gap)"></span>Gấp &nbsp;

@@ -78,3 +78,24 @@ begin while d <= date '2028-12-01' loop
 **⚠ CẢNH BÁO:** không thêm tháng thì dòng sổ quét của tháng thiếu rơi vào phân mảnh **DEFAULT** — KHÔNG lỗi,
 KHÔNG ai biết, nhưng DEFAULT phình dần → truy vấn theo `luc` chậm dần (mất lợi ích phân mảnh). Không vỡ ngay,
 hỏng ngầm. Đặt nhắc lịch hằng năm.
+
+## NỢ HIỆU NĂNG — RPC trả danh sách KHÔNG giới hạn (L-29 VIỆC 4)
+> Phát hiện khi vá phân trang 3 RPC xưởng (v-kho-78). CHỈ liệt kê, CHƯA sửa — chờ CEO quyết lô sau.
+> Cùng loại lỗi "trả cả bảng": số dòng phồng theo quy mô, chưa có `limit`/phân trang. Ước ở **3.000 đơn**.
+
+| RPC | Màn đang gọi | Số dòng ~ ở 3.000 đơn |
+|---|---|---|
+| `gia_von_don_ds` | Tài chính · "Giá vốn theo đơn" | ~**toàn bộ** đơn không phải báo giá/hủy → **~3.000 dòng** (NẶNG NHẤT) |
+| `xuong_don_cho_vao_chuyen` | Xưởng · Quản đốc (`taiChoVaoChuyen`) | = đơn `moi_len_don`+`xong_file` chờ vào chuyền (tồn đọng, hàng chục→hàng trăm) |
+| `can_ceo_quyet` | Xưởng · Quản đốc (panel "Cần CEO quyết") | = số tình huống cần CEO (thường nhỏ, phồng theo đơn có vấn đề) |
+| `sp_danh_sach` | Sản phẩm (app #6) | = số niêm yết (272 nay → hàng nghìn khi catalog lớn) |
+| `tk_bang_cong_viec` | Thiết kế · bảng công việc | = đơn ở các bước thiết kế (phồng theo pipeline TK) |
+| `tk_viec_cua_toi` | Thiết kế · việc của tôi | = việc gán cho người TK |
+| `tk_don_cho_nhan` | Thiết kế · đơn chờ nhận | = tồn đọng đơn chờ nhận TK |
+
+**Bọc N+1 liên quan (không phải "list không limit"):** `web/src/xuong.js:taiViec` gọi `xuong_mon_cua_don` **một lần
+mỗi đơn** → nổ N lời gọi. v-kho-78 đã chặn xuống **50/lần** nhờ gom-dồn `taiDon`, nhưng gốc N+1 vẫn còn.
+
+**Đã chặn rồi (KHÔNG lo):** `tram_dang_cho` (limit 50 + phân trang, v-kho-76) · `tram_luot_gan_day` (limit 8) ·
+`kanban_xuong`/`viec_uu_tien`/`xuong_don_san_xuat` (phân trang, v-kho-77+78) · các list cấu hình/danh mục (tổ,
+hoạt động, lý do, quy trình, người dùng…) chặn theo bản chất. `sale_mon_cua_don` không limit nhưng bó theo số món/đơn (nhỏ).

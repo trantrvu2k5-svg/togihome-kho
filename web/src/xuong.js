@@ -86,9 +86,18 @@ function tab(w) {
 }
 
 // ══════════ VIỆC ══════════
-let DONS = [], MONS = []   // MONS = [{...món, ma_don}]
-async function taiDon() {
-  const { data } = await sb.rpc('xuong_don_san_xuat'); DONS = data || []
+// Phân trang xuong_don_san_xuat: "Xem thêm 50 đơn" (GOM DỒN, không thay trang) —
+// vì RPC này còn nuôi 2 dropdown (In tem · Ghi lỗi) + danh sách món; gom dồn thì đơn
+// đã tải chỉ TĂNG, không đơn nào đang thấy bị trang mới đá mất. Xem lo_phan_trang.md.
+const MOI_TRANG = 50
+let DONS = [], MONS = [], DON_TONG = 0   // MONS = [{...món, ma_don}]
+async function taiDon(them) {
+  const bo_qua = them ? DONS.length : 0
+  const { data } = await sb.rpc('xuong_don_san_xuat', { p_gioi_han: MOI_TRANG, p_bo_qua: bo_qua })
+  const rows = data || []
+  DON_TONG = rows.length ? Number(rows[0].tong_so) : (them ? DON_TONG : 0)
+  DONS = them ? DONS.concat(rows) : rows
+  veViecTrang()
   const coTem = DONS.filter(d => d.co_tem)
   $('chonDon').innerHTML = coTem.length ? coTem.map(d => `<option value="${esc(d.ma_don)}">${esc(d.ma_don)} · ${esc(BUOC[d.trang_thai] || d.trang_thai)}</option>`).join('') : '<option value="">(chưa đơn nào có tem)</option>'
   if (coTem.length) taiTem(coTem[0].ma_don); else { TEM = { ma_don: null, pb: null, lan: 0, tam: [], tick: {} }; $('temBanner').innerHTML = ''; $('dsTam').innerHTML = '<div class="trong-rong"><p>Chưa có đơn nào được đẩy tem.</p></div>' }
@@ -116,6 +125,14 @@ function veViec() {
       <span class="to">${esc(TO_BUOC[m.trang_thai] || '—')}</span><span class="buoc${cho ? ' cho' : ''}">${esc(BUOC[m.trang_thai])}</span></button>`
   }).join('')
   box.querySelectorAll('.mon').forEach(b => b.onclick = () => moMon(b.dataset.mon, b.dataset.don))
+}
+function veViecTrang() {
+  const el = $('viecTrang'); if (!el) return
+  if (!DON_TONG) { el.innerHTML = ''; return }
+  const con = DON_TONG - DONS.length, them = Math.min(MOI_TRANG, con)
+  el.innerHTML = `<span class="so">Việc của ${DONS.length}/${DON_TONG} đơn đang sản xuất${con > 0 ? '' : ' · đã xem hết'}</span>`
+    + (con > 0 ? `<div class="nut"><button id="viecThem">Xem thêm ${them} đơn (còn ${con})</button></div>` : '')
+  if (con > 0) $('viecThem').onclick = async () => { $('viecThem').disabled = true; await taiDon(true); await taiViec() }
 }
 
 // ══════════ IN TEM ══════════
@@ -220,28 +237,60 @@ async function taiChoVaoChuyen() {
     }
   })
 }
-async function taiQuanDoc() {
+// Phân trang viec_uu_tien: TRƯỚC/SAU (thay trang) — danh sách xếp hạng làm từ trên xuống,
+// trang rời khớp cách quản đốc xử theo lô 50 việc. Số thứ tự nối tiếp qua các trang.
+let QD_TRANG = 0, QD_TONG = 0
+async function taiQuanDoc(trang) {
   taiChoVaoChuyen()
+  QD_TRANG = trang || 0
   const { data: red } = await sb.rpc('can_ceo_quyet')
   $('qdCeo').innerHTML = (red && red.length)
     ? `<div class="ceo"><h2>Cần CEO quyết</h2><p class="phu">Quản đốc không tự xử được ${red.length === 1 ? 'việc này' : red.length + ' việc này'}.</p>${red.map(r => `<div class="ceo-muc"><p>${esc(r.mo_ta)}</p></div>`).join('')}</div>` : ''
-  const { data, error } = await sb.rpc('viec_uu_tien'); const box = $('qdList')
-  if (error) { box.innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
-  $('qdGio').textContent = (data || []).length + ' việc đang chờ'; $('qdDem').textContent = (data || []).length + ' việc'
-  if (!data || !data.length) { box.innerHTML = '<div class="trong-rong"><h3>Không có việc nào đang chờ</h3></div>'; return }
+  const { data, error } = await sb.rpc('viec_uu_tien', { p_gioi_han: MOI_TRANG, p_bo_qua: QD_TRANG * MOI_TRANG }); const box = $('qdList')
+  if (error) { box.innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; veQdTrang(); return }
+  const rows = data || []
+  QD_TONG = rows.length ? Number(rows[0].tong_so) : 0
+  $('qdGio').textContent = QD_TONG + ' việc đang chờ'; $('qdDem').textContent = QD_TONG + ' việc'
+  if (!rows.length) { box.innerHTML = '<div class="trong-rong"><h3>Không có việc nào đang chờ</h3></div>'; veQdTrang(); return }
   const lyCls = r => r === 1 ? 'ly-tre' : r === 2 ? 'ly-gap' : r === 3 ? 'ly-tac' : r === 5 ? 'ly-mau' : 'ly-thuong'
-  box.innerHTML = data.map((v, i) => `<button class="viec" data-don="${esc(v.ma_don)}"><span class="stt">${i + 1}</span><div class="viec-than"><div class="viec-ten"><span class="ma">${esc(v.ma_don)}</span><b>${esc(v.ten_mon)}</b></div><p class="viec-ly ${lyCls(v.rank_uu_tien)}">${esc(v.ly_do)}</p></div><span class="to">${esc(v.to_goi_y)}</span></button>`).join('')
+  box.innerHTML = rows.map((v, i) => `<button class="viec" data-don="${esc(v.ma_don)}"><span class="stt">${QD_TRANG * MOI_TRANG + i + 1}</span><div class="viec-than"><div class="viec-ten"><span class="ma">${esc(v.ma_don)}</span><b>${esc(v.ten_mon)}</b></div><p class="viec-ly ${lyCls(v.rank_uu_tien)}">${esc(v.ly_do)}</p></div><span class="to">${esc(v.to_goi_y)}</span></button>`).join('')
   box.querySelectorAll('.viec').forEach(b => b.onclick = () => moDon(b.dataset.don))
+  veQdTrang()
+}
+function veQdTrang() {
+  const el = $('qdTrang'); if (!el) return
+  if (QD_TONG <= MOI_TRANG) { el.innerHTML = QD_TONG ? `<span class="so">${QD_TONG} việc</span>` : ''; return }
+  const soTrang = Math.ceil(QD_TONG / MOI_TRANG), tu = QD_TRANG * MOI_TRANG + 1, den = Math.min((QD_TRANG + 1) * MOI_TRANG, QD_TONG)
+  el.innerHTML = `<span class="so">${tu}–${den} trong ${QD_TONG} việc</span>`
+    + `<div class="nut"><button id="qdTruoc"${QD_TRANG <= 0 ? ' disabled' : ''}>Trước</button><button id="qdSau"${QD_TRANG >= soTrang - 1 ? ' disabled' : ''}>Sau</button></div>`
+  if (QD_TRANG > 0) $('qdTruoc').onclick = () => taiQuanDoc(QD_TRANG - 1)
+  if (QD_TRANG < soTrang - 1) $('qdSau').onclick = () => taiQuanDoc(QD_TRANG + 1)
 }
 let KB = []
 const KB_COT = [['cho_cat', 'Chờ cắt'], ['da_cat', 'Đã cắt'], ['dang_lam', 'Đang làm'], ['xong_sx', 'Xong SX'], ['cho_giao', 'Chờ giao']]
-async function taiKanban() {
-  const { data } = await sb.rpc('kanban_xuong'); KB = data || []
+// Phân trang kanban_xuong: TRƯỚC/SAU (thay trang), phân trang CHUNG cho cả 5 cột — KHÔNG
+// riêng từng cột. Vì RPC giới hạn/bỏ-qua trên TOÀN danh sách đơn (order ma_don); phân trang
+// riêng mỗi cột phải gọi 5 lần có tham số khác nhau (RPC chưa hỗ trợ). Cửa 50 đơn rải vào 5 cột.
+let KB_TRANG = 0, KB_TONG = 0
+async function taiKanban(trang) {
+  KB_TRANG = trang || 0
+  const { data } = await sb.rpc('kanban_xuong', { p_gioi_han: MOI_TRANG, p_bo_qua: KB_TRANG * MOI_TRANG }); KB = data || []
+  KB_TONG = KB.length ? Number(KB[0].tong_so) : 0
   const tos = [...new Set(KB.map(x => x.to_goi_y))].filter(Boolean).sort(), dongs = [...new Set(KB.map(x => x.dong))].filter(Boolean).sort()
   const c1 = $('kbTo').value, c2 = $('kbDong').value
   $('kbTo').innerHTML = '<option value="">Tất cả tổ</option>' + tos.map(t => `<option${t === c1 ? ' selected' : ''}>${esc(t)}</option>`).join('')
   $('kbDong').innerHTML = '<option value="">Tất cả dòng</option>' + dongs.map(d => `<option${d === c2 ? ' selected' : ''}>${esc(d)}</option>`).join('')
   veKanban()
+  veKbTrang()
+}
+function veKbTrang() {
+  const el = $('kbTrang'); if (!el) return
+  if (KB_TONG <= MOI_TRANG) { el.innerHTML = KB_TONG ? `<span class="so">${KB_TONG} đơn trên bảng</span>` : ''; return }
+  const soTrang = Math.ceil(KB_TONG / MOI_TRANG), tu = KB_TRANG * MOI_TRANG + 1, den = Math.min((KB_TRANG + 1) * MOI_TRANG, KB_TONG)
+  el.innerHTML = `<span class="so">Đang xem đơn ${tu}–${den} trong ${KB_TONG} trên bảng</span>`
+    + `<div class="nut"><button id="kbTruoc"${KB_TRANG <= 0 ? ' disabled' : ''}>Trước</button><button id="kbSau"${KB_TRANG >= soTrang - 1 ? ' disabled' : ''}>Sau</button></div>`
+  if (KB_TRANG > 0) $('kbTruoc').onclick = () => taiKanban(KB_TRANG - 1)
+  if (KB_TRANG < soTrang - 1) $('kbSau').onclick = () => taiKanban(KB_TRANG + 1)
 }
 function veKanban() {
   const fTo = $('kbTo').value, fDong = $('kbDong').value
