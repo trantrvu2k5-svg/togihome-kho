@@ -53,6 +53,14 @@ màn** (vd `qt-nhat`, `ns-mo`).
   của app Sản phẩm → hai ô Tổ và Dùng ở bị kéo khỏi lưới, trông như **trống rỗng**. **Không test nào bắt được,
   chỉ mắt bắt** (L-13d). Vá bằng đổi `s mo` → `s nhat`.
 
+## KỶ LUẬT TEST — ĐO Ở MỨC 100.000 DÒNG
+
+LÔ NÀO DỰNG RPC ĐỌC BẢNG LỚN THÌ PHẢI ĐO Ở MỨC 100.000 DÒNG.
+Quá 500ms = ĐỎ. RPC thợ đứng chờ (quet_tem) quá 300ms = ĐỎ.
+Test cắn hai vế bắt lỗi logic, KHÔNG bắt lỗi tốc độ.
+Đã dính: tram_dang_cho và do_gio_that timeout ở 10.000 tem trong khi
+mọi test đều xanh — vì test chạy trên vài chục dòng.
+
 ## Quy trình sản xuất
 
 ### Ranh giới hoạt động = chỗ BÀN GIAO VẬT LÝ, không phải danh sách động tác

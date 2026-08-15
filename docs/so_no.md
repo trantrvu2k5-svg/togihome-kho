@@ -64,3 +64,17 @@ tự do chưa nhập số). Không đơn nào cần vá, không chép số hiệ
 **Residual nhỏ CÒN LẠI:** bước `tu_chay` (chờ khô) KHÔNG có dòng số → phút của nó không đóng băng được qua cơ
 chế cột-trên-số-row; giờ bước tu_chay vẫn LIVE. Quy trình đang dùng (TU-AO-MELAMINE) không có tu_chay nên đơn
 hiện tại không dính. Đóng băng tu_chay để lô sau nếu có quy trình dùng nó cho hàng đã bàn giao.
+
+## NỢ VẬN HÀNH — PHÂN MẢNH su_kien_quet (db/081, L-26)
+**Việc lặp MỖI NĂM:** chạy `kho.tao_phan_manh_thang(nam, thang)` thêm đủ 12 tháng của năm KẾ TIẾP,
+trước khi năm đó tới. Hiện đã tạo tới **2027-12**.
+```sql
+-- ví dụ tạo cả năm 2028 (chạy trong 2027):
+do $$ declare d date := date '2028-01-01';
+begin while d <= date '2028-12-01' loop
+  perform kho.tao_phan_manh_thang(extract(year from d)::int, extract(month from d)::int);
+  d := (d + interval '1 month')::date; end loop; end $$;
+```
+**⚠ CẢNH BÁO:** không thêm tháng thì dòng sổ quét của tháng thiếu rơi vào phân mảnh **DEFAULT** — KHÔNG lỗi,
+KHÔNG ai biết, nhưng DEFAULT phình dần → truy vấn theo `luc` chậm dần (mất lợi ích phân mảnh). Không vỡ ngay,
+hỏng ngầm. Đặt nhắc lịch hằng năm.
