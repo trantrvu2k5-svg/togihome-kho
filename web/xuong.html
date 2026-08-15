@@ -331,6 +331,121 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
   .tq-oquet{flex-direction:column;align-items:stretch}
   .tq-cho-hang .tq-cmon{display:none}
 }
+/* ═════════ TẢI & LỊCH (tl-) — bám man_tai_lich_quy_mo_v4, tiền tố riêng ═════════ */
+#s-tl{--tl-cho:#C77C15;--tl-tim:#6155BC;--tl-xong-nhat:#E7EFEA;--tl-cho-nhat:#FDF3E3;--tl-tim-nhat:#EFEDFB}
+.tl-bang-xu{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.tl-xu-o{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);padding:14px 16px;text-align:left;width:100%;border-left:4px solid var(--vien)}
+.tl-xu-o:hover{border-color:var(--do);border-left-color:var(--do)}
+.tl-xu-o.tl-do{border-left-color:var(--tre)} .tl-xu-o.tl-vang{border-left-color:var(--tl-cho)} .tl-xu-o.tl-xanh{border-left-color:var(--xong)}
+.tl-xu-o p{font-size:12.5px;color:var(--chu-nhat);margin-bottom:4px}
+.tl-xu-o b{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;line-height:1}
+.tl-xu-o.tl-do b{color:var(--tre)} .tl-xu-o.tl-vang b{color:#8A5F20} .tl-xu-o.tl-xanh b{color:var(--xong)}
+.tl-xu-o small{display:block;font-size:11.5px;color:var(--chu-mo);margin-top:4px;line-height:1.4}
+.tl-the{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);overflow:hidden;margin-bottom:16px}
+.tl-the-dau{padding:14px 18px;border-bottom:1px solid var(--vien)}
+.tl-the-dau h2{font-size:16px;font-weight:600} .tl-the-dau p{font-size:13px;color:var(--chu-nhat);margin-top:3px}
+.tl-loc{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--vien);background:#FAFBFC}
+.tl-loc-nhom{display:flex;align-items:center;gap:8px}
+.tl-loc-nhom label{font-size:12.5px;color:var(--chu-nhat);white-space:nowrap}
+.tl-doi-truc{display:inline-flex;background:#E1E5EB;padding:3px;border-radius:8px}
+.tl-doi-truc button{padding:7px 14px;border-radius:6px;font-size:13.5px;font-weight:500;color:var(--chu-nhat);white-space:nowrap}
+.tl-doi-truc button.tl-chon{background:var(--the);color:var(--chu);font-weight:600;box-shadow:0 1px 3px rgba(26,34,51,.1)}
+.tl-loc-phai{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tl-nut-vien{border:1px solid var(--vien);background:var(--the);color:var(--chu);font-size:13px;font-weight:500;padding:8px 13px;border-radius:var(--bo-nho);white-space:nowrap}
+.tl-nut-vien:hover{border-color:var(--do);color:var(--do)} .tl-nut-vien.tl-bat{background:var(--chu);border-color:var(--chu);color:#fff}
+.tl-luoi-cuon{overflow-x:auto} .tl-luoi{min-width:1060px}
+.tl-l-dau{display:grid;border-bottom:1px solid var(--vien)}
+.tl-l-dau .tl-goc{padding:9px 14px;font-size:11.5px;color:var(--chu-mo);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.tl-l-dau .tl-tuan{padding:8px 6px;text-align:center;border-left:1px solid #F2F4F7}
+.tl-l-dau .tl-tuan b{display:block;font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700}
+.tl-l-dau .tl-tuan em{display:block;font-style:normal;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.tl-l-dau .tl-tuan.tl-db{background:#FBF7F7}
+.tl-vg-dong_bang em{color:#8E2A22} .tl-vg-vung_chac em{color:#7A4A05} .tl-vg-day em{color:var(--tre)} .tl-vg-mo em{color:var(--xong)}
+.tl-l-hang{display:grid;border-bottom:1px solid var(--vien)} .tl-l-hang:last-child{border-bottom:none}
+.tl-l-ten{padding:11px 14px;display:flex;flex-direction:column;justify-content:center}
+.tl-l-ten b{font-size:14px;font-weight:500;line-height:1.2} .tl-l-ten small{font-size:11px;color:var(--chu-mo);margin-top:1px}
+.tl-l-o{border-left:1px solid #F2F4F7;padding:5px}
+.tl-o-gop{width:100%;border-radius:6px;padding:8px 6px;text-align:center;display:block}
+.tl-o-gop:hover{box-shadow:0 0 0 2px rgba(168,44,39,.25) inset}
+.tl-o-gop .tl-gio{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;line-height:1.1;display:block}
+.tl-o-gop .tl-pct{font-size:10.5px;display:block;margin-top:1px;color:inherit;opacity:.75}
+.tl-o-gop .tl-muc{height:4px;border-radius:2px;background:#E8EBF0;margin-top:5px;overflow:hidden} .tl-o-gop .tl-muc i{display:block;height:100%}
+.tl-o-gop .tl-sv{font-size:10px;color:var(--chu-mo);margin-top:3px;display:block}
+.tl-g-trong{background:transparent} .tl-g-trong .tl-gio{color:var(--chu-mo);font-weight:500;font-size:13px}
+.tl-g-vua{background:var(--tl-xong-nhat)} .tl-g-vua .tl-gio{color:var(--xong)} .tl-g-vua .tl-muc i{background:var(--xong);opacity:.5}
+.tl-g-gan{background:var(--tl-cho-nhat)} .tl-g-gan .tl-gio{color:#8A5F20} .tl-g-gan .tl-muc i{background:var(--tl-cho);opacity:.6}
+.tl-g-qua{background:var(--do-nhat)} .tl-g-qua .tl-gio{color:#8E2A22} .tl-g-qua .tl-muc i{background:var(--tre);opacity:.75}
+.tl-l-o.tl-db{background:#FBF7F7}
+.tl-o-mts{font-size:10px;color:var(--xong);margin-top:3px;display:block;font-weight:600}
+.tl-bung{border-top:1px solid var(--vien);background:#FAFBFC}
+.tl-bung-dau{padding:11px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--vien)}
+.tl-bung-dau b{font-size:14.5px} .tl-bung-dau span{font-size:13px;color:var(--chu-nhat)}
+.tl-bv{display:grid;grid-template-columns:88px 1fr 150px 74px 130px;gap:12px;align-items:center;padding:9px 18px;border-bottom:1px solid var(--vien);font-size:13.5px;background:var(--the)}
+.tl-bv:last-child{border-bottom:none}
+.tl-bv .tl-ma{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px}
+.tl-bv .tl-ten{color:var(--chu-nhat);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-bv .tl-b{font-size:12.5px} .tl-bv .tl-b .tl-stt{font-family:'JetBrains Mono',monospace;color:var(--chu-mo);margin-right:5px;font-size:11px}
+.tl-bv .tl-g{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px}
+.tl-bv .tl-n button{width:100%;border:1px solid var(--vien);background:var(--the);padding:6px 8px;border-radius:5px;font-size:12px;font-weight:600}
+.tl-bv .tl-n button:hover{border-color:var(--do);color:var(--do)}
+.tl-bv.tl-mts{background:#FAFBFC} .tl-bv.tl-mts .tl-ma{color:var(--chu-nhat);font-weight:500} .tl-bv.tl-tre .tl-ma{color:var(--tre)}
+.tl-bung-them{padding:10px 18px;text-align:center;background:var(--the)} .tl-bung-them button{font-size:13px;color:var(--do);font-weight:600}
+.tl-dv{display:grid;grid-template-columns:88px 1fr 116px 150px 128px 104px;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--vien);font-size:13.5px}
+.tl-dv:last-of-type{border-bottom:none}
+.tl-dv-dau{display:grid;grid-template-columns:88px 1fr 116px 150px 128px 104px;gap:12px;padding:9px 18px;background:#FAFBFC;border-bottom:1px solid var(--vien);font-size:11.5px;color:var(--chu-mo);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.tl-dv .tl-ma{font-family:'JetBrains Mono',monospace;font-weight:700}
+.tl-dv .tl-kh{color:var(--chu-nhat);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-dv .tl-han{font-family:'JetBrains Mono',monospace;font-size:13px}
+.tl-van{font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px;text-align:center;white-space:nowrap;display:inline-block;margin:1px}
+.tl-van-tre{background:var(--do-nhat);color:#8E2A22} .tl-van-thu_tu{background:#FFF1E3;color:#8A5F20}
+.tl-van-dung{background:var(--tl-tim-nhat);color:var(--tl-tim)} .tl-van-thieu{background:#EEF1F5;color:#4A5361}
+.tl-dv .tl-chi{font-size:12.5px;color:var(--chu-nhat)}
+.tl-dv .tl-n button{width:100%;border:1px solid var(--vien);background:var(--the);padding:7px 9px;border-radius:5px;font-size:12px;font-weight:600}
+.tl-dv .tl-n button:hover{border-color:var(--do);color:var(--do)}
+.tl-trang{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--vien);background:#FAFBFC;flex-wrap:wrap}
+.tl-trang span{font-size:13px;color:var(--chu-nhat)} .tl-trang .tl-nut{display:flex;gap:6px}
+.tl-trang .tl-nut button{border:1px solid var(--vien);background:var(--the);padding:7px 12px;border-radius:var(--bo-nho);font-size:13px;font-weight:600}
+.tl-trang .tl-nut button[disabled]{color:var(--chu-mo);cursor:not-allowed}
+.tl-trang .tl-nut button:not([disabled]):hover{border-color:var(--do);color:var(--do)}
+.tl-rong{padding:34px 18px;text-align:center;color:var(--chu-nhat);font-size:14px} .tl-rong b{display:block;font-size:15px;color:var(--chu);margin-bottom:4px}
+.tl-nhac{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:12px 15px;font-size:13px;color:#6B4A08;line-height:1.6;margin:16px 18px}
+.tl-nhac b{display:block;margin-bottom:3px} .tl-nhac.tl-xanh{background:var(--tl-xong-nhat);border-color:#B8DCCC;color:#0F5C45}
+.tl-phu{position:fixed;inset:0;background:rgba(26,34,51,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:60}
+.tl-phu.tl-mo{display:flex}
+.tl-hop{background:var(--the);border-radius:var(--bo);max-width:620px;width:100%;max-height:92vh;overflow-y:auto}
+.tl-hop-dau{padding:18px 22px;border-bottom:1px solid var(--vien);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--the);z-index:2}
+.tl-hop-dau h3{font-size:18px;font-weight:600} .tl-hop-dau p{font-size:13.5px;color:var(--chu-nhat);margin-top:3px}
+.tl-hop-dong{font-size:24px;color:var(--chu-mo);line-height:1;padding:0 4px} .tl-hop-than{padding:18px 22px}
+.tl-giai{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:11px 14px;font-size:12.5px;color:#6B4A08;line-height:1.55;margin-bottom:16px} .tl-giai b{display:block;margin-bottom:3px}
+.tl-doi-ts{display:grid;grid-template-columns:1fr 34px 1fr;gap:12px;align-items:center;margin-bottom:16px}
+.tl-dso{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:13px 15px} .tl-dso.tl-moi{border-color:var(--xong);background:var(--tl-xong-nhat)}
+.tl-dso p{font-size:11.5px;color:var(--chu-nhat);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:5px}
+.tl-dso b{display:block;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700} .tl-dso small{display:block;font-size:12.5px;color:var(--chu-nhat);margin-top:4px}
+.tl-dso.tl-moi b,.tl-dso.tl-moi small{color:#0F5C45} .tl-dsmui{text-align:center;font-size:20px;color:var(--chu-mo)}
+.tl-kieu{display:inline-flex;gap:0;background:#E1E5EB;padding:3px;border-radius:8px;margin-bottom:14px}
+.tl-kieu button{padding:8px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--chu-nhat)} .tl-kieu button.tl-chon{background:var(--the);color:var(--chu);font-weight:600;box-shadow:0 1px 3px rgba(26,34,51,.1)}
+.tl-chon-tuan{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tl-chon-tuan button{border:1px solid var(--vien);background:var(--the);padding:8px 12px;border-radius:var(--bo-nho);font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700}
+.tl-chon-tuan button.tl-chon{border-color:var(--xong);background:var(--tl-xong-nhat);color:var(--xong)}
+.tl-chon-tuan button.tl-kin{color:var(--chu-mo);border-style:dashed}
+.tl-chon-tuan button.tl-cam{color:#B9483E;border-color:#EFC4BF;background:#FDF6F5;cursor:not-allowed}
+.tl-chon-tuan button.tl-bang{color:#7A6BB5;border-color:#D6D1F3;background:#F6F5FC;cursor:not-allowed}
+.tl-ongoaile{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:11px 13px;margin-bottom:16px;cursor:pointer;background:#FAFBFC}
+.tl-ongoaile:hover{border-color:var(--do)} .tl-ongoaile input{margin-top:3px;flex-shrink:0;width:16px;height:16px}
+.tl-ongoaile span{font-size:12.5px;color:var(--chu-nhat);line-height:1.5} .tl-ongoaile b{color:var(--chu);font-size:13px}
+.tl-anhhuong{border:1px solid var(--vien);border-radius:var(--bo-nho);overflow:hidden;margin-bottom:16px}
+.tl-ah-dau{padding:10px 14px;background:#FAFBFC;border-bottom:1px solid var(--vien);font-size:13px;font-weight:600}
+.tl-ah-d{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--vien);font-size:13.5px} .tl-ah-d:last-child{border-bottom:none}
+.tl-ah-d .tl-n{color:var(--chu-nhat)} .tl-ah-d .tl-v{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;text-align:right}
+.tl-ah-d .tl-v.tl-tot{color:var(--xong)} .tl-ah-d .tl-v.tl-xau{color:var(--tre)}
+.tl-canh{background:var(--do-nhat);border:1px solid #F3C9C4;border-radius:var(--bo-nho);padding:12px 14px;font-size:13px;color:#7C1D18;line-height:1.55;margin-bottom:16px} .tl-canh b{display:block;margin-bottom:3px}
+.tl-canh.tl-xanh{background:var(--tl-xong-nhat);border-color:#B8DCCC;color:#0F5C45}
+.tl-hop-than label{display:block;font-size:13px;color:var(--chu-nhat);margin-bottom:6px}
+.tl-hop-than textarea{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;cursor:text}
+.tl-hop-nut{display:flex;gap:10px;justify-content:flex-end;padding:15px 22px;border-top:1px solid var(--vien);background:#FAFBFC;position:sticky;bottom:0}
+.tl-hop-nut button{padding:12px 20px;border-radius:var(--bo-nho);font-size:15px;font-weight:600}
+.tl-n-huy{border:1px solid var(--vien);background:var(--the)} .tl-n-ok{background:var(--do);color:#fff} .tl-n-ok[disabled]{background:#D3D7DE;color:#8A9099;cursor:not-allowed}
+@media (max-width:1200px){ .tl-dv,.tl-dv-dau{grid-template-columns:1fr;gap:6px} .tl-dv-dau{display:none} .tl-bv{grid-template-columns:1fr;gap:6px} }
 </style>
 </head>
 <body>
@@ -346,6 +461,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
       <button class="thanh-muc" id="n-dem" data-man="dem"><i>🔢</i>Đếm</button>
       <button class="thanh-muc" id="n-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
       <button class="thanh-muc" id="n-qd" data-man="qd"><i>📋</i>Quản đốc</button>
+      <button class="thanh-muc" id="n-tl" data-man="tl"><i>📅</i>Tải &amp; lịch</button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Thoát</button></div>
     </nav>
 
@@ -498,6 +614,40 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         </div>
       </section>
 
+      <!-- ═════════ TẢI & LỊCH ═════════ -->
+      <section id="s-tl" style="display:none">
+        <div class="dau"><div><h1>Tải và lịch</h1><p>Bấm một ô để xem việc trong tuần đó. Mặc định chỉ hiện chỗ cần xử.</p></div>
+          <div class="quy-mo" style="text-align:right;font-size:13px;color:var(--chu-nhat)"><b id="tl-so-don" style="font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--chu);display:block">—</b>đơn dở dang có vấn đề</div></div>
+
+        <div class="tl-bang-xu" id="tl-bang"></div>
+
+        <div class="tl-the">
+          <div class="tl-the-dau"><h2 id="tl-tieu-luoi">Giờ việc so với năng lực</h2><p>Mỗi ô là tổng giờ của tuần đó. Bấm ô để xem việc bên trong.</p></div>
+          <div class="tl-loc">
+            <div class="tl-loc-nhom"><label>Xem theo</label>
+              <div class="tl-doi-truc"><button id="tl-bt-to" class="tl-chon" data-truc="to">Tổ</button><button id="tl-bt-don" data-truc="don">Đơn</button></div></div>
+            <div class="tl-loc-nhom"><label>Kỳ</label><select id="tl-ky"><option value="8">8 tuần</option><option value="12">12 tuần</option></select></div>
+            <div class="tl-loc-phai"><button id="tl-bt-mts" class="tl-nut-vien tl-bat">Tính hàng làm sẵn</button></div>
+          </div>
+          <div class="tl-luoi-cuon"><div class="tl-luoi" id="tl-luoi"></div></div>
+          <div id="tl-bung"></div>
+          <div id="tl-nhac"></div>
+        </div>
+
+        <div class="tl-the">
+          <div class="tl-the-dau"><h2>Đơn cần xử</h2><p id="tl-mota-don">Chỉ hiện đơn có vấn đề.</p></div>
+          <div class="tl-loc">
+            <div class="tl-loc-nhom"><label>Vấn đề</label>
+              <select id="tl-loc-van"><option value="tat">Mọi vấn đề</option><option value="tre">Sắp trễ hẹn</option><option value="thu_tu">Sai thứ tự bước</option><option value="dung">Đứng yên quá 3 ngày</option><option value="thieu">Thiếu số đơn vị</option></select></div>
+            <div class="tl-loc-nhom"><label>Tổ</label><select id="tl-loc-to"><option value="">Mọi tổ</option></select></div>
+            <div class="tl-loc-nhom"><input type="search" id="tl-tim" placeholder="Tìm mã đơn hoặc tên khách"></div>
+          </div>
+          <div class="tl-dv-dau"><div>Đơn</div><div>Khách</div><div>Hẹn giao</div><div>Vấn đề</div><div>Chi tiết</div><div></div></div>
+          <div id="tl-ds-don"></div>
+          <div id="tl-trang-don"></div>
+        </div>
+      </section>
+
     </div></main>
   </div>
 
@@ -508,10 +658,50 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
     <button id="d-dem" data-man="dem"><i>🔢</i>Đếm</button>
     <button id="d-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
     <button id="d-qd" data-man="qd"><i>📋</i>Quản đốc</button>
+    <button id="d-tl" data-man="tl"><i>📅</i>Tải & lịch</button>
     <button id="btOutM"><i>🚪</i>Thoát</button>
   </nav>
 
   <div class="mo" id="mo"></div>
+
+  <!-- HỘP XẾP LẠI ĐƠN (đường chính) -->
+  <div class="tl-phu" id="tl-hop-xep">
+    <div class="tl-hop">
+      <div class="tl-hop-dau"><div><h3>Xếp lại đơn</h3><p id="tl-xep-mota"></p></div><button class="tl-hop-dong" id="tl-xep-x">×</button></div>
+      <div class="tl-hop-than">
+        <p style="font-size:13px;color:var(--chu-nhat);margin-bottom:10px">Máy tính cả chuỗi bước theo thứ tự và năng lực từng tổ. Xem trước rồi mới lưu.</p>
+        <div class="tl-kieu"><button id="tl-xk-nguoc" class="tl-chon" data-kieu="nguoc">Ngược — lùi từ ngày giao</button><button id="tl-xk-xuoi" data-kieu="xuoi">Xuôi — làm sớm nhất có thể</button></div>
+        <label>Ngày giao mục tiêu</label>
+        <div class="tl-chon-tuan" id="tl-xep-tuan"></div>
+        <label class="tl-ongoaile"><input type="checkbox" id="tl-cb-ngoaile"><span><b>CEO duyệt ngoại lệ</b> — cho xếp vào tuần đóng băng. Tuần đóng băng tấm đã cắt, vật tư đã đặt; chêm việc vào đó phải có lý do.</span></label>
+        <div class="tl-anhhuong"><div class="tl-ah-dau">Lịch máy xếp ra</div><div id="tl-xep-lich"></div></div>
+        <div class="tl-anhhuong"><div class="tl-ah-dau">Tải đổi thế nào</div><div id="tl-xep-tai"></div></div>
+        <div id="tl-xep-canh"></div>
+        <label>Vì sao xếp lại</label>
+        <textarea rows="2" id="tl-xep-lydo" placeholder="khách xin lùi · ưu tiên đơn khác · tổ hỏng máy…"></textarea>
+      </div>
+      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-xep-huy">Huỷ</button><button class="tl-n-ok" id="tl-xep-luu">Xếp lại và lưu</button></div>
+    </div>
+  </div>
+
+  <!-- HỘP DỜI TAY MỘT BƯỚC (đường phụ) -->
+  <div class="tl-phu" id="tl-hop-doi">
+    <div class="tl-hop">
+      <div class="tl-hop-dau"><div><h3>Dời tay một bước</h3><p id="tl-doi-mota"></p></div><button class="tl-hop-dong" id="tl-doi-x">×</button></div>
+      <div class="tl-hop-than">
+        <div class="tl-giai"><b>Chỉ dùng khi máy không xếp được</b>Cách thường là "Xếp lại đơn" — máy tự tính cả chuỗi. Dời tay từng bước chỉ dành cho việc ngoài kế hoạch: máy hỏng đột xuất, thợ nghỉ, khách gọi đổi gấp. Dời tay không kéo các bước sau theo — phải tự kiểm thứ tự.</div>
+        <div class="tl-doi-ts"><div class="tl-dso"><p>Đang ở</p><b id="tl-doi-cu"></b><small id="tl-doi-cu-mo"></small></div><div class="tl-dsmui">→</div><div class="tl-dso tl-moi"><p>Dời sang</p><b id="tl-doi-moi"></b><small id="tl-doi-moi-mo"></small></div></div>
+        <label id="tl-lb-chon">Chọn tuần dời sang</label>
+        <div class="tl-chon-tuan" id="tl-chon-tuan"></div>
+        <label class="tl-ongoaile"><input type="checkbox" id="tl-cb-ngoaile2"><span><b>CEO duyệt ngoại lệ</b> — cho xếp vào tuần đóng băng.</span></label>
+        <div class="tl-anhhuong"><div class="tl-ah-dau">Dời thì đổi gì</div><div id="tl-ah-list"></div></div>
+        <div id="tl-doi-canh"></div>
+        <label>Vì sao dời tay <b style="color:var(--tre)">· bắt buộc</b></label>
+        <textarea rows="2" id="tl-doi-lydo" placeholder="máy CNC hỏng · thợ nghỉ đột xuất · khách gọi gấp…"></textarea>
+      </div>
+      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-doi-huy">Huỷ</button><button class="tl-n-ok" id="tl-doi-luu">Dời tay và lưu</button></div>
+    </div>
+  </div>
 
   <!-- HỘP ĐỔI TRẠNG THÁI TRẠM (tq-) -->
   <div class="tq-phu" id="tqTtPhu" style="display:none">
