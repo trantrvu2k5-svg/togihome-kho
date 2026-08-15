@@ -66,16 +66,18 @@ async function capApp() {
   $('viecLocTo').onchange = veViec; $('viecLocBuoc').onchange = veViec
   $('mo').onclick = dongPanel
   document.addEventListener('keydown', e => { if (e.key === 'Escape') dongPanel() })
+  setupTram()
   datKho('70x40')
   const { data: tl } = await sb.rpc('xuong_tho_list'); THO_LIST = tl || []
   await taiTo(); await taiDon(); await taiViec()
 }
 function di(m) {
   if (m === 'qd' && USER.vai_tro === 'tho') return
-  ;['viec', 'tem', 'dem', 'loi', 'qd'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
+  ;['viec', 'tram', 'tem', 'dem', 'loi', 'qd'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
     $('n-' + k).classList.toggle('chon', k === m); $('d-' + k).classList.toggle('chon', k === m) })
   window.scrollTo(0, 0)
   if (m === 'qd') taiQuanDoc()
+  if (m === 'tram') taiTram()
 }
 function tab(w) {
   $('qd-lam').style.display = (w === 'lam') ? 'block' : 'none'; $('qd-kb').style.display = (w === 'kb') ? 'block' : 'none'
@@ -336,6 +338,193 @@ async function xongBuoc() {
 function dongPanel() { $('panel').classList.remove('hien'); $('mo').classList.remove('hien') }
 const dmy = s => { const d = new Date(s); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') }
 const dmyhm = s => { const d = new Date(s); return dmy(s) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
+
+// ══════════ TRẠM QUÉT ══════════
+let TRAM = null, TRAM_INFO = null, HONG = false, DANG_QUET = false
+const TT_TEN = { chay: 'Đang chạy', nghi: 'Nghỉ', hong: 'Máy hỏng', cho_vat_tu: 'Chờ vật tư', ve_sinh: 'Vệ sinh' }
+let TT_CHON = 'chay'
+const focusO = () => { const o = $('tqO'); if (o && !o.disabled && $('s-tram').style.display === 'block' && !moNaoDangMo()) o.focus() }
+const moNaoDangMo = () => $('tqTtPhu').style.display !== 'none' || $('tqBuPhu').style.display !== 'none'
+
+// wiring MỘT LẦN (DOM luôn có)
+function setupTram() {
+  // giữ con trỏ: blur ô quét mà không có modal → tự về ô
+  $('tqO').addEventListener('blur', () => setTimeout(focusO, 40))
+  $('tqO').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); quetGui($('tqO').value.trim()) } })
+  // nút hỏng: bật/tắt (một lần bật một lần dùng)
+  $('tqHong').onclick = () => { HONG = !HONG; $('tqHong').classList.toggle('bat', HONG); $('tqHong').textContent = HONG ? 'TẤM SAU: GHI HỎNG' : 'Tấm sau bị hỏng'; focusO() }
+  // đổi trạng thái
+  $('tqDoiTt').onclick = moHopTt
+  $('tqTtHuy').onclick = () => { $('tqTtPhu').style.display = 'none'; focusO() }
+  $('tqTtLuu').onclick = luuTt
+  document.querySelectorAll('#tqTtChon button').forEach(b => b.onclick = () => chonTt(b.dataset.tt))
+  // ghi bù (chỉ xuong/ceo)
+  $('tqGhibu').onclick = moHopBu
+  $('tqDoiTram2').onclick = () => { localStorage.removeItem('tq_tram'); TRAM = null; taiTram() }
+  $('tqBuHuy').onclick = () => { $('tqBuPhu').style.display = 'none'; focusO() }
+  $('tqBuLuu').onclick = luuBu
+}
+
+async function taiTram() {
+  ;['tqChon', 'tqMoca', 'tqChinh'].forEach(k => $(k).style.display = 'none')
+  // 1) xác định trạm: URL ?tram= thắng → lưu; else localStorage
+  const urlTram = new URLSearchParams(location.search).get('tram')
+  if (urlTram) { TRAM = urlTram; try { localStorage.setItem('tq_tram', urlTram) } catch (e) {} }
+  else TRAM = TRAM || (() => { try { return localStorage.getItem('tq_tram') } catch (e) { return null } })()
+  if (!TRAM) return veChonTram()
+  // 2) đọc đầu màn
+  const { data, error } = await sb.rpc('tram_man', { p_tram: TRAM })
+  if (error || !data || data.khong_co) { localStorage.removeItem('tq_tram'); TRAM = null; return veChonTram(error ? error.message : 'Trạm không có trong hệ') }
+  TRAM_INFO = data
+  if (!data.co_ca) return veMoca()
+  veChinh()
+}
+
+async function veChonTram(loi) {
+  $('tqChon').style.display = ''
+  const { data } = await sb.rpc('tram_ds')
+  const box = $('tqChonDs')
+  box.innerHTML = (loi ? '<p style="color:var(--do)">' + esc(loi) + '</p>' : '') +
+    (data || []).map(t => `<button data-t="${esc(t.ma_tram)}"><span style="font-weight:700;color:var(--chu)">${esc(t.ten)}</span><span>${esc(t.hd_ten)}</span></button>`).join('')
+  box.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { try { localStorage.setItem('tq_tram', b.dataset.t) } catch (e) {} TRAM = b.dataset.t; taiTram() })
+}
+
+async function veMoca(loi) {
+  $('tqMoca').style.display = ''
+  $('tqMocaTitle').textContent = 'Mở ca ở ' + (TRAM_INFO?.ten || TRAM)
+  const { data } = await sb.rpc('tram_ds_nguoi')
+  const box = $('tqMocaDs')
+  box.innerHTML = (loi ? '<p style="color:var(--do)">' + esc(loi) + '</p>' : '') +
+    (data || []).map(n => `<button data-n="${esc(n.id)}"><span style="font-weight:700;color:var(--chu)">${esc(n.ho_ten)}</span><span>${esc(TEN_VAI[n.vai_tro] || n.vai_tro)}</span></button>`).join('')
+  box.querySelectorAll('button[data-n]').forEach(b => b.onclick = async () => {
+    const { error } = await sb.rpc('mo_ca', { p_tram: TRAM, p_nguoi: b.dataset.n })
+    if (error) return veMoca(error.message)
+    taiTram()
+  })
+}
+
+function veChinh() {
+  $('tqChinh').style.display = ''
+  const t = TRAM_INFO
+  $('tqTen').textContent = t.ten || t.ma_tram
+  $('tqHd').textContent = (t.hd_ten || '') + (t.ma_tram ? ' · ' + t.ma_tram : '')
+  $('tqNguoi').textContent = t.nguoi_truc || '—'
+  veDen(t.trang_thai || 'chay')
+  $('tqGhibu').style.display = (USER.vai_tro === 'xuong' || USER.vai_tro === 'ceo') ? '' : 'none'
+  $('tqKq').innerHTML = ''
+  taiCho(); taiCa(); taiLuot()
+  focusO()
+}
+function veDen(tt) {
+  const el = $('tqDen'); const chay = tt === 'chay'
+  el.className = 'tq-den ' + (chay ? 'chay' : 'dung'); el.textContent = TT_TEN[tt] || tt
+}
+
+async function taiCho() {
+  const { data } = await sb.rpc('tram_dang_cho', { p_tram: TRAM })
+  const so = data?.so || 0, ds = data?.ds || []
+  $('tqChoSo').textContent = so + ' tấm'
+  $('tqChoDs').innerHTML = so === 0
+    ? '<div class="tq-cho-rong">Không có tấm nào chờ ở trạm này.</div>'
+    : ds.map(x => `<div class="tq-cho-hang"><span class="tq-ctem">${esc(x.tem)}</span><span class="tq-cmon">${esc(x.mon || x.tam || '')}${x.don ? ' · đơn ' + esc(x.don) : ''}</span><span class="tq-clau">${x.cho_phut == null ? '' : 'chờ ' + choLau(x.cho_phut)}</span></div>`).join('')
+}
+const choLau = p => p < 60 ? p + ' phút' : Math.floor(p / 60) + ' giờ ' + (p % 60) + ' phút'
+
+async function taiCa() {
+  const { data } = await sb.rpc('tram_ca_hom_nay', { p_tram: TRAM })
+  if (!data || !data.co_ca) { $('tqCa').textContent = 'ca hôm nay: chưa có'; return }
+  $('tqCa').textContent = `ca hôm nay: ${data.so_tam} tấm · ${fmt(data.so_hong)} hỏng · ${fmt(data.gio)} giờ`
+}
+
+async function taiLuot() {
+  const { data } = await sb.rpc('tram_luot_gan_day', { p_tram: TRAM })
+  $('tqLuot').innerHTML = (data || []).length === 0
+    ? '<div class="tq-cho-rong">Chưa có lượt nào.</div>'
+    : data.map(l => `<div class="tq-luot"><span class="gio">${esc(l.gio)}</span><span class="tem">${esc(l.tem)}</span><span class="mon">${esc(l.tam || '')}</span><span class="vr tq-vr ${l.vr}">${l.vr === 'chan' ? 'chặn' : l.vr === 'ra' ? 'ra' : 'vào'}</span><span class="hong">${l.hong ? 'hỏng' : ''}</span></div>`).join('')
+}
+
+// QUÉT — FAIL-ĐÓNG: luôn gọi server; mất mạng KHÔNG hiện xanh
+async function quetGui(ma) {
+  if (!ma || DANG_QUET) { focusO(); return }
+  DANG_QUET = true
+  const hongLan = HONG
+  let res, netErr = false
+  try {
+    const { data, error } = await sb.rpc('tram_quet', { p_tem: ma, p_tram: TRAM, p_so_hong: hongLan ? 1 : 0, p_so_lam_lai: 0 })
+    if (error) throw error
+    res = data
+  } catch (e) { netErr = true }
+  $('tqO').value = ''
+  DANG_QUET = false
+  if (netErr) { veKqMang(ma); focusO(); return }   // KHÔNG hiện xanh, KHÔNG xếp hàng ngầm
+  // quét có ghi (nhận/chặn) → tắt nút hỏng (một lần dùng), làm mới các khối
+  if (hongLan) { HONG = false; $('tqHong').classList.remove('bat'); $('tqHong').textContent = 'Tấm sau bị hỏng' }
+  if (res) res.tem_ma = ma
+  veKq(res)
+  taiCho(); taiCa(); taiLuot()
+  if (res && res.trang_thai) veDen(res.trang_thai)
+  focusO()
+}
+
+function veKq(g) {
+  const box = $('tqKq')
+  const monLine = (g.mon ? esc(g.mon) + ' ' : '') + '<span>' + [g.tam, g.don ? 'đơn ' + g.don : ''].filter(Boolean).map(esc).join(' · ') + '</span>'
+  if (g.ok) {
+    box.innerHTML = `<div class="tq-kq nhan"><div class="tq-kq-dau"><div class="bieu">✓</div><b>Xong</b></div>
+      <div class="tq-kq-than"><div class="tem">${esc(g.tem_ma || '')}</div><p class="mon">${monLine}</p>
+      <div class="tq-kq-hang">
+        <div><p>Vừa ${g.loai === 'ra' ? 'ra' : 'vào'}</p><b>${esc(g.hoat_dong_ten || '')}</b></div>
+        ${g.mat_phut != null ? `<div><p>Mất</p><b>${g.mat_phut} phút</b></div>` : ''}
+        ${g.buoc_ke ? `<div><p>Tiếp theo</p><b>${esc(g.buoc_ke)}</b></div>` : ''}
+        ${g.xong != null && g.tong_buoc != null ? `<div><p>Tấm này</p><b>${g.xong}/${g.tong_buoc} bước</b></div>` : ''}
+      </div></div></div>`
+  } else {
+    box.innerHTML = `<div class="tq-kq chan"><div class="tq-kq-dau"><div class="bieu">✕</div><b>Chặn</b></div>
+      <div class="tq-kq-than"><div class="tem">${esc(g.tem_ma || '')}</div><p class="mon">${monLine}</p>
+      <p class="tq-kq-loi">${esc(g.ly_do || 'Không quét được')}<span>${esc(g.duong_thoat || 'Báo tổ trưởng để xử lý.')}</span></p></div></div>`
+  }
+}
+function veKqMang(ma) {
+  $('tqKq').innerHTML = `<div class="tq-kq mang"><div class="tq-kq-dau"><div class="bieu">⚠</div><b>Mất mạng</b></div>
+    <div class="tq-kq-than"><div class="tem">${esc(ma)}</div>
+    <p class="tq-kq-loi">MẤT MẠNG — chưa ghi được<span>Tấm này CHƯA được ghi. Quét lại khi có mạng, hoặc nhờ tổ trưởng ghi bù. Đừng bỏ qua.</span></p></div></div>`
+}
+
+// ĐỔI TRẠNG THÁI
+async function moHopTt() {
+  TT_CHON = TRAM_INFO?.trang_thai || 'chay'
+  $('tqTtPhu').style.display = ''   // mở trước để chặn con trỏ tự nhảy về ô quét
+  veChonTt()
+  const { data } = await sb.rpc('ly_do_dung_ds')
+  $('tqTtLyDo').innerHTML = '<option value="">— chọn lý do —</option>' + (data || []).map(l => `<option value="${esc(l.ten)}">${esc(l.ten)}</option>`).join('')
+}
+function chonTt(tt) { TT_CHON = tt; veChonTt() }
+function veChonTt() {
+  document.querySelectorAll('#tqTtChon button').forEach(b => b.classList.toggle('chon', b.dataset.tt === TT_CHON))
+  $('tqTtLyDoWrap').style.display = TT_CHON === 'chay' ? 'none' : ''
+}
+async function luuTt() {
+  const lyDo = TT_CHON === 'chay' ? '' : $('tqTtLyDo').value
+  if (TT_CHON !== 'chay' && !lyDo) { bao('Chọn lý do dừng trước.', true); return }
+  const { error } = await sb.rpc('doi_trang_thai_tram', { p_tram: TRAM, p_trang_thai: TT_CHON, p_ly_do: lyDo || null })
+  if (error) return bao('Không đổi được: ' + error.message, true)
+  TRAM_INFO.trang_thai = TT_CHON; veDen(TT_CHON)
+  $('tqTtPhu').style.display = 'none'; bao('✓ Đã ghi trạng thái trạm'); focusO()
+}
+
+// GHI BÙ (xuong/ceo)
+function moHopBu() {
+  $('tqBuTem').value = ''; $('tqBuLyDo').value = ''; $('tqBuLoai').value = 'vao'
+  $('tqBuPhu').style.display = ''; setTimeout(() => $('tqBuTem').focus(), 30)
+}
+async function luuBu() {
+  const tem = $('tqBuTem').value.trim(), loai = $('tqBuLoai').value, luc = $('tqBuLuc').value, lyDo = $('tqBuLyDo').value.trim()
+  if (!tem || !luc) { bao('Cần mã tem và lúc thật.', true); return }
+  const { data, error } = await sb.rpc('ghi_bu', { p_tem: tem, p_tram: TRAM, p_loai: loai, p_luc_that: new Date(luc).toISOString(), p_ly_do: lyDo || 'ghi bù tại trạm' })
+  if (error) return bao('Ghi bù lỗi: ' + error.message, true)
+  if (data && data.ok === false) { bao('Ghi bù bị chặn: ' + (data.ly_do || data.loi), true); return }
+  $('tqBuPhu').style.display = 'none'; bao('✓ Đã ghi bù'); taiCho(); taiCa(); taiLuot(); focusO()
+}
 
 // ══════════ BOOT ══════════
 ;(async () => {
