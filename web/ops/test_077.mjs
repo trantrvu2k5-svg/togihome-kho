@@ -35,6 +35,8 @@ try {
   }
   // ca ở DAN để quét được
   await c.query(`insert into kho.ca_lam(nguoi_id,ma_tram) values($1,'TRAM-DAN-01')`, [NS[1]])
+  // sổ chèn thẳng (không qua quet_tem) → dựng lại tien_do_tem để tram_dang_cho thấy (L-27: tram_dang_cho đọc tien_do_tem)
+  await asK(AU.ceo, `select kho.dung_lai_tien_do()`)
 
   // ═══ 3 · DANH SÁCH CHỜ đúng (in trước/sau) ═══
   console.log('\n── 3 · đang chờ ở DAN: 3 tấm đã ra CAT, chưa vào DAN ──')
