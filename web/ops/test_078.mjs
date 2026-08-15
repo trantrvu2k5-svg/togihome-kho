@@ -80,8 +80,7 @@ try {
   await donQ('T78-T2', 'xong_file', '2026-01-01'); await c.query(`update kho.don_hang set ngay_hen_khach=current_date+3 where ma_don='T78-T2'`)
   await donQ('T78-T3', 'bao_gia', '2026-01-01'); await c.query(`update kho.don_hang set ngay_hen_khach=current_date+3 where ma_don='T78-T3'`)
   const tl5 = await g1(`select kho.tai_theo_to_tuan(current_date, current_date+28) g`)
-  const w0 = (tl5.tuan || [])[0]
-  const oCnc0 = (tl5.o || []).find(x => x.ma_to === 'cnc' && x.tuan_bat_dau === w0)
+  const oCnc0 = (tl5.o || []).find(x => x.ma_to === 'cnc' && Number(x.tong_tai) > 0)   // tuần đơn rơi vào (canh Thứ Hai)
   console.log(`   ty_le=${tl5.ty_le_chot} · ô cnc tuần 0: t1=${oCnc0.t1_dang_lam} t2=${oCnc0.t2_da_chot} t3=${oCnc0.t3_bao_gia}`)
   ok('#5 ba tầng TÁCH riêng, mỗi đơn đúng tầng (t1>0·t2>0·t3>0, không gộp) (🟥 gộp = ĐỎ)',
     Number(oCnc0.t1_dang_lam) >= 5 && Number(oCnc0.t2_da_chot) >= 5 && Number(oCnc0.t3_bao_gia) > 0)
