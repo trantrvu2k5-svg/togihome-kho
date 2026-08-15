@@ -146,3 +146,33 @@ Nền DB cho màn trạm quét (chưa dựng màn). db/074. **THUẦN DB, không
 - **Trạng thái trạm ghi đầy đủ** (`trang_thai_tram`: chay/nghi/hong/cho_vat_tu/ve_sinh; non-chay bắt buộc ly_do) +
   `ca_lam` (một người một trạm tại một thời điểm) + `ly_do_dung`. Ai quét suy từ **ca trực**, không hỏi.
 - **Trạng thái:** ĐÃ LÀM (db/074 · test_074 17/0 · v-kho-68).
+
+## QD-19 (15/08) — TRA SÁCH trước khi đề xuất · đọc hết báo cáo trước khi đề xuất
+
+LUẬT SỐ 1 — TRA SÁCH TRƯỚC KHI ĐỀ XUẤT.
+Project có ba sách: MES_Meyer (điều hành sản xuất) · Garrison Managerial
+Accounting (kế toán quản trị) · giáo trình quản trị sản xuất.
+Trước khi đề xuất BẤT KỲ cấu trúc dữ liệu, quy trình, cách tính, hay luồng
+nghiệp vụ nào — TRA SÁCH TRƯỚC. Nói rõ sách nói gì, ở chương mục nào,
+rồi mới nói mình nghĩ gì. Sách không nói thì NÓI THẲNG 'sách không nói,
+đây là tôi đoán'.
+
+Chỗ tra nhanh cho việc hay gặp:
+- Quy trình sản xuất gắn vào đâu, nhánh song song → MES ch.4.2.3, BẢNG 4.1
+- Bảng vật tư suy từ quy trình → MES 4.2.4
+- Đơn vị sản xuất, tem, truy vết → MES 4.4, 6.3
+- Thu dữ liệu từ trạm, trạng thái máy → MES 6.1.3, 6.3.5
+- Giờ chuẩn tự điều chỉnh → MES 5.4.2
+- Định mức, chênh lệch, giá vốn → Garrison ch.9-10
+- Lịch sản xuất, tải theo tổ, mốc đóng băng → quản trị sản xuất ch.6
+
+ĐÃ VI PHẠM NHIỀU LẦN, mỗi lần đều phải sửa lại sau:
+- suy giờ từ đơn giá ra 4,5 phút/mét (vô lý gấp ba)
+- bắt CEO đi bấm giờ từng hoạt động ở xưởng (bất khả thi)
+- định nhồi mon_id vào tem, trong khi MES nói tem có định danh độc lập
+- đề xuất tách quy trình theo TẤM, trong khi BẢNG 4.1 đã cho sẵn cách:
+  một work plan theo món, phần A và phần B đi nhánh riêng rồi gộp ở bước cuối
+
+LUẬT SỐ 2 — ĐỌC HẾT BÁO CÁO TRƯỚC KHI ĐỀ XUẤT.
+Nhiều lần câu trả lời nằm sẵn trong báo cáo vừa nhận mà không đọc kỹ,
+rồi đi đường vòng ba lô.

@@ -62,3 +62,14 @@ insert into kho.so_don_vi_mon(ma_bien_the, hoat_dong, so_don_vi, nguon) values
 -- 3) xem giờ dự kiến (kèm nguồn từng số):
 select kho.gio_du_kien_cua_mon('<MA_BT>');
 ```
+
+## Căn cứ sách
+
+MES ch.4.2.3 BẢNG 4.1 — ví dụ work plan chuẩn:
+   100 Cắt phần A · 200/210 Phay phần A (song song) · 300/310 Khoan phần A ·
+   400 Mài phần A · 500 Lắp sơ bộ phần B · 600 Lắp sơ bộ 2 phần B ·
+   700 Lắp phần A + phần B (gộp hai nhánh)
+KẾT LUẬN: work plan gắn theo ARTICLE (món), KHÔNG gắn theo từng tấm.
+Nhiều bộ phận đi nhánh khác nhau bên trong CÙNG một work plan, gộp ở bước cuối.
+Cấu trúc hiện tại của Togihome (quy_trinh theo món + cột nhanh thùng/cánh)
+ĐÚNG với sách. Không đổi.

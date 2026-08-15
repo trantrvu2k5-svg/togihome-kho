@@ -3,6 +3,36 @@
 > Repo này = hệ kho + web (Supabase schema `kho`, các app deploy, plugin đẩy dữ liệu).
 > Khác repo plugin SketchUp (togihome-plugin, luật hình học tủ áo). Luật dưới đây cho phần **sản xuất / MES**.
 
+## LUẬT SỐ 1 — TRA SÁCH TRƯỚC KHI ĐỀ XUẤT
+
+LUẬT SỐ 1 — TRA SÁCH TRƯỚC KHI ĐỀ XUẤT.
+Project có ba sách: MES_Meyer (điều hành sản xuất) · Garrison Managerial
+Accounting (kế toán quản trị) · giáo trình quản trị sản xuất.
+Trước khi đề xuất BẤT KỲ cấu trúc dữ liệu, quy trình, cách tính, hay luồng
+nghiệp vụ nào — TRA SÁCH TRƯỚC. Nói rõ sách nói gì, ở chương mục nào,
+rồi mới nói mình nghĩ gì. Sách không nói thì NÓI THẲNG 'sách không nói,
+đây là tôi đoán'.
+
+Chỗ tra nhanh cho việc hay gặp:
+- Quy trình sản xuất gắn vào đâu, nhánh song song → MES ch.4.2.3, BẢNG 4.1
+- Bảng vật tư suy từ quy trình → MES 4.2.4
+- Đơn vị sản xuất, tem, truy vết → MES 4.4, 6.3
+- Thu dữ liệu từ trạm, trạng thái máy → MES 6.1.3, 6.3.5
+- Giờ chuẩn tự điều chỉnh → MES 5.4.2
+- Định mức, chênh lệch, giá vốn → Garrison ch.9-10
+- Lịch sản xuất, tải theo tổ, mốc đóng băng → quản trị sản xuất ch.6
+
+ĐÃ VI PHẠM NHIỀU LẦN, mỗi lần đều phải sửa lại sau:
+- suy giờ từ đơn giá ra 4,5 phút/mét (vô lý gấp ba)
+- bắt CEO đi bấm giờ từng hoạt động ở xưởng (bất khả thi)
+- định nhồi mon_id vào tem, trong khi MES nói tem có định danh độc lập
+- đề xuất tách quy trình theo TẤM, trong khi BẢNG 4.1 đã cho sẵn cách:
+  một work plan theo món, phần A và phần B đi nhánh riêng rồi gộp ở bước cuối
+
+LUẬT SỐ 2 — ĐỌC HẾT BÁO CÁO TRƯỚC KHI ĐỀ XUẤT.
+Nhiều lần câu trả lời nằm sẵn trong báo cáo vừa nhận mà không đọc kỹ,
+rồi đi đường vòng ba lô.
+
 ## KỶ LUẬT ẢNH KIỂM MẮT — CẤM sửa dữ liệu để ép màn đẹp
 
 **CẤM sửa dữ liệu để ép màn hình đẹp cho ảnh chụp kiểm mắt.** Ảnh phải phản ánh đúng thứ hệ thống làm được
