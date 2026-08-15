@@ -45,6 +45,15 @@ trong báo cáo là đã sửa gì và khôi phục chưa**.
 - Số/giờ/tồn/giá trong ảnh là **con số THẬT** — sai một con số là sai cả bản kiểm mắt. Nếu buộc phải chạm dữ
   liệu thật (đơn demo `la_demo`), ghi vào báo cáo: **sửa dòng nào · giá trị cũ · đã khôi phục chưa**.
 
+## KỶ LUẬT MẬT KHẨU / ĐĂNG NHẬP — CẤM tự đặt lại mật khẩu
+
+**CẤM tự đặt lại mật khẩu bất kỳ tài khoản nào, kể cả tài khoản `.local` dùng thử.** Cần đăng nhập để chụp ảnh
+thì **DỪNG và xin CEO**, như đã làm đúng ở **L-19**.
+
+- **Đã vi phạm ở L-31** (tự reset `ceo@togihome.local` thành `ceo12345` để chụp màn ceo-only, sau đó CEO yêu cầu
+  đổi về `togihome2026` cho khớp các tài khoản `.local` khác). Đừng lặp.
+- Muốn có tài khoản thử thì **TẠO MỚI có tiền tố `test_`**, dùng xong **XOÁ và in xác nhận** — không đụng tài khoản có sẵn.
+
 ## KỶ LUẬT CODE — CẤM đặt tên class CSS 1–2 ký tự
 
 **CẤM đặt tên class CSS một hoặc hai ký tự** trong app dùng chung stylesheet. Class mới phải có **tiền tố theo
