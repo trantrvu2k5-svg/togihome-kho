@@ -383,6 +383,124 @@ td input.ce::placeholder{color:#C6CDD9}
 .bcg-nut{background:var(--pri);color:#fff;border:none;font-size:13px;font-weight:600;padding:9px 14px;border-radius:8px;white-space:nowrap;cursor:pointer;align-self:flex-start}
 .bcg-rong{text-align:center;padding:30px 16px;color:var(--mut)}
 .bcg-rong b{display:block;color:var(--tx);font-size:15px;margin-bottom:4px}
+/* ==== Màn Báo giá — CSS bg- SCOPE dưới .bg-man (vượt .ca button 0,1,1) — L-52 ==== */
+:root{ --bg-do:#A82C27; --bg-do-nhat:#FDECEA; --bg-nen:#EFF1F5; --bg-the:#FFFFFF; --bg-vien:#E3E6EC;
+  --bg-chu:#1A2233; --bg-chu-nhat:#6B7280; --bg-chu-mo:#9CA3AF; --bg-xong:#15805F; --bg-xong-nhat:#E7EFEA;
+  --bg-cho:#C77C15; --bg-cho-nhat:#FDF3E3; --bg-tim:#6155BC; --bg-tim-nhat:#EFEDFB; --bg-tre:#C0392B;
+  --bg-hong:#A8478F; --bg-hong-nhat:#F7EDF4; --bg-lam:#2C6FA8; --bg-lam-nhat:#E8F0F7; --bg-r:12px; --bg-rn:7px; }
+.bg-man .bg-mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:-.02em}
+.bg-man .bg-hdr{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.bg-man .bg-hdr h1{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.bg-man .bg-hdr>div>p{font-size:13px;color:var(--bg-chu-nhat);margin-top:2px}
+.bg-man .bg-hdr-phai{display:flex;align-items:center;gap:14px}
+.bg-man .bg-qm{text-align:right;font-size:12.5px;color:var(--bg-chu-nhat)}
+.bg-man .bg-qm b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:18px;color:var(--bg-chu);display:block;line-height:1.1}
+.bg-man .bg-nut-them{background:var(--bg-do);color:#fff;font-weight:600;padding:10px 17px;border-radius:var(--bg-rn);font-size:14.5px;white-space:nowrap;border:none;cursor:pointer}
+.bg-man .bg-bang{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:10px}
+.bg-man .bg-o{background:var(--bg-the);border:1px solid var(--bg-vien);border-radius:var(--bg-r);padding:12px 14px;text-align:left;width:100%;border-left:4px solid var(--bg-vien);cursor:pointer}
+.bg-man .bg-o:hover{border-color:var(--bg-do);border-left-color:var(--bg-do)}
+.bg-man .bg-o.bg-chon{outline:2px solid var(--bg-do);outline-offset:-1px}
+.bg-man .bg-o.bg-do{border-left-color:var(--bg-tre)} .bg-man .bg-o.bg-vang{border-left-color:var(--bg-cho)}
+.bg-man .bg-o.bg-tim{border-left-color:var(--bg-tim)} .bg-man .bg-o.bg-xanh{border-left-color:var(--bg-xong)} .bg-man .bg-o.bg-lam{border-left-color:var(--bg-lam)}
+.bg-man .bg-o p{font-size:12px;color:var(--bg-chu-nhat);margin-bottom:3px;line-height:1.35}
+.bg-man .bg-o b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:23px;font-weight:700;line-height:1}
+.bg-man .bg-o.bg-do b{color:var(--bg-tre)} .bg-man .bg-o.bg-vang b{color:#8A5F20}
+.bg-man .bg-o.bg-tim b{color:var(--bg-tim)} .bg-man .bg-o.bg-xanh b{color:var(--bg-xong)} .bg-man .bg-o.bg-lam b{color:var(--bg-lam)}
+.bg-man .bg-o small{display:block;font-size:11px;color:var(--bg-chu-mo);margin-top:3px;line-height:1.35}
+.bg-man .bg-ket-thuc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.bg-man .bg-kt-o{background:var(--bg-hong-nhat);border:1px solid #E4C8DC;border-radius:var(--bg-r);padding:12px 15px;text-align:left;width:100%;cursor:pointer}
+.bg-man .bg-kt-o:hover{border-color:var(--bg-hong)}
+.bg-man .bg-kt-o.bg-chon{outline:2px solid var(--bg-hong);outline-offset:-1px}
+.bg-man .bg-kt-o .bg-d{display:flex;align-items:baseline;gap:10px}
+.bg-man .bg-kt-o p{font-size:12.5px;color:#7C3468;font-weight:600}
+.bg-man .bg-kt-o b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:21px;font-weight:700;color:var(--bg-hong);margin-left:auto}
+.bg-man .bg-kt-ly{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.bg-man .bg-kt-ly span{font-size:11px;background:#fff;border:1px solid #E4C8DC;border-radius:20px;padding:2px 8px;color:#7C3468}
+.bg-man .bg-kt-ly span b{font-size:11px;margin:0;color:var(--bg-hong)}
+.bg-man .bg-the-ct{background:var(--bg-the);border:1px solid var(--bg-vien);border-radius:var(--bg-r);overflow:hidden;margin-bottom:14px}
+.bg-man .bg-the-dau{padding:13px 17px;border-bottom:1px solid var(--bg-vien);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.bg-man .bg-the-dau h2{font-size:15.5px;font-weight:600}
+.bg-man .bg-the-dau p{font-size:12.5px;color:var(--bg-chu-nhat);margin-top:2px}
+.bg-man .bg-kieu{display:flex;border:1px solid var(--bg-vien);border-radius:var(--bg-rn);overflow:hidden}
+.bg-man .bg-kieu button{padding:7px 14px;font-size:13px;font-weight:600;background:var(--bg-the);color:var(--bg-chu-nhat);border:none;cursor:pointer}
+.bg-man .bg-kieu button.on{background:var(--bg-do);color:#fff}
+.bg-man .bg-loc{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 17px;border-bottom:1px solid var(--bg-vien);background:#FAFBFC}
+.bg-man .bg-loc-nhom{display:flex;align-items:center;gap:6px}
+.bg-man .bg-loc-nhom label{font-size:12px;color:var(--bg-chu-nhat);white-space:nowrap}
+.bg-man .bg-loc-nhom select{border:1px solid var(--bg-vien);border-radius:var(--bg-rn);padding:7px 10px;background:var(--bg-the);font-size:13px;cursor:pointer}
+.bg-man .bg-loc input[type=search]{cursor:text;border:1px solid var(--bg-vien);border-radius:var(--bg-rn);padding:8px 11px;font-size:13.5px;background:var(--bg-the);min-width:180px}
+.bg-man .bg-dong-dau{display:grid;grid-template-columns:1fr 168px 150px 128px;gap:14px;padding:8px 17px;background:#FAFBFC;border-bottom:1px solid var(--bg-vien);font-size:11px;color:var(--bg-chu-mo);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.bg-man .bg-dong{display:grid;grid-template-columns:1fr 168px 150px 128px;gap:14px;align-items:start;padding:12px 17px;border-bottom:1px solid var(--bg-vien)}
+.bg-man .bg-dong:last-of-type{border-bottom:none}
+.bg-man .bg-dong:hover{background:#FAFBFC}
+.bg-man .bg-c1 .bg-h1{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.bg-man .bg-c1 .bg-ma{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:12.5px;color:var(--bg-chu-nhat)}
+.bg-man .bg-c1 .bg-kh{font-weight:600;font-size:15px}
+.bg-man .bg-c1 .bg-mo{font-size:11.5px;color:var(--bg-chu-mo)}
+.bg-man .bg-c1 .bg-mon{font-size:13px;color:var(--bg-chu-nhat);margin-top:2px}
+.bg-man .bg-c1 .bg-mon em{font-style:normal;background:var(--bg-nen);border-radius:20px;padding:1px 7px;font-size:11px;margin-left:4px}
+.bg-man .bg-c1 .bg-nc{font-size:11.5px;color:var(--bg-chu-mo);margin-top:3px;line-height:1.4}
+.bg-man .bg-c1 .bg-nc.bg-thieu{color:var(--bg-tre)}
+.bg-man .bg-c1 .bg-nhan{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.bg-man .bg-nl{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bg-man .bg-nl-le{background:var(--bg-do-nhat);color:#8E2A22}
+.bg-man .bg-nl-combo{background:var(--bg-tim-nhat);color:var(--bg-tim)}
+.bg-man .bg-nl-full{background:#E0F0EC;color:#0F6B52}
+.bg-man .bg-nl-bh{background:var(--bg-cho-nhat);color:#7A4A05}
+.bg-man .bg-nl-cap{background:var(--bg-nen);color:var(--bg-chu-nhat);font-family:'JetBrains Mono',ui-monospace,monospace}
+.bg-man .bg-nl-th{background:#F2F4F7;color:var(--bg-chu-nhat);font-weight:500}
+.bg-man .bg-ban{display:flex;flex-direction:column;gap:2px}
+.bg-man .bg-ban .bg-pb{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bg-man .bg-ban .bg-pb b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;font-weight:700}
+.bg-man .bg-ban .bg-tt{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bg-man .bg-tt-chua{background:var(--bg-nen);color:var(--bg-chu-nhat)}
+.bg-man .bg-tt-moi{background:var(--bg-lam-nhat);color:var(--bg-lam)}
+.bg-man .bg-tt-dagui{background:var(--bg-tim-nhat);color:var(--bg-tim)}
+.bg-man .bg-tt-duyet{background:var(--bg-xong-nhat);color:var(--bg-xong)}
+.bg-man .bg-tt-che{background:var(--bg-do-nhat);color:#8E2A22}
+.bg-man .bg-ban small{font-size:11px;color:var(--bg-chu-mo);line-height:1.35}
+.bg-man .bg-ban small.bg-het{color:var(--bg-tre);font-weight:600}
+.bg-man .bg-ban .bg-che{font-size:11px;color:#8E2A22;line-height:1.35;font-style:italic;margin-top:2px}
+.bg-man .bg-ngay3{display:flex;flex-direction:column;gap:1px}
+.bg-man .bg-ngay3 .bg-d{display:flex;align-items:baseline;gap:6px;font-size:11.5px}
+.bg-man .bg-ngay3 .bg-d span{color:var(--bg-chu-mo);width:32px;flex-shrink:0}
+.bg-man .bg-ngay3 .bg-d b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;font-weight:700}
+.bg-man .bg-ngay3 .bg-chua{font-size:11.5px;color:var(--bg-chu-mo);font-style:italic}
+.bg-man .bg-ngay3 .bg-tien{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:13.5px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--bg-vien)}
+.bg-man .bg-ngay3 .bg-tien-phu{font-size:10.5px;color:var(--bg-chu-mo)}
+.bg-man .bg-cn{display:flex;flex-direction:column;gap:5px;align-items:stretch}
+.bg-man .bg-cn button{padding:7px 9px;border-radius:5px;font-size:12px;font-weight:600;white-space:nowrap;width:100%;border:none;cursor:pointer}
+.bg-man .bg-n-chinh{background:var(--bg-xong);color:#fff}
+.bg-man .bg-n-lam{background:var(--bg-lam);color:#fff}
+.bg-man .bg-n-vien{border:1px solid var(--bg-vien)!important;background:var(--bg-the);color:var(--bg-chu)}
+.bg-man .bg-n-do{border:1px solid #DC9A93!important;background:var(--bg-do-nhat);color:#7C1D18}
+.bg-man .bg-trang{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 17px;border-top:1px solid var(--bg-vien);background:#FAFBFC;flex-wrap:wrap}
+.bg-man .bg-trang span{font-size:12.5px;color:var(--bg-chu-nhat)}
+.bg-man .bg-trang .bg-nut{display:flex;gap:6px}
+.bg-man .bg-trang .bg-nut button{border:1px solid var(--bg-vien);background:var(--bg-the);padding:6px 12px;border-radius:var(--bg-rn);font-size:12.5px;font-weight:600;cursor:pointer}
+.bg-man .bg-trang .bg-nut button[disabled]{color:var(--bg-chu-mo);cursor:not-allowed}
+.bg-man .bg-rong{padding:32px 17px;text-align:center;color:var(--bg-chu-nhat);font-size:13.5px}
+.bg-man .bg-rong b{display:block;font-size:14.5px;color:var(--bg-chu);margin-bottom:4px}
+.bg-man .bg-nhac{background:#F4F5F7;border:1px solid var(--bg-vien);border-radius:var(--bg-rn);padding:11px 14px;font-size:12.5px;color:var(--bg-chu-nhat);line-height:1.6;margin:14px 17px}
+.bg-man .bg-nhac b{color:var(--bg-chu)}
+
+.bg-man .bg-cot-wrap{display:flex;gap:10px;overflow-x:auto;padding:8px 4px 12px}
+.bg-man .bg-cot{flex:0 0 216px;min-width:0;background:var(--bg-nen);border:1px solid var(--bg-vien);border-radius:var(--bg-r)}
+.bg-man .bg-cot-hd{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#E4E8EE;border-radius:var(--bg-r) var(--bg-r) 0 0;font-size:12.5px;font-weight:600}
+.bg-man .bg-cot-hd i{font-style:normal;font-family:'JetBrains Mono',ui-monospace,monospace;color:var(--bg-chu-nhat)}
+.bg-man .bg-cot-body{padding:8px;display:flex;flex-direction:column;gap:7px;min-height:120px}
+.bg-man .bg-the2{background:var(--bg-the);border:1px solid var(--bg-vien);border-left:3px solid var(--bg-chu-mo);border-radius:var(--bg-rn);overflow:hidden}
+.bg-man .bg-the2.bg-nong{border-left-color:var(--bg-tre)}
+.bg-man .bg-the2-mo{width:100%;text-align:left;background:none;border:none;font:inherit;color:inherit;padding:9px 10px;cursor:pointer;display:block}
+.bg-man .bg-the2-ma{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:12.5px}
+.bg-man .bg-the2-kh{font-size:13.5px;font-weight:500}
+.bg-man .bg-the2-ph{display:block;font-size:11px;color:var(--bg-chu-mo);margin-top:3px}
+.bg-man .bg-the2-nut{display:flex;gap:6px;padding:0 9px 9px}
+.bg-man .bg-the2-nut button{flex:1;border-radius:6px;padding:6px;font-size:11.5px;font-weight:600;border:none;cursor:pointer}
+.bg-man .bg-cot-rong{color:var(--bg-chu-mo);text-align:center;padding:12px;font-size:12.5px}
+.bg-man .bg-tai{padding:30px;text-align:center;color:var(--bg-chu-nhat)}
+@media(max-width:1180px){ .bg-man .bg-dong, .bg-man .bg-dong-dau{grid-template-columns:1fr 160px 130px} .bg-man .bg-dong-dau div:nth-child(4), .bg-man .bg-dong .bg-cn{grid-column:1/-1} .bg-man .bg-cn{flex-direction:row;flex-wrap:wrap;margin-top:4px} .bg-man .bg-cn button{width:auto;flex:0 0 auto;padding:7px 14px} .bg-man .bg-ket-thuc{grid-template-columns:1fr 1fr} }
+@media(max-width:860px){ .bg-man .bg-dong, .bg-man .bg-dong-dau{grid-template-columns:1fr} .bg-man .bg-dong-dau{display:none} .bg-man .bg-ket-thuc{grid-template-columns:1fr} }
 `;
 
 /* ============ QUYỀN ============ */
@@ -862,9 +980,10 @@ const LY_DO_THUA_N = c => (LY_DO_THUA.find(x => x.c === c) || {}).n || c || "—
 const ttOf = c => [...TT, ...TT_KHAC].find(x => x.c === c) || TT[0];
 // THỨ TỰ THẺ theo DÒNG CHẢY đơn (thẻ LUÔN hiện, kể cả 0 đơn — không để trạng thái "biến mất").
 //   Báo giá là bước ĐẦU; Chờ cắt nằm giữa Xong file thiết kế và Đã cắt; Đã giao là thẻ CUỐI.
-const TT_DONG_CHAY = ['bao_gia', 'moi', 'nhan_thiet_ke', 'tk', 'co_file', 'cho_cat', 'da_cat', 'dang_lam', 'xong_sx', 'cho_giao', 'da_giao'];
+// L-48 3c: GỠ 3 ô báo giá khỏi Sổ đơn (báo giá quản ở màn "Báo giá" riêng). TT vẫn giữ nhãn cho ttOf().
+const TT_DONG_CHAY = ['moi', 'nhan_thiet_ke', 'tk', 'co_file', 'cho_cat', 'da_cat', 'dang_lam', 'xong_sx', 'cho_giao', 'da_giao'];
 // NHÁNH KẾT THÚC (không phải bước trong dòng chảy) — tách riêng, hiện khi có đơn.
-const TT_KET_THUC = ['bao_gia_thua', 'bao_gia_treo', 'tam_ngung', 'huy'];
+const TT_KET_THUC = ['tam_ngung', 'huy'];
 const ttIdx = c => TT.findIndex(x => x.c === c);
 const ttTruocDo = c => {
   const i = ttIdx(c);
@@ -1816,6 +1935,101 @@ const seed = () => {
 };
 
 /* ===== Chuông "bản chờ gửi" — danh sách (L-45) ===== */
+/* ===== Màn BÁO GIÁ (bám v5) — 5 ô đếm + thua/treo + lọc + danh sách. Ô & danh sách CÙNG điều kiện. ===== */
+let BG_KIEU = "ds"; // nhớ kiểu nhìn trong phiên
+const BG_NHAN = { chua_nhan: "Chưa nhận", dang_dung: "Đang dựng", ban_moi: "Bản mới chưa gửi", da_gui: "Đã gửi khách", sua_gop_y: "Khách chê", du_len_don: "Khách duyệt", thua: "Thua", treo: "Treo" };
+const BG_LOAI = { le_sang: ["Lẻ", "bg-nl-le"], le_rieng: ["Lẻ riêng", "bg-nl-le"], combo: ["Combo", "bg-nl-combo"], combo_moi: ["Combo mới", "bg-nl-combo"], full_can: ["Full căn", "bg-nl-full"], bao_hanh: ["Bảo hành", "bg-nl-bh"], cat_lai: ["Cắt lại", "bg-nl-bh"] };
+function BaoGiaMan({ data, initFilter, moDon, reload }) {
+  const el = React.createElement;
+  const [f, setF] = useState({ tt: initFilter || "can", ai: "", loai: "", th: "", ngay: "", tim: "" });
+  const [pg, setPg] = useState(1);
+  const [kieu, setKieuS] = useState(BG_KIEU);
+  const setKieu = k => { BG_KIEU = k; setKieuS(k); };
+  const set1 = (k, v) => { setF(o => Object.assign({}, o, { [k]: v })); setPg(1); };
+  if (!data) return el("div", { className: "bg-tai" }, "Đang tải…");
+  const ds = data.ds || [];
+  const dangMo = b => b.gd !== "thua" && b.gd !== "treo";
+  const canLam = b => dangMo(b) && (b.gd === "chua_nhan" || b.gd === "ban_moi" || b.gd === "du_len_don" || (b.gd === "da_gui" && b.cho_khach >= 4));
+  const oCond = (b, tt) => tt === "can" ? canLam(b) : tt === "mo" ? dangMo(b) : tt === "cho_lau" ? (b.gd === "da_gui" && b.cho_khach >= 4) : tt === "treo_lau" ? (b.gd === "treo" && b.mo_ngay >= 25) : tt === "tat" ? true : b.gd === tt;
+  const dem = tt => ds.filter(b => oCond(b, tt)).length;
+  const passF = b => oCond(b, f.tt) && !(f.ai === "chua" && b.gd !== "chua_nhan") && !(f.ai === "da" && b.gd === "chua_nhan") && !(f.loai && b.loai !== f.loai) && !(f.th && b.thuong_hieu !== f.th) && !(f.ngay === "chua" && !b.chua_co_ngay) && !(f.ngay === "co" && b.chua_co_ngay) && !(f.tim && (b.ma_don + " " + b.ten_khach + " " + (b.mon_ten || "")).toLowerCase().indexOf(f.tim.toLowerCase()) < 0);
+  const list = ds.filter(passF);
+  const loais = Array.from(new Set(ds.map(b => b.loai).filter(Boolean)));
+  const ths = Array.from(new Set(ds.map(b => b.thuong_hieu).filter(Boolean)));
+  const tr = n => n == null ? "—" : (n / 1e6).toFixed(1) + " tr";
+  const dmy = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "—";
+  const sel = (nhan, val, on, opts) => el("div", { className: "bg-loc-nhom" }, el("label", null, nhan), el("select", { value: val, onChange: e => on(e.target.value) }, opts.map(o => el("option", { key: o[0], value: o[0] }, o[1]))));
+  const phanHoi = async (banId, kq) => { let gc = ""; if (kq !== "khach_duyet") { gc = window.prompt(kq === "khach_doi_y" ? "Khách đổi ý — khách muốn đổi gì:" : "Chưa đúng yêu cầu — lệch chỗ nào so với khách nói:") || ""; if (!gc.trim()) return; } try { await window.saleApi.phanHoiBanRpc(banId, kq, gc); if (reload) reload(); } catch (e) { alert(e.message); } };
+  // ── cụm 1: khách · món · nhu cầu ──
+  const oNhuCau = b => b.ghi_chu ? el("div", { className: "bg-nc" }, b.ghi_chu) : el("div", { className: "bg-nc bg-thieu" }, "chưa ghi nhu cầu khách");
+  const c1 = b => { const ln = BG_LOAI[b.loai] || ["—", "bg-nl-cap"]; return el("div", { className: "bg-c1" },
+    el("div", { className: "bg-h1" }, el("span", { className: "bg-ma" }, b.ma_don), el("span", { className: "bg-kh" }, b.ten_khach), el("span", { className: "bg-mo" }, "mở " + b.mo_ngay + " ngày")),
+    el("div", { className: "bg-mon" }, b.mon_ten || "(chưa có món)", b.so_mon > 1 ? el("em", null, "+" + (b.so_mon - 1) + " món") : null),
+    oNhuCau(b),
+    el("div", { className: "bg-nhan" }, el("span", { className: "bg-nl " + ln[1] }, ln[0]), b.cap ? el("span", { className: "bg-nl bg-nl-cap" }, b.cap) : null, b.thuong_hieu ? el("span", { className: "bg-nl bg-nl-th" }, b.thuong_hieu) : null)); };
+  // ── cụm 2: bản thiết kế ──
+  const oBan = b => {
+    if (b.gd === "chua_nhan") return el("div", { className: "bg-ban" }, el("span", { className: "bg-tt bg-tt-chua" }, "chưa có bản"), el("small", null, "thiết kế chưa nhận việc"));
+    if (b.gd === "dang_dung") return el("div", { className: "bg-ban" }, el("span", { className: "bg-tt bg-tt-chua" }, "đang dựng"), el("small", null, (b.ai_dung || "thiết kế") + " đang làm"));
+    if (b.gd === "thua") return el("div", { className: "bg-ban" }, el("span", { className: "bg-tt bg-tt-che" }, "khách không chốt"), b.ly_thua ? el("small", null, LY_DO_THUA_N(b.ly_thua)) : el("small", null, "—"));
+    if (b.gd === "treo") return el("div", { className: "bg-ban" }, el("span", { className: "bg-tt bg-tt-chua" }, "treo · chờ khách"), el("small", null, "mở " + b.mo_ngay + " ngày"));
+    const nhan = b.gd === "ban_moi" ? ["bg-tt-moi", "bản mới, chưa gửi"] : b.gd === "da_gui" ? ["bg-tt-dagui", "đã gửi khách"] : b.gd === "sua_gop_y" ? ["bg-tt-che", "khách chê"] : ["bg-tt-duyet", "khách duyệt"];
+    return el("div", { className: "bg-ban" },
+      el("div", { className: "bg-pb" }, el("b", null, "bản " + b.pb), el("span", { className: "bg-tt " + nhan[0] }, nhan[1])),
+      el("small", null, (b.ai_dung || "chưa rõ") + " dựng" + (b.vong_sua ? " · " + b.vong_sua + " vòng sửa" : "")),
+      b.gd === "da_gui" ? el("small", null, "chờ khách " + b.cho_khach + " ngày") : null);
+  };
+  // ── cụm 3: ngày & tiền ──
+  const oNgayTien = b => el("div", { className: "bg-ngay3" },
+    b.ngay_hen ? el("div", { className: "bg-d" }, el("span", null, "hẹn"), el("b", null, dmy(b.ngay_hen))) : el("div", { className: "bg-chua" }, "chưa hẹn ngày giao"),
+    el("div", { className: "bg-tien" }, tr(b.tien)), el("div", { className: "bg-tien-phu" }, b.tien == null ? "chưa có giá bán" : "giá bán"));
+  // ── nút hàng ──
+  const nut = b => b.gd === "du_len_don" ? [el("button", { key: 1, className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn")]
+    : b.gd === "da_gui" ? [el("button", { key: 1, className: "bg-n-chinh", onClick: () => phanHoi(b.ban_id, "khach_duyet") }, "Khách duyệt bản"), el("button", { key: 2, className: "bg-n-do", onClick: () => phanHoi(b.ban_id, "khach_doi_y") }, "Khách chê")]
+    : b.gd === "ban_moi" ? [el("button", { key: 1, className: "bg-n-lam", onClick: () => moDon(b.ma_don) }, "Gửi khách xem")]
+    : [el("button", { key: 1, className: "bg-n-vien", onClick: () => moDon(b.ma_don) }, "Mở đơn")];
+  // băng ô + kết thúc (dùng chung 2 kiểu)
+  const BANG = [["chua_nhan", "Chưa ai nhận dựng", "thiết kế chưa cầm", "bg-do"], ["ban_moi", "Có bản mới, chưa gửi", "sale chưa chuyển cho khách", "bg-lam"], ["cho_lau", "Chờ khách quá 4 ngày", "gọi hỏi nhanh hơn chờ", "bg-vang"], ["sua_gop_y", "Khách chê, chờ bản mới", "thiết kế đang sửa", "bg-do"], ["du_len_don", "Khách duyệt bản", "chờ chốt giá và ngày", "bg-xanh"]];
+  const thua = ds.filter(b => b.gd === "thua"), treo = ds.filter(b => b.gd === "treo");
+  const chipThua = {}; thua.forEach(b => { const k = b.ly_thua || "khac"; chipThua[k] = (chipThua[k] || 0) + 1; });
+  const treoLau = treo.filter(b => b.mo_ngay >= 25).length;
+  const header = el("div", { className: "bg-hdr" }, el("div", null, el("h1", null, "Báo giá"), el("p", null, "Khách hỏi giá, chưa chốt. Bản thiết kế đi qua lại tới khi khách gật.")),
+    el("div", { className: "bg-hdr-phai" }, el("div", { className: "bg-qm" }, el("b", null, ds.filter(dangMo).length), " đang mở"), el("button", { className: "bg-nut-them", onClick: () => moDon("__moi__") }, "+ Báo giá mới")));
+  const bang = el("div", { className: "bg-bang" }, BANG.map(o => { const so = dem(o[0]); return el("button", { key: o[0], className: "bg-o " + (so ? o[3] : "") + (f.tt === o[0] ? " bg-chon" : ""), onClick: () => set1("tt", o[0]) }, el("p", null, o[1]), el("b", null, so), el("small", null, o[2])); }));
+  const kt = el("div", { className: "bg-ket-thuc" },
+    el("button", { className: "bg-kt-o" + (f.tt === "thua" ? " bg-chon" : ""), onClick: () => set1("tt", "thua") }, el("div", { className: "bg-d" }, el("p", null, "Báo giá · thua"), el("b", null, thua.length)), el("div", { className: "bg-kt-ly" }, Object.keys(chipThua).map(k => el("span", { key: k }, LY_DO_THUA_N(k) + " ", el("b", null, chipThua[k]))))),
+    el("button", { className: "bg-kt-o" + (f.tt === "treo" ? " bg-chon" : ""), onClick: () => set1("tt", "treo") }, el("div", { className: "bg-d" }, el("p", null, "Báo giá · treo"), el("b", null, treo.length)), el("div", { className: "bg-kt-ly" }, el("span", null, "treo quá 25 ngày ", el("b", null, treoLau)))));
+  const theDau = el("div", { className: "bg-the-dau" },
+    el("div", null, el("h2", null, "Danh sách báo giá"), el("p", null, "Đang xem " + list.length + " báo giá")),
+    el("div", { className: "bg-kieu" }, el("button", { className: kieu === "ds" ? "on" : "", onClick: () => setKieu("ds") }, "Danh sách"), el("button", { className: kieu === "cot" ? "on" : "", onClick: () => setKieu("cot") }, "Cột")));
+  const loc = el("div", { className: "bg-loc" },
+    sel("Xem", f.tt, v => set1("tt", v), [["can", "Cần làm gì đó"], ["mo", "Đang mở"], ["chua_nhan", "Chưa ai nhận dựng"], ["dang_dung", "Đang dựng"], ["ban_moi", "Có bản mới, chưa gửi"], ["da_gui", "Đã gửi, chờ khách"], ["sua_gop_y", "Khách chê"], ["du_len_don", "Khách duyệt"], ["thua", "Thua"], ["treo", "Treo"], ["tat", "Tất cả"]]),
+    sel("Ai dựng", f.ai, v => set1("ai", v), [["", "Ai cũng được"], ["chua", "Chưa ai nhận"], ["da", "Đã có người dựng"]]),
+    sel("Loại", f.loai, v => set1("loai", v), [["", "Mọi loại"]].concat(loais.map(x => [x, BG_LOAI[x] ? BG_LOAI[x][0] : x]))),
+    sel("Hiệu", f.th, v => set1("th", v), [["", "Mọi thương hiệu"]].concat(ths.map(x => [x, x]))),
+    sel("Ngày", f.ngay, v => set1("ngay", v), [["", "Mọi báo giá"], ["chua", "Chưa có ngày hẹn"], ["co", "Đã có ngày hẹn"]]),
+    el("input", { type: "search", placeholder: "Tìm mã, khách, món", value: f.tim, onChange: e => set1("tim", e.target.value) }));
+  const MOI = 20, soTr = Math.max(1, Math.ceil(list.length / MOI)), trang = Math.min(pg, soTr), hien = list.slice((trang - 1) * MOI, trang * MOI);
+  const dsView = el("div", { className: "bg-the-ct" }, theDau, loc,
+    el("div", { className: "bg-dong-dau" }, el("div", null, "Khách · món · nhu cầu"), el("div", null, "Bản thiết kế"), el("div", null, "Ngày & tiền"), el("div", null, "")),
+    el("div", null, hien.length ? hien.map(b => el("div", { className: "bg-dong", key: b.ma_don }, c1(b), oBan(b), oNgayTien(b), el("div", { className: "bg-cn" }, nut(b)))) : el("div", { className: "bg-rong" }, el("b", null, "Không báo giá nào khớp"), "Đổi bộ lọc hoặc xoá ô tìm.")),
+    soTr > 1 ? el("div", { className: "bg-trang" }, el("span", null, "trang " + trang + "/" + soTr), el("div", { className: "bg-nut" }, el("button", { disabled: trang <= 1, onClick: () => setPg(trang - 1) }, "Trước"), el("button", { disabled: trang >= soTr, onClick: () => setPg(trang + 1) }, "Sau"))) : null,
+    el("div", { className: "bg-nhac" }, el("b", null, "Hai việc khác nhau, đừng lẫn — "), "Khách duyệt BẢN = gật bản thiết kế (mở khoá cắt). Chốt giá / lên đơn = thành đơn hàng."));
+  const the2 = b => el("div", { className: "bg-the2" + (b.gd === "da_gui" && b.cho_khach > 4 ? " bg-nong" : ""), key: b.ma_don },
+    el("button", { className: "bg-the2-mo", onClick: () => moDon(b.ma_don) },
+      el("span", { className: "bg-the2-ma" }, b.ma_don), el("div", { className: "bg-the2-kh" }, b.ten_khach),
+      el("span", { className: "bg-the2-ph" }, (b.mon_ten || "—") + (b.so_mon > 1 ? " +" + (b.so_mon - 1) : "")),
+      el("span", { className: "bg-the2-ph" }, "mở " + b.mo_ngay + " ngày · " + (b.ai_dung || "chưa nhận") + (b.pb ? " · bản " + b.pb : "")),
+      el("span", { className: "bg-the2-ph" }, tr(b.tien))),
+    b.gd === "du_len_don" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn"))
+      : b.gd === "da_gui" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => phanHoi(b.ban_id, "khach_duyet") }, "Duyệt"), el("button", { className: "bg-n-do", onClick: () => phanHoi(b.ban_id, "khach_doi_y") }, "Chê")) : null);
+  const COTS = [["chua_nhan", "Chưa ai nhận dựng"], ["ban_moi", "Có bản mới, chưa gửi"], ["da_gui", "Chờ khách"], ["sua_gop_y", "Khách chê, chờ bản mới"], ["du_len_don", "Khách duyệt bản"]];
+  const cotView = el("div", { className: "bg-the-ct" }, theDau,
+    el("div", { className: "bg-cot-wrap" }, COTS.map(kk => { const cards = ds.filter(b => oCond(b, kk[0])); return el("div", { className: "bg-cot", key: kk[0] }, el("div", { className: "bg-cot-hd" }, el("b", null, kk[1]), el("i", null, cards.length)), el("div", { className: "bg-cot-body" }, cards.length ? cards.map(the2) : el("div", { className: "bg-cot-rong" }, "—"))); })));
+  return el("div", { className: "bg-man" }, header, bang, kt, kieu === "cot" ? cotView : dsView);
+}
+
+
 function BanChoGui({ ds, moDon }) {
   const dmy = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "";
   return /*#__PURE__*/React.createElement("div", { className: "bcg-wrap" },
@@ -1857,6 +2071,10 @@ function App() {
     const h = setInterval(tai, 60000);
     return () => { alive = false; clearInterval(h); };
   }, []);
+  const [bgK, setBgK] = useState(null);   // màn báo giá (db/091): {tong, ds:[đơn+gd]}
+  const taiBgK = () => { if (window.saleApi && window.saleApi.baoGiaDs) window.saleApi.baoGiaDs().then(r => setBgK(r)).catch(() => {}); };
+  useEffect(() => { taiBgK(); const h = setInterval(taiBgK, 60000); return () => clearInterval(h); }, []);
+  const bgBanMoi = (bgK && bgK.ds || []).filter(x => x.gd === "ban_moi").length;   // badge menu "Báo giá" = ô "bản mới chưa gửi"
   const [ky, setKy] = useState("2026-08");
   const [db, setDb] = useState(null);
   const [uid2, setUid] = useState(null);
@@ -2036,11 +2254,11 @@ function App() {
   /* Bản dành riêng cho sale — chỉ ba màn hình sale thật sự dùng */
   const MO = {
     don: true,
-    bcg: true,
+    bg: true,
     sp: true,
     khach: true
   };
-  const NAV0 = [["don", "Sổ đơn hàng"], ["bcg", "Bản chờ gửi"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["don", "Sổ đơn hàng"], ["bg", "Báo giá"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2094,9 +2312,9 @@ function App() {
     className: okTab === k ? "on" : "",
     onClick: () => setTab(k),
     onKeyDown: e => e.key === "Enter" && setTab(k)
-  }, /*#__PURE__*/React.createElement("i", null), l, k === "bcg" && bcgN > 0 && /*#__PURE__*/React.createElement("em", {
+  }, /*#__PURE__*/React.createElement("i", null), l, k === "bg" && bgBanMoi > 0 && /*#__PURE__*/React.createElement("em", {
     className: "bcg-badge"
-  }, bcgN))), /*#__PURE__*/React.createElement("div", {
+  }, bgBanMoi))), /*#__PURE__*/React.createElement("div", {
     className: "navft"
   }, /*#__PURE__*/React.createElement("div", {
     className: "who"
@@ -2125,12 +2343,11 @@ function App() {
     style: {
       margin: "12px 22px 0"
     }
-  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), okTab === "don" && /*#__PURE__*/React.createElement(SoDon, P), okTab === "bcg" && /*#__PURE__*/React.createElement(BanChoGui, {
-    ds: bcgDs,
-    moDon: ma => {
-      setMoMa(ma);
-      setTab("don");
-    }
+  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), okTab === "don" && /*#__PURE__*/React.createElement(SoDon, P), okTab === "bg" && /*#__PURE__*/React.createElement(BaoGiaMan, {
+    data: bgK,
+    initFilter: bgBanMoi > 0 ? "ban_moi" : "can",
+    moDon: ma => { setMoMa(ma); setTab("don"); },
+    reload: taiBgK
   }), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
 }
 function DangNhap({
@@ -2418,6 +2635,90 @@ function ChonAnh({
   }, anh.length ? /*#__PURE__*/React.createElement(React.Fragment, null, "Ảnh đầu tiên là ", /*#__PURE__*/React.createElement("b", null, "ảnh chính"), ". Rê chuột lên ảnh phụ bấm ★ để đổi.") : /*#__PURE__*/React.createElement(React.Fragment, null, "Bấm để chọn từ máy, ", /*#__PURE__*/React.createElement("b", null, "kéo thả"), ", hoặc bấm vào khung rồi ", /*#__PURE__*/React.createElement("b", null, "dán ảnh"), ".")));
 }
 
+/* ---------------- HỘP THOẠI BÁO GIÁ (giai đoạn 1 — khách hỏi giá, chưa chốt) ----------------
+   Form RIÊNG, tối giản: KHÔNG cọc/địa chỉ/tài khoản/phí lắp. Lưu qua CÙNG đường luu(...,bao=true) → bao_gia. */
+function BaoGiaForm({ db, onClose, onSave }) {
+  const el = React.createElement;
+  const [f, setF] = useState({ sdt: "", ten: "", tinh: "Hà Nội", ngay: new Date().toISOString().slice(0, 10),
+    brand: "", loai: "le_sang", phongCach: "", nganSach: "", tuDung: false, ghiChu: "", link: "" });
+  const monMoi = () => ({ id: uid(), ten: "", spId: "", ct: "", vl: db.vl[0].c, kt: "", sl: 1, gia: "", maMau: "", anh: [], dungMoi: false });
+  const [ln, setLn] = useState([monMoi()]);
+  const [thu, setThu] = useState(false);
+  const first = useRef(null);
+  useEffect(() => { first.current?.focus(); const h = e => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, []);
+  const cu = db.khach.find(k => sdtChuan(k.sdt) === sdtChuan(f.sdt));
+  const donCu = cu ? db.don.filter(d => d.khachId === cu.id) : [];
+  const tong = ln.reduce((s, x) => s + (+x.sl || 0) * (+x.gia || 0), 0);
+  const E = { sdt: sdtChuan(f.sdt).length < 9, brand: !f.brand, mon: !ln.every(x => x.ten.trim()) };
+  const ok = !E.sdt && !E.brand && !E.mon;
+  const THIEU = [["brand", "Thương hiệu"], ["sdt", "Số điện thoại"], ["mon", "Mỗi món cần có tên"]].filter(([k]) => E[k]);
+  const bad = k => thu && E[k] ? { borderColor: "var(--rd)", boxShadow: "0 0 0 3px var(--rdB)" } : null;
+  const upL = (i, p) => setLn(ln.map((x, k) => k === i ? { ...x, ...p } : x));
+  const themL = () => setLn([...ln, monMoi()]);
+  const xoaL = i => setLn(ln.length > 1 ? ln.filter((_, k) => k !== i) : ln);
+  const luu = () => { setThu(true); if (!ok) return; onSave({ ...f, giaCongThuc: tong, giaChot: null }, ln, ln.length > 1); onClose(); };
+  const br = db.brands.find(b => b.c === f.brand);
+  const R2 = { gridTemplateColumns: "1fr 1fr" }, R3 = { gridTemplateColumns: "1fr 1fr 1fr" };
+  return el("div", { className: "ovl", onMouseDown: e => e.target === e.currentTarget && onClose(), role: "dialog", "aria-modal": "true" },
+    el("div", { className: "mdl", style: { width: 720 }, onMouseDown: e => e.stopPropagation() },
+      el("header", null, el("div", null, el("h4", null, "Báo giá mới"), el("div", { className: "hint" }, "Khách hỏi giá, chưa chốt · nhận diện bằng số điện thoại")),
+        el("div", { className: "sp" }), br && el("span", { className: "bdg c0" }, br.n),
+        el("button", { className: "x", "aria-label": "Đóng", onClick: onClose }, "×")),
+      el("datalist", { id: "ds-sp" }, (db.sp || []).map(p => el("option", { key: p.id, value: p.ten }, p.ma, " · ", p.kt))),
+      el("div", { className: "sec" }, "Thông tin đơn"),
+      el("div", { className: "fg", style: R3 },
+        el("div", { className: "fld" }, el("label", null, "Thương hiệu · cửa hàng ", el("b", { style: { color: "var(--rd)" } }, "*")),
+          el("select", { value: f.brand, style: bad("brand"), onChange: e => setF({ ...f, brand: e.target.value }) },
+            el("option", { value: "" }, "— Chọn —"), db.brands.map(b => el("option", { key: b.c, value: b.c }, b.n)))),
+        el("div", { className: "fld" }, el("label", null, "Loại đơn ", el("b", { style: { color: "var(--rd)" } }, "*")),
+          el("select", { value: f.loai, onChange: e => setF({ ...f, loai: e.target.value }) }, LOAI.map(x => el("option", { key: x.c, value: x.c }, x.n)))),
+        el("div", { className: "fld" }, el("label", null, "Ngày hỏi giá"),
+          el("input", { type: "date", value: f.ngay, onChange: e => setF({ ...f, ngay: e.target.value }) }))),
+      el("div", { className: "sec" }, "Khách hàng", cu && el("span", { className: "bdg gn" }, "khách cũ · ", donCu.length, " đơn")),
+      el("div", { className: "fg", style: R3 },
+        el("div", { className: "fld" }, el("label", null, "Số điện thoại ", el("b", { style: { color: "var(--rd)" } }, "*")),
+          el("input", { ref: first, className: "m", value: f.sdt, placeholder: "0903 792 333", style: bad("sdt"),
+            onChange: e => { const v = e.target.value; const c = db.khach.find(k => sdtChuan(k.sdt) === sdtChuan(v)); setF({ ...f, sdt: v, ...(c ? { ten: c.ten, tinh: c.tinh } : {}) }); } })),
+        el("div", { className: "fld" }, el("label", null, "Tên khách"),
+          el("input", { value: f.ten, placeholder: "Chị Lan", onChange: e => setF({ ...f, ten: e.target.value }) })),
+        el("div", { className: "fld" }, el("label", null, "Tỉnh thành"),
+          el("select", { value: f.tinh, onChange: e => setF({ ...f, tinh: e.target.value }) },
+            ["Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Bình Dương", "Tỉnh khác"].map(t => el("option", { key: t }, t))))),
+      el("div", { className: "sec" }, "Khách muốn gì"),
+      el("div", { style: { background: "#E9F7EF", border: "1px solid #BFE3CE", borderRadius: 8, padding: "8px 12px", fontSize: 12.5, color: "#1B6B43", marginBottom: 11 } },
+        el("b", null, "Thiết kế đọc đúng những gì ghi ở đây"), " để dựng bản 3D. Ghi càng rõ, bản càng sát ý khách."),
+      el("div", { className: "fg", style: R2 },
+        el("div", { className: "fld" }, el("label", null, "Phong cách"),
+          el("input", { value: f.phongCach, placeholder: "Hiện đại, tân cổ điển, tối giản…", onChange: e => setF({ ...f, phongCach: e.target.value }) })),
+        el("div", { className: "fld" }, el("label", null, "Ngân sách (triệu)"),
+          el("input", { type: "number", min: 0, step: "0.1", value: f.nganSach, placeholder: "vd 30", onChange: e => setF({ ...f, nganSach: e.target.value }) }))),
+      el("div", { className: "fld", style: { marginTop: 10 } }, el("label", null, "Yêu cầu riêng"),
+        el("textarea", { value: f.ghiChu, rows: 2, style: { width: "100%", fontSize: 13 }, placeholder: "Màu, chất liệu, kích thước đặc biệt, mẫu khách thích…", onChange: e => setF({ ...f, ghiChu: e.target.value }) })),
+      el("div", { className: "fld", style: { marginTop: 10 } }, el("label", null, "Link tham khảo"),
+        el("input", { className: "m", value: f.link, placeholder: "https://…", onChange: e => setF({ ...f, link: e.target.value }) })),
+      el("div", { className: "sec" }, "Món khách hỏi ", el("span", { className: "bdg mut" }, ln.length, " món")),
+      ...ln.map((x, i) => el("div", { key: x.id, className: "fg", style: { gridTemplateColumns: "2fr 66px 1fr 34px", alignItems: "end", marginBottom: 7 } },
+        el("div", { className: "fld" }, i === 0 && el("label", null, "Tên món ", el("b", { style: { color: "var(--rd)" } }, "*")),
+          el("input", { list: "ds-sp", value: x.ten, placeholder: "Tủ áo 3 cánh…", style: thu && !x.ten.trim() ? { borderColor: "var(--rd)" } : null, onChange: e => upL(i, { ten: e.target.value }) })),
+        el("div", { className: "fld" }, i === 0 && el("label", null, "SL"),
+          el("input", { type: "number", min: 1, value: x.sl, onChange: e => upL(i, { sl: e.target.value }) })),
+        el("div", { className: "fld" }, i === 0 && el("label", null, "Đơn giá"),
+          el("input", { type: "number", min: 0, value: x.gia, placeholder: "để trống được", onChange: e => upL(i, { gia: e.target.value }) })),
+        el("div", { className: "fld" }, i === 0 && el("label", null, " "),
+          ln.length > 1 ? el("button", { className: "btn", style: { padding: "7px 9px" }, onClick: () => xoaL(i) }, "×") : null))),
+      el("button", { className: "btn", style: { marginTop: 2 }, onClick: themL }, "+ Thêm món"),
+      el("div", { className: "sec", style: { marginTop: 14 } }, "Ai dựng bản 3D"),
+      el("div", { className: "chips" },
+        el("button", { type: "button", className: "chip" + (f.tuDung ? "" : " on"), onClick: () => setF({ ...f, tuDung: false }) }, "Giao thiết kế"),
+        el("button", { type: "button", className: "chip" + (f.tuDung ? " on" : ""), onClick: () => setF({ ...f, tuDung: true }) }, "Tôi tự dựng")),
+      el("div", { className: "mini", style: { marginTop: 5 } }, f.tuDung ? "Bạn tự dựng bản 3D — cuối tháng đo được sale tự dựng chốt bao nhiêu %." : "Thiết kế dựng bản 3D như thường lệ."),
+      el("div", { className: "mft" },
+        thu && THIEU.length ? el("span", { style: { fontSize: 12.5, color: "var(--rd)", fontWeight: 600 } }, "Còn thiếu: ", THIEU.map(x => x[1]).join(" · ")) : el("span", { className: "mini" }, THIEU.length ? "Còn " + THIEU.length + " mục" : "Đủ để gửi thiết kế"),
+        el("div", { className: "sp" }),
+        el("button", { className: "btn", onClick: onClose }, "Đóng"),
+        el("button", { className: "btn pri", onClick: luu }, "Lưu báo giá"))));
+}
+
 /* ---------------- HỘP THOẠI LÊN ĐƠN ---------------- */
 function DonModal({
   db,
@@ -2448,6 +2749,9 @@ function DonModal({
     daTT: don.daTT || "",
     kgs: don.kgs || [],
     ghiChu: don.ghiChu || "",
+    phongCach: don.phongCach || "",
+    nganSach: don.nganSach ?? "",
+    tuDung: !!don.tuDung,
     hd: don.hd || {
       ten: "",
       mst: "",
@@ -2474,6 +2778,9 @@ function DonModal({
     daTT: "",
     kgs: [],
     ghiChu: "",
+    phongCach: "",
+    nganSach: "",
+    tuDung: false,
     hd: {
       ten: "",
       mst: "",
@@ -2572,7 +2879,7 @@ function DonModal({
     mon: !monOk
   };
   const ok = !Object.values(E).some(Boolean);
-  const bad = k => thu && E[k] && (mode !== "bao" || ["sdt", "brand"].includes(k)) ? {
+  const bad = k => thu && E[k] ? {
     borderColor: "var(--rd)",
     boxShadow: "0 0 0 3px var(--rdB)"
   } : null;
@@ -2611,29 +2918,9 @@ function DonModal({
     }, ln, ln.length > 1 || giam > 0);
     onClose();
   };
-  /* BÁO GIÁ: món chỉ cần tên + mã màu (bỏ ràng buộc đơn giá > 0). Lưu ở trạng thái bao_gia. */
-  const monBaoOk = ln.every(x => x.ten.trim());   /* báo giá: món CHỈ cần TÊN (chưa màu, chưa giá) */
-  const okBao = !["sdt", "brand"].some(k => E[k]) && monBaoOk;   /* đầu đơn: chỉ SĐT + Thương hiệu; TK cọc/địa chỉ/HĐ để lúc chuyển đơn */
-  const THIEU_B = THIEU.filter(x => ["sdt", "brand"].includes(x[0])).concat(!monBaoOk ? [["mon", "Mỗi món cần có tên", rMon]] : []);
-  const THIEU_ACTIVE = mode === "bao" ? THIEU_B : THIEU;   /* banner/đếm đổi theo nút đang xét */
-  const luuBao = () => {
-    setThu(true);
-    setMode("bao");
-    if (!okBao) {
-      THIEU_B[0]?.[2]?.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
-      THIEU_B[0]?.[2]?.current?.focus?.();
-      return;
-    }
-    onSave({
-      ...f,
-      giaCongThuc: tong,
-      giaChot: null
-    }, ln, ln.length > 1 || giam > 0, true);
-    onClose();
-  };
+  /* L-55: form Lên đơn KHÔNG còn nút/nhánh "Lưu báo giá" — báo giá tách sang BaoGiaForm.
+     Banner "Còn thiếu" chỉ theo THIEU (đủ trường lên đơn). */
+  const THIEU_ACTIVE = THIEU;
   /* CHUYỂN thành đơn hàng: đòi ĐỦ giá món (thiếu -> chỉ rõ món), rồi lưu ở moi_len_don. */
   const chuyen = () => {
     setThu(true);
@@ -3003,7 +3290,7 @@ function DonModal({
   }, "+ Thêm món")), ln.map((x, i) => /*#__PURE__*/React.createElement("div", {
     className: "mon" + (foc === i ? " on" : ""),
     key: x.id,
-    style: thu && (mode === "bao" ? !x.ten.trim() : !(x.ten.trim() && x.maMau && +x.gia > 0)) ? {
+    style: thu && !(x.ten.trim() && x.maMau && +x.gia > 0) ? {
       borderColor: "var(--rd)"
     } : null,
     onFocus: () => setFoc(i)
@@ -3517,7 +3804,8 @@ function DonModal({
         kgs: on ? f.kgs.filter(x => x !== k.c) : [...f.kgs, k.c]
       })
     }, k.n);
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))),
+  /*#__PURE__*/React.createElement("div", {
     className: "fld",
     style: {
       marginTop: 11
@@ -3576,22 +3864,14 @@ function DonModal({
     className: "btn",
     onClick: onClose
   }, "Đóng"), don && don.tt === "bao_gia" ? [/*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    key: "bg",
-    onClick: luuBao
-  }, "Lưu báo giá"), /*#__PURE__*/React.createElement("button", {
     className: "btn pri",
     key: "ch",
     onClick: chuyen
-  }, "Chuyển thành đơn hàng")] : [/*#__PURE__*/React.createElement("button", {
+  }, "Chốt, lên đơn")] : [/*#__PURE__*/React.createElement("button", {
     className: "btn pri",
     key: "lu",
     onClick: luu
-  }, don ? "Lưu thay đổi" : "Lưu đơn"), !don && /*#__PURE__*/React.createElement("button", {
-    className: "btn",
-    key: "bg",
-    onClick: luuBao
-  }, "Lưu báo giá")])));
+  }, don ? "Lưu thay đổi" : "Lưu đơn")])));
 }
 
 /* ---------------- GIAO HÀNG VÀ THU TIỀN ---------------- */
@@ -4016,6 +4296,19 @@ function SoDon({
   const [ly, setLy] = useState(null),
     [giao, setGiao] = useState(null),
     [thua, setThua] = useState(null);
+  const [moBao, setMoBao] = useState(null);   // form BÁO GIÁ riêng (giai đoạn 1)
+  // Điều hướng từ màn khác (moDon: setMoMa + setTab("don")) — SoDon nhận moMa rồi mở modal ĐÚNG (L-55):
+  //   "__moi__"   → form BÁO GIÁ mới (BaoGiaForm)          — "+ Báo giá mới"
+  //   "chot:<ma>" → form LÊN ĐƠN đổ sẵn dữ liệu báo giá     — "Chuyển thành đơn" (chốt giá, lên đơn)
+  //   "<ma>"      → chi tiết đơn (XemDon, setMo2)            — "Mở đơn"
+  //   (Trước L-54 effect này nằm nhầm trong BangViec — component KHÔNG render — nên mọi nút moDon "chết".)
+  useEffect(() => {
+    if (!moMa) return;
+    if (moMa === "__moi__") setMoBao(true);
+    else if (moMa.slice(0, 5) === "chot:") { const d = (dons || []).find(x => x.ma === moMa.slice(5)); if (d) setMo({ don: d }); }
+    else { const d = (dons || []).find(x => x.ma === moMa); if (d) setMo2(d); }
+    setMoMa(null);
+  }, [moMa]);
   const COT = [{
     k: "ngay",
     n: "Ngày"
@@ -4130,6 +4423,9 @@ function SoDon({
       saleId: don?.saleId || user.id,
       lo: don?.lo || "",
       ghiChu: f.ghiChu,
+      phongCach: f.phongCach,
+      nganSach: f.nganSach,
+      tuDung: !!f.tuDung,
       loai: f.loai,
       tkCoc: f.tkCoc,
       donGoc: f.donGoc || "",
@@ -4612,6 +4908,10 @@ function SoDon({
     user: user,
     onClose: () => setMo(null),
     onSave: (f, ln, combo, bao, ttEp) => luu(f, ln, combo, mo.don, bao, ttEp)
+  }), moBao && /*#__PURE__*/React.createElement(BaoGiaForm, {
+    db: db,
+    onClose: () => setMoBao(null),
+    onSave: (f, ln, combo) => luu(f, ln, combo, null, true)
   }), mo2 && /*#__PURE__*/React.createElement(XemDon, {
     d: mo2,
     db: db,
@@ -4761,7 +5061,8 @@ function XemDon({
   const TT_MON = { cho_cat: "Chờ cắt", da_cat: "Đã cắt", dang_lam: "Đang làm", xong_sx: "Xong SX" };
   const eC = React.createElement;
   const oNgay = (nhan, val) => eC("div", { style: { flex: 1 } }, eC("div", { style: { fontSize: 11, color: "var(--mut)" } }, nhan), eC("div", { className: "n", style: { fontWeight: 700, fontSize: 14 } }, val || "chưa có"));
-  const bdgTT = st => eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, whiteSpace: "nowrap", background: st === "xong_sx" ? "#E7EFEA" : "#EEF1F5", color: st === "xong_sx" ? "#15805F" : "#5b6472" } }, TT_MON[st] || st);
+  const chuaChot = d.tt === "bao_gia";   // đơn báo giá: chưa qua chốt giá → món "chưa chốt", KHÔNG phải "Chờ cắt"
+  const bdgTT = st => eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, whiteSpace: "nowrap", background: chuaChot ? "#F3EEF6" : (st === "xong_sx" ? "#E7EFEA" : "#EEF1F5"), color: chuaChot ? "#7A4A9E" : (st === "xong_sx" ? "#15805F" : "#5b6472") } }, chuaChot ? "chưa chốt" : (TT_MON[st] || st));
   const tienDo = eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
     eC("div", { style: { display: "flex", gap: 16, marginBottom: 12 } },
       oNgay("Hẹn khách BAN ĐẦU", d.ngayHenKhachBanDau), oNgay("Hẹn khách HIỆN TẠI", d.ngayHenKhach), oNgay("Dự kiến xong (xưởng)", d.ngayDuKien)),
@@ -5243,7 +5544,7 @@ function XemDon({
     onClick: onThu
   }, "Thu tiền"), /*#__PURE__*/React.createElement("div", {
     className: "sp"
-  }), onIn && /*#__PURE__*/React.createElement("button", {
+  }), onIn && !chuaChot && /*#__PURE__*/React.createElement("button", {
     className: "btn",
     onClick: onIn
   }, "Lệnh sản xuất"), /*#__PURE__*/React.createElement("button", {
@@ -5271,8 +5572,8 @@ function BangViec({
     [lx, setLx] = useState(null);
   useEffect(() => {
     if (moMa) {
-      const d = (dons || []).find(x => x.ma === moMa);
-      if (d) setXem(d);
+      if (moMa === "__moi__") { setMo({}); }
+      else { const d = (dons || []).find(x => x.ma === moMa); if (d) setXem(d); }
       setMoMa(null);
     }
   }, [moMa]);

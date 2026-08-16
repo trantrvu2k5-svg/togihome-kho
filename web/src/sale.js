@@ -66,6 +66,9 @@ function donToRow(d, khMap) {
     ngay_di_hang: nz(d.ngayDiHang), ngay_giao: nz(d.ngayGiao), ngay_du_kien: nz(d.ngayDuKien),
     ngay_hen_khach: nz(d.ngayHenKhach),   // sale hứa giao KHÁCH (khác "dự kiến sản xuất xong"); ban_dau tự bắt ở DB
     lo: nz(d.lo), ghi_chu: nz(d.ghiChu), link: nz(d.link),
+    // KHÁCH MUỐN GÌ + AI DỰNG (form báo giá v5, db/092). ghi_chu=yêu cầu riêng, link=link tham khảo (dùng lại).
+    phong_cach: nz(d.phongCach), ngan_sach_trieu: (d.nganSach === '' || d.nganSach == null) ? null : Number(d.nganSach),
+    tu_dung: !!d.tuDung,
     kgs: Array.isArray(d.kgs) ? d.kgs : null, hoa_don: d.hd || null,
     nguoi_tao: null,   // saleId app không phải uuid nguoi_dung -> để null (nguoi_tao đặt sau ở tầng UI)
   }
@@ -86,6 +89,7 @@ function rowToDon(r) {
     ship: Number(r.ship_thuc_tra) || 0, lap: Number(r.lap_thuc_tra) || 0,
     ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '', ngayHenKhach: r.ngay_hen_khach || '', ngayHenKhachBanDau: r.ngay_hen_khach_ban_dau || '', laDemo: r.la_demo || false,
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
+    phongCach: r.phong_cach || '', nganSach: r.ngan_sach_trieu != null ? Number(r.ngan_sach_trieu) : '', tuDung: !!r.tu_dung,
     kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
   }
 }
@@ -311,6 +315,10 @@ window.saleApi = {
   monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
   // chuông "bản chờ gửi" (db/087) — trả {tong, ds} cùng một điều kiện; badge=tong, danh sách=ds (≤ gioi_han)
   banChoGui: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data },
+  // màn báo giá (db/091) — {tong, ds:[đơn báo giá + gd]}. App tự tính ô/lọc như v5. Sale KHÔNG thấy giá vốn.
+  baoGiaDs: async (gioiHan = 1000) => { const { data, error } = await sb.rpc('sale_bao_gia_ds', { p_gioi_han: gioiHan }); if (error) throw error; return data },
+  // sale ghi phản hồi khách (dùng lại phan_hoi_ban db/051): khach_duyet | khach_doi_y | chua_dung_yeu_cau
+  phanHoiBanRpc: async (banId, ketQua, ghiChu) => { const { data, error } = await sb.rpc('phan_hoi_ban', { p_ban_id: banId, p_ket_qua: ketQua, p_ghi_chu: ghiChu || '' }); if (error) throw error; return data },
   leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
 
   // ── BẢN THIẾT KẾ (db/051) ──
