@@ -1,0 +1,69 @@
+# 02 — ĐÃ LÀM & ĐANG DỞ
+
+---
+
+## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-80)
+
+**Nền kho (1–15):** 1 chuyển 12 bảng sang schema kho · 2 web 6 màn + đăng nhập · 4 lô mở đầu ván theo kiểm kê · 5 vá focus + cổng bí mật + deploy Cloudflare · 6 tồn tươi từ máy chủ · 7 thợ đăng nhập mã cá nhân + siết policy vai · 8 bỏ đường vào của thợ · 9–10 ảnh vật tư về bucket, hết phụ thuộc Drive · 11 bố cục điện thoại · 12 hướng dẫn có ảnh tự sinh · 13 xuất kho FIFO + huỷ bằng phiếu ngược · 14–15 bảng quy đổi mã thiết kế↔kho + hàm cho plugin đọc.
+
+**Đơn hàng & giá (16–28):** 16 Sổ đơn hàng (don_hang tách giá vốn khỏi sale + món + nhật ký) · 17 bảy vai trò · 18 sáu bảng danh mục lên đơn · 19 app lên đơn nối Supabase · 20 vá huỷ phiếu + whitelist giá vốn · 21 sale hết thấy giá vốn · 22 đường giá bán (giá sàn theo tầng) · 23 cấu hình + VAT rời KEYLESS sang DB · 24 trần giảm giá phân tầng · 25 fail-đóng thiếu he_so_m + vai trưởng nhóm sale · 26 tách app sale project riêng · 27 vá bẫy NULL guard vai · 28 app tài chính (project #3).
+
+**Báo giá & thiết kế bán hàng (29–33):** 29 đường ghi giá vốn từ plugin · 30 trạng thái báo giá · 31 lưu báo giá chỉ cần tên món · 32 báo giá thua/treo + vai tk_ban_hang + đo giờ · 33 phiếu xuất bắt buộc tổ + driver từ kho.
+
+**App xưởng & thời gian (34–45):** 34 app xưởng (tem/tiến độ/đếm/lỗi) · 35 sổ tham số xưởng (lương tổ → 12 đơn giá) · 36 giao diện tài chính · 37 ghi vết thời gian + lead time · 38 quản đốc + nền xếp việc · 39 app xưởng bản đầy đủ 5 màn · 40 hai cửa vào chuyền + tách lệnh SX/phiếu giao · 41 lệnh SX + lô + lắp đặt · 42 sale "bao giờ giao" · 43 vá sale ghi đè trạng thái · 44 nhập giá vốn tay · 45 dữ liệu demo + RPC kéo đơn.
+
+**Bản thiết kế & sản phẩm 3 tầng (46–54):** 46 quản lý bản thiết kế (phiên bản + duyệt + khoá cắt + link khách) · 47 vá login/đăng xuất/tài khoản · 48 sắp thẻ trạng thái + vá đăng nhập 4 app · 49 nền app thiết kế (chia việc + kanban + 2 vai) · 50 gio_uoc full_can 5→15 · 51 nền BA TẦNG sản phẩm · 52 quản lý thương hiệu · 53 app thiết kế (project #6) · 54 nhập 100 SP web + biến thể ba trục.
+
+**Quy trình sản xuất & giờ (55–67):** 55 xương quy trình (routing đồ thị nhánh + trạm QR) · 56 quy trình DÙNG CHUNG + giờ 2 phần + bước tự chạy + 3 nguồn số · 57 đơn full-căn demo chạy thử · 58 giờ chuẩn suy từ đơn giá · 59–61 CEO chỉnh tay giờ dan/cam/cat/goi · 62 màn Nhập số sản xuất · 64 khoá số theo MÓN + bàn giao gộp 3 chốt · 65 ba mốc số (du_kien/chuan/thuc_te) · 66 đóng băng phút + đơn giá lúc bàn giao · 67 tab Quy trình (app Sản phẩm).
+
+**Trạm quét & lập lịch (68–80):** 68 sổ quét (nền DB mốc thuc_te) · 69 nhãn tấm người-đọc · 70 tấm tự biết nhánh · 71 màn TRẠM QUÉT · 72 năng lực tổ theo thời gian + bảng tải tuần · 73 xếp lịch ngược/xuôi/nút thắt + ATP · 74 atp() theo mốc + so_lech_hua · 75 partition su_kien_quet · 76 tien_do_tem lưu sẵn (vá timeout) · 77 materialize giờ đơn + phân trang · 78 phân trang 3 màn xưởng · 79 màn "Tải & lịch" · **80 thiết kế bán hàng nhập SỐ ƯỚC (mốc du_kien) — atp() sống lại.**
+
+*(Không có tag v-kho-3, 63; các số L-xx trong commit là số LỆNH, khác số tag.)*
+
+---
+
+## B. ĐANG DỞ (rà L-26 → L-40)
+
+- **L-40 / v-kho-80 (vừa commit):** DB + test 18/18 + deploy XONG. **UI hộp "Số ước" CHỜ CEO kiểm mắt** — ảnh 1440px chưa chụp (mở modal cần đăng nhập app thiết kế; theo kỷ luật mật khẩu phải xin CEO login, không tự đăng nhập). Xem `~/Downloads/lo_so_uoc.md`.
+- **L-33 → L-39: đọc-hiểu (read-only), KHÔNG code.** Kết quả in ra terminal + vài `.md` ở `~/Downloads/` (doc_luong_bao_gia, doc_man_so_don_hang…). Không có gì để commit; là nền để làm màn Báo giá.
+- **Màn BÁO GIÁ app Sale: CHƯA code.** Đã có mẫu HTML (xem mục C). Đây là việc lớn kế tiếp.
+- **`test_079 #1` đỏ sẵn** — do hardcode ngày `'2026-10-10'` trong khi đồng hồ trôi sang 2026-08-16 (tính ra 2026-10-11). Logic đúng (`xep_bang=nguoc`). Ngoài phạm vi L-40, CHƯA sửa (chờ CEO quyết có nới số hardcoded).
+- **File lạ `web/ops/test_040.mjs`** chưa track, chạy còn **2 đỏ** (drift từ db/040 cũ). KHÔNG commit (không đưa test đỏ vào cây). Cần rà riêng hoặc xoá.
+
+---
+
+## C. FILE MẪU HTML — trạng thái duyệt
+
+| File | Màn | Ở đâu | Test | CEO duyệt | Code vào app |
+|---|---|---|---|---|---|
+| `man_tai_lich_quy_mo_v4.html` | Tải & lịch (xưởng) | `~/Downloads/x/` (+ bản gốc) | có (`test_man_tai_lich.md`) | ✅ (L-31) | ✅ **đã code** (v-kho-79) |
+| `man_bao_gia_v3.html` | Báo giá (sale) | `~/Downloads/` | ✅ L-36, 18 mục pass (`test_bao_gia_v3.md`) | — | ❌ chưa |
+| `man_bao_gia_v4.html` · `man_bao_gia_v5.html` | Báo giá (sale) — bản mới hơn | `~/Downloads/` | **KHÔNG KẾT LUẬN ĐƯỢC** — tôi chỉ test v3; v4/v5 tạo sau (16/08), tôi chưa test/chưa rõ CEO duyệt chưa | ❌ chưa |
+
+> **v5 là bản báo giá MỚI NHẤT trên đĩa** nhưng tôi không có bằng chứng nó đã test hay đã duyệt — chat mới phải hỏi CEO "dùng bản báo giá nào (v3 đã test, hay v5 mới)?" trước khi code.
+
+---
+
+## D. VIỆC CÒN LẠI (thứ tự CEO đã chốt)
+
+1. **Thiết kế nhập số ước khi gửi bản (L-40)** — mắt xích để `atp()` sống lại. → *DB xong, UI chờ kiểm mắt.*
+2. **Tín hiệu cho sale** — ô đếm "bản mới chờ gửi khách" (hiện sale KHÔNG có thông báo/badge nào; phải tự mở từng đơn).
+3. **Cờ "dựng xong chưa gửi"** — `buoc_thiet_ke` thiếu giá trị này; kanban báo giá không tách được cột "Bản mới chưa gửi" (xem file `03` mục D).
+4. **Nối datalist `ds-sp` vào ô tên món** — datalist đã có nhưng MỒ CÔI (không ô nào trỏ tới); sale đang gõ tay hoàn toàn, không gợi ý từ danh mục.
+5. **Kanban báo giá (app Sale)** — bảng PHẢN CHIẾU (đọc), KHÔNG kéo thả (bước chuyển tự động theo sự kiện, như kanban thiết kế).
+6. **Code màn Báo giá vào app Sale** (từ mẫu đã duyệt).
+7. **Một đơn thật đi hết vòng** — CEO tự làm, chặn mọi thứ (nghiệm thu end-to-end).
+8. **Màn Phân tích & Cải tiến** (MES 6.4 + DMAIC).
+9. **Bảy RPC list không giới hạn** (nợ L-29) — xem mục E.
+10. **Quy trình sơn PU** (hàng sơn, thêm lot/pu/son_canh/cho_kho vào routing).
+11. **Xếp cả kho đơn cùng lúc** (MES 5.4.6) — hiện xếp từng đơn.
+
+---
+
+## E. NỢ KỸ THUẬT (đọc `docs/so_no.md`)
+
+- **LỖI A & B** (app sale ghi đè trạng thái · đơn kẹt moi_len_don): **ĐÃ HẾT**, đo được (test_069). Giữ trong sổ để không nghi lại.
+- **CÒN HỞ → ĐÃ VÁ:** số đóng băng nhưng giờ chưa (QD-15) → db/071 chốt cả phút+đơn giá (QD-16). **Residual nhỏ:** bước `tu_chay` (chờ khô) giờ vẫn LIVE — quy trình đang bán không dùng nên chưa hại.
+- **NỢ VẬN HÀNH:** mỗi năm phải chạy `tao_phan_manh_thang` thêm 12 tháng năm kế tiếp cho `su_kien_quet` (hiện tạo tới 2027-12). Quên → dòng rơi vào phân mảnh DEFAULT, chậm dần ngầm.
+- **NỢ HIỆU NĂNG (L-29 việc 4):** 7 RPC trả danh sách KHÔNG limit (nặng nhất `gia_von_don_ds` ~3.000 dòng; còn `tk_bang_cong_viec`, `tk_don_cho_nhan`, `sp_danh_sach`…). Cộng N+1 ở `xuong.js:taiViec` (đã chặn 50/lần nhưng gốc còn). CHƯA sửa, chờ CEO quyết lô.
+- **Demo lệch seed CỐ Ý** (CAN-A-DEMO, DEMO-13): KHÔNG phải lỗi. Nhưng mọi lệch `so_don_vi_mon` với seed db/063 thì LÀ lỗi — phải dừng soi.
