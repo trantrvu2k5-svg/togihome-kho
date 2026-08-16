@@ -19,6 +19,11 @@ const COT_ORDER = ['cho_nhan', 'dang_dung', 'cho_duyet', 'sua_gop_y', 'xong_file
 let USER = null, BANG = [], CAM = 0, CHE_DO = 'tu_nhan', NGUOI_NHAN = []
 let DS_CHO = [], CHO_NHOM = '', BANG_DAT = false
 let GUIBAN = { ma_don: null, files: [], fileNguon: null }, FILESX = { ma_don: null, files: [] }, MODAL = null
+let SOUOC = { ma_don: null, mon: [] }   // số ước (mốc du_kien) nhập ngay lúc gửi bản 3D
+// 8 số ước — nhãn tiếng người → khoá hoạt động (don_gia_baseline)
+const HD8 = [['cat', 'Số tấm'], ['dan', 'Mét cạnh'], ['cam', 'Số lỗ'], ['thung', 'Tấm carcass'],
+             ['cup', 'Số cup'], ['ray', 'Số ngăn kéo'], ['canh', 'Số cánh'], ['goi', 'Số kiện']]
+const dmy = s => { if (!s) return '—'; const d = new Date(s); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}` }
 const LOAI_ICON = { dxf: '▤ DXF', cutlist: '▦ Cutlist', anh_ban_ve: '🖼 Ảnh bản vẽ', khac: '📄 File' }
 function loaiFile(name) { const e = (name.split('.').pop() || '').toLowerCase(); return e === 'dxf' ? 'dxf' : ['csv', 'txt', 'xlsx', 'xls'].includes(e) ? 'cutlist' : ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(e) ? 'anh_ban_ve' : 'khac' }
 const $ = id => document.getElementById(id)
@@ -211,7 +216,7 @@ function moModal(ten, thanHtml, nutHtml) {
   $('hopMTen').textContent = ten; $('hopMThan').innerHTML = thanHtml; $('hopMNut').innerHTML = nutHtml
   $('moM').classList.add('hien'); $('hopM').classList.add('hien')
 }
-function dongModal() { $('moM').classList.remove('hien'); $('hopM').classList.remove('hien'); GUIBAN = { ma_don: null, files: [] } }
+function dongModal() { $('moM').classList.remove('hien'); $('hopM').classList.remove('hien'); GUIBAN = { ma_don: null, files: [] }; SOUOC = { ma_don: null, mon: [] } }
 
 // ── Gửi bản 3D cho sale (kèm file nguồn tuỳ chọn) ──
 function moGuiBan(maDon) {
@@ -224,7 +229,14 @@ function moGuiBan(maDon) {
      <div class="tha-anh" id="thaNguon">Kéo file 3D nguồn (.skp/.3dm/…) hoặc bấm chọn<input type="file" id="fileNguon" hidden></div>
      <div id="nguonTen" class="don-phu" style="margin-top:6px"></div>
      <label>Ghi chú cho sale (tuỳ chọn)</label>
-     <textarea id="banGhiChu" placeholder="Ví dụ: phương án 2, đổi màu cánh theo yêu cầu…"></textarea>`,
+     <textarea id="banGhiChu" placeholder="Ví dụ: phương án 2, đổi màu cánh theo yêu cầu…"></textarea>
+     <div style="margin-top:16px;border-top:1px solid var(--vien);padding-top:12px">
+       <label style="font-weight:600;margin-bottom:2px">Số ước để tính ngày giao
+         <span class="don-phu" style="font-weight:400">(việc phụ — không bắt buộc để gửi bản)</span></label>
+       <div class="don-phu" style="margin-bottom:8px">Vừa dựng xong, ước nhanh mỗi món để sale báo được ngày giao cho khách.</div>
+       <div id="soUocKhu">Đang tải số…</div>
+       <div id="soUocNgay" style="margin-top:9px"></div>
+     </div>`,
     `<button class="nut-vien" id="banHuy">Huỷ</button><button class="nut-chinh" id="banGui" disabled>Gửi bản</button>`)
   const zone = $('thaAnh'), inp = $('fileAnh')
   zone.onclick = () => inp.click()
@@ -241,6 +253,112 @@ function moGuiBan(maDon) {
   inpN.onchange = () => nhanNguon(inpN.files[0])
   $('banHuy').onclick = dongModal
   $('banGui').onclick = guiBan
+  napSoUoc(maDon)   // nạp số ước (bất đồng bộ) — KHÔNG chặn nút Gửi bản
+}
+
+// ══════════ SỐ ƯỚC (mốc du_kien) — nhập ngay trong hộp gửi bản ══════════
+async function napSoUoc(maDon) {
+  SOUOC = { ma_don: maDon, mon: [] }
+  const khu = $('soUocKhu'); if (!khu) return
+  try {
+    const { data, error } = await sb.rpc('tkbh_so_cua_don', { p_ma_don: maDon })
+    if (error) throw new Error(error.message)
+    SOUOC.mon = (data && data.mon) || []
+  } catch (e) { khu.innerHTML = `<span class="loi">Không tải được số: ${esc(e.message)}</span>`; return }
+  veSoUoc(); capNhatNgay()
+}
+function veSoUoc() {
+  const khu = $('soUocKhu'); if (!khu) return
+  if (!SOUOC.mon.length) { khu.innerHTML = '<span class="don-phu">Đơn chưa có món nào.</span>'; return }
+  khu.innerHTML = SOUOC.mon.map((m, i) => {
+    const badge = m.da_uoc
+      ? '<span style="color:var(--xong)">đã ước — bấm để sửa</span>'
+      : '<span style="color:var(--cho)">chưa ước</span>'
+    return `<div style="border:1px solid var(--vien);border-radius:7px;margin-bottom:7px">
+      <button type="button" data-bung="${i}" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;background:none;border:none;cursor:pointer;font:inherit;color:inherit">
+        <span>${esc(m.ten || 'Món')}${m.kt ? ' · <span class="don-phu">' + esc(m.kt) + '</span>' : ''}</span>
+        <span style="font-size:12.5px;white-space:nowrap">${badge} ▾</span>
+      </button>
+      <div id="uocThan${i}" style="display:none;padding:0 11px 11px"></div>
+    </div>`
+  }).join('')
+  khu.querySelectorAll('[data-bung]').forEach(b => b.onclick = () => bungMon(+b.dataset.bung))
+}
+function bungMon(i) {
+  const than = $('uocThan' + i); if (!than) return
+  if (than.style.display !== 'none') { than.style.display = 'none'; return }
+  const m = SOUOC.mon[i]
+  than.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:9px">
+      <button type="button" class="nut-vien" data-giong="${i}" style="flex:1">Giống món…</button>
+      <button type="button" class="nut-vien" data-gotay="${i}" style="flex:1">Gõ tay</button>
+    </div>
+    <div id="uocGoiY${i}"></div>
+    <div id="uocO${i}" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        ${HD8.map(([k, ten]) => `<label style="font-size:12px;color:var(--chu-nhat);display:block">${ten}
+          <input type="number" min="0" step="any" id="u_${i}_${k}" value="${m.so_lieu && m.so_lieu[k] != null ? esc(m.so_lieu[k]) : ''}" style="width:100%;margin-top:2px"></label>`).join('')}
+      </div>
+      <button type="button" class="nut-chinh" data-luu="${i}" style="margin-top:9px">Lưu số ước</button>
+    </div>`
+  than.style.display = 'block'
+  than.querySelector('[data-gotay]').onclick = () => { $('uocO' + i).style.display = 'block' }
+  than.querySelector('[data-giong]').onclick = () => giongMon(i)
+  than.querySelector('[data-luu]').onclick = () => luuSoUoc(i)
+  if (m.da_uoc) $('uocO' + i).style.display = 'block'   // đã ước → mở sẵn ô để sửa
+}
+async function giongMon(i) {
+  const m = SOUOC.mon[i], khu = $('uocGoiY' + i); if (!khu) return
+  khu.innerHTML = '<span class="don-phu">Đang tìm món tương tự…</span>'
+  try {
+    const { data, error } = await sb.rpc('tkbh_goi_y_so', { p_mon_id: m.mon_id })
+    if (error) throw new Error(error.message)
+    if (!data.co_goi_y || !(data.goi_y || []).length) {
+      khu.innerHTML = '<span class="don-phu">Chưa có món tương tự đã làm — gõ tay nhé.</span>'; return }
+    khu.innerHTML = `<div class="don-phu" style="margin:4px 0 6px">Chọn món giống rồi nhập tỉ lệ (mặc định 1,0):</div>` +
+      data.goi_y.map((g, j) => `<div style="display:flex;gap:7px;align-items:center;margin-bottom:5px">
+        <button type="button" class="nut-vien" data-gy="${i}_${j}" style="flex:1;text-align:left">${esc(g.ten)}${g.kt ? ' · ' + esc(g.kt) : ''} <span class="don-phu">(lệch ${g.chenh_kt}mm)</span></button>
+        <input type="number" step="any" value="1" id="ti_${i}_${j}" style="width:64px" title="tỉ lệ"></div>`).join('')
+    khu.querySelectorAll('[data-gy]').forEach(b => b.onclick = () => {
+      const [ii, jj] = b.dataset.gy.split('_').map(Number)
+      const src = data.goi_y[jj].so_lieu || {}, ti = Number($('ti_' + ii + '_' + jj).value) || 1
+      $('uocO' + ii).style.display = 'block'
+      HD8.forEach(([k]) => { const el = $('u_' + ii + '_' + k); if (el) el.value = src[k] != null ? +(src[k] * ti).toFixed(2) : '' })
+      bao('Đã điền theo ' + data.goi_y[jj].ten + ' × ' + g1(ti))
+    })
+  } catch (e) { khu.innerHTML = `<span class="loi">${esc(e.message)}</span>` }
+}
+async function luuSoUoc(i) {
+  const m = SOUOC.mon[i], so = {}
+  HD8.forEach(([k]) => { const el = $('u_' + i + '_' + k), v = el ? el.value.trim() : ''; if (v !== '' && Number(v) >= 0) so[k] = Number(v) })
+  if (!Object.keys(so).length) { bao('Chưa nhập số nào', true); return }
+  const btn = $('uocThan' + i).querySelector('[data-luu]'); if (btn) { btn.disabled = true; btn.textContent = 'Đang lưu…' }
+  try {
+    const { data, error } = await sb.rpc('tkbh_so_uoc', { p_ma_don: SOUOC.ma_don, p_mon_id: m.mon_id, p_so_lieu: so })
+    if (error) throw new Error(error.message)
+    m.da_uoc = true; m.so_lieu = so
+    bao('Đã lưu số ước (' + data.so_ghi + ' số)')
+    veSoUoc(); capNhatNgay()
+  } catch (e) { bao(e.message, true); if (btn) { btn.disabled = false; btn.textContent = 'Lưu số ước' } }
+}
+async function capNhatNgay() {
+  const el = $('soUocNgay'); if (!el) return
+  const chua = SOUOC.mon.filter(m => !m.da_uoc).length
+  if (chua > 0) {
+    el.innerHTML = `<div class="don-phu" style="color:var(--cho)">Còn ${chua} món chưa ước — chưa tính được ngày giao.</div>
+      <div class="don-phu" style="color:var(--tre);margin-top:3px">Chưa ước số thì sale không báo được ngày giao cho khách.</div>`
+    return
+  }
+  el.innerHTML = '<span class="don-phu">Đang tính ngày…</span>'
+  try {
+    const { data, error } = await sb.rpc('atp', { p_ma_don: SOUOC.ma_don, p_moc: 'du_kien' })
+    if (error) throw new Error(error.message)
+    if (data.ok && data.ngay_hua_duoc) {
+      el.innerHTML = `<div style="color:var(--xong);font-weight:600">Với số này, xưởng làm nổi khoảng ${dmy(data.ngay_hua_duoc)}${data.da_dung_moc_khac ? ' (theo số chuẩn)' : ' (ước)'}.</div>`
+    } else {
+      el.innerHTML = `<div class="don-phu" style="color:var(--cho)">Chưa tính được ngày (${esc(data.loi || 'thiếu số')}).</div>`
+    }
+  } catch (e) { el.innerHTML = `<span class="loi">${esc(e.message)}</span>` }
 }
 // ── Gửi FILE SẢN XUẤT cho xưởng (đường 2, song song plugin) ──
 function moGuiFile(maDon) {
