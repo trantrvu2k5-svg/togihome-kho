@@ -340,6 +340,28 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
 #s-nhapso .dv .nhan small{display:block;font-size:11.5px;color:var(--chu-mo);margin-top:1px}
 #s-nhapso .nut-hd{width:17px;height:17px;border-radius:50%;border:1px solid var(--vien);color:var(--chu-nhat);font-size:11px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 #s-nhapso .nut-hd:hover,#s-nhapso .nut-hd.mo{background:var(--chu);color:#fff;border-color:var(--chu)}
+/* CHUÔNG (L-62) — tiền tố tkc- */
+.tkc-nav{position:relative}
+.tkc-badge{position:absolute;top:5px;right:9px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--do-sang);color:#fff;font-size:10.5px;font-weight:700;line-height:17px;text-align:center;box-shadow:0 0 0 2px var(--the)}
+.thanh-day .tkc-badge{top:2px;right:14px}
+.tkc-mo{position:fixed;inset:0;background:rgba(15,20,30,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+.tkc-mo.hien{opacity:1;pointer-events:auto}
+.tkc-panel{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:100%;background:var(--the);z-index:55;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(15,20,30,.13)}
+.tkc-panel.hien{transform:translateX(0)}
+.tkc-dau{padding:16px 20px 14px;border-bottom:1px solid var(--vien);display:flex;align-items:center;justify-content:space-between;font-size:16px;flex-shrink:0}
+.tkc-x{width:40px;height:40px;border:none;background:none;font-size:24px;color:var(--chu-mo);cursor:pointer;border-radius:10px;line-height:1}
+.tkc-x:hover{background:var(--do-nhat);color:var(--do)}
+.tkc-than{flex:1;overflow:auto;padding:14px 20px 40px}
+.tkc-muc{margin-bottom:18px}
+.tkc-muc-dau{font-size:12px;font-weight:700;letter-spacing:.03em;color:var(--chu-mo);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tkc-muc-dem{background:var(--do-nhat);color:var(--do);font-size:11px;font-weight:700;border-radius:20px;padding:1px 8px}
+.tkc-don{width:100%;text-align:left;background:var(--the);border:1px solid var(--vien);border-radius:var(--bo-nho,10px);padding:9px 12px;margin-bottom:7px;cursor:pointer;display:block;font:inherit}
+.tkc-don:hover{border-color:var(--do);background:var(--do-nhat)}
+.tkc-don-ma{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:12px}
+.tkc-don-kh{font-size:13.5px;font-weight:600}
+.tkc-don-viec{font-size:12.5px;color:var(--chu-nhat);margin-top:2px}
+.tkc-don-ngay{font-size:11px;color:var(--chu-mo);margin-top:2px}
+.tkc-rong{color:var(--chu-mo);font-style:italic;font-size:12.5px;padding:2px 0}
 #s-nhapso .dv .o-nhap{position:relative}
 #s-nhapso .dv input{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:9px 60px 9px 11px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700}
 #s-nhapso .dv input:focus{border-color:var(--do);outline:none}
@@ -402,6 +424,7 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
       <button class="thanh-muc chon" id="n-viec" data-man="viec"><i>📐</i>Việc của tôi</button>
       <button class="thanh-muc" id="n-bang" data-man="bang"><i>📋</i>Bảng công việc</button>
       <button class="thanh-muc" id="n-gio" data-man="gio"><i>📊</i>Giờ &amp; chi phí</button>
+      <button class="thanh-muc tkc-nav" id="n-chuong"><i>🔔</i>Chuông<span class="tkc-badge" id="tkcBadge" style="display:none"></span></button>
       <button class="thanh-muc" id="n-nhapso" data-man="nhapso" style="display:none"><i>🔢</i>Nhập số sản xuất</button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
     </nav>
@@ -549,6 +572,7 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
     <button class="chon" id="d-viec" data-man="viec"><i>📐</i>Việc</button>
     <button id="d-bang" data-man="bang"><i>📋</i>Bảng</button>
     <button id="d-gio" data-man="gio"><i>📊</i>Giờ</button>
+    <button class="tkc-nav" id="d-chuong"><i>🔔</i>Chuông<span class="tkc-badge" id="tkcBadgeM" style="display:none"></span></button>
     <button id="d-nhapso" data-man="nhapso" style="display:none"><i>🔢</i>Nhập số</button>
     <button id="btOutM"><i>🚪</i>Thoát</button>
   </nav>
@@ -559,6 +583,13 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
     <div class="p-dau" id="pDau"></div>
     <div class="p-than" id="pThan"></div>
     <div class="p-nut" id="pNut" style="display:none"></div>
+  </aside>
+
+  <!-- Chuông (L-62) -->
+  <div class="tkc-mo" id="tkcMo"></div>
+  <aside class="tkc-panel" id="tkcPanel">
+    <div class="tkc-dau"><b>Chuông thiết kế</b><button class="tkc-x" id="tkcX" aria-label="Đóng">×</button></div>
+    <div class="tkc-than" id="tkcThan"></div>
   </aside>
 
   <!-- Modal (Gửi bản 3D · Giao việc · Chuyển việc) -->

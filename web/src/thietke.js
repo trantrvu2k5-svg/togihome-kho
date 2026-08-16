@@ -106,7 +106,10 @@ async function capApp() {
   // panel + modal đóng
   $('mo').onclick = dongPanel
   $('moM').onclick = dongModal; $('hopMX').onclick = dongModal
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongPanel(); dongModal() } })
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongChuong(); dongPanel(); dongModal() } })
+  // CHUÔNG (L-62)
+  $('n-chuong').onclick = moChuong; $('d-chuong').onclick = moChuong
+  $('tkcMo').onclick = dongChuong; $('tkcX').onclick = dongChuong
   const d = new Date(), thang = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
   const kys = [...new Set(['2099-08', thang])]
   $('chonKy').innerHTML = kys.map(k => `<option value="${k}">Kỳ ${k}</option>`).join('')
@@ -114,7 +117,41 @@ async function capApp() {
   // URL có ?don= và vai thiet_ke/ceo → mở thẳng tab Nhập số cho đơn đó
   if (new URLSearchParams(location.search).get('don') && ['thiet_ke', 'ceo'].includes(USER.vai_tro)) di('nhapso')
   else await taiViec()
+  taiChuong(); setInterval(taiChuong, 60000)   // badge tự cập nhật (như chuông sale)
 }
+
+// ═══════════ CHUÔNG HAI CHIỀU (L-62) — sale→thiết kế ═══════════
+let TKC = null
+async function taiChuong() {
+  const { data, error } = await sb.rpc('tk_chuong', { p_gioi_han: 50 })
+  if (error) return
+  TKC = data
+  const tong = data.tong || 0
+  ;[$('tkcBadge'), $('tkcBadgeM')].forEach(el => { if (el) { el.textContent = tong > 99 ? '99+' : tong; el.style.display = tong > 0 ? '' : 'none' } })
+}
+function chuongMuc(nhan, muc) {
+  const ds = (muc && muc.ds) || [], tong = (muc && muc.tong) || 0
+  const rows = ds.length ? ds.map(x => `<button class="tkc-don" data-tkc="${esc(x.ma_don)}">
+      <span class="tkc-don-ma">${esc(x.ma_don)}</span> · <span class="tkc-don-kh">${esc(x.khach || '—')}</span>
+      <div class="tkc-don-viec">${esc(x.viec || '')}</div>
+      <div class="tkc-don-ngay">${x.so_ngay != null ? (x.so_ngay === 0 ? 'hôm nay' : x.so_ngay + ' ngày trước') : ''}${x.pb ? ' · bản v' + x.pb : ''}</div>
+    </button>`).join('') : `<div class="tkc-rong">— không có —</div>`
+  return `<div class="tkc-muc"><div class="tkc-muc-dau">${nhan}${tong ? `<span class="tkc-muc-dem">${tong}</span>` : ''}</div>${rows}</div>`
+}
+function moChuong() {
+  const t = TKC || { a: {}, b: {}, c: {} }
+  $('tkcThan').innerHTML =
+    chuongMuc('Việc mới chờ nhận', t.a) +
+    chuongMuc('Khách đã phản hồi', t.b) +
+    chuongMuc('Đơn đã chốt / thua', t.c)
+  // bấm 1 dòng → mở chi tiết TẠI CHỖ (bài học L-57: không nhảy tab) + đánh dấu đã xem
+  $('tkcThan').querySelectorAll('[data-tkc]').forEach(b => b.onclick = async () => {
+    const ma = b.dataset.tkc
+    dongChuong(); await moPanel(ma)
+  })
+  $('tkcMo').classList.add('hien'); $('tkcPanel').classList.add('hien')
+}
+function dongChuong() { $('tkcMo').classList.remove('hien'); $('tkcPanel').classList.remove('hien') }
 function di(m) {
   ;['viec', 'bang', 'gio', 'nhapso'].forEach(k => {
     $('s-' + k).style.display = (k === m) ? 'block' : 'none'
@@ -565,6 +602,8 @@ async function moPanel(maDon) {
   const { data, error } = await sb.rpc('tk_chi_tiet_don', { p_ma_don: maDon })
   if (error) { $('pThan').innerHTML = `<div class="trong-rong nho"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
   const d = data
+  // L-62: mở panel = ĐÃ XEM (đánh dấu luc_tk_xem cho bản mình dựng) → chuông tụt
+  sb.rpc('tk_danh_dau_xem', { p_ma_don: maDon }).then(() => taiChuong()).catch(() => {})
   const tre = treKhong(d.ngay_hen_khach) && d.buoc_thiet_ke !== 'xong_file'
   $('pDau').innerHTML = `<div class="hang"><div><div class="ma">${esc(d.ma_don)}</div><h2>${esc(d.ten)}</h2>
       <div class="dong"><span class="vien-nhan">${esc(loaiCap(d.cap_thiet_ke))}</span>
