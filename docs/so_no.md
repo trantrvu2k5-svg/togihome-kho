@@ -106,12 +106,10 @@ Chuông bản chờ gửi (RPC `sale_ban_cho_gui`, db/087): hiện **MỌI sale 
 `truong_nhom_sale` thấy CẢ NHÓM. (Vai đã mở sẵn trong RPC: sale/truong_nhom_sale/ceo — chỉ còn thiếu chỗ gắn
 chủ đơn để lọc.)
 
-## NỢ BUG — huỷ đơn qua trang_thai='huy' luôn THẤT BẠI (phát hiện L-48)
-Trigger `ghi_nhat_ky_don` (db/042) chèn dòng `don_hang_nhat_ky` **KHÔNG có `ly_do`**. Khi `den='huy'`
-(hoặc `tam_ngung`), constraint `chk_nk_huy_ly_do` (db/022) đòi `ly_do` khác rỗng → INSERT nhật ký RAISE →
-**mọi lần đổi trang_thai sang huy/tam_ngung bị chặn** dù đơn có `ly_do_huy`. Nghĩa là hiện KHÔNG huỷ được đơn
-bằng update trang_thai thẳng.
-- **Phát hiện:** L-48 phần 0b, định huỷ đơn rác T8-015 → lỗi `chk_nk_huy_ly_do`. Đã XOÁ HẲN T8-015 (cascade,
-  0 artifact) thay vì huỷ.
-- **Cách vá (lô sau):** cho `ghi_nhat_ky_don` chép `new.ly_do_huy` vào `don_hang_nhat_ky.ly_do` khi
-  `den in ('huy','tam_ngung')`. CHƯA vá — ngoài phạm vi L-48.
+## ĐÃ VÁ — huỷ đơn qua trang_thai='huy' (phát hiện L-48 · vá L-50 db/090)
+Trigger `ghi_nhat_ky_don` (db/042) từng chèn `don_hang_nhat_ky` **KHÔNG có `ly_do`** → khi `den='huy'`/`tam_ngung`
+vướng `chk_nk_huy_ly_do` (db/022) → mọi lệnh huỷ/tạm ngưng bị chặn.
+- **ĐÃ VÁ (db/090):** `ghi_nhat_ky_don` chép `new.ly_do_huy` vào `don_hang_nhat_ky.ly_do` khi `den in
+  ('huy','tam_ngung')`. KHÔNG nới constraint. Huỷ KHÔNG lý do vẫn bị chặn ở tầng `don_hang` check (db/021).
+- **Đo (test_090 3/0):** huỷ CÓ lý do → chạy + nhật ký chép đúng lý do · huỷ KHÔNG lý do → chặn · tạm ngưng
+  CÓ lý do → chạy. (Đã XOÁ HẲN đơn rác T8-015 ở L-48 vì lúc đó chưa vá.)
