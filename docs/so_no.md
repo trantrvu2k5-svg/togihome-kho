@@ -79,13 +79,15 @@ begin while d <= date '2028-12-01' loop
 KHÔNG ai biết, nhưng DEFAULT phình dần → truy vấn theo `luc` chậm dần (mất lợi ích phân mảnh). Không vỡ ngay,
 hỏng ngầm. Đặt nhắc lịch hằng năm.
 
-## NỢ HIỆU NĂNG — RPC trả danh sách KHÔNG giới hạn (L-29 VIỆC 4)
+## NỢ HIỆU NĂNG — RPC trả danh sách KHÔNG giới hạn (L-29 VIỆC 4) — CÒN 6 RPC
 > Phát hiện khi vá phân trang 3 RPC xưởng (v-kho-78). CHỈ liệt kê, CHƯA sửa — chờ CEO quyết lô sau.
 > Cùng loại lỗi "trả cả bảng": số dòng phồng theo quy mô, chưa có `limit`/phân trang. Ước ở **3.000 đơn**.
+> **L-65 (db/098):** `gia_von_don_ds` (nặng nhất) ĐÃ SỬA — thêm phân trang `{tong, ds}` 50/trang + cho ke_toan XEM.
+> Đo 50ms/3.011 đơn, payload cắt còn 50 dòng. **Còn 6 RPC dưới bảng** (lô riêng khi scale).
 
 | RPC | Màn đang gọi | Số dòng ~ ở 3.000 đơn |
 |---|---|---|
-| `gia_von_don_ds` | Tài chính · "Giá vốn theo đơn" | ~**toàn bộ** đơn không phải báo giá/hủy → **~3.000 dòng** (NẶNG NHẤT) |
+| ~~`gia_von_don_ds`~~ ✅ SỬA L-65 | Tài chính · "Giá vốn theo đơn" | ĐÃ phân trang (db/098) — bỏ khỏi nợ |
 | `xuong_don_cho_vao_chuyen` | Xưởng · Quản đốc (`taiChoVaoChuyen`) | = đơn `moi_len_don`+`xong_file` chờ vào chuyền (tồn đọng, hàng chục→hàng trăm) |
 | `can_ceo_quyet` | Xưởng · Quản đốc (panel "Cần CEO quyết") | = số tình huống cần CEO (thường nhỏ, phồng theo đơn có vấn đề) |
 | `sp_danh_sach` | Sản phẩm (app #6) | = số niêm yết (272 nay → hàng nghìn khi catalog lớn) |

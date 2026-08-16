@@ -63,6 +63,8 @@ async function napApp() {
   $('s6_luu').onclick = luuS6
   $('gv_ghi').onclick = nhapGiaVonTay
   if (USER.vai_tro === 'ceo') $('nav_tk').style.display = 'block'   // tab Quản lý tài khoản CHỈ ceo (RPC cũng guard)
+  // L-65: ke_toan XEM giá vốn đơn được, nhưng GHI TAY chỉ ceo/kho (ghi_gia_von_tay giữ nguyên) → ẩn form nhập cho không-ceo
+  if (USER.vai_tro !== 'ceo') { const gn = $('gv_nhap'); if (gn) gn.style.display = 'none' }
   $('tk_them').onclick = themNguoi
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
@@ -123,16 +125,29 @@ async function datMatKhau(id) {
 }
 
 // ── Giá vốn theo đơn (nhập tay cho đơn plugin không dựng được) ──
+// L-65: gia_von_don_ds nay TRẢ {tong, ds} có PHÂN TRANG (50/trang) — trước quét cả nghìn đơn không limit (nợ L-29).
+let GV_TRANG = 0; const GV_CO = 50
 async function taiGiaVonDon() {
-  const { data, error } = await sb.rpc('gia_von_don_ds')
-  const tb = $('gv_ds'), sel = $('gv_don')
-  if (error) { tb.innerHTML = `<tr><td colspan="8">Lỗi: ${error.message}</td></tr>`; return }
-  const rows = data || []
+  const tb = $('gv_ds'), sel = $('gv_don'), pg = $('gv_pager')
+  const { data, error } = await sb.rpc('gia_von_don_ds', { p_gioi_han: GV_CO, p_offset: GV_TRANG * GV_CO })
+  if (error) { tb.innerHTML = `<tr><td colspan="8">Lỗi: ${error.message}</td></tr>`; if (pg) pg.innerHTML = ''; return }
+  const rows = (data && data.ds) || [], tong = (data && data.tong) || 0
   const nguonNhan = r => r.co_gia_von ? (r.nguon === 'nhap_tay' ? '<b style="color:var(--pri,#C8202E)">[NHẬP TAY]</b>' : 'plugin') : '<span class="hint">chưa có</span>'
   tb.innerHTML = rows.map(r => `<tr${r.co_gia_von ? '' : ' style="background:#FFF7F7"'}><td class="n"><b>${r.ma_don}</b></td><td>${r.trang_thai}</td><td>${nguonNhan(r)}</td><td class="r n">${fmt(r.khoi_1)}</td><td class="r n">${fmt(r.khoi_2)}</td><td class="r n">${fmt(r.khoi_3)}</td><td class="r n"><b>${fmt(r.gia_chuyen_giao)}</b></td><td class="hint">${r.co_gia_von ? [r.nguoi_ten || '', r.cap_nhat_luc ? new Date(r.cap_nhat_luc).toLocaleDateString('vi-VN') : '', r.ly_do || ''].filter(Boolean).join(' · ') : ''}</td></tr>`).join('') || '<tr><td colspan="8" class="hint">Chưa có đơn.</td></tr>'
   // đơn CHƯA có giá vốn -> dropdown nhập tay
   const chua = rows.filter(r => !r.co_gia_von)
   sel.innerHTML = '<option value="">— chọn đơn chưa có giá vốn —</option>' + chua.map(r => `<option>${r.ma_don}</option>`).join('')
+  // phân trang (đơn chưa có giá vốn LÊN ĐẦU nên dropdown nhập tay nằm trọn trang 1)
+  if (pg) {
+    const soTrang = Math.max(1, Math.ceil(tong / GV_CO))
+    const tuSo = tong ? GV_TRANG * GV_CO + 1 : 0, denSo = Math.min(tong, (GV_TRANG + 1) * GV_CO)
+    pg.innerHTML = `<button id="gv_prev"${GV_TRANG <= 0 ? ' disabled' : ''}>← Trước</button>`
+      + `<span>Trang <b>${GV_TRANG + 1}</b>/${soTrang} · dòng ${tuSo}–${denSo} / tổng <b>${tong}</b></span>`
+      + `<button id="gv_next"${(GV_TRANG + 1) >= soTrang ? ' disabled' : ''}>Sau →</button>`
+    const pv = $('gv_prev'), nx = $('gv_next')
+    if (pv) pv.onclick = () => { if (GV_TRANG > 0) { GV_TRANG--; taiGiaVonDon() } }
+    if (nx) nx.onclick = () => { if ((GV_TRANG + 1) < soTrang) { GV_TRANG++; taiGiaVonDon() } }
+  }
 }
 async function nhapGiaVonTay() {
   const maDon = $('gv_don').value, ly_do = $('gv_lydo').value.trim()

@@ -33,7 +33,10 @@
   #tc .ch { padding:14px 18px 12px; border-bottom:1px solid var(--bd2); display:flex; align-items:baseline; gap:10px; }
   #tc .ch h2 { font-size:16px; margin:0; font-weight:700; letter-spacing:-.01em; }
   #tc .ch .hint { color:var(--mut); font-size:12.5px; }
-  #tc .cb { padding:16px 18px; }
+  #tc .cb { padding:16px 18px; overflow-x:auto; }   /* L-65: bảng rộng (giá vốn 8 cột…) CUỘN trong khung, không đẩy tràn body 390px */
+  #tc .pager { display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 18px;font-size:13px;color:var(--muted,#6B7488) }
+  #tc .pager button { padding:6px 12px;border:1px solid #D3D9E4;border-radius:8px;background:#fff;cursor:pointer;font-size:13px }
+  #tc .pager button:disabled { opacity:.4;cursor:default }
   #tc .cardft { padding:10px 18px; border-top:1px solid var(--bd2); font-size:11.5px; color:var(--mut); line-height:1.6; background:var(--raise); }
   #tc .sec { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--fnt); margin:2px 0 9px; }
   /* ── form ── */
@@ -258,7 +261,7 @@
     <div class="tabp" id="tab-gvdon">
       <h1>Giá vốn theo đơn</h1>
       <div class="subline">Nhập giá vốn TAY cho đơn plugin không dựng được (giường gỗ tự nhiên · hàng mua ngoài · đơn tự do). Chỉ ceo/kho.</div>
-      <section>
+      <section id="gv_nhap">
         <div class="ch"><h2>Nhập tay cho đơn chưa có giá vốn</h2></div>
         <div class="cb" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <select id="gv_don" style="min-width:200px"><option value="">— chọn đơn chưa có giá vốn —</option></select>
@@ -273,6 +276,7 @@
       <section>
         <div class="ch"><h2>Danh sách đơn</h2><span class="hint">đơn chưa có giá vốn lên đầu</span></div>
         <div class="cb"><table><thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Nguồn</th><th class="r">① vật tư</th><th class="r">② chế biến</th><th class="r">③ cấp đơn</th><th class="r">Tổng</th><th>Người · lúc · lý do</th></tr></thead><tbody id="gv_ds"></tbody></table></div>
+        <div class="pager" id="gv_pager"></div>
       </section>
     </div>
     <div class="tabp" id="tab-taikhoan">
