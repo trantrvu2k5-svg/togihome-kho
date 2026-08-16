@@ -119,3 +119,6 @@ test_sale_kiem: tài khoản kiểm tự động, mật khẩu riêng trong .env
 
 ## test_tk_kiem — tài khoản kiểm app Thiết kế (L-61)
 test_tk_kiem: tài khoản kiểm tự động vai tk_ban_hang, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-61) — để bấm-thật app Thiết kế (khối "Khách muốn gì"…) các lô sau. Tạo qua RPC chuẩn qly_them_nguoi.
+
+## test_kho_kiem / test_tc_kiem — tài khoản kiểm app Kho + Tài chính (L-64)
+test_kho_kiem (vai kho) + test_tc_kiem (vai ke_toan): tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-64) — để rà/bấm-thật app Kho + app Tài chính các lô sau. Tạo qua RPC chuẩn qly_them_nguoi.
