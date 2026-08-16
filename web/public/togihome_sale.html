@@ -336,8 +336,9 @@ td input.ce::placeholder{color:#C6CDD9}
 .mdl>header h4{margin:0;font-size:16.5px;font-weight:700;letter-spacing:-.022em}
 .mdl>header .hint{font-size:12px;color:var(--mut);margin-top:2px}
 .mdl>header .sp{flex:1}
-.x{width:30px;height:30px;border-radius:9px;color:var(--mut);font-size:17px;line-height:1}
+.x{width:40px;height:40px;border-radius:10px;color:var(--mut);font-size:23px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,color .12s;flex-shrink:0}
 .x:hover{background:var(--bg);color:var(--tx)}
+.x:active{background:var(--bd2)}
 .mbd{padding:17px 20px}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .fg .full{grid-column:span 2}
@@ -388,6 +389,8 @@ td input.ce::placeholder{color:#C6CDD9}
   --bg-chu:#1A2233; --bg-chu-nhat:#6B7280; --bg-chu-mo:#9CA3AF; --bg-xong:#15805F; --bg-xong-nhat:#E7EFEA;
   --bg-cho:#C77C15; --bg-cho-nhat:#FDF3E3; --bg-tim:#6155BC; --bg-tim-nhat:#EFEDFB; --bg-tre:#C0392B;
   --bg-hong:#A8478F; --bg-hong-nhat:#F7EDF4; --bg-lam:#2C6FA8; --bg-lam-nhat:#E8F0F7; --bg-r:12px; --bg-rn:7px; }
+/* L-60: ÉP LƯỚI — mọi khối chung MỘT mép trái/phải (đệm 22px = nhịp .body app), khoảng dọc đều 14px. */
+.bg-man{padding:18px 22px 44px}
 .bg-man .bg-mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:-.02em}
 .bg-man .bg-hdr{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
 .bg-man .bg-hdr h1{font-size:20px;font-weight:700;letter-spacing:-.02em}
@@ -396,7 +399,7 @@ td input.ce::placeholder{color:#C6CDD9}
 .bg-man .bg-qm{text-align:right;font-size:12.5px;color:var(--bg-chu-nhat)}
 .bg-man .bg-qm b{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:18px;color:var(--bg-chu);display:block;line-height:1.1}
 .bg-man .bg-nut-them{background:var(--bg-do);color:#fff;font-weight:600;padding:10px 17px;border-radius:var(--bg-rn);font-size:14.5px;white-space:nowrap;border:none;cursor:pointer}
-.bg-man .bg-bang{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:10px}
+.bg-man .bg-bang{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-bottom:14px}
 .bg-man .bg-o{background:var(--bg-the);border:1px solid var(--bg-vien);border-radius:var(--bg-r);padding:12px 14px;text-align:left;width:100%;border-left:4px solid var(--bg-vien);cursor:pointer}
 .bg-man .bg-o:hover{border-color:var(--bg-do);border-left-color:var(--bg-do)}
 .bg-man .bg-o.bg-chon{outline:2px solid var(--bg-do);outline-offset:-1px}
@@ -468,6 +471,12 @@ td input.ce::placeholder{color:#C6CDD9}
 .bg-man .bg-ngay3 .bg-chua{font-size:11.5px;color:var(--bg-chu-mo);font-style:italic}
 .bg-man .bg-ngay3 .bg-tien{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:13.5px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--bg-vien)}
 .bg-man .bg-ngay3 .bg-tien-phu{font-size:10.5px;color:var(--bg-chu-mo)}
+.bg-man .bg-xong{font-size:11px;line-height:1.35;margin-top:2px}
+.bg-man .bg-xong-ok{color:var(--bg-chu-nhat)}
+.bg-man .bg-xong-ok b{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:11.5px}
+.bg-man .bg-xong-tam{color:#8A5F20;font-weight:600}
+.bg-man .bg-xong-cho{color:var(--bg-chu-mo);font-style:italic}
+.bg-man .bg-xong-tran{color:var(--bg-tre);font-weight:600}
 .bg-man .bg-cn{display:flex;flex-direction:column;gap:5px;align-items:stretch}
 .bg-man .bg-cn button{padding:7px 9px;border-radius:5px;font-size:12px;font-weight:600;white-space:nowrap;width:100%;border:none;cursor:pointer}
 .bg-man .bg-n-chinh{background:var(--bg-xong);color:#fff}
@@ -484,8 +493,8 @@ td input.ce::placeholder{color:#C6CDD9}
 .bg-man .bg-nhac{background:#F4F5F7;border:1px solid var(--bg-vien);border-radius:var(--bg-rn);padding:11px 14px;font-size:12.5px;color:var(--bg-chu-nhat);line-height:1.6;margin:14px 17px}
 .bg-man .bg-nhac b{color:var(--bg-chu)}
 
-.bg-man .bg-cot-wrap{display:flex;gap:10px;overflow-x:auto;padding:8px 4px 12px}
-.bg-man .bg-cot{flex:0 0 216px;min-width:0;background:var(--bg-nen);border:1px solid var(--bg-vien);border-radius:var(--bg-r)}
+.bg-man .bg-cot-wrap{display:flex;gap:10px;overflow-x:auto;padding:12px 0}
+.bg-man .bg-cot{flex:1 1 0;min-width:198px;background:var(--bg-nen);border:1px solid var(--bg-vien);border-radius:var(--bg-r)}
 .bg-man .bg-cot-hd{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#E4E8EE;border-radius:var(--bg-r) var(--bg-r) 0 0;font-size:12.5px;font-weight:600}
 .bg-man .bg-cot-hd i{font-style:normal;font-family:'JetBrains Mono',ui-monospace,monospace;color:var(--bg-chu-nhat)}
 .bg-man .bg-cot-body{padding:8px;display:flex;flex-direction:column;gap:7px;min-height:120px}
@@ -495,6 +504,7 @@ td input.ce::placeholder{color:#C6CDD9}
 .bg-man .bg-the2-ma{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:12.5px}
 .bg-man .bg-the2-kh{font-size:13.5px;font-weight:500}
 .bg-man .bg-the2-ph{display:block;font-size:11px;color:var(--bg-chu-mo);margin-top:3px}
+.bg-man .bg-the2-tre{color:var(--bg-tre);font-weight:600}
 .bg-man .bg-the2-nut{display:flex;gap:6px;padding:0 9px 9px}
 .bg-man .bg-the2-nut button{flex:1;border-radius:6px;padding:6px;font-size:11.5px;font-weight:600;border:none;cursor:pointer}
 .bg-man .bg-cot-rong{color:var(--bg-chu-mo);text-align:center;padding:12px;font-size:12.5px}
@@ -1946,6 +1956,17 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const [kieu, setKieuS] = useState(BG_KIEU);
   const setKieu = k => { BG_KIEU = k; setKieuS(k); };
   const set1 = (k, v) => { setF(o => Object.assign({}, o, { [k]: v })); setPg(1); };
+  // L-58: "xong xưởng (dự kiến)" gọi atp() TỪNG đơn (không gộp RPC — atp tạo temp table/lần). Cache atpMap.
+  const [atpMap, setAtpMap] = useState({});
+  const _dsA = (data && data.ds) || [];
+  useEffect(() => {
+    const need = _dsA.filter(b => atpMap[b.ma_don] === undefined).slice(0, 60);
+    if (!need.length || !(window.saleApi && window.saleApi.ngayXong)) return;
+    let alive = true;
+    Promise.all(need.map(b => window.saleApi.ngayXong(b.ma_don).then(r => [b.ma_don, r || { ok: false }]).catch(() => [b.ma_don, { ok: false, loi: "LOI_GOI" }])))
+      .then(ps => { if (alive) setAtpMap(m => { const n = Object.assign({}, m); ps.forEach(p => n[p[0]] = p[1]); return n; }); });
+    return () => { alive = false; };
+  }, [_dsA.map(b => b.ma_don).join(",")]);
   if (!data) return el("div", { className: "bg-tai" }, "Đang tải…");
   const ds = data.ds || [];
   const dangMo = b => b.gd !== "thua" && b.gd !== "treo";
@@ -1979,9 +2000,19 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
       el("small", null, (b.ai_dung || "chưa rõ") + " dựng" + (b.vong_sua ? " · " + b.vong_sua + " vòng sửa" : "")),
       b.gd === "da_gui" ? el("small", null, "chờ khách " + b.cho_khach + " ngày") : null);
   };
+  // ── xong xưởng (dự kiến) từ atp() — QD-20: ngày XONG XƯỞNG, [TẠM], sale tự cộng vận chuyển ──
+  const xongLine = b => {
+    const a = atpMap[b.ma_don];
+    if (a === undefined) return el("div", { className: "bg-xong bg-xong-cho" }, "đang tính…");
+    if (a.ok && a.ngay_hua_duoc) return el("div", { className: "bg-xong bg-xong-ok" }, "xong xưởng (dự kiến) ", el("b", null, dmy(a.ngay_hua_duoc)), el("span", { className: "bg-xong-tam" }, " [TẠM]"));
+    if (a.loi === "THIEU_SO_DON_VI") return el("div", { className: "bg-xong bg-xong-cho" }, "chờ thiết kế nhập số ước");
+    if (a.loi === "KHONG_XEP_DUOC_TRONG_12_TUAN") return el("div", { className: "bg-xong bg-xong-tran" }, "ngoài tầm 12 tuần, cần xếp tay");
+    return el("div", { className: "bg-xong bg-xong-cho" }, "chưa tính được");
+  };
   // ── cụm 3: ngày & tiền ──
   const oNgayTien = b => el("div", { className: "bg-ngay3" },
     b.ngay_hen ? el("div", { className: "bg-d" }, el("span", null, "hẹn"), el("b", null, dmy(b.ngay_hen))) : el("div", { className: "bg-chua" }, "chưa hẹn ngày giao"),
+    xongLine(b),
     el("div", { className: "bg-tien" }, tr(b.tien)), el("div", { className: "bg-tien-phu" }, b.tien == null ? "chưa có giá bán" : "giá bán"));
   // ── nút hàng ──
   const nut = b => b.gd === "du_len_don" ? [el("button", { key: 1, className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn")]
@@ -2015,14 +2046,26 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
     el("div", null, hien.length ? hien.map(b => el("div", { className: "bg-dong", key: b.ma_don }, c1(b), oBan(b), oNgayTien(b), el("div", { className: "bg-cn" }, nut(b)))) : el("div", { className: "bg-rong" }, el("b", null, "Không báo giá nào khớp"), "Đổi bộ lọc hoặc xoá ô tìm.")),
     soTr > 1 ? el("div", { className: "bg-trang" }, el("span", null, "trang " + trang + "/" + soTr), el("div", { className: "bg-nut" }, el("button", { disabled: trang <= 1, onClick: () => setPg(trang - 1) }, "Trước"), el("button", { disabled: trang >= soTr, onClick: () => setPg(trang + 1) }, "Sau"))) : null,
     el("div", { className: "bg-nhac" }, el("b", null, "Hai việc khác nhau, đừng lẫn — "), "Khách duyệt BẢN = gật bản thiết kế (mở khoá cắt). Chốt giá / lên đơn = thành đơn hàng."));
-  const the2 = b => el("div", { className: "bg-the2" + (b.gd === "da_gui" && b.cho_khach > 4 ? " bg-nong" : ""), key: b.ma_don },
-    el("button", { className: "bg-the2-mo", onClick: () => moDon(b.ma_don) },
-      el("span", { className: "bg-the2-ma" }, b.ma_don), el("div", { className: "bg-the2-kh" }, b.ten_khach),
-      el("span", { className: "bg-the2-ph" }, (b.mon_ten || "—") + (b.so_mon > 1 ? " +" + (b.so_mon - 1) : "")),
-      el("span", { className: "bg-the2-ph" }, "mở " + b.mo_ngay + " ngày · " + (b.ai_dung || "chưa nhận") + (b.pb ? " · bản " + b.pb : "")),
-      el("span", { className: "bg-the2-ph" }, tr(b.tien))),
-    b.gd === "du_len_don" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn"))
-      : b.gd === "da_gui" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => phanHoi(b.ban_id, "khach_duyet") }, "Duyệt"), el("button", { className: "bg-n-do", onClick: () => phanHoi(b.ban_id, "khach_doi_y") }, "Chê")) : null);
+  // L-57: cột kanban = BÀN LÀM VIỆC. Mỗi cột hiện thông tin + nút HÀNH ĐỘNG đúng cột (bám RPC sẵn có).
+  const the2 = b => {
+    const nut = b.gd === "du_len_don" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chốt giá, lên đơn"))
+      : b.gd === "da_gui" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-chinh", onClick: () => phanHoi(b.ban_id, "khach_duyet") }, "Khách duyệt"), el("button", { className: "bg-n-do", onClick: () => phanHoi(b.ban_id, "khach_doi_y") }, "Khách chê"))
+      : b.gd === "ban_moi" ? el("div", { className: "bg-the2-nut" }, el("button", { className: "bg-n-lam", onClick: () => moDon(b.ma_don) }, "Gửi khách xem"))
+      : null;
+    const phu = b.gd === "da_gui" ? el("span", { className: "bg-the2-ph" + (b.cho_khach > 4 ? " bg-the2-tre" : "") }, "chờ khách " + b.cho_khach + " ngày" + (b.cho_khach > 4 ? " · nên gọi hỏi" : ""))
+      : b.gd === "sua_gop_y" ? el("span", { className: "bg-the2-ph" }, "vòng sửa " + (b.vong_sua || 1) + " · thiết kế đang sửa" + (b.ghi_chu ? " · " + b.ghi_chu : ""))
+      : b.gd === "chua_nhan" ? el("span", { className: "bg-the2-ph" + (b.mo_ngay > 2 ? " bg-the2-tre" : "") }, "chờ nhận dựng " + b.mo_ngay + " ngày")
+      : null;
+    return el("div", { className: "bg-the2" + (b.gd === "da_gui" && b.cho_khach > 4 ? " bg-nong" : ""), key: b.ma_don },
+      el("button", { className: "bg-the2-mo", onClick: () => moDon(b.ma_don) },
+        el("span", { className: "bg-the2-ma" }, b.ma_don), el("div", { className: "bg-the2-kh" }, b.ten_khach),
+        el("span", { className: "bg-the2-ph" }, (b.mon_ten || "—") + (b.so_mon > 1 ? " +" + (b.so_mon - 1) : "")),
+        el("span", { className: "bg-the2-ph" }, "mở " + b.mo_ngay + " ngày · " + (b.ai_dung || "chưa nhận") + (b.pb ? " · bản " + b.pb : "")),
+        phu,
+        el("span", { className: "bg-the2-ph" }, tr(b.tien)),
+        xongLine(b)),
+      nut);
+  };
   const COTS = [["chua_nhan", "Chưa ai nhận dựng"], ["ban_moi", "Có bản mới, chưa gửi"], ["da_gui", "Chờ khách"], ["sua_gop_y", "Khách chê, chờ bản mới"], ["du_len_don", "Khách duyệt bản"]];
   const cotView = el("div", { className: "bg-the-ct" }, theDau,
     el("div", { className: "bg-cot-wrap" }, COTS.map(kk => { const cards = ds.filter(b => oCond(b, kk[0])); return el("div", { className: "bg-cot", key: kk[0] }, el("div", { className: "bg-cot-hd" }, el("b", null, kk[1]), el("i", null, cards.length)), el("div", { className: "bg-cot-body" }, cards.length ? cards.map(the2) : el("div", { className: "bg-cot-rong" }, "—"))); })));
@@ -2057,7 +2100,7 @@ function BanChoGui({ ds, moDon }) {
 
 /* ================= APP ================= */
 function App() {
-  const [tab, setTab] = useState("don");
+  const [tab, setTab] = useState("bg");   // L-57: màn Báo giá là NHÀ CHÍNH của sale → mở mặc định
   const [moMa, setMoMa] = useState(null);
   const [bcgN, setBcgN] = useState(0);
   const [bcgDs, setBcgDs] = useState([]);
@@ -2077,6 +2120,9 @@ function App() {
   const bgBanMoi = (bgK && bgK.ds || []).filter(x => x.gd === "ban_moi").length;   // badge menu "Báo giá" = ô "bản mới chưa gửi"
   const [ky, setKy] = useState("2026-08");
   const [db, setDb] = useState(null);
+  // L-57: đơn đổi (lưu báo giá / chốt / duyệt-chê / treo-thua) → làm mới màn Báo giá ngay, không đợi poll 60s.
+  //   Lưu là fire-and-forget async: gọi taiBgK NGAY (bắt thay đổi cũ) + sau 3s (đợi đơn kịp lên server).
+  useEffect(() => { taiBgK(); const t = setTimeout(taiBgK, 3000); return () => clearTimeout(t); }, [db && db.don]);
   const [uid2, setUid] = useState(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -2258,7 +2304,7 @@ function App() {
     sp: true,
     khach: true
   };
-  const NAV0 = [["don", "Sổ đơn hàng"], ["bg", "Báo giá"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2275,6 +2321,7 @@ function App() {
   };
   const spend = (id, d) => API[ky]?.[id]?.[d] || 0;
   const P = {
+    active: okTab === "don",   // L-57: SoDon LUÔN mount (giữ tầng modal cho mọi tab); chỉ hiện NỘI DUNG khi active
     db,
     up,
     user,
@@ -2343,10 +2390,12 @@ function App() {
     style: {
       margin: "12px 22px 0"
     }
-  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), okTab === "don" && /*#__PURE__*/React.createElement(SoDon, P), okTab === "bg" && /*#__PURE__*/React.createElement(BaoGiaMan, {
+  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), /*#__PURE__*/React.createElement(SoDon, P), okTab === "bg" && /*#__PURE__*/React.createElement(BaoGiaMan, {
     data: bgK,
     initFilter: bgBanMoi > 0 ? "ban_moi" : "can",
-    moDon: ma => { setMoMa(ma); setTab("don"); },
+    // L-57: mọi thao tác báo giá mở modal TẠI CHỖ (SoDon luôn mount) — KHÔNG nhảy tab. Ngoại lệ DUY NHẤT:
+    //   "chot:" (Chuyển thành đơn) rời màn sang Sổ đơn vì từ giây đó nó là đơn.
+    moDon: ma => { setMoMa(ma); if (String(ma).slice(0, 5) === "chot:") setTab("don"); },
     reload: taiBgK
   }), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
 }
@@ -2665,6 +2714,7 @@ function BaoGiaForm({ db, onClose, onSave }) {
         el("div", { className: "sp" }), br && el("span", { className: "bdg c0" }, br.n),
         el("button", { className: "x", "aria-label": "Đóng", onClick: onClose }, "×")),
       el("datalist", { id: "ds-sp" }, (db.sp || []).map(p => el("option", { key: p.id, value: p.ten }, p.ma, " · ", p.kt))),
+      el("div", { className: "mbd" },   // L-58: đệm trong đều bốn phía (bám nhịp v5) — trước đây thân form sát mép
       el("div", { className: "sec" }, "Thông tin đơn"),
       el("div", { className: "fg", style: R3 },
         el("div", { className: "fld" }, el("label", null, "Thương hiệu · cửa hàng ", el("b", { style: { color: "var(--rd)" } }, "*")),
@@ -2711,7 +2761,7 @@ function BaoGiaForm({ db, onClose, onSave }) {
       el("div", { className: "chips" },
         el("button", { type: "button", className: "chip" + (f.tuDung ? "" : " on"), onClick: () => setF({ ...f, tuDung: false }) }, "Giao thiết kế"),
         el("button", { type: "button", className: "chip" + (f.tuDung ? " on" : ""), onClick: () => setF({ ...f, tuDung: true }) }, "Tôi tự dựng")),
-      el("div", { className: "mini", style: { marginTop: 5 } }, f.tuDung ? "Bạn tự dựng bản 3D — cuối tháng đo được sale tự dựng chốt bao nhiêu %." : "Thiết kế dựng bản 3D như thường lệ."),
+      el("div", { className: "mini", style: { marginTop: 5 } }, f.tuDung ? "Bạn tự dựng bản 3D — cuối tháng đo được sale tự dựng chốt bao nhiêu %." : "Thiết kế dựng bản 3D như thường lệ.")),
       el("div", { className: "mft" },
         thu && THIEU.length ? el("span", { style: { fontSize: 12.5, color: "var(--rd)", fontWeight: 600 } }, "Còn thiếu: ", THIEU.map(x => x[1]).join(" · ")) : el("span", { className: "mini" }, THIEU.length ? "Còn " + THIEU.length + " mục" : "Đủ để gửi thiết kế"),
         el("div", { className: "sp" }),
@@ -4279,7 +4329,8 @@ function SoDon({
   doiTT,
   quyenTT,
   moMa,
-  setMoMa
+  setMoMa,
+  active
 }) {
   const [mo, setMo] = useState(null),
     [q, setQ] = useState(""),
@@ -4510,14 +4561,14 @@ function SoDon({
   };
   const dem = c => dons.filter(d => d.tt === c).length;
   const sDt = rows.reduce((s, d) => s + dtCua(d, ctCua(d.id)), 0);
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Head, {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, active && /*#__PURE__*/React.createElement(Head, {
     title: "Sổ đơn hàng",
     sub: `${rows.length} đơn${ft ? " · " + ttOf(ft).n : ""}`,
     help: /*#__PURE__*/React.createElement(React.Fragment, null, "Mỗi đơn có ", /*#__PURE__*/React.createElement("b", null, "mã đơn"), " riêng, không còn tra bằng số điện thoại nữa. Khách nhận diện bằng số điện thoại đã chuẩn hoá.", /*#__PURE__*/React.createElement("br", null), "Tiền hàng ", /*#__PURE__*/React.createElement("b", null, "tự cộng từ các món"), ", không có ô nhập tổng — nên tổng không bao giờ lệch với chi tiết.", /*#__PURE__*/React.createElement("br", null), "Trạng thái là một trường của đơn, đổi trạng thái có ghi lại lịch sử. Không còn tô màu và sao chép sang sheet khác.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("b", null, "Ai cũng xem được mọi đơn."), " Sáu bộ lọc thay cho việc chia sheet: trạng thái, loại đơn, tài khoản cọc, thương hiệu, thợ, tình trạng thu.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("b", null, "Tình trạng thu"), " suy ra từ số tiền, không phải trường nhập tay — sửa số là trạng thái đổi theo, không bao giờ lệch. Cập nhật bằng nút ", /*#__PURE__*/React.createElement("b", null, "Thu tiền"), " trên dòng đơn, hoặc lúc bấm ", /*#__PURE__*/React.createElement("b", null, "Đã giao xong"), " ở bảng việc.")
   }, can("len_don") && /*#__PURE__*/React.createElement("button", {
     className: "btn pri",
     onClick: () => setMo({})
-  }, "+ Lên đơn")), /*#__PURE__*/React.createElement("div", {
+  }, "+ Lên đơn")), active && /*#__PURE__*/React.createElement("div", {
     className: "body"
   }, /*#__PURE__*/React.createElement("div", {
     className: "tiles",
@@ -4902,7 +4953,7 @@ function SoDon({
     onClick: () => setMo({})
   }, "+ Lên đơn đầu tiên")))))))), /*#__PURE__*/React.createElement("div", {
     className: "cardft"
-  }, /*#__PURE__*/React.createElement("b", null, "Bấm vào bất kỳ chỗ nào trên dòng"), " để mở chi tiết đơn — mọi thao tác nằm trong đó, không phải kéo bảng sang phải.", /*#__PURE__*/React.createElement("br", null), "Đây là ", /*#__PURE__*/React.createElement("b", null, "bản dành riêng cho sale"), " — không có màn hình của thiết kế, xưởng, điều vận, marketing.", /*#__PURE__*/React.createElement("br", null), "Sale chỉ sửa được đơn của mình khi đơn còn ở trạng thái ", /*#__PURE__*/React.createElement("b", null, "Mới lên đơn"), ". Vào sản xuất rồi thì phải nhờ trưởng nhóm — tránh việc đổi số sau khi xưởng đã cắt.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("b", null, "Đơn vị vận chuyển, ngày dự kiến xong, ngày đi hàng và lô do xưởng điền"), " qua nút Điều độ. Ngày giao thành công thì cả sale và xưởng đều điền được.")), mo && /*#__PURE__*/React.createElement(DonModal, {
+  }, /*#__PURE__*/React.createElement("b", null, "Bấm vào bất kỳ chỗ nào trên dòng"), " để mở chi tiết đơn — mọi thao tác nằm trong đó, không phải kéo bảng sang phải.", /*#__PURE__*/React.createElement("br", null), "Đây là ", /*#__PURE__*/React.createElement("b", null, "bản dành riêng cho sale"), " — không có màn hình của thiết kế, xưởng, điều vận, marketing.", /*#__PURE__*/React.createElement("br", null), "Sale chỉ sửa được đơn của mình khi đơn còn ở trạng thái ", /*#__PURE__*/React.createElement("b", null, "Mới lên đơn"), ". Vào sản xuất rồi thì phải nhờ trưởng nhóm — tránh việc đổi số sau khi xưởng đã cắt.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("b", null, "Đơn vị vận chuyển, ngày dự kiến xong, ngày đi hàng và lô do xưởng điền"), " qua nút Điều độ. Ngày giao thành công thì cả sale và xưởng đều điền được."))), mo && /*#__PURE__*/React.createElement(DonModal, {
     db: db,
     don: mo.don,
     user: user,
@@ -5008,8 +5059,22 @@ function SoDon({
     ct: ctCua(dd.id),
     onClose: () => setDd(null),
     onSave: (f, ln) => luuDD(dd, f, ln)
-  })));
+  }));
 }
+// L-60: DÒNG ĐỜI ĐƠN — dịch mã sự kiện (db/096) sang tiếng người.
+const DD_VAI = { sale: "sale", truong_nhom_sale: "trưởng sale", thiet_ke: "tk", tk_ban_hang: "tk bán hàng", truong_nhom_thiet_ke: "trưởng tk", xuong: "xưởng", ceo: "CEO", kho: "kho", ke_toan: "kế toán", tho: "thợ" };
+const DD_TT = { moi_len_don: "lên đơn", bao_gia: "tạo báo giá", bao_gia_thua: "chốt thua (khách không lấy)", bao_gia_treo: "treo · chờ khách", nhan_thiet_ke: "thiết kế nhận việc", dang_thiet_ke: "vào thiết kế", xong_file: "xong file thiết kế", cho_cat: "vào xưởng · chờ cắt", da_cat: "đã cắt", dang_lam: "đang làm", xong_sx: "xong sản xuất", cho_giao: "chờ giao", da_giao: "đã giao", huy: "huỷ đơn", tam_ngung: "tạm ngưng" };
+const DD_PH = { khach_duyet: "khách duyệt bản", khach_doi_y: "khách đổi ý", chua_dung_yeu_cau: "khách chê" };
+const ddLuc = s => { if (!s) return ""; const t = String(s); return t.slice(8, 10) + "/" + t.slice(5, 7) + " " + t.slice(11, 16); };
+const ddAi = e => e.ai_ten ? ((DD_VAI[e.ai_vai] || e.ai_vai || "") + " " + e.ai_ten).trim() : "hệ thống";
+const ddViec = e => {
+  let base;
+  if (e.kind === "ban_gui") base = "gửi bản v" + (e.pb || "");
+  else if (e.kind === "phan_hoi") base = (DD_PH[e.code] || e.code) + (e.pb ? " (bản v" + e.pb + ")" : "");
+  else if (e.kind === "link") base = "gửi link cho khách xem" + (e.pb ? " (bản v" + e.pb + ")" : "");
+  else base = DD_TT[e.code] || e.code;
+  return base + (e.ghi ? ": " + e.ghi : "");
+};
 function XemDon({
   d,
   db,
@@ -5058,14 +5123,43 @@ function XemDon({
     if (!window.saleApi) { setMonTT([]); return; }
     window.saleApi.monTrangThai(d.ma).then(r => setMonTT(r.error ? [] : r.data || [])).catch(() => setMonTT([]));
   }, [d.ma]);
+  // L-58: đơn báo giá chưa có lịch xưởng (ngayDuKien) → gọi atp() cho "xong xưởng (dự kiến)".
+  const [xongBg, setXongBg] = React.useState(undefined);
+  useEffect(() => {
+    if (d.tt !== "bao_gia" || !(window.saleApi && window.saleApi.ngayXong)) { setXongBg(null); return; }
+    setXongBg(undefined);
+    window.saleApi.ngayXong(d.ma).then(r => setXongBg(r || { ok: false })).catch(() => setXongBg({ ok: false, loi: "LOI_GOI" }));
+  }, [d.ma]);
+  // L-58 PHẦN 3: tiến độ XƯỞNG (đọc tien_do_tem, sale CHỈ XEM) — mỗi món bước hiện tại + lần quét gần nhất.
+  const [xuongTd, setXuongTd] = React.useState(null);
+  useEffect(() => {
+    if (d.tt === "bao_gia" || !(window.saleApi && window.saleApi.tienDoMon)) { setXuongTd([]); return; }
+    window.saleApi.tienDoMon(d.ma).then(r => setXuongTd(Array.isArray(r) ? r : [])).catch(() => setXuongTd([]));
+  }, [d.ma]);
+  // L-60: dòng đời đơn (db/096) — kể lại từ lúc sinh, mới nhất trên cùng.
+  const [dongDoi, setDongDoi] = React.useState(null);
+  useEffect(() => {
+    if (!(window.saleApi && window.saleApi.dongDoiDon)) { setDongDoi([]); return; }
+    window.saleApi.dongDoiDon(d.ma).then(r => setDongDoi(Array.isArray(r) ? r : [])).catch(() => setDongDoi([]));
+  }, [d.ma]);
   const TT_MON = { cho_cat: "Chờ cắt", da_cat: "Đã cắt", dang_lam: "Đang làm", xong_sx: "Xong SX" };
   const eC = React.createElement;
   const oNgay = (nhan, val) => eC("div", { style: { flex: 1 } }, eC("div", { style: { fontSize: 11, color: "var(--mut)" } }, nhan), eC("div", { className: "n", style: { fontWeight: 700, fontSize: 14 } }, val || "chưa có"));
   const chuaChot = d.tt === "bao_gia";   // đơn báo giá: chưa qua chốt giá → món "chưa chốt", KHÔNG phải "Chờ cắt"
+  const dmX = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "";
+  const fmtQuet = s => { if (!s) return ""; const t = String(s); return t.slice(8, 10) + "/" + t.slice(5, 7) + " " + t.slice(11, 16); };
+  const xongBgTxt = () => {   // QD-20: ngày XONG XƯỞNG [TẠM], sale tự cộng vận chuyển
+    const a = xongBg;
+    if (a === undefined) return "đang tính…";
+    if (a && a.ok && a.ngay_hua_duoc) return "xong xưởng " + dmX(a.ngay_hua_duoc) + " [TẠM]";
+    if (a && a.loi === "THIEU_SO_DON_VI") return "chờ thiết kế nhập số ước";
+    if (a && a.loi === "KHONG_XEP_DUOC_TRONG_12_TUAN") return "ngoài tầm 12 tuần, cần xếp tay";
+    return "chưa tính được";
+  };
   const bdgTT = st => eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, whiteSpace: "nowrap", background: chuaChot ? "#F3EEF6" : (st === "xong_sx" ? "#E7EFEA" : "#EEF1F5"), color: chuaChot ? "#7A4A9E" : (st === "xong_sx" ? "#15805F" : "#5b6472") } }, chuaChot ? "chưa chốt" : (TT_MON[st] || st));
   const tienDo = eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
     eC("div", { style: { display: "flex", gap: 16, marginBottom: 12 } },
-      oNgay("Hẹn khách BAN ĐẦU", d.ngayHenKhachBanDau), oNgay("Hẹn khách HIỆN TẠI", d.ngayHenKhach), oNgay("Dự kiến xong (xưởng)", d.ngayDuKien)),
+      oNgay("Hẹn khách BAN ĐẦU", d.ngayHenKhachBanDau), oNgay("Hẹn khách HIỆN TẠI", d.ngayHenKhach), oNgay("Dự kiến xong (xưởng)", chuaChot ? xongBgTxt() : d.ngayDuKien)),
     eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", margin: "2px 0 4px" } }, "TRẠNG THÁI TỪNG MÓN"),
     monTT === null ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Đang tải…")
       : monTT.length === 0 ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Chưa có món trong đơn.")
@@ -5110,7 +5204,20 @@ function XemDon({
       maxHeight: "68vh",
       overflow: "auto"
     }
-  }, tienDo, banBox, quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
+  }, tienDo, (xuongTd && xuongTd.length) ? eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
+    eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", marginBottom: 6 } }, "TIẾN ĐỘ XƯỞNG · chỉ xem"),
+    xuongTd.map(m => eC("div", { key: m.mon_id, style: { display: "flex", gap: 12, alignItems: "baseline", padding: "6px 0", borderTop: "1px solid var(--bd2)", fontSize: 12.5 } },
+      eC("div", { style: { flex: 1, fontWeight: 600 } }, m.ten),
+      eC("div", { style: { color: "var(--mut)", whiteSpace: "nowrap" } }, (m.trang_thai === "xong_het" || (m.so_tem && m.tem_xong >= m.so_tem)) ? "xong xưởng" : ("bước " + (m.buoc == null ? "?" : m.buoc) + (m.tong_buoc ? "/" + m.tong_buoc : "") + (m.to ? " · tổ " + m.to : ""))),
+      eC("div", { className: "n", style: { fontSize: 11.5, color: "var(--fnt)", whiteSpace: "nowrap" } }, m.lan_quet ? ("quét " + fmtQuet(m.lan_quet)) : "chưa quét")))) : null,
+    banBox,
+    (dongDoi && dongDoi.length) ? eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
+      eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", marginBottom: 8 } }, "DÒNG ĐỜI ĐƠN"),
+      dongDoi.map((e, i) => eC("div", { key: i, style: { display: "flex", gap: 8, alignItems: "baseline", padding: "5px 0", borderTop: i ? "1px solid var(--bd2)" : "none", fontSize: 12.5, lineHeight: 1.45 } },
+        eC("span", { className: "n", style: { color: "var(--mut)", whiteSpace: "nowrap", flexShrink: 0 } }, ddLuc(e.luc)),
+        eC("span", { style: { color: "var(--fnt)", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600 } }, ddAi(e)),
+        eC("span", { style: { flex: 1 } }, ddViec(e))))) : null,
+    quyenTT && /*#__PURE__*/React.createElement(ThanhTT, {
     d: d,
     quyenTT: quyenTT,
     onDoi: onDoi,

@@ -320,6 +320,14 @@ window.saleApi = {
   // sale ghi phản hồi khách (dùng lại phan_hoi_ban db/051): khach_duyet | khach_doi_y | chua_dung_yeu_cau
   phanHoiBanRpc: async (banId, ketQua, ghiChu) => { const { data, error } = await sb.rpc('phan_hoi_ban', { p_ban_id: banId, p_ket_qua: ketQua, p_ghi_chu: ghiChu || '' }); if (error) throw error; return data },
   leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
+  // atp() = "xong xưởng (dự kiến)" cho MỘT đơn (QD-20: ngày XONG XƯỞNG, sale tự cộng vận chuyển).
+  //   Gọi TỪNG đơn (mỗi call là 1 giao dịch riêng) — KHÔNG gộp vào RPC danh sách vì atp tạo temp table/lần
+  //   → gọi hàng loạt trong 1 truy vấn sẽ "out of shared memory". Trả jsonb {ok,ngay_hua_duoc,do_tin,loi}.
+  ngayXong: async maDon => { const { data, error } = await sb.rpc('atp', { p_ma_don: maDon }); if (error) return { ok: false, loi: 'LOI_GOI' }; return data },
+  // Tiến độ xưởng của 1 đơn — mỗi món 1 dòng (bước hiện tại + lần quét). Sale CHỈ XEM (db/094, không giá vốn).
+  tienDoMon: async maDon => { const { data, error } = await sb.rpc('sale_tien_do_mon', { p_ma_don: maDon }); if (error) return []; return data || [] },
+  // Dòng đời đơn — kể lại đơn từ lúc sinh (db/096, gộp nhật ký + bản + phản hồi + link). CHỈ ĐỌC, không giá vốn.
+  dongDoiDon: async (maDon, gh = 60) => { const { data, error } = await sb.rpc('sale_dong_doi_don', { p_ma_don: maDon, p_gioi_han: gh }); if (error) return []; return data || [] },
 
   // ── BẢN THIẾT KẾ (db/051) ──
   // đọc danh sách bản + ảnh của 1 đơn (RLS cho sale/thiet_ke/tk_ban_hang/ceo; xuong chỉ bản khach_duyet)
