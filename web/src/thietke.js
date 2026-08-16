@@ -13,8 +13,8 @@ const LOAI_CAP = {
   thiet_ke_rieng: 'Lẻ thiết kế riêng · L2', co_mon_dung_moi: 'Combo có món mới · L1+L2',
   full_can: 'Full căn · L3', cat_lai: 'Cắt lại · L1', bao_hanh: 'Bảo hành · L1'
 }
-const COT = { cho_nhan: 'Chờ nhận', dang_dung: 'Đang dựng', cho_duyet: 'Chờ duyệt', sua_gop_y: 'Sửa theo góp ý', xong_file: 'Xong file' }
-const COT_ORDER = ['cho_nhan', 'dang_dung', 'cho_duyet', 'sua_gop_y', 'xong_file']
+const COT = { cho_nhan: 'Chờ nhận', dang_dung: 'Đang dựng', dung_xong: 'Dựng xong, chưa gửi', cho_duyet: 'Chờ duyệt', sua_gop_y: 'Sửa theo góp ý', xong_file: 'Xong file' }
+const COT_ORDER = ['cho_nhan', 'dang_dung', 'dung_xong', 'cho_duyet', 'sua_gop_y', 'xong_file']
 
 let USER = null, BANG = [], CAM = 0, CHE_DO = 'tu_nhan', NGUOI_NHAN = []
 let DS_CHO = [], CHO_NHOM = '', BANG_DAT = false
@@ -154,11 +154,12 @@ async function taiViec() {
       <div class="o-gio"><span>thêm</span><input type="number" step="0.5" min="0" placeholder="0" data-gio="${esc(r.ma_don)}"><span>giờ</span></div>
       <button class="nut-nho" data-ghi="${esc(r.ma_don)}">Ghi giờ</button>
       ${laBaoGia(r.trang_thai)
-        ? `<button class="nut-nho nut-xam" data-guiban="${esc(r.ma_don)}">Gửi bản 3D cho sale</button>`
+        ? `${r.buoc_thiet_ke === 'dang_dung' ? `<button class="nut-nho" data-dungxong="${esc(r.ma_don)}">Đã dựng xong</button>` : ''}<button class="nut-nho nut-xam" data-guiban="${esc(r.ma_don)}">Gửi bản 3D cho sale</button>`
         : (nsN ? `<button class="nut-nho nut-xam" data-nhapso="${esc(r.ma_don)}">${nsN.text}</button>` : '')}</div>`
   }).join('') : `<div class="trong-rong"><h3>${laTruong() ? 'Bạn không cầm đơn — chỉ giao/chuyển' : 'Chưa cầm đơn nào'}</h3><p>${laTruong() ? 'Giao đơn cho thiết kế ở khối "Chờ nhận" bên dưới.' : 'Nhận việc từ khối "Chờ nhận" bên dưới.'}</p></div>`
   $('dsDangLam').querySelectorAll('[data-ghi]').forEach(b => b.onclick = () => ghiGio(b.dataset.ghi))
   $('dsDangLam').querySelectorAll('[data-guiban]').forEach(b => b.onclick = () => moGuiBan(b.dataset.guiban))
+  $('dsDangLam').querySelectorAll('[data-dungxong]').forEach(b => b.onclick = () => danhDauDungXong(b.dataset.dungxong))
   $('dsDangLam').querySelectorAll('[data-nhapso]').forEach(b => b.onclick = () => moNhapSo(b.dataset.nhapso))
   // Chờ nhận (RPC đã lọc theo vai: thiet_ke chỉ SX · tk_ban_hang chỉ báo giá · ceo/trưởng cả hai)
   DS_CHO = dsCho; veChoNhan()
@@ -204,6 +205,13 @@ async function nhanViec(maDon) {
   const { error } = await sb.rpc('nhan_viec_thiet_ke', { p_ma_don: maDon })
   if (error) { bao(error.message, true); return }
   bao(`Đã nhận ${maDon}`); taiViec()
+}
+// "Đã dựng xong" — đánh dấu dựng xong 3D nhưng chưa gửi (dang_dung → dung_xong). Không bắt buộc: vẫn gửi thẳng được.
+async function danhDauDungXong(maDon) {
+  const { error } = await sb.rpc('danh_dau_dung_xong', { p_ma_don: maDon })
+  if (error) { bao(error.message, true); return }
+  bao(`${maDon}: đã đánh dấu dựng xong`)
+  taiViec(); if ($('s-bang') && $('s-bang').style.display !== 'none') taiBang()
 }
 // Dẫn vào màn Nhập số sản xuất của ĐÚNG đơn: đặt ?don=<ma_don> rồi mở tab (đọc lại URL).
 function moNhapSo(maDon) {
@@ -623,8 +631,9 @@ function panelActions(d) {
     if (d.la_bao_gia) {
       const saleBox = (d.buoc_thiet_ke === 'sua_gop_y' && d.sale_ghi_chu)
         ? `<div class="ghitxt" style="background:var(--do-nhat);border-color:#F3C9C4;color:#7C1D18;margin-bottom:9px"><b>Sale trả về — sửa theo:</b> ${esc(d.sale_ghi_chu)}</div>` : ''
+      const nutDX = d.buoc_thiet_ke === 'dang_dung' ? `<button class="nut-vien" id="pDungXong" style="margin-bottom:8px">Đã dựng xong</button>` : ''
       const nut = d.buoc_thiet_ke === 'cho_duyet' ? `<span class="don-phu" style="color:var(--cho)">Đang chờ sale phản hồi</span>`
-        : `<button class="nut-chinh" id="pGuiBan">${d.buoc_thiet_ke === 'sua_gop_y' ? 'Gửi bản mới' : 'Gửi bản 3D cho sale'}</button>`
+        : nutDX + `<button class="nut-chinh" id="pGuiBan">${d.buoc_thiet_ke === 'sua_gop_y' ? 'Gửi bản mới' : 'Gửi bản 3D cho sale'}</button>`
       body = saleBox + ghiHtml + nut
     } else {
       // MỘT nút bàn giao (QD-14): mở màn nhập số của đúng đơn (đã gửi → "Xem số đã nhập")
@@ -643,6 +652,7 @@ function wireActions(d) {
   if ($('pGiao')) $('pGiao').onclick = () => moGiao(d.ma_don)
   if ($('pChuyen')) $('pChuyen').onclick = () => moChuyen(d.ma_don, d.ai_cam)
   if ($('pGuiBan')) $('pGuiBan').onclick = () => moGuiBan(d.ma_don)
+  if ($('pDungXong')) $('pDungXong').onclick = async () => { await danhDauDungXong(d.ma_don); dongPanel() }
   if ($('pNhapSo')) $('pNhapSo').onclick = () => { dongPanel(); moNhapSo(d.ma_don) }
 }
 async function ghiGioPanel(maDon) {

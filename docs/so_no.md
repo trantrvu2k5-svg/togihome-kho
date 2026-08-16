@@ -105,3 +105,13 @@ Chuông bản chờ gửi (RPC `sale_ban_cho_gui`, db/087): hiện **MỌI sale 
 **chưa lưu cột chủ đơn** (đơn thuộc sale nào). Khi có cột chủ đơn thì **siết lại**: mỗi sale thấy đơn MÌNH,
 `truong_nhom_sale` thấy CẢ NHÓM. (Vai đã mở sẵn trong RPC: sale/truong_nhom_sale/ceo — chỉ còn thiếu chỗ gắn
 chủ đơn để lọc.)
+
+## NỢ BUG — huỷ đơn qua trang_thai='huy' luôn THẤT BẠI (phát hiện L-48)
+Trigger `ghi_nhat_ky_don` (db/042) chèn dòng `don_hang_nhat_ky` **KHÔNG có `ly_do`**. Khi `den='huy'`
+(hoặc `tam_ngung`), constraint `chk_nk_huy_ly_do` (db/022) đòi `ly_do` khác rỗng → INSERT nhật ký RAISE →
+**mọi lần đổi trang_thai sang huy/tam_ngung bị chặn** dù đơn có `ly_do_huy`. Nghĩa là hiện KHÔNG huỷ được đơn
+bằng update trang_thai thẳng.
+- **Phát hiện:** L-48 phần 0b, định huỷ đơn rác T8-015 → lỗi `chk_nk_huy_ly_do`. Đã XOÁ HẲN T8-015 (cascade,
+  0 artifact) thay vì huỷ.
+- **Cách vá (lô sau):** cho `ghi_nhat_ky_don` chép `new.ly_do_huy` vào `don_hang_nhat_ky.ly_do` khi
+  `den in ('huy','tam_ngung')`. CHƯA vá — ngoài phạm vi L-48.

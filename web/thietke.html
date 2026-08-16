@@ -65,7 +65,8 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
 .n-tre{background:var(--do-nhat);color:#8E2A22}
 
 /* ===== KANBAN ===== */
-.bang{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.bang{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+.bang>div{flex:0 0 210px;min-width:0}
 .cot-dau{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#E4E8EE;border-radius:var(--bo) var(--bo) 0 0}
 .cot-dau b{font-size:13px;font-weight:600}
 .cot-dau i{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chu-nhat)}
@@ -197,7 +198,7 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
 .bao.hien{opacity:1}.bao.loi{background:var(--do)}
 .thanh-day{display:none}
 
-@media (max-width:1100px){ .bang{grid-template-columns:repeat(5,minmax(190px,1fr));overflow-x:auto;padding-bottom:8px} }
+@media (max-width:1100px){ .bang>div{flex:0 0 190px} }
 @media (max-width:900px){ .tt-bang{display:block;overflow-x:auto;white-space:nowrap} }
 @media (max-width:819px){
   .thanh{display:none}
