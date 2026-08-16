@@ -32,9 +32,10 @@ try {
   // ═══ 1 · XẾP NGƯỢC LÀ MẶC ĐỊNH ═══
   console.log('\n── 1 · đơn có hạn (đủ xa) → atp dùng xep_nguoc ──')
   await donQ('T79-1', 'cho_cat', 'current_date+56', 'QS2')
+  const han56 = (await q(`select (current_date + 56)::text d`))[0].d   // hạn TƯƠNG ĐỐI (không ghi cứng) — xếp ngược lọt thì ngày hứa = hạn
   const a1 = await g1(AU.ceo, `select kho.atp('T79-1') g`)
-  console.log(`   xep_bang=${a1.xep_bang} · ngay_hua=${a1.ngay_hua_duoc}`)
-  ok('#1 xếp NGƯỢC mặc định (🟥 xuôi khi vẫn lùi được = ĐỎ)', a1.xep_bang === 'nguoc' && a1.ngay_hua_duoc === '2026-10-10')
+  console.log(`   xep_bang=${a1.xep_bang} · ngay_hua=${a1.ngay_hua_duoc} · hạn(current_date+56)=${han56}`)
+  ok('#1 xếp NGƯỢC mặc định + ngày hứa = hạn (🟥 xuôi khi vẫn lùi được = ĐỎ)', a1.xep_bang === 'nguoc' && a1.ngay_hua_duoc === han56)
 
   // ═══ 2 · LÙI VƯỢT QUÁ KHỨ → PHAI_XEP_XUOI, KHÔNG tự chuyển ═══
   console.log('\n── 2 · hạn quá gần (quá khứ) → xep_nguoc báo PHAI_XEP_XUOI ──')

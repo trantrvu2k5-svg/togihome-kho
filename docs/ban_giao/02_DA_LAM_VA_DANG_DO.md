@@ -10,7 +10,7 @@
 
 **Báo giá & thiết kế bán hàng (29–33):** 29 đường ghi giá vốn từ plugin · 30 trạng thái báo giá · 31 lưu báo giá chỉ cần tên món · 32 báo giá thua/treo + vai tk_ban_hang + đo giờ · 33 phiếu xuất bắt buộc tổ + driver từ kho.
 
-**App xưởng & thời gian (34–45):** 34 app xưởng (tem/tiến độ/đếm/lỗi) · 35 sổ tham số xưởng (lương tổ → 12 đơn giá) · 36 giao diện tài chính · 37 ghi vết thời gian + lead time · 38 quản đốc + nền xếp việc · 39 app xưởng bản đầy đủ 5 màn · 40 hai cửa vào chuyền + tách lệnh SX/phiếu giao · 41 lệnh SX + lô + lắp đặt · 42 sale "bao giờ giao" · 43 vá sale ghi đè trạng thái · 44 nhập giá vốn tay · 45 dữ liệu demo + RPC kéo đơn.
+**App xưởng & thời gian (34–45):** 34 app xưởng (tem/tiến độ/đếm/lỗi) · 35 sổ tham số xưởng (lương tổ → 13 đơn giá) · 36 giao diện tài chính · 37 ghi vết thời gian + lead time · 38 quản đốc + nền xếp việc · 39 app xưởng bản đầy đủ 5 màn · 40 hai cửa vào chuyền + tách lệnh SX/phiếu giao · 41 lệnh SX + lô + lắp đặt · 42 sale "bao giờ giao" · 43 vá sale ghi đè trạng thái · 44 nhập giá vốn tay · 45 dữ liệu demo + RPC kéo đơn.
 
 **Bản thiết kế & sản phẩm 3 tầng (46–54):** 46 quản lý bản thiết kế (phiên bản + duyệt + khoá cắt + link khách) · 47 vá login/đăng xuất/tài khoản · 48 sắp thẻ trạng thái + vá đăng nhập 4 app · 49 nền app thiết kế (chia việc + kanban + 2 vai) · 50 gio_uoc full_can 5→15 · 51 nền BA TẦNG sản phẩm · 52 quản lý thương hiệu · 53 app thiết kế (project #6) · 54 nhập 100 SP web + biến thể ba trục.
 

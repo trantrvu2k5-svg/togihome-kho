@@ -48,7 +48,7 @@ Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòn
 
 ## RANH GIỚI HOẠT ĐỘNG = chỗ BÀN GIAO VẬT LÝ (QD-02)
 
-Một hoạt động = một lần món RỜI TAY THỢ và tới trạm khác. Máy làm ba việc trong một lần gá = MỘT hoạt động. Hai tổ, hai lần bàn giao = PHẢI hai hoạt động. Danh mục 12 hoạt động = một bảng duy nhất `don_gia_baseline`. **CẤM đẻ bảng danh mục công đoạn thứ hai.**
+Một hoạt động = một lần món RỜI TAY THỢ và tới trạm khác. Máy làm ba việc trong một lần gá = MỘT hoạt động. Hai tổ, hai lần bàn giao = PHẢI hai hoạt động. Danh mục 13 hoạt động = một bảng duy nhất `don_gia_baseline`. **CẤM đẻ bảng danh mục công đoạn thứ hai.**
 
 ## MỌI QUYẾT ĐỊNH NGHIỆP VỤ PHẢI CÓ QD
 
