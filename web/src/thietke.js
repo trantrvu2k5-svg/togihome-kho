@@ -596,8 +596,15 @@ async function moPanel(maDon) {
       <div class="o"><span>Số vòng sửa</span><b>${d.vong_sua || 0}</b></div>
       <div class="o"><span>Hạn giao khách</span><b>${d.ngay_hen_khach || '—'}</b></div>
     </div></div>
+    <div class="muc"><h3>Khách muốn gì</h3>
+      <div class="o-cap">
+        <div class="o"><span>Phong cách</span><b>${d.phong_cach ? esc(d.phong_cach) : 'sale chưa ghi'}</b></div>
+        <div class="o"><span>Ngân sách</span><b>${d.ngan_sach_trieu != null ? esc(String(d.ngan_sach_trieu)) + ' triệu' : 'sale chưa ghi'}</b></div>
+      </div>
+      ${d.ghi_chu ? `<div class="ghitxt" style="margin-top:8px"><b>Yêu cầu riêng:</b> ${esc(d.ghi_chu)}</div>` : '<div class="ghitxt" style="margin-top:8px;color:var(--mut);font-style:italic">Yêu cầu riêng: sale chưa ghi</div>'}
+      ${d.link ? `<div style="margin-top:8px"><a href="${esc(d.link)}" target="_blank" rel="noopener" class="nut-vien" style="display:inline-block;text-decoration:none">↗ Link tham khảo khách gửi</a></div>` : ''}
+    </div>
     ${banKDHtml}
-    ${d.ghi_chu ? `<div class="muc"><h3>Ghi chú đơn</h3><div class="ghitxt">${esc(d.ghi_chu)}</div></div>` : ''}
     <div class="muc"><h3>Món (${(d.mon || []).length}) — yêu cầu dựng</h3>${mon}</div>
     <div class="muc"><h3>Lịch sử chuyển bước</h3>${lich}</div>`
   $('pNut').style.display = 'none'
