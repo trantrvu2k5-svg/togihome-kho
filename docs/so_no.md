@@ -113,3 +113,6 @@ vướng `chk_nk_huy_ly_do` (db/022) → mọi lệnh huỷ/tạm ngưng bị ch
   ('huy','tam_ngung')`. KHÔNG nới constraint. Huỷ KHÔNG lý do vẫn bị chặn ở tầng `don_hang` check (db/021).
 - **Đo (test_090 3/0):** huỷ CÓ lý do → chạy + nhật ký chép đúng lý do · huỷ KHÔNG lý do → chặn · tạm ngưng
   CÓ lý do → chạy. (Đã XOÁ HẲN đơn rác T8-015 ở L-48 vì lúc đó chưa vá.)
+
+## test_sale_kiem — tài khoản kiểm tự động (L-54)
+test_sale_kiem: tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt giữ lâu dài (L-54).
