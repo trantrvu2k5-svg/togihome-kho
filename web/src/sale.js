@@ -309,6 +309,8 @@ window.storage = {
 //   Trả {data, error} thô để React tự xử. dong: app (ban_le…) -> DB (le…) qua DONG_W.
 window.saleApi = {
   monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
+  // chuông "bản chờ gửi" (db/087) — trả {tong, ds} cùng một điều kiện; badge=tong, danh sách=ds (≤ gioi_han)
+  banChoGui: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data },
   leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
 
   // ── BẢN THIẾT KẾ (db/051) ──

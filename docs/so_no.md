@@ -99,3 +99,9 @@ mỗi đơn** → nổ N lời gọi. v-kho-78 đã chặn xuống **50/lần** 
 **Đã chặn rồi (KHÔNG lo):** `tram_dang_cho` (limit 50 + phân trang, v-kho-76) · `tram_luot_gan_day` (limit 8) ·
 `kanban_xuong`/`viec_uu_tien`/`xuong_don_san_xuat` (phân trang, v-kho-77+78) · các list cấu hình/danh mục (tổ,
 hoạt động, lý do, quy trình, người dùng…) chặn theo bản chất. `sale_mon_cua_don` không limit nhưng bó theo số món/đơn (nhỏ).
+
+## NỢ PHẠM VI — chuông "bản chờ gửi" hiện MỌI sale thấy CHUNG (L-45)
+Chuông bản chờ gửi (RPC `sale_ban_cho_gui`, db/087): hiện **MỌI sale thấy chung** một danh sách, vì đơn báo giá
+**chưa lưu cột chủ đơn** (đơn thuộc sale nào). Khi có cột chủ đơn thì **siết lại**: mỗi sale thấy đơn MÌNH,
+`truong_nhom_sale` thấy CẢ NHÓM. (Vai đã mở sẵn trong RPC: sale/truong_nhom_sale/ceo — chỉ còn thiếu chỗ gắn
+chủ đơn để lọc.)

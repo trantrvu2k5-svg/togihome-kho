@@ -368,6 +368,21 @@ td input.ce::placeholder{color:#C6CDD9}
 .mft .sp{flex:1}
 @media(max-width:560px){.fg{grid-template-columns:1fr}.fg .full{grid-column:span 1}}
 @media(prefers-reduced-motion:reduce){.ca *{transition:none!important}}
+/* ==== chuông "bản chờ gửi" (L-45) — mọi class tiền tố bcg- ==== */
+.bcg-badge{margin-left:auto;min-width:19px;height:19px;padding:0 5px;background:#FFC53D;color:#5B4300;font-size:11px;font-weight:800;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.bcg-wrap{padding:2px}
+.bcg-dau h2{font-size:17px;font-weight:700;margin-bottom:2px}
+.bcg-dau p{font-size:13px;color:var(--mut);margin-bottom:14px}
+.bcg-ds{display:flex;flex-direction:column;gap:8px}
+.bcg-dong{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--bd);border-radius:11px;padding:12px 14px}
+.bcg-dong.bcg-tre{border-left:4px solid var(--rd);background:#FDECEA}
+.bcg-ma{font-weight:700;font-size:14px}
+.bcg-moc{font-size:12.5px;color:var(--mut);margin-top:3px}
+.bcg-cho{color:var(--mut)}
+.bcg-cho-tre{color:var(--rd);font-weight:700}
+.bcg-nut{background:var(--pri);color:#fff;border:none;font-size:13px;font-weight:600;padding:9px 14px;border-radius:8px;white-space:nowrap;cursor:pointer;align-self:flex-start}
+.bcg-rong{text-align:center;padding:30px 16px;color:var(--mut)}
+.bcg-rong b{display:block;color:var(--tx);font-size:15px;margin-bottom:4px}
 `;
 
 /* ============ QUYỀN ============ */
@@ -1800,9 +1815,48 @@ const seed = () => {
   };
 };
 
+/* ===== Chuông "bản chờ gửi" — danh sách (L-45) ===== */
+function BanChoGui({ ds, moDon }) {
+  const dmy = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "";
+  return /*#__PURE__*/React.createElement("div", { className: "bcg-wrap" },
+    /*#__PURE__*/React.createElement("div", { className: "bcg-dau" },
+      /*#__PURE__*/React.createElement("h2", null, "Bản mới chờ bạn gửi khách"),
+      /*#__PURE__*/React.createElement("p", null, "Thiết kế đã gửi bản, chờ bạn gửi link cho khách · chờ lâu nhất lên trên")),
+    (!ds || ds.length === 0)
+      ? /*#__PURE__*/React.createElement("div", { className: "bcg-rong" },
+          /*#__PURE__*/React.createElement("b", null, "Không có bản nào chờ gửi"),
+          /*#__PURE__*/React.createElement("span", null, "Thiết kế gửi bản mới thì nó hiện ở đây."))
+      : /*#__PURE__*/React.createElement("div", { className: "bcg-ds" },
+          ds.map(x => /*#__PURE__*/React.createElement("div", {
+            key: x.ma_don,
+            className: "bcg-dong" + (x.so_ngay_cho > 3 ? " bcg-tre" : "")
+          },
+            /*#__PURE__*/React.createElement("div", null,
+              /*#__PURE__*/React.createElement("div", { className: "bcg-ma" }, x.ma_don, " · ", x.ten_khach),
+              /*#__PURE__*/React.createElement("div", { className: "bcg-moc" },
+                "Thiết kế gửi ", dmy(x.ngay_thiet_ke_gui), " · ",
+                /*#__PURE__*/React.createElement("span", { className: x.so_ngay_cho > 3 ? "bcg-cho-tre" : "bcg-cho" },
+                  "chờ ", x.so_ngay_cho, " ngày"))),
+            /*#__PURE__*/React.createElement("button", { className: "bcg-nut", onClick: () => moDon(x.ma_don) }, "Mở đơn"))))
+  );
+}
+
 /* ================= APP ================= */
 function App() {
   const [tab, setTab] = useState("don");
+  const [moMa, setMoMa] = useState(null);
+  const [bcgN, setBcgN] = useState(0);
+  const [bcgDs, setBcgDs] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    const tai = () => {
+      if (window.saleApi && window.saleApi.banChoGui)
+        window.saleApi.banChoGui().then(r => { if (alive && r) { setBcgN(r.tong || 0); setBcgDs(r.ds || []); } }).catch(() => {});
+    };
+    tai();
+    const h = setInterval(tai, 60000);
+    return () => { alive = false; clearInterval(h); };
+  }, []);
   const [ky, setKy] = useState("2026-08");
   const [db, setDb] = useState(null);
   const [uid2, setUid] = useState(null);
@@ -1982,10 +2036,11 @@ function App() {
   /* Bản dành riêng cho sale — chỉ ba màn hình sale thật sự dùng */
   const MO = {
     don: true,
+    bcg: true,
     sp: true,
     khach: true
   };
-  const NAV0 = [["don", "Sổ đơn hàng"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["don", "Sổ đơn hàng"], ["bcg", "Bản chờ gửi"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2019,7 +2074,9 @@ function App() {
     me,
     shown,
     periodTotal,
-    spend
+    spend,
+    moMa,
+    setMoMa
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "ca"
@@ -2037,7 +2094,9 @@ function App() {
     className: okTab === k ? "on" : "",
     onClick: () => setTab(k),
     onKeyDown: e => e.key === "Enter" && setTab(k)
-  }, /*#__PURE__*/React.createElement("i", null), l)), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("i", null), l, k === "bcg" && bcgN > 0 && /*#__PURE__*/React.createElement("em", {
+    className: "bcg-badge"
+  }, bcgN))), /*#__PURE__*/React.createElement("div", {
     className: "navft"
   }, /*#__PURE__*/React.createElement("div", {
     className: "who"
@@ -2066,7 +2125,13 @@ function App() {
     style: {
       margin: "12px 22px 0"
     }
-  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), okTab === "don" && /*#__PURE__*/React.createElement(SoDon, P), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
+  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), okTab === "don" && /*#__PURE__*/React.createElement(SoDon, P), okTab === "bcg" && /*#__PURE__*/React.createElement(BanChoGui, {
+    ds: bcgDs,
+    moDon: ma => {
+      setMoMa(ma);
+      setTab("don");
+    }
+  }), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
 }
 function DangNhap({
   users,
@@ -2981,6 +3046,7 @@ function DonModal({
     }
   }, "*")), /*#__PURE__*/React.createElement("input", {
     value: x.ten,
+    list: "ds-sp",
     placeholder: "Bàn học bàn làm việc ngang 160cm sâu 60cm cao 75cm",
     onChange: e => upL(i, {
       ten: e.target.value
@@ -3931,7 +3997,9 @@ function SoDon({
   khOf,
   tien,
   doiTT,
-  quyenTT
+  quyenTT,
+  moMa,
+  setMoMa
 }) {
   const [mo, setMo] = useState(null),
     [q, setQ] = useState(""),
@@ -5201,6 +5269,13 @@ function BangViec({
     [dd, setDd] = useState(null);
   const [xem, setXem] = useState(null),
     [lx, setLx] = useState(null);
+  useEffect(() => {
+    if (moMa) {
+      const d = (dons || []).find(x => x.ma === moMa);
+      if (d) setXem(d);
+      setMoMa(null);
+    }
+  }, [moMa]);
   const [ft2, setFt2] = useState(user.tho || "");
   const [giao, setGiao] = useState(null);
   const dieu = can("xuong_dieu");
