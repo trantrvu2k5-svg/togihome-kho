@@ -116,3 +116,6 @@ vướng `chk_nk_huy_ly_do` (db/022) → mọi lệnh huỷ/tạm ngưng bị ch
 
 ## test_sale_kiem — tài khoản kiểm tự động (L-54)
 test_sale_kiem: tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt giữ lâu dài (L-54).
+
+## test_tk_kiem — tài khoản kiểm app Thiết kế (L-61)
+test_tk_kiem: tài khoản kiểm tự động vai tk_ban_hang, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-61) — để bấm-thật app Thiết kế (khối "Khách muốn gì"…) các lô sau. Tạo qua RPC chuẩn qly_them_nguoi.

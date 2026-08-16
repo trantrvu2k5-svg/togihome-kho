@@ -18,7 +18,9 @@
 
 **Trạm quét & lập lịch (68–80):** 68 sổ quét (nền DB mốc thuc_te) · 69 nhãn tấm người-đọc · 70 tấm tự biết nhánh · 71 màn TRẠM QUÉT · 72 năng lực tổ theo thời gian + bảng tải tuần · 73 xếp lịch ngược/xuôi/nút thắt + ATP · 74 atp() theo mốc + so_lech_hua · 75 partition su_kien_quet · 76 tien_do_tem lưu sẵn (vá timeout) · 77 materialize giờ đơn + phân trang · 78 phân trang 3 màn xưởng · 79 màn "Tải & lịch" · **80 thiết kế bán hàng nhập SỐ ƯỚC (mốc du_kien) — atp() sống lại.**
 
-*(Không có tag v-kho-3, 63; các số L-xx trong commit là số LỆNH, khác số tag.)*
+**Màn BÁO GIÁ của sale (81–85):** 81 chuông "bản chờ gửi" + nối datalist ds-sp · 82 cờ dung_xong + vá kanban rớt hàng · **84 CỤM MÀN BÁO GIÁ (L-48→L-55):** RPC nền `sale_bao_gia_ds` (db/091) + vỏ v5 + scope CSS `.bg-man` + toggle Danh-sách/Cột · vá huỷ đơn (db/090) · **form Báo giá RIÊNG `BaoGiaForm`** tách HAI luồng (báo-giá vs lên-đơn thẳng), cắt "Lưu báo giá" khỏi form Lên đơn · "Chuyển thành đơn" đổ sẵn dữ liệu báo giá · đơn báo giá ẩn "Lệnh sản xuất" + món "chưa chốt" · 3 cột nhu cầu (db/092) · bộ bấm-thật `ui_test_sale.py` + luật cấm shim + tài khoản kiểm `test_sale_kiem`. · **85 (L-57→L-60):** màn Báo giá là **NHÀ CHÍNH của sale** (menu đứng đầu + mở mặc định + mọi thao tác báo giá TẠI CHỖ, không nhảy tab; kanban Cột = bàn làm việc, nút theo cột) · "xong xưởng (dự kiến)" gọi atp() client-side (không gộp RPC vì atp tạo temp-table/lần) · nối "Khách muốn gì" sang app Thiết kế (db/095 + thietke.js) · **Tiến độ xưởng** trong Sổ đơn (db/094, đọc tien_do_tem, sale chỉ xem) · **DÒNG ĐỜI ĐƠN** trong XemDon (db/096, gộp nhật-ký + bản + phản-hồi + link) · ép lưới `.bg-man` (mọi khối chung mép). QD-22 (3 cột nhu cầu) · QD-23 (triết lý nhà-chính). Tài khoản kiểm app Thiết kế `test_tk_kiem`.
+
+*(Không có tag v-kho-3, 63, **83** (cụm màn Báo giá treo từ L-48 nên nhảy 82→84); các số L-xx trong commit là số LỆNH, khác số tag.)*
 
 ---
 
