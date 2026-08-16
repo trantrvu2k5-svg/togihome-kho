@@ -2,7 +2,7 @@
 
 ---
 
-## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-80)
+## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-87)
 
 **Nền kho (1–15):** 1 chuyển 12 bảng sang schema kho · 2 web 6 màn + đăng nhập · 4 lô mở đầu ván theo kiểm kê · 5 vá focus + cổng bí mật + deploy Cloudflare · 6 tồn tươi từ máy chủ · 7 thợ đăng nhập mã cá nhân + siết policy vai · 8 bỏ đường vào của thợ · 9–10 ảnh vật tư về bucket, hết phụ thuộc Drive · 11 bố cục điện thoại · 12 hướng dẫn có ảnh tự sinh · 13 xuất kho FIFO + huỷ bằng phiếu ngược · 14–15 bảng quy đổi mã thiết kế↔kho + hàm cho plugin đọc.
 
@@ -19,6 +19,8 @@
 **Trạm quét & lập lịch (68–80):** 68 sổ quét (nền DB mốc thuc_te) · 69 nhãn tấm người-đọc · 70 tấm tự biết nhánh · 71 màn TRẠM QUÉT · 72 năng lực tổ theo thời gian + bảng tải tuần · 73 xếp lịch ngược/xuôi/nút thắt + ATP · 74 atp() theo mốc + so_lech_hua · 75 partition su_kien_quet · 76 tien_do_tem lưu sẵn (vá timeout) · 77 materialize giờ đơn + phân trang · 78 phân trang 3 màn xưởng · 79 màn "Tải & lịch" · **80 thiết kế bán hàng nhập SỐ ƯỚC (mốc du_kien) — atp() sống lại.**
 
 **Màn BÁO GIÁ của sale (81–85):** 81 chuông "bản chờ gửi" + nối datalist ds-sp · 82 cờ dung_xong + vá kanban rớt hàng · **84 CỤM MÀN BÁO GIÁ (L-48→L-55):** RPC nền `sale_bao_gia_ds` (db/091) + vỏ v5 + scope CSS `.bg-man` + toggle Danh-sách/Cột · vá huỷ đơn (db/090) · **form Báo giá RIÊNG `BaoGiaForm`** tách HAI luồng (báo-giá vs lên-đơn thẳng), cắt "Lưu báo giá" khỏi form Lên đơn · "Chuyển thành đơn" đổ sẵn dữ liệu báo giá · đơn báo giá ẩn "Lệnh sản xuất" + món "chưa chốt" · 3 cột nhu cầu (db/092) · bộ bấm-thật `ui_test_sale.py` + luật cấm shim + tài khoản kiểm `test_sale_kiem`. · **85 (L-57→L-60):** màn Báo giá là **NHÀ CHÍNH của sale** (menu đứng đầu + mở mặc định + mọi thao tác báo giá TẠI CHỖ, không nhảy tab; kanban Cột = bàn làm việc, nút theo cột) · "xong xưởng (dự kiến)" gọi atp() client-side (không gộp RPC vì atp tạo temp-table/lần) · nối "Khách muốn gì" sang app Thiết kế (db/095 + thietke.js) · **Tiến độ xưởng** trong Sổ đơn (db/094, đọc tien_do_tem, sale chỉ xem) · **DÒNG ĐỜI ĐƠN** trong XemDon (db/096, gộp nhật-ký + bản + phản-hồi + link) · ép lưới `.bg-man` (mọi khối chung mép). QD-22 (3 cột nhu cầu) · QD-23 (triết lý nhà-chính). Tài khoản kiểm app Thiết kế `test_tk_kiem`.
+
+**Chuông thiết kế · rà Kho/Tài chính (86–87):** **86 (L-62):** CHUÔNG HAI CHIỀU app Thiết kế (db/097 `tk_chuong` — 3 mục *việc chờ nhận · khách phản hồi bản mình dựng · đơn chốt-thua*, badge==list, `luc_tk_xem` mốc đã-xem dùng chung; UI `tkc-` badge + panel mở tại chỗ). · **87 (L-64 rà + L-65 sửa):** **RÀ app Kho + Tài chính** (2 app chưa soi) — app Kho sạch; app Tài chính 3 lỗi + vá db/098: `gia_von_don_ds` cho **ke_toan XEM** + **phân trang** {tong,ds} 50/trang (bỏ khỏi nợ L-29) · `niem_yet_info` thêm gác vai (trước HỞ) · bảng bọc `overflow-x` (390px hết tràn) · `ghi_gia_von_tay` GIỮ ceo/kho (ke_toan XEM, GHI không). QD-24. Tài khoản kiểm `test_kho_kiem`/`test_tc_kiem`.
 
 *(Không có tag v-kho-3, 63, **83** (cụm màn Báo giá treo từ L-48 nên nhảy 82→84); các số L-xx trong commit là số LỆNH, khác số tag.)*
 
@@ -56,7 +58,7 @@
 6. **Code màn Báo giá vào app Sale** (từ mẫu đã duyệt).
 7. **Một đơn thật đi hết vòng** — CEO tự làm, chặn mọi thứ (nghiệm thu end-to-end).
 8. **Màn Phân tích & Cải tiến** (MES 6.4 + DMAIC).
-9. **Bảy RPC list không giới hạn** (nợ L-29) — xem mục E.
+9. **Sáu RPC list không giới hạn** (nợ L-29; `gia_von_don_ds` đã vá L-65) — xem mục E.
 10. **Quy trình sơn PU** (hàng sơn, thêm lot/pu/son_canh/cho_kho vào routing).
 11. **Xếp cả kho đơn cùng lúc** (MES 5.4.6) — hiện xếp từng đơn.
 
@@ -67,5 +69,5 @@
 - **LỖI A & B** (app sale ghi đè trạng thái · đơn kẹt moi_len_don): **ĐÃ HẾT**, đo được (test_069). Giữ trong sổ để không nghi lại.
 - **CÒN HỞ → ĐÃ VÁ:** số đóng băng nhưng giờ chưa (QD-15) → db/071 chốt cả phút+đơn giá (QD-16). **Residual nhỏ:** bước `tu_chay` (chờ khô) giờ vẫn LIVE — quy trình đang bán không dùng nên chưa hại.
 - **NỢ VẬN HÀNH:** mỗi năm phải chạy `tao_phan_manh_thang` thêm 12 tháng năm kế tiếp cho `su_kien_quet` (hiện tạo tới 2027-12). Quên → dòng rơi vào phân mảnh DEFAULT, chậm dần ngầm.
-- **NỢ HIỆU NĂNG (L-29 việc 4):** 7 RPC trả danh sách KHÔNG limit (nặng nhất `gia_von_don_ds` ~3.000 dòng; còn `tk_bang_cong_viec`, `tk_don_cho_nhan`, `sp_danh_sach`…). Cộng N+1 ở `xuong.js:taiViec` (đã chặn 50/lần nhưng gốc còn). CHƯA sửa, chờ CEO quyết lô.
+- **NỢ HIỆU NĂNG (L-29 việc 4): CÒN 6 RPC** trả danh sách KHÔNG limit (`xuong_don_cho_vao_chuyen`, `can_ceo_quyet`, `sp_danh_sach`, `tk_bang_cong_viec`, `tk_viec_cua_toi`, `tk_don_cho_nhan`). **Nặng nhất `gia_von_don_ds` ĐÃ VÁ L-65 (db/098)** — phân trang 50/trang, 50ms/3.011 đơn. Cộng N+1 ở `xuong.js:taiViec` (đã chặn 50/lần nhưng gốc còn). 6 RPC còn lại CHƯA sửa, chờ CEO quyết lô.
 - **Demo lệch seed CỐ Ý** (CAN-A-DEMO, DEMO-13): KHÔNG phải lỗi. Nhưng mọi lệch `so_don_vi_mon` với seed db/063 thì LÀ lỗi — phải dừng soi.
