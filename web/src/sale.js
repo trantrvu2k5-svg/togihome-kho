@@ -91,6 +91,7 @@ function rowToDon(r) {
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
     phongCach: r.phong_cach || '', nganSach: r.ngan_sach_trieu != null ? Number(r.ngan_sach_trieu) : '', tuDung: !!r.tu_dung, nguonKhach: r.nguon_khach || '',
     kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
+    salePhuTrach: r.sale_phu_trach || '',   // L-71: chủ đơn (uuid); tên hiện từ bg.sale_ten hoặc roster dsSale
   }
 }
 
@@ -330,6 +331,10 @@ window.saleApi = {
   tienDoMon: async maDon => { const { data, error } = await sb.rpc('sale_tien_do_mon', { p_ma_don: maDon }); if (error) return []; return data || [] },
   // Dòng đời đơn — kể lại đơn từ lúc sinh (db/096, gộp nhật ký + bản + phản hồi + link). CHỈ ĐỌC, không giá vốn.
   dongDoiDon: async (maDon, gh = 60) => { const { data, error } = await sb.rpc('sale_dong_doi_don', { p_ma_don: maDon, p_gioi_han: gh }); if (error) return []; return data || [] },
+  // Đổi CHỦ đơn (db/101) — chỉ truong_nhom_sale/ceo (server gác). Ghi nhật ký. Trả {ok, ten_moi}.
+  doiSalePhuTrach: async (maDon, nsMoi, lyDo) => { const { data, error } = await sb.rpc('doi_sale_phu_trach', { p_ma_don: maDon, p_ns_moi: nsMoi, p_ly_do: lyDo || null }); if (error) throw error; return data },
+  // Danh sách sale (cho dropdown lọc/đổi chủ) — chỉ vai bán hàng đang hoạt động.
+  dsSale: async () => { const { data, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro').in('vai_tro', ['sale', 'truong_nhom_sale', 'tk_ban_hang']).eq('dang_hoat_dong', true).order('ho_ten'); if (error) return []; return data || [] },
 
   // ── BẢN THIẾT KẾ (db/051) ──
   // đọc danh sách bản + ảnh của 1 đơn (RLS cho sale/thiet_ke/tk_ban_hang/ceo; xuong chỉ bản khach_duyet)

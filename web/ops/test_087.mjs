@@ -24,9 +24,10 @@ const gK = async (uid, s, a = []) => { const x = await asK(uid, s, a); return x.
 try {
   await c.query('begin')
   const NS = (await q(`select id from kho.nguoi_dung where auth_uid=$1`, [U.ceo]))[0].id
+  const SALE_NS = (await q(`select id from kho.nguoi_dung where auth_uid=$1`, [U.sale]))[0].id   // L-71: chuông siết theo chủ → đơn thử phải thuộc SALE
   // helper: đơn + bản thiết kế (trang_thai) + phiên bản + tuỳ chọn link + số ngày chờ
   async function don(ma, tt, pb, ngayCho, coLink = false) {
-    await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach) values($1,'bao_gia','le',$2)`, [ma, 'KH ' + ma])
+    await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,sale_phu_trach) values($1,'bao_gia','le',$2,$3)`, [ma, 'KH ' + ma, SALE_NS])
     const ban = (await q(`insert into kho.ban_thiet_ke(ma_don,phien_ban,ma_ns_gui,trang_thai,luc_gui)
                           values($1,$2,$3,$4, now() - ($5||' days')::interval) returning id`, [ma, pb, NS, tt, ngayCho]))[0].id
     if (coLink) await q(`insert into kho.link_ban_khach(token,ban_id,het_han,noi_dung)
@@ -83,8 +84,8 @@ try {
 
   // ═══ 6 · HIỆU NĂNG 3.000 đơn ═══
   console.log('\n── 6 · hiệu năng 3.000 đơn ──')
-  await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach)
-           select 'P87-'||g,'bao_gia','le','KH '||g from generate_series(1,3000) g`)
+  await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,sale_phu_trach)
+           select 'P87-'||g,'bao_gia','le','KH '||g,$1 from generate_series(1,3000) g`, [SALE_NS])
   await q(`insert into kho.ban_thiet_ke(ma_don,phien_ban,ma_ns_gui,trang_thai,luc_gui)
            select 'P87-'||g,1,$1,'cho_duyet', now()-((g%20)||' days')::interval from generate_series(1,3000) g`, [NS])
   await c.query('analyze kho.ban_thiet_ke'); await c.query('analyze kho.link_ban_khach'); await c.query('analyze kho.don_hang')

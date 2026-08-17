@@ -1955,7 +1955,7 @@ const BG_NHAN = { chua_nhan: "Chưa nhận", dang_dung: "Đang dựng", ban_moi:
 const BG_LOAI = { le_sang: ["Lẻ", "bg-nl-le"], le_rieng: ["Lẻ riêng", "bg-nl-le"], combo: ["Combo", "bg-nl-combo"], combo_moi: ["Combo mới", "bg-nl-combo"], full_can: ["Full căn", "bg-nl-full"], bao_hanh: ["Bảo hành", "bg-nl-bh"], cat_lai: ["Cắt lại", "bg-nl-bh"] };
 function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const el = React.createElement;
-  const [f, setF] = useState({ tt: initFilter || "can", ai: "", loai: "", th: "", ngay: "", tim: "" });
+  const [f, setF] = useState({ tt: initFilter || "can", ai: "", loai: "", th: "", ngay: "", tim: "", ptr: "" });
   const [pg, setPg] = useState(1);
   const [kieu, setKieuS] = useState(BG_KIEU);
   const setKieu = k => { BG_KIEU = k; setKieuS(k); };
@@ -1981,10 +1981,11 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const canLam = b => dangMo(b) && (b.gd === "chua_nhan" || b.gd === "ban_moi" || b.gd === "du_len_don" || (b.gd === "da_gui" && b.cho_khach >= 4));
   const oCond = (b, tt) => tt === "can" ? canLam(b) : tt === "mo" ? dangMo(b) : tt === "cho_lau" ? (b.gd === "da_gui" && b.cho_khach >= 4) : tt === "treo_lau" ? (b.gd === "treo" && b.mo_ngay >= 25) : tt === "tat" ? true : b.gd === tt;
   const dem = tt => ds.filter(b => oCond(b, tt)).length;
-  const passF = b => oCond(b, f.tt) && !(f.ai === "chua" && b.gd !== "chua_nhan") && !(f.ai === "da" && b.gd === "chua_nhan") && !(f.loai && b.loai !== f.loai) && !(f.th && b.thuong_hieu !== f.th) && !(f.ngay === "chua" && !b.chua_co_ngay) && !(f.ngay === "co" && b.chua_co_ngay) && !(f.tim && (b.ma_don + " " + b.ten_khach + " " + (b.mon_ten || "")).toLowerCase().indexOf(f.tim.toLowerCase()) < 0);
+  const passF = b => oCond(b, f.tt) && !(f.ptr && b.sale_phu_trach !== f.ptr) && !(f.ai === "chua" && b.gd !== "chua_nhan") && !(f.ai === "da" && b.gd === "chua_nhan") && !(f.loai && b.loai !== f.loai) && !(f.th && b.thuong_hieu !== f.th) && !(f.ngay === "chua" && !b.chua_co_ngay) && !(f.ngay === "co" && b.chua_co_ngay) && !(f.tim && (b.ma_don + " " + b.ten_khach + " " + (b.mon_ten || "")).toLowerCase().indexOf(f.tim.toLowerCase()) < 0);
   const list = ds.filter(passF);
   const loais = Array.from(new Set(ds.map(b => b.loai).filter(Boolean)));
   const ths = Array.from(new Set(ds.map(b => b.thuong_hieu).filter(Boolean)));
+  const chuDon = Array.from(new Map(ds.filter(b => b.sale_phu_trach).map(b => [b.sale_phu_trach, b.sale_ten || "(?)"])));   // L-71: [id,tên] chủ đơn (sale thường chỉ có mình)
   const tr = n => n == null ? "—" : (n / 1e6).toFixed(1) + " tr";
   const dmy = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "—";
   const sel = (nhan, val, on, opts) => el("div", { className: "bg-loc-nhom" }, el("label", null, nhan), el("select", { value: val, onChange: e => on(e.target.value) }, opts.map(o => el("option", { key: o[0], value: o[0] }, o[1]))));
@@ -2068,6 +2069,7 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
     sel("Loại", f.loai, v => set1("loai", v), [["", "Mọi loại"]].concat(loais.map(x => [x, BG_LOAI[x] ? BG_LOAI[x][0] : x]))),
     sel("Hiệu", f.th, v => set1("th", v), [["", "Mọi thương hiệu"]].concat(ths.map(x => [x, x]))),
     sel("Ngày", f.ngay, v => set1("ngay", v), [["", "Mọi báo giá"], ["chua", "Chưa có ngày hẹn"], ["co", "Đã có ngày hẹn"]]),
+    sel("Ai phụ trách", f.ptr, v => set1("ptr", v), [["", "Mọi người"]].concat(chuDon)),   // L-71: sale thường chỉ có mình (RPC đã lọc); trưởng nhóm/ceo chọn từng người
     el("input", { type: "search", placeholder: "Tìm mã, khách, món", value: f.tim, onChange: e => set1("tim", e.target.value) }));
   const MOI = 20, soTr = Math.max(1, Math.ceil(list.length / MOI)), trang = Math.min(pg, soTr), hien = list.slice((trang - 1) * MOI, trang * MOI);
   const dsView = el("div", { className: "bg-the-ct" }, theDau, loc,
@@ -4527,6 +4529,7 @@ function SoDon({
       nganSach: f.nganSach,
       tuDung: !!f.tuDung,
       nguonKhach: f.nguonKhach || "",
+      salePhuTrach: don?.salePhuTrach || (window.__saleUser && window.__saleUser.id) || "",   // L-71: model cục bộ khớp NGAY chủ trigger sẽ gán (KHÔNG gửi qua donToRow → đổi-chủ chỉ qua RPC)
       loai: f.loai,
       tkCoc: f.tkCoc,
       donGoc: f.donGoc || "",
@@ -5151,6 +5154,16 @@ function XemDon({
     t = ttOf(d.tt);
   const [gio3D, setGio3D] = React.useState("");
   const [gio3DKq, setGio3DKq] = React.useState("");
+  // L-71: chủ đơn — hiện tên + (trưởng nhóm/ceo) đổi tại chỗ
+  const [doiMo, setDoiMo] = React.useState(false), [doiNs, setDoiNs] = React.useState(""), [chuMoiTen, setChuMoiTen] = React.useState(null);
+  const canDoiChu = ["truong_nhom_sale", "ceo"].includes((window.__saleUser && window.__saleUser.vai_tro) || "");
+  const chuTen = chuMoiTen || (db.users.find(u => u.id === d.salePhuTrach) || {}).ten || "— (chưa gán)";
+  const saleRoster = (db.users || []).filter(u => ["sale", "truong_nhom_sale", "tk_ban_hang"].includes(u.mau) && u.on);
+  const luuDoiChu = async () => {
+    if (!doiNs) return;
+    try { await window.saleApi.doiSalePhuTrach(d.ma, doiNs, ""); const u = db.users.find(x => x.id === doiNs); setChuMoiTen(u ? u.ten : "?"); setDoiMo(false); }
+    catch (e) { alert(e.message); }
+  };
   const ls = db.ls.filter(x => x.donId === d.id);
   const br = db.brands.find(b => b.c === d.brand);
   const mauOf = m => db.mau.find(x => x.c === m);
@@ -5363,6 +5376,16 @@ function XemDon({
   }), /*#__PURE__*/React.createElement(R, {
     l: "Người lên đơn",
     v: db.users.find(u => u.id === d.saleId)?.ten || "—"
+  }), /*#__PURE__*/React.createElement(R, {
+    l: "Sale phụ trách",
+    v: doiMo ? /*#__PURE__*/React.createElement("span", { className: "dh-doichu" },
+        /*#__PURE__*/React.createElement("select", { value: doiNs, onChange: e => setDoiNs(e.target.value), style: { maxWidth: 180 } },
+          [/*#__PURE__*/React.createElement("option", { key: "", value: "" }, "— chọn người —")].concat(saleRoster.map(u => /*#__PURE__*/React.createElement("option", { key: u.id, value: u.id }, u.ten)))),
+        /*#__PURE__*/React.createElement("button", { className: "btn pri", style: { padding: "4px 10px", marginLeft: 6 }, onClick: luuDoiChu }, "Lưu"),
+        /*#__PURE__*/React.createElement("button", { className: "btn", style: { padding: "4px 10px", marginLeft: 4 }, onClick: () => setDoiMo(false) }, "Huỷ"))
+      : /*#__PURE__*/React.createElement(React.Fragment, null,
+          /*#__PURE__*/React.createElement("b", { id: "xd-chu" }, chuTen),
+          canDoiChu && /*#__PURE__*/React.createElement("button", { className: "btn", id: "xd-doichu", style: { padding: "3px 9px", marginLeft: 8 }, onClick: () => setDoiMo(true) }, "Đổi"))
   }), /*#__PURE__*/React.createElement(R, {
     l: "Thương hiệu",
     v: br ? /*#__PURE__*/React.createElement("span", {

@@ -102,11 +102,12 @@ mỗi đơn** → nổ N lời gọi. v-kho-78 đã chặn xuống **50/lần** 
 `kanban_xuong`/`viec_uu_tien`/`xuong_don_san_xuat` (phân trang, v-kho-77+78) · các list cấu hình/danh mục (tổ,
 hoạt động, lý do, quy trình, người dùng…) chặn theo bản chất. `sale_mon_cua_don` không limit nhưng bó theo số món/đơn (nhỏ).
 
-## NỢ PHẠM VI — chuông "bản chờ gửi" hiện MỌI sale thấy CHUNG (L-45)
-Chuông bản chờ gửi (RPC `sale_ban_cho_gui`, db/087): hiện **MỌI sale thấy chung** một danh sách, vì đơn báo giá
-**chưa lưu cột chủ đơn** (đơn thuộc sale nào). Khi có cột chủ đơn thì **siết lại**: mỗi sale thấy đơn MÌNH,
-`truong_nhom_sale` thấy CẢ NHÓM. (Vai đã mở sẵn trong RPC: sale/truong_nhom_sale/ceo — chỉ còn thiếu chỗ gắn
-chủ đơn để lọc.)
+## ĐÃ VÁ — chuông "bản chờ gửi" mọi sale thấy chung (nợ L-45 · vá L-71 db/101)
+Gốc: đơn báo giá **chưa có cột chủ đơn** nên chuông `sale_ban_cho_gui` (db/087) réo chung cả phòng. **Vá L-71:**
+thêm cột `don_hang.sale_phu_trach` (→ nguoi_dung), tự gán = người tạo lúc INSERT (trigger), backfill đơn cũ từ
+nhật ký. Siết `sale_ban_cho_gui` + `sale_bao_gia_ds` theo chủ: **sale thường chỉ ĐƠN MÌNH**, truong_nhom_sale/ceo
+CẢ NHÓM (thêm một vế lọc `sale_phu_trach = current_ns()`). Đổi chủ qua `doi_sale_phu_trach` (chỉ trưởng nhóm/ceo,
+ghi nhật ký). Xem QD-26. Giữ trong sổ để không nghi lại.
 
 ## ĐÃ VÁ — huỷ đơn qua trang_thai='huy' (phát hiện L-48 · vá L-50 db/090)
 Trigger `ghi_nhat_ky_don` (db/042) từng chèn `don_hang_nhat_ky` **KHÔNG có `ly_do`** → khi `den='huy'`/`tam_ngung`

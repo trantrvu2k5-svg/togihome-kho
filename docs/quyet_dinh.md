@@ -283,3 +283,17 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   ép cứng sẽ làm sale bịa cho xong, hỏng dữ liệu.
 - **Trạng thái:** ĐÃ LÀM (db/099: cột + CHECK; 2 form sale + `donToRow`; bấm thật KIEM-L67 lưu đúng cột rồi
   xoá sạch). **CHƯA commit.** Xem [[man-bao-gia-form-db092]].
+
+## QD-26 (17/08) — Mỗi đơn MỘT chủ (sale phụ trách) · ai đổi được (L-71)
+
+- **CEO chốt:** Mỗi đơn thuộc **một sale phụ trách** (cột `sale_phu_trach` → nguoi_dung). Không có cột này thì
+  mọi số "theo sale" (dải ⑥, màn trưởng nhóm, thưởng phạt) tính mò, và chuông "bản chờ gửi" réo chung cả phòng.
+- **Tự gán:** lúc TẠO đơn, chủ = **người đang đăng nhập** (trigger `trg_gan_sale_phu_trach` BEFORE INSERT — đường
+  ít xâm lấn, app không đổi, phủ mọi đường tạo). Seed/demo không JWT → NULL (không réo chuông).
+- **Đổi chủ:** chỉ **truong_nhom_sale/ceo** (`doi_sale_phu_trach`, ghi nhật ký). **Sale thường KHÔNG tự đổi**
+  (kể cả đơn mình) — chống tự nhận đơn ngon/đá đơn khó. Lý do: chủ đơn gắn thưởng phạt → phải có người trên duyệt.
+- **Đơn cũ:** backfill từ nhật ký (nguoi_id dòng đầu = người tạo). Không truy được → NULL (toàn demo/seed, 0 đơn thật).
+- **Siết theo chủ (gỡ nợ L-45):** chuông + màn Báo giá — sale thường chỉ ĐƠN MÌNH; trưởng nhóm/ceo cả nhóm
+  (cùng câu điều kiện, thêm một vế lọc `sale_phu_trach = current_ns()`).
+- **Trạng thái:** ĐÃ LÀM (db/101; siết sale_ban_cho_gui + sale_bao_gia_ds; app lọc "Ai phụ trách" + chi tiết chủ
+  + nút đổi; bấm thật KIEM-L71). **CHƯA commit.** Xem [[sanpham-ba-truc-nhap-web-db060]].
