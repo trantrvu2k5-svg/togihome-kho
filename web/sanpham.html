@@ -239,6 +239,26 @@ select{cursor:pointer}
 .spb-wrap{overflow-x:auto}.spb-tbl{width:100%;border-collapse:collapse;font-size:13px}.spb-tbl th,.spb-tbl td{padding:7px 9px;border-bottom:1px solid var(--vien,#E3E6EC);text-align:left;white-space:nowrap}.spb-tbl th{color:var(--chu-nhat,#6B7280);font-weight:600;font-size:11.5px}.spb-num{text-align:right;font-variant-numeric:tabular-nums}
 .spb-tam{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;color:#8A6D1B;background:#FFF4D6;border:1px solid #EAD8A0;border-radius:4px;padding:0 4px}
 .spb-rong{color:var(--chu-mo,#9CA3AF);padding:8px 0;font-style:italic}
+/* FORM Thêm SP (L-77c) — sp- */
+#hopM:has(#spForm){width:min(640px,94vw)}
+.sp-r{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.sp-r label{font-size:12px;color:var(--chu-nhat);font-weight:600}
+.sp-r input,.sp-r select,.sp-bt input,.sp-ny select,.sp-ny input,.sp-ten textarea{width:100%}
+.sp-g{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.sp-ma{font-size:12.5px;color:var(--chu-nhat)}.sp-ma b{font-family:'JetBrains Mono',monospace;color:var(--do);font-size:14px}
+.sp-ten{margin:8px 0;display:flex;flex-direction:column;gap:8px}.sp-ten b{font-size:12px}.sp-ten i{font-size:11px;color:var(--chu-mo);margin-left:6px}
+.sp-ten textarea{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 9px;font-family:inherit;font-size:13px;resize:vertical;min-height:44px;margin-top:2px}
+.sp-err{background:var(--do-nhat);border:1px solid #E8B7B2;border-radius:var(--bo-nho);padding:8px 10px;font-size:12.5px;color:#8E2A22}.sp-err div{margin:2px 0}
+.sp-ok{color:var(--xong);font-size:12.5px;font-weight:600;padding:4px 0}
+.sp-hint{font-size:12px;color:var(--vang);margin-top:4px}.sp-note{font-size:12.5px;color:var(--chu-nhat);margin-bottom:10px}
+.sp-bt,.sp-ny{display:flex;gap:7px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.sp-sz{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--xong);min-width:34px}
+.sp-qt{font-size:12px;color:var(--vang)}
+.sp-x{background:var(--do-nhat);color:var(--do);border-radius:6px;width:28px;height:28px;font-weight:700}
+.cay-dg-hd{display:flex;align-items:center;gap:8px;padding:11px 16px;background:#F3F4F7;border:1px solid var(--vien);border-radius:var(--bo-nho);margin:14px 0 8px;cursor:pointer;font-size:13.5px}
+.cay-dg-hd b{font-family:'JetBrains Mono',monospace;color:var(--do)}.cay-dg-hd i{margin-left:auto;color:var(--chu-mo);font-size:12px;font-style:normal}.cay-dg-mo{font-size:11px;color:var(--chu-nhat)}
+.cay-dg{margin-bottom:6px}
+/* modal cao (form 3 bước) cuộn được, nút luôn hiện */
+.hopm{max-height:90vh;display:flex;flex-direction:column}.hopm-than{overflow-y:auto;flex:1 1 auto;min-height:0}.hopm-nut{flex-shrink:0;display:flex;gap:8px;justify-content:flex-end;padding-top:8px}
 </style>
 </head>
 <body>
@@ -255,7 +275,7 @@ select{cursor:pointer}
     </nav>
     <main class="than"><div class="trong">
       <section id="s-cay">
-        <div class="dau"><div><h1>Cây sản phẩm</h1><p>Lõi là thiết kế. Biến thể là vật liệu/kích thước. Niêm yết là brand bán ra. Cùng lõi nghĩa là cùng một sản phẩm, dù tên khác nhau.</p></div></div>
+        <div class="dau"><div><h1>Cây sản phẩm</h1><p>Lõi là thiết kế. Biến thể là vật liệu/kích thước. Niêm yết là brand bán ra. Cùng lõi nghĩa là cùng một sản phẩm, dù tên khác nhau.</p></div><button class="nut-chinh" id="btThemSP">+ Thêm sản phẩm</button></div>
         <div class="the">
           <div class="loc">
             <select id="cLocBrand"><option value="">Mọi brand</option></select>
@@ -267,7 +287,7 @@ select{cursor:pointer}
         </div>
       </section>
       <section id="s-ds" style="display:none">
-        <div class="dau"><div><h1>Danh sách niêm yết</h1><p>Xếp theo bán chạy. Nhãn vàng = cần soát: vật liệu đoán chưa xác nhận, hoặc kích thước chưa có số. Bấm nhãn để sửa.</p></div></div>
+        <div class="dau"><div><h1>Danh sách niêm yết</h1><p>Xếp theo bán chạy. Nhãn vàng = cần soát: vật liệu đoán chưa xác nhận, hoặc kích thước chưa có số. Bấm nhãn để sửa.</p></div><button class="nut-chinh" id="btThemSP2">+ Thêm sản phẩm</button></div>
         <div class="the">
           <div class="loc">
             <select id="dLocBrand"><option value="">Mọi brand</option></select>

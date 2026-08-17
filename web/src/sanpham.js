@@ -84,7 +84,7 @@ async function capApp() {
   $('n-ds').style.display = laCatalog() ? '' : 'none'
   $('n-soban').style.display = laCatalog() ? '' : 'none'   // L-74: Số bán theo dòng — ceo/ke_toan
   $('n-quytrinh').style.display = laQT() ? '' : 'none'
-  if (laCatalog()) await napOptions()
+  if (laCatalog()) { await napOptions(); await napDongBrand(); if ($('btThemSP')) $('btThemSP').onclick = themSP; if ($('btThemSP2')) $('btThemSP2').onclick = themSP }
   di(laCatalog() ? 'cay' : 'quytrinh')
 }
 
@@ -158,11 +158,29 @@ async function veCay() {
     if (!L.anh || !L.anh.length) L.anh = r.anh
   }
   CAY_LIST = [...loiMap.entries()]
+  // L-77c: nhóm theo DÒNG (sp_loi_dong: ma_loi → {dong, ten, tt})
+  if (!LOI_DONG) { try { const { data } = await sb.rpc('sp_loi_dong'); LOI_DONG = data || {} } catch (e) { LOI_DONG = {} } }
+  const dgOf = ml => (LOI_DONG[ml] || {}).dong || '_khac'
+  CAY_LIST.sort((a, b) => { const ta = (LOI_DONG[a[0]] || {}).tt ?? 99, tb = (LOI_DONG[b[0]] || {}).tt ?? 99; return (ta - tb) || String(a[0]).localeCompare(String(b[0])) })
   $('cDem').textContent = loiMap.size + ' lõi · ' + rows.length + ' niêm yết'
   $('emCay').textContent = loiMap.size
   if (!loiMap.size) { $('cayBody').innerHTML = '<div class="trong-rong">Chưa có sản phẩm nào khớp bộ lọc.</div>'; return }
-  $('cayBody').innerHTML = CAY_LIST.map(([ml, L], i) => veLoi(ml, L, i)).join('')
-  // bung/thu = CHỈ ẩn/hiện khối biến thể của lõi đó (KHÔNG dựng lại cả cây → không cuộn về đầu)
+  let html = '', cur = null
+  CAY_LIST.forEach(([ml, L], i) => {
+    const dk = dgOf(ml), d = LOI_DONG[ml] || {}
+    if (dk !== cur) {
+      if (cur !== null) html += '</div>'
+      const cnt = CAY_LIST.filter(([m]) => dgOf(m) === dk).length
+      html += `<div class="cay-dg-hd" data-dg="${esc(dk)}"><span class="cay-dg-mo">▾</span><b>${esc(d.dong || '—')}</b> ${esc(d.ten || '(chưa gán dòng)')} <i>${cnt} lõi</i></div><div class="cay-dg" data-dgb="${esc(dk)}">`
+      cur = dk
+    }
+    html += veLoi(ml, L, i)
+  })
+  if (cur !== null) html += '</div>'
+  $('cayBody').innerHTML = html
+  // gập/mở theo DÒNG
+  $('cayBody').querySelectorAll('.cay-dg-hd').forEach(h => h.onclick = () => { const b = $('cayBody').querySelector('.cay-dg[data-dgb="' + h.dataset.dg + '"]'); const mo = b.style.display !== 'none'; b.style.display = mo ? 'none' : ''; h.querySelector('.cay-dg-mo').textContent = mo ? '▸' : '▾' })
+  // bung/thu lõi (CHỈ ẩn/hiện khối biến thể)
   $('cayBody').querySelectorAll('[data-mo]').forEach(el => el.onclick = () => toggleLoi(+el.dataset.mo))
   ganPhong($('cayBody'))
 }
@@ -506,3 +524,114 @@ async function xemMon() {
   const { data } = await sb.auth.getSession()
   if (data && data.session) laySauDangNhap(data.session.user); else manDangNhap()
 })()
+
+// ══════════ L-77c: FORM "+ THÊM SẢN PHẨM" (3 bước · mã tự sinh · tên 3 kênh + self-check 7 điều) ══════════
+let DONG_LIST = [], BRAND3 = [], SP = null, LOI_DONG = null
+async function napDongBrand() {
+  const { data: dd } = await sb.from('dong_san_pham').select('ma_dong,ten').order('thu_tu'); DONG_LIST = dd || []
+  const { data: bb } = await sb.from('thuong_hieu').select('ma,ten,ma_3chu,loai,ngung'); BRAND3 = (bb || []).filter(b => !b.ngung && b.loai !== 'kenh_ban' && b.ma_3chu)
+}
+const titleCase = s => (s || '').split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+const mmSize = rong => { if (!rong) return ''; const s = (rong / 1000).toFixed(1); return s.replace('.', 'm').replace(/m0$/, 'm') }   // 1600→1m6 · 2000→2m
+function fmtSizes(sz) { const u = [...new Set(sz.filter(Boolean))]; if (!u.length) return ''; if (u.length <= 3) return u.join('/'); return 'nhiều size từ ' + u[0] + ' đến ' + u[u.length - 1] }
+function brandTen(ma) { return (BRAND3.find(b => b.ma === ma) || {}).ten || ma || '' }
+function genTen() {
+  const f = SP, dd = titleCase(f.dacDiem), br = brandTen(f.ny[0] && f.ny[0].brand), sizes = f.bt.map(b => mmSize(b.rong))
+  const web = `${dd} - ${f.loai} ${f.chatLieu}, ${f.phongCach} | ${br} - ${f.ma}`
+  const san = `${f.loai} ${f.dacDiemCT || f.dacDiem} ${f.chatLieu} - ${f.phongCach}, size ${fmtSizes(sizes)} | ${br} - ${f.ma}`
+  return { web: f.tenWeb != null ? f.tenWeb : web, san: f.tenSan != null ? f.tenSan : san, noiBo: f.ma }
+}
+function selfCheck(t) {
+  const e = [], br = brandTen(SP.ny[0] && SP.ny[0].brand)
+  if (t.web.length < 60 || t.web.length > 90) e.push('⑦ Tên website ' + t.web.length + ' ký tự — cần 60–90 (' + (t.web.length < 60 ? 'khách thấy quá cụt, thiếu từ khoá tìm kiếm' : 'quá dài, bị cắt trên kết quả tìm') + ')')
+  if (t.san.length < 100 || t.san.length > 120) e.push('⑦ Tên sàn ' + t.san.length + ' ký tự — cần 100–120 (sàn TMĐT ưu tiên tên dài đủ từ khoá)')
+  if (/chính hãng/i.test(t.web + ' ' + t.san)) e.push('④ Có chữ "chính hãng" — cấm (ngầm nói hàng nơi khác là giả, dễ bị report)')
+  if (/\bsize\b/i.test(t.web) || /\dm\d/i.test(t.web)) e.push('⑤ Tên website KHÔNG được có size (size để bên sàn TMĐT)')
+  if (/(đơn|đôi)\s*$/i.test((t.web.split('|')[0] || '').trim())) e.push('② Kết thúc bằng "đơn/đôi" — cấm')
+  if (/\dm\d\s*-\s*\dm\d/.test(t.san)) e.push('③ Size dạng "1m2-1m8" — cấm; phải "1m4/1m6/1m8" hoặc "nhiều size từ… đến…"')
+  if (br) { const n = (t.web.match(new RegExp(br.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length; if (n !== 1) e.push('① Brand "' + br + '" xuất hiện ' + n + ' lần — phải đúng 1 lần ở cuối (khách chỉ mua từ 1 brand)') }
+  const head = (t.web.split(' - ')[0] || '').trim(); if (head && head !== titleCase(head)) e.push('⑥ Đặc điểm phân biệt phải In Hoa Đầu mỗi từ ở đầu tên website')
+  return e
+}
+function themSP() {
+  if (!laCatalog()) return
+  SP = { dong: '', ma: '', loai: '', dacDiem: '', dacDiemCT: '', chatLieu: '', phongCach: '', tenKyThuat: '', tenWeb: null, tenSan: null,
+    bt: [{ ten: '', vl: '', rong: '', dai: '', cao: '' }], ny: [{ brand: (BRAND3.find(b => b.ma === 'togihome') || BRAND3[0] || {}).ma || '', gia: '', quyTrinh: '' }], buoc: 1 }
+  moModal('Thêm sản phẩm — bước 1/3: Lõi', '<div id="spForm"></div>', '')
+  veBuoc()
+}
+async function pkMa() { if (!SP.dong) { SP.ma = ''; return } const { data } = await sb.rpc('sp_peek_ma_loi', { p_dong: SP.dong }); SP.ma = data || '' }
+function veBuoc() {
+  const b = SP.buoc; $('hopMTen').textContent = 'Thêm sản phẩm — bước ' + b + '/3: ' + ['Lõi', 'Biến thể', 'Niêm yết'][b - 1]
+  const el = $('spForm')
+  if (b === 1) {
+    const t = SP.ma ? genTen() : null, errs = t ? selfCheck(t) : []
+    el.innerHTML =
+      '<div class="sp-r"><label>Dòng *</label><select id="f_dong"><option value="">— chọn dòng —</option>' + DONG_LIST.map(d => `<option value="${d.ma_dong}"${SP.dong === d.ma_dong ? ' selected' : ''}>${esc(d.ma_dong)} · ${esc(d.ten)}</option>`).join('') + '</select>'
+      + '<span class="sp-ma">Mã tự sinh: <b>' + (SP.ma || '—') + '</b></span></div>'
+      + '<div class="sp-g"><div class="sp-r"><label>Loại SP</label><input id="f_loai" value="' + esc(SP.loai) + '" placeholder="Tủ quần áo"></div>'
+      + '<div class="sp-r"><label>Đặc điểm phân biệt</label><input id="f_dd" value="' + esc(SP.dacDiem) + '" placeholder="Cửa trượt gương"></div>'
+      + '<div class="sp-r"><label>Chất liệu</label><input id="f_cl" value="' + esc(SP.chatLieu) + '" placeholder="gỗ MDF phủ Melamine"></div>'
+      + '<div class="sp-r"><label>Phong cách</label><input id="f_pc" value="' + esc(SP.phongCach) + '" placeholder="Bắc Âu"></div></div>'
+      + '<div class="sp-r"><label>Đặc điểm chi tiết <span class="sp-hint" style="margin:0">— dài hơn, cho tên sàn TMĐT (100–120 ký tự)</span></label><input id="f_ddct" value="' + esc(SP.dacDiemCT) + '" placeholder="cửa trượt gương khung nhôm chống trầy lắp ráp sẵn"></div>'
+      + '<div class="sp-r"><label>Tên kỹ thuật (nội bộ)</label><input id="f_tkt" value="' + esc(SP.tenKyThuat) + '" placeholder="mô tả kỹ thuật ngắn"></div>'
+      + (t ? '<div class="sp-ten"><div><b>Website</b> <i>' + t.web.length + ' ký tự</i><textarea id="f_web">' + esc(t.web) + '</textarea></div>'
+        + '<div><b>Sàn TMĐT</b> <i>' + t.san.length + ' ký tự</i><textarea id="f_san">' + esc(t.san) + '</textarea></div>'
+        + '<div><b>Nội bộ</b> <span class="mono">' + esc(t.noiBo) + '</span></div></div>'
+        + (errs.length ? '<div class="sp-err">' + errs.map(x => '<div>⚠ ' + esc(x) + '</div>').join('') + '</div>' : '<div class="sp-ok">✓ Tên đạt 7 nguyên tắc</div>')
+        + '<div id="f_trung" class="sp-hint"></div>' : '')
+    $('f_dong').onchange = async e => { SP.dong = e.target.value; await pkMa(); veBuoc() }
+    ;[['f_loai', 'loai'], ['f_dd', 'dacDiem'], ['f_ddct', 'dacDiemCT'], ['f_cl', 'chatLieu'], ['f_pc', 'phongCach'], ['f_tkt', 'tenKyThuat']].forEach(([id, k]) => { const n = $(id); if (n) n.oninput = () => { SP[k] = n.value; if (id !== 'f_tkt') { SP.tenWeb = null; SP.tenSan = null; veBuocDebounce() } } })
+    const fw = $('f_web'), fs = $('f_san'); if (fw) fw.oninput = () => { SP.tenWeb = fw.value; veBuocDebounce() }; if (fs) fs.oninput = () => { SP.tenSan = fs.value; veBuocDebounce() }
+    if (t) kiemTrung(t.web)
+  } else if (b === 2) {
+    el.innerHTML = '<p class="sp-note">Vật liệu × kích thước (rộng dùng làm size trong tên sàn). ≥1 biến thể.</p>'
+      + SP.bt.map((v, i) => `<div class="sp-bt"><input placeholder="Tên biến thể" value="${esc(v.ten)}" data-i="${i}" data-k="ten"><input placeholder="Vật liệu" value="${esc(v.vl)}" data-i="${i}" data-k="vl"><input placeholder="Rộng(mm)" value="${v.rong}" data-i="${i}" data-k="rong" style="width:90px"><input placeholder="Dài" value="${v.dai}" data-i="${i}" data-k="dai" style="width:75px"><input placeholder="Cao" value="${v.cao}" data-i="${i}" data-k="cao" style="width:75px"><span class="sp-sz">${mmSize(v.rong) || '—'}</span>${SP.bt.length > 1 ? `<button class="sp-x" data-del="${i}">×</button>` : ''}</div>`).join('')
+      + '<button class="nut-vien" id="f_addbt">+ Biến thể</button>'
+    el.querySelectorAll('.sp-bt input').forEach(n => n.oninput = () => { SP.bt[+n.dataset.i][n.dataset.k] = n.value; if (n.dataset.k === 'rong') veBuoc() })
+    el.querySelectorAll('[data-del]').forEach(n => n.onclick = () => { SP.bt.splice(+n.dataset.del, 1); veBuoc() })
+    $('f_addbt').onclick = () => { SP.bt.push({ ten: '', vl: '', rong: '', dai: '', cao: '' }); veBuoc() }
+  } else {
+    el.innerHTML = '<p class="sp-note">Niêm yết theo brand. Giá ≥ giá sàn (server chặn). Quy trình để trống được (nhãn cảnh báo).</p>'
+      + SP.ny.map((v, i) => `<div class="sp-ny"><select data-i="${i}" data-k="brand"><option value="">— brand —</option>${BRAND3.map(b => `<option value="${b.ma}"${v.brand === b.ma ? ' selected' : ''}>${esc(b.ten)} (${b.ma_3chu})</option>`).join('')}</select><input placeholder="Giá niêm yết" value="${v.gia}" data-i="${i}" data-k="gia" style="width:130px"><span class="sp-qt">${v.quyTrinh ? 'có QT' : '⚠ chưa gắn quy trình'}</span>${SP.ny.length > 1 ? `<button class="sp-x" data-del="${i}">×</button>` : ''}</div>`).join('')
+      + '<button class="nut-vien" id="f_addny">+ Brand</button>'
+    el.querySelectorAll('.sp-ny select,.sp-ny input').forEach(n => n.oninput = n.onchange = () => { SP.ny[+n.dataset.i][n.dataset.k] = n.value; if (n.dataset.k === 'brand') { SP.tenWeb = null; SP.tenSan = null } })
+    el.querySelectorAll('[data-del]').forEach(n => n.onclick = () => { SP.ny.splice(+n.dataset.del, 1); veBuoc() })
+    $('f_addny').onclick = () => { SP.ny.push({ brand: '', gia: '', quyTrinh: '' }); veBuoc() }
+  }
+  $('hopMNut').innerHTML = (b > 1 ? '<button class="nut-vien" id="f_truoc">← Trước</button>' : '')
+    + (b < 3 ? '<button class="nut-chinh" id="f_tiep">Tiếp →</button>' : '<button class="nut-chinh" id="f_luu">Lưu sản phẩm</button>')
+  if ($('f_truoc')) $('f_truoc').onclick = () => { SP.buoc--; veBuoc() }
+  if ($('f_tiep')) $('f_tiep').onclick = () => { if (SP.buoc === 1 && !SP.dong) return bao('Chọn dòng trước', true); SP.buoc++; veBuoc() }
+  if ($('f_luu')) $('f_luu').onclick = luuSP
+}
+let _dbTimer = null
+function veBuocDebounce() { clearTimeout(_dbTimer); _dbTimer = setTimeout(veBuoc, 350) }
+async function kiemTrung(ten) {
+  try { const { data } = await sb.rpc('sp_kiem_ten_trung', { p_ten: ten }); const n = $('f_trung'); if (!n) return
+    if (data && (data.trung_niem_yet || data.trung_mon_tu_do > 0)) n.innerHTML = '⚠ Trùng: ' + (data.trung_niem_yet ? 'đã có niêm yết cùng tên. ' : '') + (data.trung_mon_tu_do > 0 ? 'món tự do lặp ' + data.trung_mon_tu_do + ' lần (ứng viên đã có).' : '')
+    else n.textContent = '' } catch (e) {}
+}
+async function luuSP() {
+  const t = genTen(), errs = selfCheck(t)
+  if (errs.length) return bao('Tên còn ' + errs.length + ' lỗi nguyên tắc — sửa ở bước 1', true)
+  if (!SP.bt.some(v => v.ten.trim())) return bao('Cần ≥1 biến thể có tên', true)
+  if (!SP.ny.some(v => v.brand && v.gia)) return bao('Cần ≥1 niêm yết (brand + giá)', true)
+  bao('Đang lưu…')
+  try {
+    const rl = await sb.rpc('sp_tao_loi_moi', { p_dong: SP.dong, p_ten_ky_thuat: SP.tenKyThuat || t.web, p_nhom: SP.loai || null, p_kich_thuoc: null, p_ghi_chu: null })
+    if (rl.error) throw rl.error
+    const maLoi = rl.data.ma_loi, skus = []
+    for (const v of SP.bt.filter(v => v.ten.trim())) {
+      const rb = await sb.rpc('sp_tao_bien_the', { p_ma_loi: maLoi, p_ten: v.ten, p_vat_lieu: v.vl || null, p_kich_thuoc: [v.dai, v.rong, v.cao].filter(Boolean).join('x') || null, p_dai: +v.dai || null, p_rong: +v.rong || null, p_cao: +v.cao || null })
+      if (rb.error) throw rb.error; skus.push(rb.data.ma)
+    }
+    for (const v of SP.ny.filter(v => v.brand && v.gia)) {
+      // 1 niêm yết/(lõi,brand): tên listing (web KHÔNG size), size ở biến thể — slug niêm yết phải duy nhất
+      const rn = await sb.rpc('tao_niem_yet', { p_ma_bien_the: skus[0], p_ma_brand: v.brand, p_ten_ban_hang: t.web, p_duong_dan: null, p_ten_dai: t.san, p_gia: +String(v.gia).replace(/\D/g, '') })
+      if (rn.error) throw rn.error
+    }
+    dongSua(); bao('✓ Đã tạo ' + maLoi + ' (' + skus.length + ' biến thể)')
+    if (typeof veCay === 'function') veCay()
+  } catch (e) { bao('Lỗi: ' + (e.message || e), true) }
+}
