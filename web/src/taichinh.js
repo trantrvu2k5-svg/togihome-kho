@@ -71,6 +71,7 @@ async function napApp() {
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))
   await loadKy()
+  taiDieuHanh()   // L-69: tab Điều hành là tab MỞ MẶC ĐỊNH (đầu tiên) → tải ngay khi vào app
 }
 
 // Chuyển tab — dữ liệu GIỮ NGUYÊN (chỉ ẩn/hiện, không dựng lại DOM).
@@ -78,8 +79,105 @@ function doiTab(t) {
   document.querySelectorAll('#tc .tabp').forEach(p => p.classList.toggle('on', p.id === 'tab-' + t))
   document.querySelectorAll('#tc .navi').forEach(b => b.classList.toggle('on', b.dataset.tab === t))
   window.scrollTo(0, 0)
+  if (t === 'dieuhanh') taiDieuHanh()
   if (t === 'gvdon') taiGiaVonDon()
   if (t === 'taikhoan') taiTaiKhoan()
+}
+
+// ── TAB ĐIỀU HÀNH (L-69): gom số đã có, CHỈ ĐỌC. 5 khối theo độ gấp. Không code lại logic — gọi RPC/nguồn sẵn. ──
+const DH_NG = { chua_nhan: 3, ban_moi: 2, da_gui: 4, treo: 25 }   // ngưỡng tắc báo giá (ngày) — HẰNG SỐ (chưa có bảng cài đặt)
+const escH = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const GD_TEN = { chua_nhan: 'Chưa ai nhận dựng', ban_moi: 'Có bản, chưa gửi', da_gui: 'Đã gửi, chờ khách', sua_gop_y: 'Khách chê, chờ bản', du_len_don: 'Khách duyệt', dang_dung: 'Đang dựng', thua: 'Thua', treo: 'Treo' }
+async function taiDieuHanh() {
+  if (!$('dh_tac')) return
+  const rpc = (fn, args) => sb.rpc(fn, args).then(r => r.error ? null : r.data).catch(() => null)
+  const d = new Date(), den = new Date(Date.now() + 21 * 864e5), fmtD = x => x.toISOString().slice(0, 10)
+  const [dh, bg, dai, tai] = await Promise.all([
+    rpc('dieu_hanh_bang', { p_gioi_han: 100 }),
+    rpc('sale_bao_gia_ds', { p_gioi_han: 1000 }),
+    rpc('sale_dai_so_bao_gia', { p_gioi_han: 50 }),
+    rpc('tai_theo_to_tuan', { p_tu_ngay: fmtD(d), p_den_ngay: fmtD(den) })
+  ])
+  const bgds = (bg && bg.ds) || []
+  // ── KHỐI 1 · ĐANG TẮC (báo giá tắc từ bgds theo ngưỡng + SX-tắc + giao-chưa-thu từ dh) ──
+  const tac = []
+  bgds.forEach(b => {
+    if (b.gd === 'chua_nhan' && b.mo_ngay > DH_NG.chua_nhan) tac.push({ ma: b.ma_don, kh: b.ten_khach, o: 'Chưa ai nhận dựng', ngay: b.mo_ngay, ai: '—' })
+    else if (b.gd === 'ban_moi' && b.mo_ngay > DH_NG.ban_moi) tac.push({ ma: b.ma_don, kh: b.ten_khach, o: 'Bản chưa gửi khách', ngay: b.mo_ngay, ai: b.ai_dung || '—' })
+    else if (b.gd === 'da_gui' && b.cho_khach > DH_NG.da_gui) tac.push({ ma: b.ma_don, kh: b.ten_khach, o: 'Chờ khách trả lời', ngay: b.cho_khach, ai: 'khách' })
+    else if (b.gd === 'treo' && b.mo_ngay > DH_NG.treo) tac.push({ ma: b.ma_don, kh: b.ten_khach, o: 'Treo quá lâu', ngay: b.mo_ngay, ai: '—' })
+  })
+  ;((dh && dh.sx_tac) || []).forEach(s => tac.push({ ma: s.ma_don, kh: s.ten_khach, o: 'Đang SX · không quét', ngay: s.lang, ai: s.to || '—' }))
+  ;((dh && dh.giao_chua_thu) || []).forEach(g => tac.push({ ma: g.ma_don, kh: g.ten_khach, o: 'Đã giao · chưa thu đủ', ngay: null, ai: 'còn ' + fmt(g.con_thu) }))
+  tac.sort((a, b) => (b.ngay || 0) - (a.ngay || 0))
+  $('dh_tac_ng').textContent = `ngưỡng: chưa nhận >${DH_NG.chua_nhan}ng · chưa gửi >${DH_NG.ban_moi} · chờ khách >${DH_NG.da_gui} · treo >${DH_NG.treo} · SX lặng >${dh ? dh.nguong_sx_lang : 2} (mặc định)`
+  $('dh_tac').innerHTML = tac.length
+    ? tac.map(t => `<div class="dh-row-tac"><b>${escH(t.ma)}</b><span>${escH(t.kh)}</span><span>${escH(t.o)}${t.ngay != null ? ' · <b>' + t.ngay + '</b> ngày' : ''}</span><span class="hint">${escH(t.ai)}</span></div>`).join('')
+    : '<div class="dh-empty">Không có đơn nào đang tắc. 🎉</div>'
+  // ── KHỐI 2 · PHỄU (đếm theo gd — CÙNG câu sale_bao_gia_ds, không viết lại) ──
+  const dem = {}; bgds.forEach(b => dem[b.gd] = (dem[b.gd] || 0) + 1)
+  const mo = bgds.filter(b => !['thua', 'treo'].includes(b.gd))
+  const giaTriMo = mo.reduce((s, b) => s + (Number(b.tien) || 0), 0)
+  const GD_ORD = ['chua_nhan', 'ban_moi', 'da_gui', 'sua_gop_y', 'du_len_don', 'dang_dung']
+  $('dh_pheu').innerHTML =
+    '<div class="dh-stats">' + GD_ORD.map(g => oClick('pheu_' + g, GD_TEN[g], dem[g] || 0, '', 'bg-gd')).join('')
+    + oStat('Tổng giá trị đang mở', fmt(giaTriMo) + ' đ', mo.length + ' đơn')
+    + oClick('pheu_thua', 'Thua', dem.thua || 0, '', 'bg-gd') + oClick('pheu_treo', 'Treo', dem.treo || 0, '', 'bg-gd')
+    + '</div><div class="dh-list" id="dh_pheu_list" style="display:none"></div>'
+  // gắn click cho từng ô phễu → mở list đúng gd (ô == list)
+  GD_ORD.concat(['thua', 'treo']).forEach(g => {
+    const o = $('pheu_' + g); if (!o) return
+    o.onclick = () => moPheu(g, bgds.filter(b => b.gd === g))
+  })
+  // ── KHỐI 3 · DẢI 6 SỐ (gọi đúng sale_dai_so_bao_gia, giữ [TẠM]) ──
+  $('dh_dai').innerHTML = dai ? veDai(dai) : '<div class="dh-empty">Chưa lấy được dải số.</div>'
+  // ── KHỐI 4 · XƯỞNG (tải tuần theo tổ + đang SX + món tắc quét) ──
+  const taiRows = Array.isArray(tai) ? tai : (tai && tai.ds) || []
+  $('dh_xuong').innerHTML =
+    '<div class="dh-stats">'
+    + oStat('Đơn đang sản xuất', dh ? dh.sx_dang : '—', 'đang chạy trên chuyền')
+    + oClick('xuong_tac', 'Đơn có món tắc quét', dh ? dh.so_don_sx_tac : 0, '>' + (dh ? dh.nguong_sx_lang : 2) + ' ngày không quét', '')
+    + oStat('Tổ có lịch tuần này', taiRows.length, 'nguồn Tải & lịch')
+    + '</div><div class="dh-list" id="dh_xuong_list" style="display:none"></div>'
+  if ($('xuong_tac') && dh) $('xuong_tac').onclick = () => moDs('dh_xuong_list', $('xuong_tac'),
+    (dh.sx_tac || []).map(s => `<div class="dh-row-tac"><b>${escH(s.ma_don)}</b><span>${escH(s.ten_khach)}</span><span>lặng <b>${s.lang}</b> ngày · ${s.so_tem} tem</span><span class="hint">${escH(s.to || '—')}</span></div>`))
+  // ── KHỐI 5 · TIỀN ──
+  $('dh_tien').innerHTML =
+    '<div class="dh-stats">'
+    + oStat('Còn phải thu (đã giao)', fmt(dh ? dh.phai_thu_tong : 0) + ' đ', 'tổng công nợ đã giao')
+    + oClick('tien_giao', 'Đơn đã giao chưa thu đủ', dh ? dh.so_don_giao_no : 0, '', '')
+    + oStat('Giá trị tồn kho', fmt(dh ? dh.ton_gia_tri : 0) + ' đ', 'nguồn kho.ton')
+    + '</div><div class="dh-list" id="dh_tien_list" style="display:none"></div>'
+  if ($('tien_giao') && dh) $('tien_giao').onclick = () => moDs('dh_tien_list', $('tien_giao'),
+    (dh.giao_chua_thu || []).map(g => `<div class="dh-row-tac"><b>${escH(g.ma_don)}</b><span>${escH(g.ten_khach)}</span><span>còn <b>${fmt(g.con_thu)}</b> đ</span><span class="hint">giao ${escH(g.ngay_giao || '')}</span></div>`))
+}
+function oStat(lbl, big, sub) { return `<div class="dh-o"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></div>` }
+function oClick(id, lbl, big, sub, cls) { return `<button class="dh-o click ${cls || ''}" id="${id}" data-n="${big}"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></button>` }
+function moDs(listId, oEl, rowsHtml) {
+  const box = $(listId), on = box.style.display !== 'none' && box.dataset.for === oEl.id
+  document.querySelectorAll('#tc .dh-o.on').forEach(e => e.classList.remove('on'))
+  if (on) { box.style.display = 'none'; return }
+  box.dataset.for = oEl.id; oEl.classList.add('on'); box.style.display = 'block'
+  box.innerHTML = rowsHtml.length ? rowsHtml.join('') : '<div class="dh-empty">Không có đơn nào.</div>'
+}
+function moPheu(gd, list) {
+  moDs('dh_pheu_list', $('pheu_' + gd),
+    list.map(b => `<div class="dh-row-tac"><b>${escH(b.ma_don)}</b><span>${escH(b.ten_khach)}</span><span>${escH((b.mon_ten || '—'))}${b.so_mon > 1 ? ' +' + (b.so_mon - 1) : ''}</span><span class="hint">${fmt(b.tien)} đ</span></div>`))
+}
+function veDai(dai) {
+  const NG = dai.nguong_tam || 30, pctS = v => v == null ? '—' : (Math.round(v * 1000) / 10).toString().replace('.', ',') + '%'
+  const tam = n => n < NG ? `<span class="dh-tam" title="Mẫu nhỏ (${n} đơn) — chưa đủ kết luận">TẠM · n=${n}</span>` : ''
+  const o = (lbl, val, n, sub) => `<div class="dh-o"><div class="lbl">${escH(lbl)}</div><div class="big" style="${n < NG ? 'color:#98A2B3' : ''}">${val}</div>${sub ? '<div class="sub">' + escH(sub) + '</div>' : ''}${tam(n)}</div>`
+  const s1 = dai.so1_thua_gia, s2 = dai.so2_hoi_den_gia, s3 = dai.so3_chot_theo_treo, s4 = dai.so4_vong_sua, s5 = dai.so5_chot_tu_dung, s6 = dai.so6_theo_sale || []
+  const top = s6[0]
+  return '<div class="dh-stats">'
+    + o('① Thua vì giá', s1 && s1.ti_le != null ? pctS(s1.ti_le) : '—', s1 ? s1.n : 0, s1 ? s1.thua_gia + '/' + s1.tong_thua + ' đơn thua' : '')
+    + o('② Hỏi → thấy giá', s2 && s2.trung_vi_ngay != null ? (String(s2.trung_vi_ngay).replace('.', ',') + ' ngày') : '—', s2 ? s2.n : 0, 'trung vị')
+    + o('③ Chốt 7·14·25 ngày', s3 ? (pctS(s3.d7) + '·' + pctS(s3.d14) + '·' + pctS(s3.d25)) : '—', s3 ? s3.n : 0, '')
+    + o('④ Vòng sửa (có/không NC)', s4 ? ((s4.co_nhu_cau.tb == null ? '—' : s4.co_nhu_cau.tb) + ' / ' + (s4.khong.tb == null ? '—' : s4.khong.tb)) : '—', s4 ? s4.co_nhu_cau.n + s4.khong.n : 0, 'có ghi / không')
+    + o('⑤ Chốt tự-dựng/giao-TK', s5 ? (pctS(s5.tu_dung.ti_le) + ' / ' + pctS(s5.giao_tk.ti_le)) : '—', s5 ? s5.tu_dung.n + s5.giao_tk.n : 0, '')
+    + o('⑥ Theo sale', top ? (escH(top.sale) + ': ' + pctS(top.ti_le_chot)) : '—', top ? top.n : 0, s6.length > 1 ? '+' + (s6.length - 1) + ' sale' : '')
+    + '</div>'
 }
 
 // ── QUẢN LÝ TÀI KHOẢN (chỉ ceo — RPC guard fail-đóng; ghi THẲNG DB) ──

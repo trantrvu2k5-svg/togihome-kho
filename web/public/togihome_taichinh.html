@@ -37,6 +37,20 @@
   #tc .pager { display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 18px;font-size:13px;color:var(--muted,#6B7488) }
   #tc .pager button { padding:6px 12px;border:1px solid #D3D9E4;border-radius:8px;background:#fff;cursor:pointer;font-size:13px }
   #tc .pager button:disabled { opacity:.4;cursor:default }
+  /* L-69 tab Điều hành */
+  #tc .dh-stats { display:flex;flex-wrap:wrap;gap:8px }
+  #tc .dh-o { flex:1 1 150px;min-width:150px;padding:9px 11px;border:1px solid var(--vi,#E3E7EF);border-radius:9px;background:#fff;text-align:left;cursor:default;font:inherit }
+  #tc .dh-o.click { cursor:pointer }
+  #tc .dh-o.click:hover { border-color:#9Fb1CE;background:#F7F9FC }
+  #tc .dh-o.on { border-color:var(--pri,#C8202E);box-shadow:0 0 0 3px rgba(200,32,46,.12) }
+  #tc .dh-o .lbl { font-size:11px;color:#6B7488 }
+  #tc .dh-o .big { font-size:18px;font-weight:700;margin-top:2px }
+  #tc .dh-o .sub { font-size:10.5px;color:#98A2B3;margin-top:1px }
+  #tc .dh-list { margin-top:10px;border-top:1px dashed #D7DDE8;padding-top:8px }
+  #tc .dh-list table { width:100% }
+  #tc .dh-row-tac { display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 12px;padding:7px 0;border-bottom:1px solid #EEF1F6;font-size:13px;align-items:center }
+  #tc .dh-tam { display:inline-block;font-size:10px;font-weight:700;color:#8A6D1B;background:#FFF4D6;border:1px solid #EAD8A0;border-radius:4px;padding:0 5px;margin-top:3px }
+  #tc .dh-empty { color:#98A2B3;font-size:13px;padding:6px 0 }
   #tc .cardft { padding:10px 18px; border-top:1px solid var(--bd2); font-size:11.5px; color:var(--mut); line-height:1.6; background:var(--raise); }
   #tc .sec { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--fnt); margin:2px 0 9px; }
   /* ── form ── */
@@ -115,7 +129,8 @@
     <div class="brand">Togihome</div>
     <div class="brandsub">Tài chính</div>
     <div class="navsec">Khu vực</div>
-    <button class="navi on" data-tab="ban">Định giá bán</button>
+    <button class="navi on" data-tab="dieuhanh">Điều hành</button>
+    <button class="navi" data-tab="ban">Định giá bán</button>
     <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
@@ -128,8 +143,24 @@
       <span class="subline" style="margin:0">Đổi kỳ → mọi số tính lại theo kỳ đã chọn.</span>
     </div>
 
+    <!-- ══════════ TAB 0 · ĐIỀU HÀNH (CEO nhìn, chỉ ĐỌC — L-69) ══════════ -->
+    <div class="tabp on" id="tab-dieuhanh">
+      <h1>Điều hành</h1>
+      <div class="subline">Gom số đã có về một màn để CEO nhìn mỗi sáng — <b>chỉ đọc</b>. Ô nào bấm được thì mở danh sách đúng ô. Đây là màn NHÌN, <b>chưa phải màn Phân tích</b>.</div>
+      <section class="card"><div class="ch"><h2>1 · Đang tắc</h2><span class="hint" id="dh_tac_ng">đơn đứng yên quá ngưỡng ở bất kỳ khâu nào</span></div>
+        <div class="cb" id="dh_tac">Đang tải…</div></section>
+      <section class="card"><div class="ch"><h2>2 · Phễu báo giá</h2><span class="hint">nguồn: sale_bao_gia_ds (giai đoạn = gd, cùng câu với màn Báo giá)</span></div>
+        <div class="cb" id="dh_pheu"></div></section>
+      <section class="card"><div class="ch"><h2>3 · Dải 6 số bán hàng</h2><span class="hint">nguồn: sale_dai_so_bao_gia (db/099) · giữ nhãn [TẠM·n]</span></div>
+        <div class="cb" id="dh_dai"></div></section>
+      <section class="card"><div class="ch"><h2>4 · Xưởng</h2><span class="hint">nguồn: tai_theo_to_tuan (Tải &amp; lịch v-kho-79) + dieu_hanh_bang</span></div>
+        <div class="cb" id="dh_xuong"></div></section>
+      <section class="card"><div class="ch"><h2>5 · Tiền</h2><span class="hint">nguồn: dieu_hanh_bang (còn phải thu · đã giao chưa thu) + kho.ton (giá trị tồn)</span></div>
+        <div class="cb" id="dh_tien"></div></section>
+    </div>
+
     <!-- ══════════ TAB 1 · ĐỊNH GIÁ BÁN ══════════ -->
-    <div class="tabp on" id="tab-ban">
+    <div class="tabp" id="tab-ban">
       <h1>Định giá & niêm yết</h1>
       <div class="subline">Tính thử nhanh, tham số kỳ, hệ số nhân, bảng giá, chốt niêm yết. Mọi số do DB tính.</div>
 
