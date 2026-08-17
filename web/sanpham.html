@@ -233,6 +233,12 @@ select{cursor:pointer}
   #s-quytrinh .hd-dong{grid-template-columns:1fr;gap:5px}
   #s-quytrinh .hd-dong .s{text-align:left}
 }
+/* SỐ BÁN THEO DÒNG (L-74) — tiền tố spb- */
+.spb-khoi{background:#fff;border:1px solid var(--vien,#E3E6EC);border-radius:12px;padding:14px 16px;margin-bottom:14px}.spb-khoi h3{margin:0 0 10px;font-size:15px}
+.spb-hint{font-weight:400;color:var(--chu-mo,#9CA3AF);font-size:11.5px;margin-left:8px}
+.spb-wrap{overflow-x:auto}.spb-tbl{width:100%;border-collapse:collapse;font-size:13px}.spb-tbl th,.spb-tbl td{padding:7px 9px;border-bottom:1px solid var(--vien,#E3E6EC);text-align:left;white-space:nowrap}.spb-tbl th{color:var(--chu-nhat,#6B7280);font-weight:600;font-size:11.5px}.spb-num{text-align:right;font-variant-numeric:tabular-nums}
+.spb-tam{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;color:#8A6D1B;background:#FFF4D6;border:1px solid #EAD8A0;border-radius:4px;padding:0 4px}
+.spb-rong{color:var(--chu-mo,#9CA3AF);padding:8px 0;font-style:italic}
 </style>
 </head>
 <body>
@@ -243,6 +249,7 @@ select{cursor:pointer}
       <div class="thanh-ten">Togihome Sản phẩm<span>Ba tầng · lõi · biến thể · niêm yết</span></div>
       <button class="thanh-muc chon" id="n-cay" data-tab="cay"><i>🌳</i>Cây sản phẩm<em id="emCay"></em></button>
       <button class="thanh-muc" id="n-ds" data-tab="ds"><i>📋</i>Danh sách</button>
+      <button class="thanh-muc" id="n-soban" data-tab="soban" style="display:none"><i>📈</i>Số bán theo dòng</button>
       <button class="thanh-muc" id="n-quytrinh" data-tab="quytrinh" style="display:none"><i>⚙️</i>Quy trình<em id="emQuytrinh"></em></button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
     </nav>
@@ -280,6 +287,14 @@ select{cursor:pointer}
           <div class="ds" id="qtDs"></div>
           <div id="qtPhai"></div>
         </div>
+      </section>
+
+      <!-- ═════════ SỐ BÁN THEO DÒNG (ceo/ke_toan — L-74, chỉ đọc) ═════════ -->
+      <section id="s-soban" style="display:none">
+        <div class="spb-khoi"><h3>1 · Theo dòng / thương hiệu <span class="spb-hint">90 ngày · nguồn don_hang + don_hang_mon · [TẠM] khi n&lt;30</span></h3>
+          <div class="spb-wrap" id="spb-dong">Đang tải…</div></div>
+        <div class="spb-khoi"><h3>2 · Món tự do lặp lại <span class="spb-hint">tên KHÔNG khớp catalog, xuất hiện ≥2 lần (chuẩn hoá chữ thường + gộp dấu cách) → ứng viên đưa vào catalog</span></h3>
+          <div class="spb-wrap" id="spb-mon"></div></div>
       </section>
     </div></main>
   </div>

@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
+window.__sb = sb   // L-74: phơi client cho kiểm chéo RPC
 
 const VAI_VAO = ['ceo', 'ke_toan', 'thiet_ke']   // thiet_ke vào cho tab Quy trình
 const TEN_VAI = { ceo: 'CEO', ke_toan: 'Kế toán', thiet_ke: 'Thiết kế sản xuất' }
@@ -81,6 +82,7 @@ async function capApp() {
   // tab theo vai: Cây/Danh sách cho ceo/ke_toan · Quy trình cho ceo/thiet_ke
   $('n-cay').style.display = laCatalog() ? '' : 'none'
   $('n-ds').style.display = laCatalog() ? '' : 'none'
+  $('n-soban').style.display = laCatalog() ? '' : 'none'   // L-74: Số bán theo dòng — ceo/ke_toan
   $('n-quytrinh').style.display = laQT() ? '' : 'none'
   if (laCatalog()) await napOptions()
   di(laCatalog() ? 'cay' : 'quytrinh')
@@ -88,13 +90,31 @@ async function capApp() {
 
 function di(tab) {
   if (tab === 'quytrinh' && !laQT()) return
-  if ((tab === 'cay' || tab === 'ds') && !laCatalog()) return
+  if ((tab === 'cay' || tab === 'ds' || tab === 'soban') && !laCatalog()) return
   TAB = tab
   document.querySelectorAll('.thanh-muc').forEach(b => b.classList.toggle('chon', b.dataset.tab === tab))
   $('s-cay').style.display = tab === 'cay' ? '' : 'none'
   $('s-ds').style.display = tab === 'ds' ? '' : 'none'
+  $('s-soban').style.display = tab === 'soban' ? '' : 'none'
   $('s-quytrinh').style.display = tab === 'quytrinh' ? '' : 'none'
-  if (tab === 'cay') veCay(); else if (tab === 'ds') veDanhSach(); else if (tab === 'quytrinh') veQuyTrinh()
+  if (tab === 'cay') veCay(); else if (tab === 'ds') veDanhSach(); else if (tab === 'soban') taiSoBan(); else if (tab === 'quytrinh') veQuyTrinh()
+}
+// ── L-74: SỐ BÁN THEO DÒNG (ceo/ke_toan, chỉ đọc) — 2 khối từ sp_so_ban. Class spb-. ──
+async function taiSoBan() {
+  if (!laCatalog()) return
+  const { data, error } = await sb.rpc('sp_so_ban', { p_ngay: 90, p_gioi_han: 50 })
+  if (error) { $('spb-dong').innerHTML = `<div class="spb-rong">Lỗi: ${esc(error.message)}</div>`; return }
+  const NGT = data.nguong_tam || 30
+  const pct = v => v == null ? '—' : (Math.round(v * 1000) / 10).toString().replace('.', ',') + '%'
+  // KHỐI 1 · theo dòng × thương hiệu
+  $('spb-dong').innerHTML = '<table class="spb-tbl"><thead><tr><th>Dòng</th><th>Thương hiệu</th><th class="spb-num">Báo giá</th><th class="spb-num">Chốt</th><th class="spb-num">Tỉ lệ</th><th class="spb-num">Giá trị TB</th></tr></thead><tbody>'
+    + ((data.theo_dong || []).map(r => `<tr><td>${esc(r.dong)}${r.n < NGT ? '<span class="spb-tam">TẠM n=' + r.n + '</span>' : ''}</td><td>${esc(r.thuong_hieu)}</td><td class="spb-num">${r.bao_gia}</td><td class="spb-num">${r.chot}</td><td class="spb-num">${pct(r.ti_le)}</td><td class="spb-num">${r.gia_tri_tb == null ? '—' : tien(r.gia_tri_tb)}</td></tr>`).join('')
+      || '<tr><td colspan="6" class="spb-rong">Chưa có báo giá trong 90 ngày.</td></tr>') + '</tbody></table>'
+  // KHỐI 2 · món tự do lặp
+  $('spb-mon').innerHTML = '<table class="spb-tbl"><thead><tr><th>Tên món (chuẩn hoá)</th><th class="spb-num">Số lần</th><th>Lần gần nhất</th></tr></thead><tbody>'
+    + ((data.mon_lap || []).map(r => `<tr><td>${esc(r.ten)}</td><td class="spb-num">${r.so_lan}</td><td>${r.gan_nhat ? new Date(r.gan_nhat).toLocaleDateString('vi-VN') : '—'}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="spb-rong">Chưa có món tự do nào lặp ≥2 lần.</td></tr>')
+    + '</tbody></table><div class="spb-hint" style="margin-top:8px">Chỉ danh sách ứng viên — thêm sản phẩm vào catalog là quy trình riêng (không tự thêm ở đây).</div>'
 }
 // modal chung (dùng #mo/#hopM có sẵn)
 function moModal(ten, thanHtml, nutHtml) { $('hopMTen').textContent = ten; $('hopMThan').innerHTML = thanHtml; $('hopMNut').innerHTML = nutHtml || ''; $('mo').classList.add('hien'); $('hopM').classList.add('hien') }
