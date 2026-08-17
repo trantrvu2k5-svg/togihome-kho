@@ -2,7 +2,7 @@
 
 ---
 
-## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-93)
+## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-94)
 
 **Nền kho (1–15):** 1 chuyển 12 bảng sang schema kho · 2 web 6 màn + đăng nhập · 4 lô mở đầu ván theo kiểm kê · 5 vá focus + cổng bí mật + deploy Cloudflare · 6 tồn tươi từ máy chủ · 7 thợ đăng nhập mã cá nhân + siết policy vai · 8 bỏ đường vào của thợ · 9–10 ảnh vật tư về bucket, hết phụ thuộc Drive · 11 bố cục điện thoại · 12 hướng dẫn có ảnh tự sinh · 13 xuất kho FIFO + huỷ bằng phiếu ngược · 14–15 bảng quy đổi mã thiết kế↔kho + hàm cho plugin đọc.
 
@@ -27,6 +27,8 @@
 **Điều hành + chủ đơn (90):** **90 (L-69+L-71):** ① **tab Điều hành** app Tài chính (ceo/ke_toan, tab đầu, chỉ đọc) — 5 khối gom số sẵn (Đang tắc · Phễu · Dải 6 số · Xưởng · Tiền), RPC `dieu_hanh_bang` (SX-tắc/giao-nợ/tồn) + nới guard sale_bao_gia_ds/sale_dai_so_bao_gia +ke_toan; ô bấm mở list (ô==list); sale chặn. ② **chủ đơn** `don_hang.sale_phu_trach` (mỗi đơn một sale, vá nợ L-45): tự gán = người tạo (trigger), backfill nhật ký, đổi chủ `doi_sale_phu_trach` (trưởng nhóm/ceo); siết chuông + màn Báo giá theo chủ (sale chỉ đơn mình); app lọc "Ai phụ trách" + chi tiết chủ. QD-26.
 
 **Sáu ghế nhìn số + dọn web (91–93):** **91 (L-72):** màn **"Nhóm của tôi"** app Sale (trưởng nhóm sale) — tắc nhóm + phễu theo người + số theo người 30 ngày (`nhom_so_nguoi`); đổi chủ tại chỗ. **92 (L-73):** khối **"Nhóm"** app Thiết kế (trưởng nhóm TK) — việc/giờ-ước-thực/chất-lượng-bản (`tk_nhom`); db/103 mở whitelist gán vai truong_nhom_thiet_ke. **93 (L-74+L-77):** ① app Xưởng **"Nhìn lại"** (quản đốc: giờ chuẩn-vs-thực theo tổ · lỗi&làm-lại · tắc quét — `xuong_nhin_lai`, không tiền) · ② app Sản phẩm **"Số bán theo dòng"** (`sp_so_ban`) · ③ Tài chính **công nợ gom theo khách** (`dieu_hanh_cong_no_khach`) · ④ **dọn 100 SP web test** (xoá 100 lõi/272 biến thể/272 niêm yết, backup ~/Downloads; số rác "Bán/tuần 2116" = cột web-scrape, không phải lỗi tính) · ⑤ **tầng dòng** `dong_san_pham` (10 dòng) + `san_pham_loi.dong_id` (db/105). Tài khoản kiểm: test_tns_kiem · test_tntk_kiem · test_xuong_kiem.
+
+**SP chuẩn từ đầu (94):** **94 (L-77):** BỎ 100 SP web test (xoá 100 lõi/272 biến thể/272 niêm yết, backup; số rác "Bán/tuần 2116" = cột web-scrape) · **tầng dòng** dong_san_pham 11 dòng (TA/GN/BLV/HB/BT/HK/KE/TG/BA/TD/TB) + san_pham_loi.dong_id · **form "+ Thêm SP" 3 bước** (lõi→biến thể→niêm yết): mã tự sinh <dong>-NNN từ chuoi_so, tên 3 kênh (website 60-90 / sàn TMĐT 100-120 / nội bộ=mã) ghép theo luật skill + self-check 7 nguyên tắc + cảnh báo trùng · Cây nhóm theo dòng gập/mở · **demo 12 lõi/24 biến thể** seed QUA RPC từ file luật cấu tạo (tủ 2/3/4 cánh · giường UD9A · BLV005/7/8 · NORDLI · OY4V · OV2V), giá [TẠM]. db/105·106. Nợ mở: 200 ảnh bucket mồ côi chờ CEO xoá (cần service_role).
 
 *(Không có tag v-kho-3, 63, **83** (cụm màn Báo giá treo từ L-48 nên nhảy 82→84), **89** (nhảy 88→90 lô L-72); các số L-xx trong commit là số LỆNH, khác số tag.)*
 
