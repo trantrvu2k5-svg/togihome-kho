@@ -1953,6 +1953,93 @@ const seed = () => {
 let BG_KIEU = "ds"; // nhớ kiểu nhìn trong phiên
 const BG_NHAN = { chua_nhan: "Chưa nhận", dang_dung: "Đang dựng", ban_moi: "Bản mới chưa gửi", da_gui: "Đã gửi khách", sua_gop_y: "Khách chê", du_len_don: "Khách duyệt", thua: "Thua", treo: "Treo" };
 const BG_LOAI = { le_sang: ["Lẻ", "bg-nl-le"], le_rieng: ["Lẻ riêng", "bg-nl-le"], combo: ["Combo", "bg-nl-combo"], combo_moi: ["Combo mới", "bg-nl-combo"], full_can: ["Full căn", "bg-nl-full"], bao_hanh: ["Bảo hành", "bg-nl-bh"], cat_lai: ["Cắt lại", "bg-nl-bh"] };
+// ── L-72: MÀN "NHÓM CỦA TÔI" (truong_nhom_sale/ceo) — chỉ đọc + 2 hành động sẵn (đổi chủ · mở đơn). Class nh-.
+const NH_CSS = ".nh-man{padding:18px 22px;max-width:1100px}.nh-hdr h1{margin:0;font-size:20px}.nh-hdr p{margin:2px 0 14px;color:#6B7488;font-size:13px}"
+  + ".nh-khoi{background:#fff;border:1px solid #E3E7EF;border-radius:12px;padding:14px 16px;margin-bottom:14px}.nh-khoi h3{margin:0 0 10px;font-size:15px}.nh-hint{font-weight:400;color:#98A2B3;font-size:12px;margin-left:8px}"
+  + ".nh-tac{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #EEF1F6}.nh-tac-info{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:13px}.nh-cua{color:#C8202E;font-size:12px}.nh-tac-o{color:#6B7488}"
+  + ".nh-tac-act,.nh-doi{display:flex;gap:6px;align-items:center}.nh-btn{padding:5px 11px;border:1px solid #D3D9E4;border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px}.nh-btn.pri{background:#131A2B;color:#fff;border:0}.nh-doi select{padding:5px;border:1px solid #D3D9E4;border-radius:8px;max-width:170px}"
+  + ".nh-tbl-wrap{overflow-x:auto}.nh-tbl{width:100%;border-collapse:collapse;font-size:13px}.nh-tbl th,.nh-tbl td{padding:7px 9px;border-bottom:1px solid #EEF1F6;text-align:left;white-space:nowrap}.nh-tbl th{color:#6B7488;font-weight:600;font-size:11.5px}.nh-num{text-align:right;font-variant-numeric:tabular-nums}.nh-null td{background:#FAFAFB;color:#8A94A6;font-style:italic}"
+  + ".nh-tam{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:700;color:#8A6D1B;background:#FFF4D6;border:1px solid #EAD8A0;border-radius:4px;padding:0 4px}.nh-rong{color:#98A2B3;padding:10px 0;text-align:center}.nh-tai{padding:30px;color:#6B7488}";
+function NhomMan({ db, moDon, reload }) {
+  const el = React.createElement;
+  const [bg, setBg] = useState(null), [so, setSo] = useState(null);
+  const [doiFor, setDoiFor] = useState(null), [doiNs, setDoiNs] = useState("");
+  const tai = () => {
+    if (!window.saleApi) { setBg({ ds: [] }); return; }
+    window.saleApi.baoGiaDs(2000).then(r => setBg(r)).catch(() => setBg({ ds: [] }));
+    window.saleApi.nhomSoNguoi().then(r => setSo(r)).catch(() => setSo({ ds: [] }));
+  };
+  useEffect(() => { tai(); }, []);
+  const tr = n => n == null ? "—" : (n / 1e6).toFixed(1) + " tr";
+  const pctS = v => v == null ? "—" : (Math.round(v * 1000) / 10).toString().replace(".", ",") + "%";
+  if (!bg) return el("div", { className: "nh-man" }, el("style", null, NH_CSS), el("div", { className: "nh-tai" }, "Đang tải…"));
+  const ds = bg.ds || [];
+  const roster = (db.users || []).filter(u => ["sale", "truong_nhom_sale", "tk_ban_hang"].includes(u.mau) && u.on);
+  // ── KHỐI 1 · TẮC CỦA NHÓM (đúng ngưỡng "Đang tắc" khúc báo giá của tab Điều hành + vế "của ai") ──
+  const NG = { chua_nhan: 3, ban_moi: 2, da_gui: 4, treo: 25 };
+  const tac = [];
+  ds.forEach(b => {
+    if (b.gd === "chua_nhan" && b.mo_ngay > NG.chua_nhan) tac.push({ b, o: "Chưa ai nhận dựng", ngay: b.mo_ngay });
+    else if (b.gd === "ban_moi" && b.mo_ngay > NG.ban_moi) tac.push({ b, o: "Bản chưa gửi khách", ngay: b.mo_ngay });
+    else if (b.gd === "da_gui" && b.cho_khach > NG.da_gui) tac.push({ b, o: "Chờ khách trả lời", ngay: b.cho_khach });
+    else if (b.gd === "treo" && b.mo_ngay > NG.treo) tac.push({ b, o: "Treo quá lâu", ngay: b.mo_ngay });
+  });
+  tac.sort((a, b) => b.ngay - a.ngay);
+  const luuDoi = async ma => {
+    if (!doiNs) return;
+    try { await window.saleApi.doiSalePhuTrach(ma, doiNs, "màn Nhóm"); setDoiFor(null); setDoiNs(""); tai(); if (reload) reload(); }
+    catch (e) { alert(e.message); }
+  };
+  const khoi1 = el("section", { className: "nh-khoi" },
+    el("h3", null, "1 · Tắc của nhóm", el("span", { className: "nh-hint" }, tac.length + " đơn · nguồn sale_bao_gia_ds")),
+    tac.length ? tac.map(({ b, o, ngay }) => el("div", { className: "nh-tac", key: b.ma_don },
+      el("div", { className: "nh-tac-info" }, el("b", null, b.ma_don), el("span", null, b.ten_khach),
+        el("span", { className: "nh-cua" }, "của " + (b.sale_ten || "(chưa gán)")),
+        el("span", { className: "nh-tac-o" }, o + " · " + ngay + " ngày")),
+      doiFor === b.ma_don
+        ? el("div", { className: "nh-doi" },
+            el("select", { value: doiNs, onChange: e => setDoiNs(e.target.value) },
+              [el("option", { key: "", value: "" }, "— chọn người —")].concat(roster.map(u => el("option", { key: u.id, value: u.id }, u.ten)))),
+            el("button", { className: "nh-btn pri", onClick: () => luuDoi(b.ma_don) }, "Lưu"),
+            el("button", { className: "nh-btn", onClick: () => setDoiFor(null) }, "Huỷ"))
+        : el("div", { className: "nh-tac-act" },
+            el("button", { className: "nh-btn", id: "nh-mo-" + b.ma_don, onClick: () => moDon(b.ma_don) }, "Mở đơn"),
+            el("button", { className: "nh-btn", onClick: () => { setDoiFor(b.ma_don); setDoiNs(""); } }, "Đổi người phụ trách")))
+    ) : el("div", { className: "nh-rong" }, "Nhóm không có đơn nào đang tắc. 🎉"));
+  // ── KHỐI 2 · PHỄU THEO NGƯỜI (group bg theo chủ; NULL chủ hàng cuối; tổng hàng == tổng phễu) ──
+  const GD = [["chua_nhan", "Chưa nhận"], ["ban_moi", "Bản mới"], ["da_gui", "Đã gửi"], ["sua_gop_y", "Khách chê"], ["du_len_don", "Duyệt"], ["dang_dung", "Đang dựng"], ["thua", "Thua"], ["treo", "Treo"]];
+  const byNg = {};
+  ds.forEach(b => {
+    const key = b.sale_phu_trach || "__null__";
+    if (!byNg[key]) byNg[key] = { ten: b.sale_ten || "(chưa gán · demo/cũ)", g: {}, mo: 0, tien: 0 };
+    byNg[key].g[b.gd] = (byNg[key].g[b.gd] || 0) + 1;
+    if (!["thua", "treo"].includes(b.gd)) { byNg[key].mo++; byNg[key].tien += Number(b.tien) || 0; }
+  });
+  const ngKeys = Object.keys(byNg).sort((a, b) => a === "__null__" ? 1 : b === "__null__" ? -1 : byNg[b].mo - byNg[a].mo);
+  const khoi2 = el("section", { className: "nh-khoi" },
+    el("h3", null, "2 · Phễu theo người", el("span", { className: "nh-hint" }, "cùng oCond màn Báo giá, group theo chủ")),
+    el("div", { className: "nh-tbl-wrap" }, el("table", { className: "nh-tbl", id: "nh-pheu" },
+      el("thead", null, el("tr", null, el("th", null, "Sale"), ...GD.map(g => el("th", { key: g[0] }, g[1])), el("th", { className: "nh-num" }, "Đang mở"), el("th", { className: "nh-num" }, "Giá trị mở"))),
+      el("tbody", null, ngKeys.length ? ngKeys.map(k => el("tr", { key: k, className: k === "__null__" ? "nh-null" : "" },
+        el("td", null, byNg[k].ten), ...GD.map(g => el("td", { key: g[0], className: "nh-num" }, byNg[k].g[g[0]] || 0)),
+        el("td", { className: "nh-num" }, byNg[k].mo), el("td", { className: "nh-num" }, tr(byNg[k].tien))))
+        : [el("tr", { key: 0 }, el("td", { colSpan: 11, className: "nh-rong" }, "Chưa có báo giá."))]))));
+  // ── KHỐI 3 · SỐ THEO NGƯỜI 30 NGÀY (nhom_so_nguoi; [TẠM·n]; không giá vốn) ──
+  const soDs = (so && so.ds) || [], NGT = (so && so.nguong_tam) || 30;
+  const khoi3 = el("section", { className: "nh-khoi" },
+    el("h3", null, "3 · Số theo người", el("span", { className: "nh-hint" }, (so ? so.so_ngay : 30) + " ngày · [TẠM] khi n<" + NGT + " · không giá vốn")),
+    el("div", { className: "nh-tbl-wrap" }, el("table", { className: "nh-tbl", id: "nh-so" },
+      el("thead", null, el("tr", null, el("th", null, "Sale"), el("th", { className: "nh-num" }, "Tạo"), el("th", { className: "nh-num" }, "Chốt"), el("th", { className: "nh-num" }, "Tỉ lệ"), el("th", { className: "nh-num" }, "Giá trị TB"), el("th", { className: "nh-num" }, "Hỏi→gửi (ngày)"))),
+      el("tbody", null, soDs.length ? soDs.map((s, i) => el("tr", { key: i },
+        el("td", null, s.sale, s.n < NGT ? el("span", { className: "nh-tam" }, "TẠM n=" + s.n) : null),
+        el("td", { className: "nh-num" }, s.tao), el("td", { className: "nh-num" }, s.chot),
+        el("td", { className: "nh-num" }, pctS(s.ti_le)), el("td", { className: "nh-num" }, tr(s.gia_tri_tb)),
+        el("td", { className: "nh-num" }, s.hoi_gui_tb == null ? "—" : String(s.hoi_gui_tb).replace(".", ","))))
+        : [el("tr", { key: 0 }, el("td", { colSpan: 6, className: "nh-rong" }, "Chưa có báo giá trong 30 ngày."))]))));
+  return el("div", { className: "nh-man" }, el("style", null, NH_CSS),
+    el("div", { className: "nh-hdr" }, el("h1", null, "Nhóm của tôi"), el("p", null, "Đơn của cả nhóm — chỉ đọc. Đổi người phụ trách + mở đơn tại chỗ.")),
+    khoi1, khoi2, khoi3);
+}
 function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const el = React.createElement;
   const [f, setF] = useState({ tt: initFilter || "can", ai: "", loai: "", th: "", ngay: "", tim: "", ptr: "" });
@@ -2332,10 +2419,11 @@ function App() {
   const MO = {
     don: true,
     bg: true,
+    nhom: ["truong_nhom_sale", "ceo"].includes((window.__saleUser && window.__saleUser.vai_tro) || ""),   // L-72: mục Nhóm CHỈ trưởng nhóm/ceo
     sp: true,
     khach: true
   };
-  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["nhom", "Nhóm"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2427,6 +2515,10 @@ function App() {
     // L-57: mọi thao tác báo giá mở modal TẠI CHỖ (SoDon luôn mount) — KHÔNG nhảy tab. Ngoại lệ DUY NHẤT:
     //   "chot:" (Chuyển thành đơn) rời màn sang Sổ đơn vì từ giây đó nó là đơn.
     moDon: ma => { setMoMa(ma); if (String(ma).slice(0, 5) === "chot:") setTab("don"); },
+    reload: taiBgK
+  }), okTab === "nhom" && /*#__PURE__*/React.createElement(NhomMan, {
+    db,
+    moDon: ma => { setMoMa(ma); },
     reload: taiBgK
   }), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
 }

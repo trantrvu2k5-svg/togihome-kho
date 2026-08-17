@@ -335,6 +335,8 @@ window.saleApi = {
   doiSalePhuTrach: async (maDon, nsMoi, lyDo) => { const { data, error } = await sb.rpc('doi_sale_phu_trach', { p_ma_don: maDon, p_ns_moi: nsMoi, p_ly_do: lyDo || null }); if (error) throw error; return data },
   // Danh sách sale (cho dropdown lọc/đổi chủ) — chỉ vai bán hàng đang hoạt động.
   dsSale: async () => { const { data, error } = await sb.from('nguoi_dung').select('id,ho_ten,vai_tro').in('vai_tro', ['sale', 'truong_nhom_sale', 'tk_ban_hang']).eq('dang_hoat_dong', true).order('ho_ten'); if (error) return []; return data || [] },
+  // Số theo người 30 ngày cho màn Nhóm (db/102) — {ds, so_ngay, nguong_tam}. Guard truong_nhom_sale/ceo. KHÔNG giá vốn.
+  nhomSoNguoi: async (soNgay = 30, gioiHan = 50) => { const { data, error } = await sb.rpc('nhom_so_nguoi', { p_ngay: soNgay, p_gioi_han: gioiHan }); if (error) throw error; return data },
 
   // ── BẢN THIẾT KẾ (db/051) ──
   // đọc danh sách bản + ảnh của 1 đơn (RLS cho sale/thiet_ke/tk_ban_hang/ceo; xuong chỉ bản khach_duyet)
