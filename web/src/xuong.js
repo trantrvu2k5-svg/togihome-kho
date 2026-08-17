@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
+window.__sb = sb   // L-74: phơi client cho kiểm chéo RPC (như sale/tài chính/thiết kế)
 
 const VAI_VAO = ['xuong', 'tho', 'ceo'], TEN_VAI = { xuong: 'Xưởng', tho: 'Thợ', ceo: 'CEO' }
 const BUOC = { cho_cat: 'Chờ cắt', da_cat: 'Đã cắt', dang_lam: 'Đang làm', xong_sx: 'Xong SX', cho_giao: 'Chờ giao' }
@@ -55,7 +56,7 @@ async function capApp() {
   $('btOut').onclick = thoat
   if ($('btOutM')) $('btOutM').onclick = thoat   // nút Thoát ở thanh dưới (mobile — sidebar ẩn ≤819px)
   document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => { if (b.dataset.man) b.onclick = () => di(b.dataset.man) })   // bỏ nút không có data-man (vd Thoát)
-  if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none'; $('n-tl').style.display = 'none'; $('d-tl').style.display = 'none' }   // tho KHÔNG thấy quản đốc / tải & lịch
+  if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none'; $('n-tl').style.display = 'none'; $('d-tl').style.display = 'none'; $('n-nl').style.display = 'none'; $('d-nl').style.display = 'none' }   // tho KHÔNG thấy quản đốc / tải & lịch / nhìn lại (L-74)
   setupTL()
   document.querySelectorAll('.tab button').forEach(b => b.onclick = () => tab(b.dataset.qd))
   document.querySelectorAll('#s-tem .loc button[data-kho]').forEach(b => b.onclick = () => datKho(b.dataset.kho))
@@ -73,13 +74,34 @@ async function capApp() {
   await taiTo(); await taiDon(); await taiViec()
 }
 function di(m) {
-  if ((m === 'qd' || m === 'tl') && USER.vai_tro === 'tho') return
-  ;['viec', 'tram', 'tem', 'dem', 'loi', 'qd', 'tl'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
+  if ((m === 'qd' || m === 'tl' || m === 'nl') && USER.vai_tro === 'tho') return
+  ;['viec', 'tram', 'tem', 'dem', 'loi', 'qd', 'tl', 'nl'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
     $('n-' + k).classList.toggle('chon', k === m); if ($('d-' + k)) $('d-' + k).classList.toggle('chon', k === m) })
   window.scrollTo(0, 0)
   if (m === 'qd') taiQuanDoc()
   if (m === 'tram') taiTram()
   if (m === 'tl') taiTaiLich()
+  if (m === 'nl') taiNhinLai()
+}
+// ── L-74: NHÌN LẠI (Quản đốc, chỉ đọc) — 3 khối từ xuong_nhin_lai. Class xnl-. KHÔNG tiền, chỉ giờ. ──
+async function taiNhinLai() {
+  if (!['xuong', 'ceo'].includes(USER.vai_tro)) return
+  const { data, error } = await sb.rpc('xuong_nhin_lai', { p_ngay: 30, p_gioi_han: 50 })
+  if (error) { $('xnl-gio').innerHTML = `<div class="xnl-rong">Lỗi: ${esc(error.message)}</div>`; return }
+  const g1 = v => v == null ? '—' : (Math.round(v * 10) / 10).toString().replace('.', ',')
+  // KHỐI 1 · giờ chạm tay chuẩn vs thực theo tổ
+  $('xnl-gio').innerHTML = '<table class="xnl-tbl"><thead><tr><th>Tổ</th><th class="xnl-num">Giờ chuẩn</th><th class="xnl-num">Giờ thực</th><th class="xnl-num">Chênh</th></tr></thead><tbody>'
+    + ((data.gio_to || []).map(r => `<tr><td>${esc(r.to)}</td><td class="xnl-num">${g1(r.chuan)}</td><td class="xnl-num">${g1(r.thuc)}</td><td class="xnl-num">${r.chenh_pct == null ? '—' : (r.chenh_pct > 0 ? '+' : '') + g1(r.chenh_pct) + '%'}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="xnl-rong">Chưa có giờ trong 30 ngày.</td></tr>') + '</tbody></table>'
+  // KHỐI 2 · lỗi & làm lại
+  $('xnl-loi').innerHTML = '<table class="xnl-tbl"><thead><tr><th>Loại lỗi</th><th>Tổ</th><th class="xnl-num">Tổng</th><th class="xnl-num">Tuần này</th><th class="xnl-num">Tuần trước</th><th>Xu hướng</th></tr></thead><tbody>'
+    + ((data.loi || []).map(r => `<tr><td>${esc(r.loai_loi)}</td><td>${esc(r.to)}</td><td class="xnl-num">${r.so_luong}</td><td class="xnl-num">${r.tuan_nay}</td><td class="xnl-num">${r.tuan_truoc}</td><td class="xnl-xh xnl-${r.xu_huong === 'tăng' ? 'xau' : r.xu_huong === 'giảm' ? 'tot' : ''}">${r.xu_huong === 'tăng' ? '↑ tăng' : r.xu_huong === 'giảm' ? '↓ giảm' : '→ đứng'}</td></tr>`).join('')
+      || '<tr><td colspan="6" class="xnl-rong">Chưa có lỗi ghi trong 30 ngày. (bảng loi_lam_lai — lần đầu có người đọc)</td></tr>') + '</tbody></table>'
+  // KHỐI 3 · tắc quét (thời gian trôi qua)
+  $('xnl-tac-ng').textContent = `món chưa xong không quét gì quá ${data.nguong_lang} ngày (thời gian TRÔI qua, khác giờ chạm tay ở khối 1) · nguồn tien_do_tem`
+  $('xnl-tac').innerHTML = '<table class="xnl-tbl"><thead><tr><th>Mã đơn</th><th>Khách</th><th class="xnl-num">Lặng (ngày)</th><th class="xnl-num">Số tem</th><th>Tổ đang cầm</th></tr></thead><tbody>'
+    + ((data.tac_quet || []).map(r => `<tr><td><b>${esc(r.ma_don)}</b></td><td>${esc(r.ten_khach)}</td><td class="xnl-num">${r.lang}</td><td class="xnl-num">${r.so_tem}</td><td>${esc(r.to || '—')}</td></tr>`).join('')
+      || '<tr><td colspan="5" class="xnl-rong">Không có món nào tắc quét. 🎉</td></tr>') + '</tbody></table>'
 }
 function tab(w) {
   $('qd-lam').style.display = (w === 'lam') ? 'block' : 'none'; $('qd-kb').style.display = (w === 'kb') ? 'block' : 'none'

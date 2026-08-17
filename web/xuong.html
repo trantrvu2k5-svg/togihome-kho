@@ -446,6 +446,12 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .tl-hop-nut button{padding:12px 20px;border-radius:var(--bo-nho);font-size:15px;font-weight:600}
 .tl-n-huy{border:1px solid var(--vien);background:var(--the)} .tl-n-ok{background:var(--do);color:#fff} .tl-n-ok[disabled]{background:#D3D7DE;color:#8A9099;cursor:not-allowed}
 @media (max-width:1200px){ .tl-dv,.tl-dv-dau{grid-template-columns:1fr;gap:6px} .tl-dv-dau{display:none} .tl-bv{grid-template-columns:1fr;gap:6px} }
+/* NHÌN LẠI (L-74) — tiền tố xnl- */
+.xnl-khoi{background:var(--the);border:1px solid var(--vien);border-radius:12px;padding:14px 16px;margin-bottom:14px}.xnl-khoi h3{margin:0 0 10px;font-size:15px}
+.xnl-hint{font-weight:400;color:var(--chu-mo);font-size:11.5px;margin-left:8px}
+.xnl-wrap{overflow-x:auto}.xnl-tbl{width:100%;border-collapse:collapse;font-size:13px}.xnl-tbl th,.xnl-tbl td{padding:7px 9px;border-bottom:1px solid var(--vien);text-align:left;white-space:nowrap}.xnl-tbl th{color:var(--chu-nhat);font-weight:600;font-size:11.5px}.xnl-num{text-align:right;font-variant-numeric:tabular-nums}
+.xnl-xh{font-weight:600}.xnl-xau{color:var(--do,#C8202E)}.xnl-tot{color:#1B8A4B}
+.xnl-rong{color:var(--chu-mo);padding:8px 0;font-style:italic}
 </style>
 </head>
 <body>
@@ -462,6 +468,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
       <button class="thanh-muc" id="n-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
       <button class="thanh-muc" id="n-qd" data-man="qd"><i>📋</i>Quản đốc</button>
       <button class="thanh-muc" id="n-tl" data-man="tl"><i>📅</i>Tải &amp; lịch</button>
+      <button class="thanh-muc" id="n-nl" data-man="nl"><i>🔎</i>Nhìn lại</button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Thoát</button></div>
     </nav>
 
@@ -614,6 +621,17 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         </div>
       </section>
 
+      <!-- ═════════ NHÌN LẠI (Quản đốc — L-74, chỉ đọc) ═════════ -->
+      <section id="s-nl" style="display:none">
+        <div class="dau"><div><h1>Nhìn lại</h1><p>Số của xưởng 30 ngày qua — chỉ đọc. Nguồn ghi ở từng khối.</p></div></div>
+        <div class="xnl-khoi"><h3>1 · Giờ thực vs chuẩn theo tổ <span class="xnl-hint">giờ CHẠM TAY (không phải thời gian trôi qua — QD-18) · nguồn gio_don_da_tinh moc chuẩn/thực</span></h3>
+          <div class="xnl-wrap" id="xnl-gio">Đang tải…</div></div>
+        <div class="xnl-khoi"><h3>2 · Lỗi &amp; làm lại <span class="xnl-hint">bảng loi_lam_lai · gom loại lỗi × tổ + xu hướng tuần (đầu vào DMAIC)</span></h3>
+          <div class="xnl-wrap" id="xnl-loi"></div></div>
+        <div class="xnl-khoi"><h3>3 · Tắc quét <span class="xnl-hint" id="xnl-tac-ng">món không quét gì quá ngưỡng (thời gian TRÔI qua) · nguồn tien_do_tem</span></h3>
+          <div class="xnl-wrap" id="xnl-tac"></div></div>
+      </section>
+
       <!-- ═════════ TẢI & LỊCH ═════════ -->
       <section id="s-tl" style="display:none">
         <div class="dau"><div><h1>Tải và lịch</h1><p>Bấm một ô để xem việc trong tuần đó. Mặc định chỉ hiện chỗ cần xử.</p></div>
@@ -659,6 +677,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
     <button id="d-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
     <button id="d-qd" data-man="qd"><i>📋</i>Quản đốc</button>
     <button id="d-tl" data-man="tl"><i>📅</i>Tải & lịch</button>
+    <button id="d-nl" data-man="nl"><i>🔎</i>Nhìn lại</button>
     <button id="btOutM"><i>🚪</i>Thoát</button>
   </nav>
 
