@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { nutNhapSo } from './nut_nhap_so.js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
+window.__sb = sb   // L-73: phơi client (như app sale/tài chính) cho kiểm chéo RPC
 
 const VAI_VAO = ['thiet_ke', 'tk_ban_hang', 'ceo', 'truong_nhom_thiet_ke']
 const TEN_VAI = { thiet_ke: 'Thiết kế sản xuất', tk_ban_hang: 'Thiết kế bán hàng', ceo: 'CEO', truong_nhom_thiet_ke: 'Trưởng nhóm thiết kế' }
@@ -100,6 +101,8 @@ async function capApp() {
   })
   // Tab NHẬP SỐ SẢN XUẤT chỉ cho thiet_ke + ceo
   if (['thiet_ke', 'ceo'].includes(USER.vai_tro)) { $('n-nhapso').style.display = ''; $('d-nhapso').style.display = '' }
+  // L-73: mục NHÓM chỉ trưởng nhóm thiết kế + ceo (thiết kế thường không thấy)
+  if (laTruong()) { $('n-nhom').style.display = ''; $('d-nhom').style.display = '' }
   $('nsHdDau').onclick = () => { const t = $('nsHdThan'), n = $('nsHdNhan'); const an = t.style.display !== 'none'; t.style.display = an ? 'none' : 'block'; n.textContent = an ? 'mở ra ▼' : 'thu gọn ▲' }
   $('locVai').onchange = veKanban; $('locNguoi').onchange = veKanban; $('locLoai').onchange = veKanban
   $('chonKy').onchange = taiGio
@@ -153,12 +156,39 @@ function moChuong() {
 }
 function dongChuong() { $('tkcMo').classList.remove('hien'); $('tkcPanel').classList.remove('hien') }
 function di(m) {
-  ;['viec', 'bang', 'gio', 'nhapso'].forEach(k => {
+  ;['viec', 'bang', 'gio', 'nhapso', 'nhom'].forEach(k => {
     $('s-' + k).style.display = (k === m) ? 'block' : 'none'
     const n = $('n-' + k), d = $('d-' + k); if (n) n.classList.toggle('chon', k === m); if (d) d.classList.toggle('chon', k === m)
   })
   window.scrollTo(0, 0)
-  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio(); if (m === 'nhapso') taiNhapSo()
+  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio(); if (m === 'nhapso') taiNhapSo(); if (m === 'nhom') taiNhom()
+}
+
+// ── L-73: khối NHÓM (trưởng nhóm thiết kế) — 3 khối chỉ đọc từ tk_nhom. Class tknh-. ──
+async function taiNhom() {
+  if (!laTruong()) return
+  const { data, error } = await sb.rpc('tk_nhom', { p_ngay: 30, p_gioi_han: 50 })
+  if (error) { $('tknh-viec').innerHTML = `<div class="tknh-rong">Lỗi: ${esc(error.message)}</div>`; return }
+  const pct = v => v == null ? '—' : (Math.round(v * 10) / 10).toString().replace('.', ',') + '%'
+  const gio = v => v == null ? '—' : (Math.round(v * 10) / 10).toString().replace('.', ',')
+  const NGT = data.nguong_tam || 30
+  // KHỐI 1 · việc theo người (phân hoạch)
+  const viec = data.viec || { tong: 0, ds: [] }
+  $('tknh-viec-tong').textContent = viec.tong + ' việc đang thiết kế · nguồn don_hang(ma_ns_thiet_ke,buoc_thiet_ke)+ban_thiet_ke'
+  $('tknh-viec').innerHTML = '<table class="tknh-tbl"><thead><tr><th>Người dựng</th><th class="tknh-num">Đang cầm</th><th class="tknh-num">Chờ lâu nhất (ngày)</th><th class="tknh-num">Đang sửa vòng</th></tr></thead><tbody>'
+    + ((viec.ds || []).map(r => `<tr class="${r.la_orphan ? 'tknh-orphan' : ''}"><td>${esc(r.nguoi)}</td><td class="tknh-num">${r.dang_cam}</td><td class="tknh-num">${r.cho_lau ?? '—'}</td><td class="tknh-num">${r.sua_vong ?? 0}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="tknh-rong">Không có việc nào đang thiết kế.</td></tr>')
+    + '</tbody></table>'
+  // KHỐI 2 · giờ ước vs thực
+  $('tknh-gio').innerHTML = '<table class="tknh-tbl"><thead><tr><th>Người</th><th class="tknh-num">Giờ ước</th><th class="tknh-num">Giờ thực</th><th class="tknh-num">Chênh</th></tr></thead><tbody>'
+    + ((data.gio || []).map(r => `<tr><td>${esc(r.nguoi)}${r.n < NGT ? '<span class="tknh-tam">TẠM n=' + r.n + '</span>' : ''}</td><td class="tknh-num">${gio(r.uoc)}</td><td class="tknh-num">${gio(r.thuc)}</td><td class="tknh-num">${r.chenh_pct == null ? '—' : (r.chenh_pct > 0 ? '+' : '') + pct(r.chenh_pct)}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="tknh-rong">Chưa có giờ trong 30 ngày.</td></tr>')
+    + '</tbody></table>'
+  // KHỐI 3 · chất lượng bản
+  $('tknh-chat').innerHTML = '<table class="tknh-tbl"><thead><tr><th>Người dựng</th><th class="tknh-num">Bản gửi</th><th class="tknh-num">Vòng sửa TB</th><th class="tknh-num">Tỉ lệ duyệt</th><th class="tknh-num">Đơn chốt</th><th class="tknh-num">Đơn thua</th></tr></thead><tbody>'
+    + ((data.chat || []).map(r => `<tr><td>${esc(r.nguoi)}${r.n < NGT ? '<span class="tknh-tam">TẠM n=' + r.n + '</span>' : ''}</td><td class="tknh-num">${r.ban_gui}</td><td class="tknh-num">${r.vong_tb ?? '—'}</td><td class="tknh-num">${pct(r.ti_le_duyet == null ? null : r.ti_le_duyet * 100)}</td><td class="tknh-num">${r.chot}</td><td class="tknh-num">${r.thua}</td></tr>`).join('')
+      || '<tr><td colspan="6" class="tknh-rong">Chưa có bản gửi trong 30 ngày.</td></tr>')
+    + '</tbody></table>'
 }
 
 // ══════════ ① VIỆC CỦA TÔI ══════════

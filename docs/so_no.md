@@ -128,3 +128,6 @@ test_kho_kiem (vai kho) + test_tc_kiem (vai ke_toan): tài khoản kiểm tự �
 
 ## test_tns_kiem — tài khoản kiểm trưởng nhóm sale (L-72)
 test_tns_kiem (vai truong_nhom_sale): tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-72) — để bấm-thật màn "Nhóm của tôi" (app Sale) + đổi chủ đơn các lô sau. Tạo qua RPC chuẩn qly_them_nguoi.
+
+## test_tntk_kiem — tài khoản kiểm trưởng nhóm thiết kế (L-73)
+test_tntk_kiem (vai truong_nhom_thiet_ke): tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-73) — để bấm-thật khối "Nhóm" app Thiết kế. Tạo qua RPC chuẩn qly_them_nguoi (db/103 vừa THÊM 'truong_nhom_thiet_ke' vào whitelist qly_them_nguoi + qly_doi_vai — vai đã có trong guard nhưng trước chưa gán được).

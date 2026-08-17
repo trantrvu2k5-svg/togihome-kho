@@ -362,6 +362,14 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
 .tkc-don-viec{font-size:12.5px;color:var(--chu-nhat);margin-top:2px}
 .tkc-don-ngay{font-size:11px;color:var(--chu-mo);margin-top:2px}
 .tkc-rong{color:var(--chu-mo);font-style:italic;font-size:12.5px;padding:2px 0}
+/* NHÓM thiết kế (L-73) — tiền tố tknh- */
+.tknh-hdr h1{margin:0;font-size:20px}.tknh-hdr p{margin:2px 0 14px;color:var(--chu-nhat);font-size:13px}
+.tknh-khoi{background:var(--the);border:1px solid var(--vien);border-radius:12px;padding:14px 16px;margin-bottom:14px}.tknh-khoi h3{margin:0 0 10px;font-size:15px}
+.tknh-hint{font-weight:400;color:var(--chu-mo);font-size:11.5px;margin-left:8px}
+.tknh-wrap{overflow-x:auto}.tknh-tbl{width:100%;border-collapse:collapse;font-size:13px}.tknh-tbl th,.tknh-tbl td{padding:7px 9px;border-bottom:1px solid var(--vien);text-align:left;white-space:nowrap}.tknh-tbl th{color:var(--chu-nhat);font-weight:600;font-size:11.5px}.tknh-num{text-align:right;font-variant-numeric:tabular-nums}
+.tknh-orphan td{background:var(--do-nhat);font-style:italic;color:var(--chu-nhat)}
+.tknh-tam{display:inline-block;margin-left:5px;font-size:9.5px;font-weight:700;color:#8A6D1B;background:#FFF4D6;border:1px solid #EAD8A0;border-radius:4px;padding:0 4px}
+.tknh-rong{color:var(--chu-mo);padding:8px 0;font-style:italic}
 #s-nhapso .dv .o-nhap{position:relative}
 #s-nhapso .dv input{width:100%;border:1px solid var(--vien);border-radius:var(--bo-nho);padding:9px 60px 9px 11px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700}
 #s-nhapso .dv input:focus{border-color:var(--do);outline:none}
@@ -426,6 +434,7 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
       <button class="thanh-muc" id="n-gio" data-man="gio"><i>📊</i>Giờ &amp; chi phí</button>
       <button class="thanh-muc tkc-nav" id="n-chuong"><i>🔔</i>Chuông<span class="tkc-badge" id="tkcBadge" style="display:none"></span></button>
       <button class="thanh-muc" id="n-nhapso" data-man="nhapso" style="display:none"><i>🔢</i>Nhập số sản xuất</button>
+      <button class="thanh-muc" id="n-nhom" data-man="nhom" style="display:none"><i>👥</i>Nhóm</button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Đăng xuất</button></div>
     </nav>
 
@@ -565,6 +574,17 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
         </div>
       </section>
 
+      <!-- ══════════ NHÓM (trưởng nhóm thiết kế/ceo — L-73) ══════════ -->
+      <section id="s-nhom" style="display:none">
+        <div class="tknh-hdr"><h1>Nhóm thiết kế</h1><p>Số của cả nhóm — chỉ đọc. Nguồn ghi ở từng khối.</p></div>
+        <div class="tknh-khoi"><h3>1 · Việc theo người <span class="tknh-hint" id="tknh-viec-tong"></span></h3>
+          <div class="tknh-wrap" id="tknh-viec">Đang tải…</div></div>
+        <div class="tknh-khoi"><h3>2 · Giờ ước vs thực <span class="tknh-hint">30 ngày · ước = don_hang.gio_thiet_ke · thực = gio_thiet_ke_thuc · [TẠM] khi n&lt;30</span></h3>
+          <div class="tknh-wrap" id="tknh-gio"></div></div>
+        <div class="tknh-khoi"><h3>3 · Chất lượng bản <span class="tknh-hint">30 ngày · theo người dựng (ban_thiet_ke.ma_ns_gui)</span></h3>
+          <div class="tknh-wrap" id="tknh-chat"></div></div>
+      </section>
+
     </div></main>
   </div>
 
@@ -574,6 +594,7 @@ select{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:7px 11px
     <button id="d-gio" data-man="gio"><i>📊</i>Giờ</button>
     <button class="tkc-nav" id="d-chuong"><i>🔔</i>Chuông<span class="tkc-badge" id="tkcBadgeM" style="display:none"></span></button>
     <button id="d-nhapso" data-man="nhapso" style="display:none"><i>🔢</i>Nhập số</button>
+    <button id="d-nhom" data-man="nhom" style="display:none"><i>👥</i>Nhóm</button>
     <button id="btOutM"><i>🚪</i>Thoát</button>
   </nav>
 
