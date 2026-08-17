@@ -2,7 +2,7 @@
 
 ---
 
-## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-87)
+## A. ĐÃ LÀM — theo tag (v-kho-1 → v-kho-88)
 
 **Nền kho (1–15):** 1 chuyển 12 bảng sang schema kho · 2 web 6 màn + đăng nhập · 4 lô mở đầu ván theo kiểm kê · 5 vá focus + cổng bí mật + deploy Cloudflare · 6 tồn tươi từ máy chủ · 7 thợ đăng nhập mã cá nhân + siết policy vai · 8 bỏ đường vào của thợ · 9–10 ảnh vật tư về bucket, hết phụ thuộc Drive · 11 bố cục điện thoại · 12 hướng dẫn có ảnh tự sinh · 13 xuất kho FIFO + huỷ bằng phiếu ngược · 14–15 bảng quy đổi mã thiết kế↔kho + hàm cho plugin đọc.
 
@@ -21,6 +21,8 @@
 **Màn BÁO GIÁ của sale (81–85):** 81 chuông "bản chờ gửi" + nối datalist ds-sp · 82 cờ dung_xong + vá kanban rớt hàng · **84 CỤM MÀN BÁO GIÁ (L-48→L-55):** RPC nền `sale_bao_gia_ds` (db/091) + vỏ v5 + scope CSS `.bg-man` + toggle Danh-sách/Cột · vá huỷ đơn (db/090) · **form Báo giá RIÊNG `BaoGiaForm`** tách HAI luồng (báo-giá vs lên-đơn thẳng), cắt "Lưu báo giá" khỏi form Lên đơn · "Chuyển thành đơn" đổ sẵn dữ liệu báo giá · đơn báo giá ẩn "Lệnh sản xuất" + món "chưa chốt" · 3 cột nhu cầu (db/092) · bộ bấm-thật `ui_test_sale.py` + luật cấm shim + tài khoản kiểm `test_sale_kiem`. · **85 (L-57→L-60):** màn Báo giá là **NHÀ CHÍNH của sale** (menu đứng đầu + mở mặc định + mọi thao tác báo giá TẠI CHỖ, không nhảy tab; kanban Cột = bàn làm việc, nút theo cột) · "xong xưởng (dự kiến)" gọi atp() client-side (không gộp RPC vì atp tạo temp-table/lần) · nối "Khách muốn gì" sang app Thiết kế (db/095 + thietke.js) · **Tiến độ xưởng** trong Sổ đơn (db/094, đọc tien_do_tem, sale chỉ xem) · **DÒNG ĐỜI ĐƠN** trong XemDon (db/096, gộp nhật-ký + bản + phản-hồi + link) · ép lưới `.bg-man` (mọi khối chung mép). QD-22 (3 cột nhu cầu) · QD-23 (triết lý nhà-chính). Tài khoản kiểm app Thiết kế `test_tk_kiem`.
 
 **Chuông thiết kế · rà Kho/Tài chính (86–87):** **86 (L-62):** CHUÔNG HAI CHIỀU app Thiết kế (db/097 `tk_chuong` — 3 mục *việc chờ nhận · khách phản hồi bản mình dựng · đơn chốt-thua*, badge==list, `luc_tk_xem` mốc đã-xem dùng chung; UI `tkc-` badge + panel mở tại chỗ). · **87 (L-64 rà + L-65 sửa):** **RÀ app Kho + Tài chính** (2 app chưa soi) — app Kho sạch; app Tài chính 3 lỗi + vá db/098: `gia_von_don_ds` cho **ke_toan XEM** + **phân trang** {tong,ds} 50/trang (bỏ khỏi nợ L-29) · `niem_yet_info` thêm gác vai (trước HỞ) · bảng bọc `overflow-x` (390px hết tràn) · `ghi_gia_von_tay` GIỮ ceo/kho (ke_toan XEM, GHI không). QD-24. Tài khoản kiểm `test_kho_kiem`/`test_tc_kiem`.
+
+**Nguồn khách + dải số (88):** **88 (L-67):** cột `don_hang.nguon_khach` (miền 6 giá trị, không bắt buộc) — **lỗ thu thập DUY NHẤT**, bịt trước khi đơn thật chảy (QD-25) · ô "Khách biết mình qua đâu?" ở CẢ 2 form sale (báo giá + lên đơn), nhắc mềm · **dải 6 số mặt-đồng-hồ** dưới khối thua/treo (`sale_dai_so_bao_gia`): thua-vì-giá · hỏi→thấy-giá · chốt 7/14/25 ngày · vòng-sửa có/không nhu cầu · chốt tự-dựng vs giao-TK · theo sale. Mỗi số dán **[TẠM·n]** khi n<30 (mẫu nhỏ không kết luận), KHÔNG giá vốn. **Chưa** phải màn Phân tích đầy đủ (việc 8) — đợi đơn thật.
 
 *(Không có tag v-kho-3, 63, **83** (cụm màn Báo giá treo từ L-48 nên nhảy 82→84); các số L-xx trong commit là số LỆNH, khác số tag.)*
 
