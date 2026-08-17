@@ -148,8 +148,25 @@ async function taiDieuHanh() {
     + oClick('tien_giao', 'Đơn đã giao chưa thu đủ', dh ? dh.so_don_giao_no : 0, '', '')
     + oStat('Giá trị tồn kho', fmt(dh ? dh.ton_gia_tri : 0) + ' đ', 'nguồn kho.ton')
     + '</div><div class="dh-list" id="dh_tien_list" style="display:none"></div>'
-  if ($('tien_giao') && dh) $('tien_giao').onclick = () => moDs('dh_tien_list', $('tien_giao'),
-    (dh.giao_chua_thu || []).map(g => `<div class="dh-row-tac"><b>${escH(g.ma_don)}</b><span>${escH(g.ten_khach)}</span><span>còn <b>${fmt(g.con_thu)}</b> đ</span><span class="hint">giao ${escH(g.ngay_giao || '')}</span></div>`))
+  // L-74 · công nợ GOM theo KHÁCH (dieu_hanh_cong_no_khach) — bấm khách để bung đơn
+  if ($('tien_giao') && dh) $('tien_giao').onclick = async () => {
+    const oEl = $('tien_giao'), box = $('dh_tien_list')
+    const dangMo = box.style.display !== 'none' && box.dataset.for === 'tien_giao'
+    document.querySelectorAll('#tc .dh-o.on').forEach(e => e.classList.remove('on'))
+    if (dangMo) { box.style.display = 'none'; return }
+    box.dataset.for = 'tien_giao'; oEl.classList.add('on'); box.style.display = 'block'
+    box.innerHTML = '<div class="dh-empty">Đang tải công nợ theo khách…</div>'
+    const { data, error } = await sb.rpc('dieu_hanh_cong_no_khach', { p_gioi_han: 100 })
+    const kh = error ? [] : (data || [])
+    box.innerHTML = kh.length ? kh.map((k, i) => {
+      const don = (dh.giao_chua_thu || []).filter(g => g.ten_khach === k.khach)
+      return `<div class="dh-conno"><button class="dh-conno-kh" data-kh="${i}"><b>${escH(k.khach)}</b><span class="hint">${k.so_don} đơn · lâu nhất ${k.lau_nhat} ngày</span><b class="dh-conno-t">${fmt(k.tong_phai_thu)} đ</b></button>`
+        + `<div class="dh-conno-don" id="dh-conno-${i}" style="display:none">`
+        + (don.map(g => `<div class="dh-row-tac"><b>${escH(g.ma_don)}</b><span>còn <b>${fmt(g.con_thu)}</b> đ</span><span class="hint">giao ${escH(g.ngay_giao || '')}</span></div>`).join('') || '<div class="dh-empty">(đơn ở trang sau)</div>')
+        + '</div></div>'
+    }).join('') : '<div class="dh-empty">Không có công nợ đã giao.</div>'
+    box.querySelectorAll('.dh-conno-kh').forEach(b => b.onclick = () => { const d = $('dh-conno-' + b.dataset.kh); d.style.display = d.style.display === 'none' ? 'block' : 'none' })
+  }
 }
 function oStat(lbl, big, sub) { return `<div class="dh-o"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></div>` }
 function oClick(id, lbl, big, sub, cls) { return `<button class="dh-o click ${cls || ''}" id="${id}" data-n="${big}"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></button>` }
