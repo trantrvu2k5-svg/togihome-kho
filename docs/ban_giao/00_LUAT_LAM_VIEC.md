@@ -46,8 +46,18 @@ Trong app dùng chung stylesheet, class mới phải có **tiền tố theo màn
 
 ## KỶ LUẬT TEST — ĐO Ở MỨC 100.000 DÒNG
 
-Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòng**. Quá **500ms = ĐỎ**. RPC thợ đứng chờ (`quet_tem`) quá **300ms = ĐỎ**. Test cắn hai vế (bắt lỗi logic, không bắt lỗi tốc độ).
+Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòng**. Test cắn hai vế (bắt lỗi logic, không bắt lỗi tốc độ).
 - Đã dính: `tram_dang_cho`/`do_gio_that` timeout ở 10.000 tem trong khi mọi test đều xanh — vì test chạy trên vài chục dòng.
+
+**LUẬT TỐC ĐỘ 2 HẠNG (CEO chốt 18/08 — QD-40):**
+- **Hạng TÁC NGHIỆP** (người đứng chờ: ghi phiếu, chốt đơn, `quet_tem`…): **< 500ms** (tem thợ chờ: < 300ms).
+- **Hạng PHÂN TÍCH** (màn báo cáo: `pl_ky`/`cm_don_ky`/`kenh_cac_ky`/`dong_tien_ky`/`con_phai_thu`… và mọi màn phân tích sau): **< 900ms warm @100k**.
+- Gốc 900: plpgsql chạy tuần tự + 1 worker (PG tắt parallelism trong hàm) → quét 100k = sàn ~500-600ms + headroom tải. Kỳ thật <50ms.
+- RPC mới **tự chiếu hạng**, hết ngoại lệ lẻ. **Tác nghiệp CẤM mượn ngưỡng phân tích** — chậm thì tối ưu/denormalize.
+
+**BẪY ĐO PERF — phải đo DIRECT, không savepoint:**
+- Helper test `asK()` tạo **1 savepoint mỗi call**. Chuỗi test dài (>64 subxid) → **tràn subtrans SLRU của Postgres** → quét bảng lớn sau đó chậm GIẢ (587ms thật → 980-1210ms). Prod không có savepoint lồng nên không dính.
+- ⟹ Đo perf: **set role + jwt claims MỘT LẦN rồi `c.query` thẳng** (giống prod), KHÔNG bọc savepoint mỗi call. (Đã dính L-49; xem đầu `web/ops/test_116.mjs`.)
 
 ## RANH GIỚI HOẠT ĐỘNG = chỗ BÀN GIAO VẬT LÝ (QD-02)
 

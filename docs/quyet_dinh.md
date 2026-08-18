@@ -444,6 +444,7 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Perf 100k:** cm_don_ky ~527ms (quá ngưỡng 500 ~30ms) — **CEO chấp nhận** (100k đơn/kỳ là stress phi thực tế; kỳ
   THẬT vài trăm đơn <50ms). Nguyên nhân: PostgreSQL TẮT parallelism trong hàm plpgsql (SELECT/EXECUTE INTO) +
   instance `max_parallel_workers_per_gather=1`. Đã tối ưu tối đa (totals deferred + top-N hẹp + fetch-50 indexed).
+  → **Con số này giờ là LUẬT TỐC ĐỘ 2 HẠNG (QD-40): mọi RPC màn phân tích < 900ms warm @stress 100k.** Không đẻ số lẻ nữa.
 - **Trạng thái:** ĐÃ LÀM (db/113 `cm_don_raw`+`cm_don_ky`; tab "Lãi theo đơn"; test_113). **CHƯA commit.**
 
 ## QD-38 (18/08) — Một thương hiệu một dòng danh mục; brand thừa TẮT không xoá (L-48a)
@@ -484,3 +485,50 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   đơn <50ms. Nối tiếp quyết định perf cm_don_ky (§QD trên: 100k là stress phi thực tế, CEO chấp nhận).
 - **Trạng thái:** ĐÃ LÀM + duyệt mắt (db/115 chi_ads + ads_ds/ads_ghi/kenh_cac_ky + cm_don_raw(+thuong_hieu) + gác;
   tab "Kênh & CAC" app Tài chính bản `300abb14`; test_115 23/23). Commit v-kho-102.
+
+## QD-40 (18/08) — Sổ phiếu thu + sổ COD + sổ giao dịch vốn + màn "Dòng tiền theo kỳ" (L-49)
+
+- **CĂN CỨ SÁCH (Garrison ch.14 — direct method):** tách khu ĐẦU TƯ & VỐN (mua/bán tài sản, vay/trả vay, góp/rút vốn)
+  khỏi kinh doanh; ghi GỘP KHÔNG BÙ TRỪ (vay mới + trả gốc = 2 dòng riêng, không cấn nhau); khép vòng quỹ:
+  quỹ đầu kỳ + ròng KD + ròng ngoài KD = quỹ cuối kỳ. Dòng tiền ≠ P/L (P/L theo ngày giao; dòng tiền theo ngày tiền về/đi).
+- **`phieu_thu` = NGUỒN SỰ THẬT thu tiền** (đơn·ngày·số tiền·loại đợt trong 4 loại coc/thu_khi_giao/thu_no/doi_soat_cod).
+  Cột `don_hang.ngay_thu`/`so_tien_thuc_thu` cũ ĐÓNG BĂNG lịch sử — KHÔNG feed công thức mới. Thu trong kỳ gom theo NGÀY PHIẾU.
+- **`giao_cod` = trạng thái tiền THỨ BA** (COD đã xuất xưởng, chưa đối soát) — tách khỏi "khách nợ". Bốn trạng thái tiền:
+  khách nợ → ở nhà VC → đã thu · nhánh **hoàn** (KHÔNG sinh phiếu, tiền không đếm vào bất kỳ khối thu nào).
+  Đối soát cả đợt 1 RPC/1 transaction: đơn không ở `dang_giao` → TỪ CHỐI cả đợt. Phí VC (chênh thu-hộ − thực-về) → `chi_phi_ky`
+  loại `'khac'` ghi chú "phí VC/COD" (v1 ghi ngỏ tách loại). Tuổi ở nhà VC từ ngày xuất, >14 ngày đỏ.
+- **`giao_dich_von`** — chiều tiền SUY từ loại: vào = vay_moi/ban_tai_san/gop_von; ra = tra_goc_vay/mua_tai_san/rut_von.
+  **Lãi vay KHÔNG ở đây** — ghi `chi_phi_ky` loại `'khac'` "lãi vay" (v1); **gốc vay ở `giao_dich_von`** (tra_goc_vay). Tách rõ.
+- **CHI = `chi_phi_ky` + `chi_ads` (Σ so_tien_nhap GỒM VAT — tiền THẬT chi ra, KHÁC màn CAC bóc VAT) + `luong_to` (lương+BH,
+  KHÔNG overhead).** Vật tư (ván/phụ kiện) CHƯA có sổ chi theo kỳ → dòng tiền CHƯA gồm tiền mua ván (ghi ngỏ sổ NCC, không giả vờ đủ).
+- **CÔNG NỢ hợp nhất MỘT nguồn số:** `con_phai_thu` = gia_chot(coalesce doanh_thu/gia_cong_thuc, GỒM VAT) − Σ `phieu_thu`,
+  đơn da_giao dư>0, **LOẠI đơn COD dang_giao** (tiền đó ở khối "ở nhà VC" — bất biến: 1 đơn không ở 2 khối). Tuổi nợ 3 bậc
+  (≤30 / 31–60 / >60) từ ngày giao, già nhất lên đầu, phân trang 50. **db/104 `dieu_hanh_cong_no_khach` CHUYỂN sang nguồn
+  `phieu_thu`** (thôi dùng so_tien_thuc_thu) → một số, màn cũ trỏ sang. (Prod ~1 đơn thật nên chuyển không vỡ; test #10 sweep xanh.)
+- **QUỸ:** `tham_so_tai_chinh.quy_dau_ky` (thêm cột). Kỳ đầu nhập tay; kỳ sau RPC gợi ý = quỹ cuối kỳ trước (đầu + ròng KD +
+  ròng ngoài kỳ trước, đệ quy 1 tầng); sửa phải kèm lý do → lưu vào `ghi_chu` tham số.
+- **Perf 100k (QD-37 nối tiếp):** dong_tien_ky **587ms** · con_phai_thu **480ms** (đo direct min-of-4, warm — số THẬT ổn định).
+  PG TẮT parallelism trong hàm plpgsql → quét 100k đơn + gộp 100k phiếu tuần tự = sàn ~500-600ms, **y hệt cm_don_ky (QD-37, 527ms
+  CEO chấp nhận)**. Đã tối ưu: đổi `not exists` tương quan trong SELECT → LEFT JOIN anti-join (dong_tien_ky **2700→580ms**) +
+  index phủ `phieu_thu(ma_don) include(so_tien)`. Ngưỡng test_116 #11 = **<900ms** (LUẬT 2 HẠNG dưới — chung số QD-37, không đẻ số lẻ).
+- **Trạng thái:** ĐÃ LÀM + deploy (db/116: 3 bảng + pt/cod/von + dong_tien_ky/con_phai_thu + hợp nhất cong_no; tab "Dòng tiền"
+  app Tài chính bản `468f8b9e`; test_116 48/48). CHƯA commit — chờ CEO kiểm mắt.
+
+### LUẬT TỐC ĐỘ 2 HẠNG (CEO chốt 18/08 — áp CHUNG mọi RPC từ nay)
+
+- **Hạng TÁC NGHIỆP** (người đứng chờ thao tác: ghi phiếu, chốt đơn, chuyển trạng thái…): **< 500ms**.
+- **Hạng PHÂN TÍCH** (màn báo cáo/tổng hợp: `pl_ky`, `cm_don_ky`, `kenh_cac_ky`, `dong_tien_ky`, `con_phai_thu`, và MỌI màn
+  phân tích sau): **< 900ms warm tại stress 100k**.
+- **Gốc ngưỡng 900:** plpgsql chạy TUẦN TỰ + 1 worker (PG tắt parallelism trong hàm; instance `max_parallel_workers_per_gather=1`)
+  → quét 100k tuần tự = sàn ~500-600ms, cho headroom tải → 900. Kỳ THẬT vài trăm đơn **<50ms** — 100k chỉ là stress.
+- **RPC mới TỰ CHIẾU HẠNG** (không hỏi lại, hết ngoại lệ lẻ QD-37/38/39…). **Tác nghiệp CẤM mượn ngưỡng phân tích** — chậm quá
+  500ms thì tối ưu/denormalize, không được viện "màn phân tích".
+- Nợ mở: nếu 1 màn phân tích cần **<500ms** ở quy mô lớn thật → lô riêng denormalize (vd cột `da_thu` trên `don_hang` + trigger).
+
+### BẪY ĐO PERF (bài học chung cho MỌI test perf sau)
+
+- Test harness đo qua helper `asK()` tạo **1 SAVEPOINT mỗi call**. Chuỗi test dài (mấy chục cắn) → **>64 subxid → TRÀN subtrans
+  SLRU của Postgres** → mọi lần quét bảng lớn sau đó phải tra subtrans kiểm visibility → **số perf GIẢ chậm** (dong_tien_ky 587ms
+  thật đội lên 980-1210ms). Prod KHÔNG có savepoint lồng nên KHÔNG dính.
+- **⟹ Đo perf phải DIRECT:** set role authenticated + jwt claims **MỘT LẦN** rồi `c.query` thẳng (không savepoint/call), giống hệt
+  prod. Áp cho mọi test perf sau. (Ghi cả ở đầu `web/ops/test_116.mjs`.)

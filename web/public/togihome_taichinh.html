@@ -208,6 +208,37 @@
   #tc .cpk-chip { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; }
   #tc .cpk-chip.chung { background:var(--amB); color:var(--am); } #tc .cpk-chip.pk { background:var(--gnB); color:var(--gn); }
   #tc .cpk-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media(max-width:1000px){ #tc .cpk-grid2 { grid-template-columns:1fr; } }
+  /* ── Dòng tiền (L-49) ── */
+  #tc .dt-thanh { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:2px 0 14px; }
+  #tc .dt-tomtat { display:flex; gap:26px; flex-wrap:wrap; text-align:right; }
+  #tc .dt-tomtat .dt-nhan { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--fnt); }
+  #tc .dt-tomtat .dt-so { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #tc .dt-tomtat .dt-so.thu { color:var(--gn); } #tc .dt-tomtat .dt-so.chi { color:var(--pri); } #tc .dt-tomtat .dt-so.vc { color:var(--am); }
+  #tc .dt-luoi { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  #tc .dt-the.rong { grid-column:1/-1; }
+  #tc .dt-tbl { width:100%; border-collapse:collapse; }
+  #tc .dt-tbl th { font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--fnt); text-align:right; padding:8px 12px; border-bottom:1px solid var(--bd); white-space:nowrap; }
+  #tc .dt-tbl th.dt-l, #tc .dt-tbl td.dt-l { text-align:left; }
+  #tc .dt-tbl td { padding:9px 12px; border-bottom:1px solid var(--bd2); text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:12.5px; white-space:nowrap; }
+  #tc .dt-tbl td.dt-l { font-family:inherit; font-size:13px; }
+  #tc .dt-tbl td .dt-phu { display:block; font-weight:400; font-size:11px; color:var(--mut); font-family:inherit; }
+  #tc .dt-tbl tfoot td { font-weight:800; background:var(--auto); border-top:2px solid var(--bdS); border-bottom:none; }
+  #tc .dt-tuoi { display:flex; gap:0; border-radius:10px; overflow:hidden; margin:0 0 12px; }
+  #tc .dt-tuoi div { padding:11px 8px; text-align:center; font-size:11px; font-weight:700; color:#fff; }
+  #tc .dt-tuoi div .dt-s { display:block; font-variant-numeric:tabular-nums; font-size:13px; margin-top:3px; font-family:var(--mono); }
+  #tc .dt-canhbao { background:var(--amB); border:1px solid #F0D089; border-radius:10px; padding:10px 13px; font-size:12px; color:var(--am); line-height:1.55; margin-top:10px; }
+  #tc .dt-do { color:var(--pri); font-weight:700; }
+  #tc .dt-quy { display:flex; gap:0; align-items:stretch; flex-wrap:wrap; font-family:var(--mono); font-size:13.5px; margin:4px 0 10px; }
+  #tc .dt-quy .dt-qb { padding:10px 15px; background:var(--auto); border-radius:10px 0 0 10px; }
+  #tc .dt-quy .dt-qo { padding:10px 12px; align-self:center; }
+  #tc .dt-quy .dt-qe { padding:10px 15px; background:var(--tx); color:#fff; border-radius:0 10px 10px 0; }
+  #tc .dt-quy b { font-variant-numeric:tabular-nums; }
+  #tc .dt-form { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; align-items:end; }
+  #tc .dt-form label { font-size:10.5px; font-weight:700; color:var(--mut); display:block; margin-bottom:3px; }
+  #tc .dt-form input, #tc .dt-form select { width:100%; padding:7px 9px; font-size:13px; border:1px solid var(--bd); border-radius:9px; background:#fff; }
+  #tc .dt-cod-area textarea { width:100%; min-height:74px; padding:9px 11px; font-family:var(--mono); font-size:12.5px; border:1px solid var(--bd); border-radius:10px; resize:vertical; }
+  #tc .dt-chan { font-size:11.5px; color:var(--mut); line-height:1.7; margin-top:12px; }
+  @media(max-width:1000px){ #tc .dt-luoi { grid-template-columns:1fr; } #tc .dt-the { overflow-x:auto; } #tc .dt-form { grid-template-columns:1fr 1fr; } }
   /* ── mobile: nav thành hàng ngang (như sale) ── */
   @media(max-width:1000px){
     #tc .app { flex-direction:column; }
@@ -229,6 +260,7 @@
     <button class="navi" data-tab="pl">P/L</button>
     <button class="navi" data-tab="cmdon">Lãi theo đơn</button>
     <button class="navi" data-tab="kenhcac">Kênh &amp; CAC</button>
+    <button class="navi" data-tab="dongtien">Dòng tiền</button>
     <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
@@ -502,6 +534,128 @@
         Khách MỚI theo thương hiệu = SĐT lần đầu có đơn giao của <b>brand đó</b> (khách cũ Togihome mua Vufurni lần đầu vẫn là khách MỚI của team Vufurni). Cờ khach_moi toàn công ty giữ nguyên cho P/L — hai thước, hai câu hỏi.<br>
         CM kênh cùng nguồn số màn Lãi theo đơn (chỉ đơn trọn) · CM sau ads chỉ trừ ads đúng brand × kênh, không rải sang kênh khách tự đến. VAT ads khấu trừ được (gồm VAT ÷ (1+VAT/100)).
       </div></div>
+    </div>
+
+    <!-- ══════════ TAB · DÒNG TIỀN (L-49) ══════════ -->
+    <div class="tabp" id="tab-dongtien">
+      <h1>Dòng tiền theo kỳ</h1>
+      <div class="subline">Tiền THẬT vào/ra trong kỳ — khác P/L (lãi theo ngày giao). Lãi trên giấy vẫn thiếu tiền mặt nếu nợ đọng. Kỳ = ô <b>Kỳ</b> ở trên · vai ceo/kế toán.</div>
+      <div class="dt-thanh"><div class="dt-tomtat">
+        <div><div class="dt-nhan">Thu trong kỳ</div><div class="dt-so thu" id="dt_thu">—</div></div>
+        <div><div class="dt-nhan">Chi trong kỳ</div><div class="dt-so chi" id="dt_chi">—</div></div>
+        <div><div class="dt-nhan">Ròng</div><div class="dt-so" id="dt_rong">—</div></div>
+        <div><div class="dt-nhan">Ở nhà vận chuyển</div><div class="dt-so vc" id="dt_ncvc">—</div></div>
+      </div></div>
+
+      <div class="dt-luoi">
+        <section class="card dt-the"><div class="ch"><h2>Tiền vào — theo phiếu thu</h2><span class="hint">gom theo loại đợt</span></div>
+          <div class="cb" style="padding:0;overflow-x:auto"><table class="dt-tbl">
+            <thead><tr><th class="dt-l">Loại</th><th>Số phiếu</th><th>Số tiền</th></tr></thead>
+            <tbody id="dt_thu_body"><tr><td class="dt-l">Đang tải…</td></tr></tbody>
+            <tfoot id="dt_thu_foot"></tfoot></table></div>
+          <div class="cb" id="dt_thu_cb" style="padding-top:0"></div>
+        </section>
+
+        <section class="card dt-the"><div class="ch"><h2>Tiền ra — từ 3 sổ chi</h2><span class="hint">tự gom, không nhập lại</span></div>
+          <div class="cb" style="padding:0;overflow-x:auto"><table class="dt-tbl">
+            <thead><tr><th class="dt-l">Nguồn</th><th>Số tiền</th></tr></thead>
+            <tbody id="dt_chi_body"></tbody><tfoot id="dt_chi_foot"></tfoot></table></div>
+          <div class="cb" style="padding-top:0"><div class="dt-canhbao">Vật tư (ván, phụ kiện) chưa có sổ chi theo kỳ — dòng tiền CHƯA gồm tiền mua ván. Ghi rõ, không giả vờ đủ.</div></div>
+        </section>
+
+        <section class="card dt-the rong"><div class="ch"><h2 id="dt_vc_tieude">Tiền ở nhà vận chuyển</h2><span class="hint">COD đã xuất xưởng, chưa đối soát · tuổi từ ngày xuất · KHÔNG nằm trong "khách nợ"</span></div>
+          <div class="cb" style="padding:0;overflow-x:auto"><table class="dt-tbl">
+            <thead><tr><th class="dt-l">Mã đơn · khách</th><th class="dt-l">Đơn vị VC</th><th>Tiền thu hộ</th><th>Ngày xuất</th><th>Đã đi</th></tr></thead>
+            <tbody id="dt_vc_body"></tbody></table></div>
+          <div class="cb" id="dt_vc_hoan" style="padding-top:0"></div>
+        </section>
+
+        <section class="card dt-the rong"><div class="ch"><h2 id="dt_no_tieude">Còn phải thu (khách nợ thật)</h2><span class="hint">= giá chốt − Σ phiếu thu, đơn đã giao · KHÔNG gồm đơn COD đang giao · tuổi nợ từ ngày giao</span></div>
+          <div class="cb"><div class="dt-tuoi" id="dt_no_tuoi"></div></div>
+          <div class="cb" style="padding:0;overflow-x:auto"><table class="dt-tbl">
+            <thead><tr><th class="dt-l">Mã đơn · khách</th><th>Giá chốt</th><th>Đã thu</th><th>Còn lại</th><th>Tuổi nợ</th></tr></thead>
+            <tbody id="dt_no_body"></tbody></table></div>
+          <div class="cb" style="display:flex;gap:10px;align-items:center;padding-top:0">
+            <button class="btn ghost" id="dt_no_truoc">‹ Trước</button>
+            <span class="hint" id="dt_no_trang"></span>
+            <button class="btn ghost" id="dt_no_sau">Sau ›</button>
+          </div>
+        </section>
+
+        <section class="card dt-the rong"><div class="ch"><h2>Ngoài kinh doanh — đầu tư &amp; vốn</h2><span class="hint">Garrison ch.14: tách khỏi kinh doanh, ghi GỘP không bù trừ (vay mới và trả vay là hai dòng riêng)</span></div>
+          <div class="cb" style="padding:0;overflow-x:auto"><table class="dt-tbl">
+            <thead><tr><th class="dt-l">Giao dịch</th><th>Ngày</th><th>Vào</th><th>Ra</th><th></th></tr></thead>
+            <tbody id="dt_von_body"></tbody><tfoot id="dt_von_foot"></tfoot></table></div>
+        </section>
+
+        <section class="card dt-the rong"><div class="ch"><h2>Đối chiếu quỹ — phép kiểm khép vòng</h2><span class="hint">lệch với số dư ngân hàng thật = có thu/chi quên ghi</span></div>
+          <div class="cb"><div class="dt-quy" id="dt_quy"></div>
+            <div class="hint" id="dt_quy_note"></div></div>
+        </section>
+      </div>
+
+      <!-- ── NHẬP LIỆU ── -->
+      <section class="card" style="margin-top:16px"><div class="ch"><h2>Ghi phiếu thu</h2><span class="hint">mỗi lần tiền về = 1 phiếu · cọc ghi lúc chốt · loại "đối soát COD" ghi qua form COD bên dưới</span></div>
+        <div class="cb"><div class="dt-form">
+          <div><label>Mã đơn</label><input id="pt_ma" placeholder="DH-…"></div>
+          <div><label>Ngày</label><input id="pt_ngay" type="date"></div>
+          <div><label>Số tiền</label><input id="pt_tien" inputmode="numeric"></div>
+          <div><label>Loại</label><select id="pt_loai"><option value="coc">Cọc đơn mới</option><option value="thu_khi_giao">Thu khi giao</option><option value="thu_no">Thu nợ kỳ trước</option></select></div>
+          <div><label>Ghi chú</label><input id="pt_gc"></div>
+          <div><button class="btn" id="pt_luu">Ghi phiếu</button></div>
+        </div><span class="hint" id="pt_msg"></span></div>
+      </section>
+
+      <div class="cpk-grid2" style="margin-top:16px">
+        <section class="card"><div class="ch"><h2>Xuất COD (đơn giao thu hộ)</h2></div>
+          <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
+            <div><label>Mã đơn</label><input id="cg_ma"></div>
+            <div><label>Tiền thu hộ</label><input id="cg_tien" inputmode="numeric"></div>
+            <div><label>Ngày xuất</label><input id="cg_ngay" type="date"></div>
+            <div><label>Đơn vị VC</label><input id="cg_vc" placeholder="GHN / GHTK…"></div>
+            <div style="grid-column:1/-1"><button class="btn" id="cg_luu">Ghi COD đang giao</button> <span class="hint" id="cg_msg"></span></div>
+          </div></div>
+        </section>
+        <section class="card"><div class="ch"><h2>Hoàn COD (hàng quay lại)</h2><span class="hint">KHÔNG sinh phiếu — tiền không đếm</span></div>
+          <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
+            <div><label>Mã đơn</label><input id="ch_ma"></div>
+            <div><label>Ngày hoàn</label><input id="ch_ngay" type="date"></div>
+            <div style="grid-column:1/-1"><label>Lý do</label><input id="ch_gc" placeholder="khách từ chối / hỏng…"></div>
+            <div style="grid-column:1/-1"><button class="btn ghost" id="ch_luu">Ghi hoàn</button> <span class="hint" id="ch_msg"></span></div>
+          </div></div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top:16px"><div class="ch"><h2>Đối soát COD về đợt</h2><span class="hint">dán bảng đối soát nhà VC · mỗi dòng: <b>mã đơn , số tiền thực về , ngày</b> (ngày trống = hôm nay) · chênh so với tiền thu hộ → phí VC vào chi_phí_kỳ</span></div>
+        <div class="cb dt-cod-area">
+          <textarea id="cs_txt" placeholder="DH-2608-21, 9500000, 2026-08-20&#10;DH-2608-24, 12400000, 2026-08-20"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><button class="btn" id="cs_luu">Đối soát cả đợt</button><span class="hint" id="cs_msg"></span></div>
+        </div>
+      </section>
+
+      <div class="cpk-grid2" style="margin-top:16px">
+        <section class="card"><div class="ch"><h2>Ghi giao dịch vốn</h2><span class="hint">khu đầu tư &amp; vốn — lãi vay KHÔNG ở đây (ghi ở Chi phí kỳ)</span></div>
+          <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
+            <div><label>Ngày</label><input id="vn_ngay" type="date"></div>
+            <div><label>Loại</label><select id="vn_loai"><option value="vay_moi">Vay mới (vào)</option><option value="tra_goc_vay">Trả gốc vay (ra)</option><option value="mua_tai_san">Mua tài sản (ra)</option><option value="ban_tai_san">Bán tài sản (vào)</option><option value="gop_von">Góp vốn (vào)</option><option value="rut_von">Rút vốn (ra)</option></select></div>
+            <div><label>Số tiền</label><input id="vn_tien" inputmode="numeric"></div>
+            <div><label>Ghi chú</label><input id="vn_gc"></div>
+            <div style="grid-column:1/-1"><button class="btn" id="vn_luu">Ghi giao dịch</button> <span class="hint" id="vn_msg"></span></div>
+          </div></div>
+        </section>
+        <section class="card"><div class="ch"><h2>Quỹ đầu kỳ</h2><span class="hint">kỳ đầu nhập tay · kỳ sau gợi ý = quỹ cuối kỳ trước · sửa phải ghi lý do</span></div>
+          <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
+            <div><label>Quỹ đầu kỳ (đồng)</label><input id="qy_tien" inputmode="numeric"></div>
+            <div><label>Lý do (nếu sửa)</label><input id="qy_gc"></div>
+            <div style="grid-column:1/-1"><button class="btn" id="qy_luu">Lưu quỹ đầu kỳ</button> <span class="hint" id="qy_msg"></span></div>
+          </div></div>
+        </section>
+      </div>
+
+      <div class="dt-chan">
+        Bốn trạng thái tiền: khách nợ → ở nhà vận chuyển (COD đang giao) → đã thu · nhánh hoàn = tiền không về, hàng quay lại. Dòng tiền ≠ lãi: P/L trả lời "kỳ này LÀM ĂN ra sao" (ngày giao), màn này trả lời "kỳ này TIỀN MẶT ra sao" (ngày tiền về/đi).<br>
+        Chi ads ở đây = số GỒM VAT (tiền thật chi ra) — khác màn Kênh &amp; CAC (bóc VAT). Công nợ gồm VAT. Nguồn sự thật thu tiền = sổ phiếu thu (cột thu cũ trên đơn đóng băng lịch sử).
+      </div>
     </div>
 
     <!-- ══════════ TAB · CHI PHÍ KỲ (L-43) — sổ actuals ══════════ -->

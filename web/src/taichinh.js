@@ -73,6 +73,12 @@ async function napApp() {
   $('cpnl').addEventListener('input', capNhatCanhBaoNL)
   $('kc_them').onclick = () => kcAddRow()   // L-48: nút màn Kênh & CAC
   $('kc_luu').onclick = kcLuu
+  // L-49: màn Dòng tiền — nút nhập liệu
+  $('pt_luu').onclick = ptLuu; $('cg_luu').onclick = cgLuu; $('ch_luu').onclick = chLuu
+  $('cs_luu').onclick = csLuu; $('vn_luu').onclick = vnLuu; $('qy_luu').onclick = qyLuu
+  $('dt_no_truoc').onclick = () => { if (DT_TRANG > 1) { DT_TRANG--; taiConPhaiThu() } }
+  $('dt_no_sau').onclick = () => { if (DT_TRANG < DT_SOTRANG) { DT_TRANG++; taiConPhaiThu() } }
+  ;['pt_tien', 'cg_tien', 'vn_tien', 'qy_tien'].forEach(id => { const e = $(id); if (e) e.addEventListener('input', () => fmtMoneyEl(e)) })
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -91,6 +97,7 @@ function doiTab(t) {
   if (t === 'pl') taiPL()
   if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
   if (t === 'kenhcac') { KC_BRAND = 'all'; taiKenhCac() }
+  if (t === 'dongtien') { DT_TRANG = 1; taiDongTien() }
   if (t === 'chiphi') taiChiPhiKy()
   if (t === 'taikhoan') taiTaiKhoan()
 }
@@ -612,6 +619,123 @@ async function kcLuu() {
   await taiKenhCac()
 }
 
+// ══════════ TAB DÒNG TIỀN (L-49): dong_tien_ky + con_phai_thu; forms phiếu thu/COD/vốn/quỹ ══════════
+let DT_TRANG = 1, DT_SOTRANG = 1
+const DT_THU_L = [['coc', 'Cọc đơn mới chốt', 'tiền về trước khi sản xuất'], ['thu_khi_giao', 'Thu khi giao', 'phần còn lại lúc lắp xong'],
+  ['doi_soat_cod', 'Đối soát COD về', 'nhà vận chuyển trả đợt trong kỳ'], ['thu_no', 'Thu nợ kỳ trước', 'đơn đã giao các kỳ trước']]
+const DT_CHI_L = [['chi_phi_ky', 'Chi phí kỳ', 'sổ chi_phi_ky: lương VP, thuê, điện nước…'], ['chi_ads', 'Chi quảng cáo', 'sổ chi_ads (số gồm VAT — tiền thật chi ra)'],
+  ['luong_to', 'Lương tổ sản xuất', 'sổ luong_to (lương + BH, chưa gồm overhead)']]
+const DT_VON_L = { vay_moi: 'Vay ngân hàng mới', tra_goc_vay: 'Trả gốc vay', mua_tai_san: 'Mua tài sản', ban_tai_san: 'Bán tài sản', gop_von: 'Góp vốn', rut_von: 'Rút vốn' }
+const dmy = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '—'
+async function taiDongTien() {
+  const { data: g, error } = await sb.rpc('dong_tien_ky', { p_ky: KY })
+  if (error) { $('dt_thu_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
+  const n = (x) => Number(x) || 0
+  // tóm tắt
+  $('dt_thu').textContent = fmt(g.thu.tong); $('dt_chi').textContent = fmt(g.chi.tong)
+  const rong = n(g.rong_kd); $('dt_rong').textContent = (rong >= 0 ? '+' : '') + fmt(rong); $('dt_rong').style.color = rong >= 0 ? 'var(--gn)' : 'var(--pri)'
+  $('dt_ncvc').textContent = fmt(g.o_nha_vc.tong)
+  // KHỐI 1 — thu
+  let sp = 0
+  $('dt_thu_body').innerHTML = DT_THU_L.map(([k, ten, phu]) => {
+    const r = (g.thu.theo_loai || {})[k]; const cnt = r ? n(r.so_phieu) : 0; sp += cnt
+    const sc = (k === 'doi_soat_cod' && r) ? `${n(r.so_dot)} đợt · ${n(r.so_don)} đơn` : cnt
+    return `<tr><td class="dt-l">${ten}<span class="dt-phu">${phu}</span></td><td>${sc}</td><td>${fmt(r ? r.so_tien : 0)}</td></tr>`
+  }).join('')
+  $('dt_thu_foot').innerHTML = `<tr><td class="dt-l">TỔNG THU</td><td>${sp}</td><td>${fmt(g.thu.tong)}</td></tr>`
+  $('dt_thu_cb').innerHTML = g.canh_bao.so_don > 0
+    ? `<div class="dt-canhbao">⚠ ${g.canh_bao.so_don} đơn đã giao trong kỳ <b>chưa có phiếu thu nào</b> — quên ghi hay chưa đòi được?</div>` : ''
+  // KHỐI 2 — chi
+  $('dt_chi_body').innerHTML = DT_CHI_L.map(([k, ten, phu]) => `<tr><td class="dt-l">${ten}<span class="dt-phu">${phu}</span></td><td>${fmt(g.chi.theo_so[k])}</td></tr>`).join('')
+  $('dt_chi_foot').innerHTML = `<tr><td class="dt-l">TỔNG CHI</td><td>${fmt(g.chi.tong)}</td></tr>`
+  // KHỐI 3 — ở nhà VC
+  $('dt_vc_tieude').textContent = `Tiền ở nhà vận chuyển — ${fmt(g.o_nha_vc.tong)} đ (${g.o_nha_vc.so_don} đơn đang giao)`
+  const vc = g.o_nha_vc.ds || []
+  $('dt_vc_body').innerHTML = vc.length ? vc.map(x => `<tr><td class="dt-l"><b>${escH(x.ma_don)}</b><span class="dt-phu">${escH(x.khach || '')}${x.dong ? ' · ' + escH(x.dong) : ''}</span></td>`
+    + `<td class="dt-l">${escH(x.don_vi_vc || '—')}</td><td>${fmt(x.so_tien_thu_ho)}</td><td>${dmy(x.ngay_xuat)}</td>`
+    + `<td${x.qua_14 ? ' class="dt-do"' : ''}>${x.tuoi} ngày${x.qua_14 ? ' ⚠' : ''}</td></tr>`).join('')
+    : '<tr><td class="dt-l" style="color:var(--mut)">Không có đơn COD đang giao</td></tr>'
+  $('dt_vc_hoan').innerHTML = g.o_nha_vc.hoan.so_don > 0
+    ? `<div class="dt-canhbao">⚠ Hoàn trong kỳ: <b>${g.o_nha_vc.hoan.so_don} đơn · ${fmt(g.o_nha_vc.hoan.so_tien)} không về</b> — hàng quay lại xưởng, phí ship đã trừ vào đối soát.</div>` : ''
+  // KHỐI 6 — vốn
+  const von = g.ngoai_kd.ds || []
+  $('dt_von_body').innerHTML = von.length ? von.map(x => `<tr><td class="dt-l">${escH(DT_VON_L[x.loai] || x.loai)}${x.ghi_chu ? '<span class="dt-phu">' + escH(x.ghi_chu) + '</span>' : ''}</td>`
+    + `<td>${dmy(x.ngay)}</td><td>${n(x.vao) ? fmt(x.vao) : '—'}</td><td>${n(x.ra) ? fmt(x.ra) : '—'}</td>`
+    + `<td><button class="cpk-del" data-von="${x.id}" title="Xoá">×</button></td></tr>`).join('')
+    : '<tr><td class="dt-l" style="color:var(--mut)">Chưa có giao dịch vốn trong kỳ</td></tr>'
+  const rn = n(g.ngoai_kd.rong)
+  $('dt_von_foot').innerHTML = `<tr><td class="dt-l">RÒNG NGOÀI KINH DOANH</td><td colspan="3">${(rn >= 0 ? '+' : '') + fmt(rn)}</td><td></td></tr>`
+  $('dt_von_body').querySelectorAll('button[data-von]').forEach(b => b.onclick = () => vonXoa(b.dataset.von))
+  // KHỐI 7 — quỹ
+  const qy = g.quy
+  $('dt_quy').innerHTML = `<div class="dt-qb">Quỹ đầu kỳ<br><b>${fmt(qy.dau_ky)}</b></div>`
+    + `<div class="dt-qo">+ ròng KD <b style="color:${n(qy.rong_kd) >= 0 ? 'var(--gn)' : 'var(--pri)'}">${fmt(qy.rong_kd)}</b></div>`
+    + `<div class="dt-qo">+ ròng ngoài KD <b>${fmt(qy.rong_ngoai)}</b></div>`
+    + `<div class="dt-qe">= Quỹ cuối kỳ<br><b>${fmt(qy.cuoi_ky)}</b></div>`
+  $('dt_quy_note').innerHTML = qy.da_luu
+    ? `Quỹ đầu kỳ đã nhập tay. Gợi ý từ kỳ trước: ${fmt(qy.goi_y)} đ. Sửa được — sửa là phải ghi lý do.`
+    : `Quỹ đầu kỳ CHƯA nhập — đang dùng gợi ý = quỹ cuối kỳ trước (${fmt(qy.goi_y)} đ). Nhập tay để chốt (ô "Quỹ đầu kỳ" bên dưới).`
+  $('qy_tien').value = qy.da_luu ? fmt(qy.dau_ky) : ''
+  DT_TRANG = 1; await taiConPhaiThu()
+}
+async function taiConPhaiThu() {
+  const { data: g, error } = await sb.rpc('con_phai_thu', { p_trang: DT_TRANG })
+  if (error) { $('dt_no_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
+  DT_SOTRANG = g.so_trang
+  $('dt_no_tieude').textContent = `Còn phải thu (khách nợ thật) — ${fmt(g.tong)} đ (${g.so_don} đơn)`
+  const b = g.bac, w = x => Math.max(Number(x.tien) || 0, 1)
+  $('dt_no_tuoi').innerHTML = `<div style="flex:${w(b.bac1)};background:#4E9E6E">${b.bac1.nhan}<span class="dt-s">${fmt(b.bac1.tien)} · ${b.bac1.so_don} đơn</span></div>`
+    + `<div style="flex:${w(b.bac2)};background:#C99A3B">${b.bac2.nhan}<span class="dt-s">${fmt(b.bac2.tien)} · ${b.bac2.so_don} đơn</span></div>`
+    + `<div style="flex:${w(b.bac3)};background:#C8202E">${b.bac3.nhan}<span class="dt-s">${fmt(b.bac3.tien)} · ${b.bac3.so_don} đơn</span></div>`
+  const ds = g.dong || []
+  $('dt_no_body').innerHTML = ds.length ? ds.map(x => `<tr><td class="dt-l"><b>${escH(x.ma_don)}</b><span class="dt-phu">${escH(x.khach || '')}${x.dong ? ' · ' + escH(x.dong) : ''}</span></td>`
+    + `<td>${fmt(x.gia)}</td><td>${fmt(x.da_thu)}</td><td>${fmt(x.con_lai)}</td>`
+    + `<td${x.tuoi > 60 ? ' class="dt-do"' : ''}>${x.tuoi} ngày</td></tr>`).join('')
+    : '<tr><td class="dt-l" style="color:var(--mut)">Không có khách nợ</td></tr>'
+  $('dt_no_trang').textContent = `Trang ${g.trang}/${DT_SOTRANG}`
+}
+const dtNum = id => String(Number(($(id).value || '').replace(/\D/g, '')) || 0)
+async function dtRpc(msgId, fn, args, reload = true) {
+  $(msgId).style.color = 'var(--mut)'; $(msgId).textContent = 'Đang ghi…'
+  const { error } = await sb.rpc(fn, args)
+  if (error) { $(msgId).style.color = '#C8202E'; $(msgId).textContent = 'Lỗi: ' + error.message; return false }
+  $(msgId).style.color = 'var(--gn)'; $(msgId).textContent = '✓ Đã ghi'
+  if (reload) await taiDongTien()
+  return true
+}
+async function ptLuu() {
+  const ma = $('pt_ma').value.trim(); if (!ma) { $('pt_msg').style.color = '#C8202E'; $('pt_msg').textContent = 'Thiếu mã đơn'; return }
+  const okr = await dtRpc('pt_msg', 'pt_ghi', { p_phieu: { ma_don: ma, ngay: $('pt_ngay').value || null, so_tien: dtNum('pt_tien'), loai: $('pt_loai').value, ghi_chu: $('pt_gc').value.trim() } })
+  if (okr) { $('pt_ma').value = ''; $('pt_tien').value = ''; $('pt_gc').value = '' }
+}
+async function cgLuu() {
+  const ma = $('cg_ma').value.trim(); if (!ma) { $('cg_msg').style.color = '#C8202E'; $('cg_msg').textContent = 'Thiếu mã đơn'; return }
+  const okr = await dtRpc('cg_msg', 'cod_ghi', { p_dong: { ma_don: ma, ngay_xuat: $('cg_ngay').value || null, so_tien_thu_ho: dtNum('cg_tien'), don_vi_vc: $('cg_vc').value.trim() } })
+  if (okr) { $('cg_ma').value = ''; $('cg_tien').value = ''; $('cg_vc').value = '' }
+}
+async function chLuu() {
+  const ma = $('ch_ma').value.trim(); if (!ma) { $('ch_msg').style.color = '#C8202E'; $('ch_msg').textContent = 'Thiếu mã đơn'; return }
+  const okr = await dtRpc('ch_msg', 'cod_hoan', { p_don: ma, p_ngay: $('ch_ngay').value || null, p_ghi_chu: $('ch_gc').value.trim() || null })
+  if (okr) { $('ch_ma').value = ''; $('ch_gc').value = '' }
+}
+async function csLuu() {
+  const dot = $('cs_txt').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const p = l.split(/[,;\t]/).map(s => s.trim())
+    return { ma_don: p[0], so_tien: String(Number((p[1] || '').replace(/\D/g, '')) || 0), ngay: p[2] || null }
+  })
+  if (!dot.length) { $('cs_msg').style.color = '#C8202E'; $('cs_msg').textContent = 'Chưa dán dòng nào'; return }
+  const okr = await dtRpc('cs_msg', 'cod_doi_soat', { p_dot: dot })
+  if (okr) { $('cs_msg').textContent = `✓ Đối soát ${dot.length} đơn`; $('cs_txt').value = '' }
+}
+async function vnLuu() {
+  const okr = await dtRpc('vn_msg', 'von_ghi', { p_gd: { ngay: $('vn_ngay').value || null, loai: $('vn_loai').value, so_tien: dtNum('vn_tien'), ghi_chu: $('vn_gc').value.trim() } })
+  if (okr) { $('vn_tien').value = ''; $('vn_gc').value = '' }
+}
+async function vonXoa(id) { await sb.rpc('von_xoa', { p_id: Number(id) }); await taiDongTien() }
+async function qyLuu() {
+  await dtRpc('qy_msg', 'quy_ghi', { p_ky: KY, p_so_tien: dtNum('qy_tien'), p_ly_do: $('qy_gc').value.trim() || null })
+}
+
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
 let BADGE = {}   // ten_tham_so -> trang_thai
 async function taiBadges() {
@@ -649,6 +773,7 @@ async function loadKy() {
   if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
   if ($('tab-cmdon') && $('tab-cmdon').classList.contains('on')) { CM_TRANG = 0; CM_MO = -1; await taiCM() }
   if ($('tab-kenhcac') && $('tab-kenhcac').classList.contains('on')) { KC_BRAND = 'all'; await taiKenhCac() }
+  if ($('tab-dongtien') && $('tab-dongtien').classList.contains('on')) { DT_TRANG = 1; await taiDongTien() }
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
 }
 
