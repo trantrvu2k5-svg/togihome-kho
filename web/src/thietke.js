@@ -156,12 +156,12 @@ function moChuong() {
 }
 function dongChuong() { $('tkcMo').classList.remove('hien'); $('tkcPanel').classList.remove('hien') }
 function di(m) {
-  ;['viec', 'bang', 'gio', 'nhapso', 'nhom'].forEach(k => {
+  ;['viec', 'bang', 'gio', 'nhapso', 'nhom', 'tv'].forEach(k => {
     $('s-' + k).style.display = (k === m) ? 'block' : 'none'
     const n = $('n-' + k), d = $('d-' + k); if (n) n.classList.toggle('chon', k === m); if (d) d.classList.toggle('chon', k === m)
   })
   window.scrollTo(0, 0)
-  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio(); if (m === 'nhapso') taiNhapSo(); if (m === 'nhom') taiNhom()
+  if (m === 'viec') taiViec(); if (m === 'bang') taiBang(); if (m === 'gio') taiGio(); if (m === 'nhapso') taiNhapSo(); if (m === 'nhom') taiNhom(); if (m === 'tv') taiThuVien()
 }
 
 // ── L-73: khối NHÓM (trưởng nhóm thiết kế) — 3 khối chỉ đọc từ tk_nhom. Class tknh-. ──
@@ -293,8 +293,16 @@ function moModal(ten, thanHtml, nutHtml) {
 }
 function dongModal() { $('moM').classList.remove('hien'); $('hopM').classList.remove('hien'); GUIBAN = { ma_don: null, files: [] }; SOUOC = { ma_don: null, mon: [] } }
 
+// ── L-78: nhãn màu + vật liệu cho thư viện (nạp 1 lần) ──
+const MAU_LIST = [], VL_LIST = []
+async function napMauVL() {
+  if (MAU_LIST.length || VL_LIST.length) return
+  const { data: m } = await sb.from('mau_sac').select('ma,ten').eq('ngung', false).order('ten'); (m || []).forEach(x => MAU_LIST.push(x))
+  const { data: v } = await sb.from('vat_lieu_ban').select('ma,ten').eq('ngung', false).order('ten'); (v || []).forEach(x => VL_LIST.push(x))
+}
 // ── Gửi bản 3D cho sale (kèm file nguồn tuỳ chọn) ──
-function moGuiBan(maDon) {
+async function moGuiBan(maDon) {
+  await napMauVL()
   GUIBAN = { ma_don: maDon, files: [], fileNguon: null }
   moModal('Gửi bản 3D cho sale — ' + maDon,
     `<label>Ảnh render (kéo thả hoặc bấm chọn)</label>
@@ -305,6 +313,13 @@ function moGuiBan(maDon) {
      <div id="nguonTen" class="don-phu" style="margin-top:6px"></div>
      <label>Ghi chú cho sale (tuỳ chọn)</label>
      <textarea id="banGhiChu" placeholder="Ví dụ: phương án 2, đổi màu cánh theo yêu cầu…"></textarea>
+     <div style="display:flex;gap:10px;margin-top:10px">
+       <div style="flex:1"><label>Màu chủ đạo <span class="don-phu" style="font-weight:400">(cho thư viện, bỏ trống được)</span></label>
+         <select id="banMau" style="width:100%"><option value="">— không ghi —</option>${MAU_LIST.map(x => `<option value="${esc(x.ten)}">${esc(x.ten)}</option>`).join('')}</select></div>
+       <div style="flex:1"><label>Vật liệu chính <span class="don-phu" style="font-weight:400">(bỏ trống được)</span></label>
+         <select id="banVatLieu" style="width:100%"><option value="">— không ghi —</option>${VL_LIST.map(x => `<option value="${esc(x.ten)}">${esc(x.ten)}</option>`).join('')}</select></div>
+     </div>
+     <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400"><input type="checkbox" id="banAn" style="width:auto"> Không đưa bản này vào thư viện (bản riêng tư)</label>
      <div style="margin-top:16px;border-top:1px solid var(--vien);padding-top:12px">
        <label style="font-weight:600;margin-bottom:2px">Số ước để tính ngày giao
          <span class="don-phu" style="font-weight:400">(việc phụ — không bắt buộc để gửi bản)</span></label>
@@ -521,7 +536,7 @@ async function guiBan() {
       if (u.error) throw new Error(u.error.message)
       fileNguon = { duong_dan: pN, byte: fn.size }
     }
-    const { error } = await sb.rpc('gui_ban_thiet_ke', { p_ma_don: GUIBAN.ma_don, p_ghi_chu: $('banGhiChu').value || '', p_anh: anh, p_file_nguon: fileNguon })
+    const { error } = await sb.rpc('gui_ban_thiet_ke', { p_ma_don: GUIBAN.ma_don, p_ghi_chu: $('banGhiChu').value || '', p_anh: anh, p_file_nguon: fileNguon, p_mau: $('banMau') ? $('banMau').value || null : null, p_vat_lieu: $('banVatLieu') ? $('banVatLieu').value || null : null, p_an_thu_vien: $('banAn') ? $('banAn').checked : false })
     if (error) throw new Error(error.message)
     bao('Đã gửi bản cho sale'); dongModal(); taiViec()
   } catch (e) { bao(e.message, true); if ($('banGui')) { $('banGui').disabled = false; $('banGui').textContent = 'Gửi bản' } }
@@ -1094,3 +1109,56 @@ function nsNhacCuoi() {
   if (data.session && data.session.user) laySauDangNhap(data.session.user)
   else manDangNhap()
 })()
+
+// ══════════ L-78: THƯ VIỆN BẢN (thiết kế — mọi bản, có "Dựng lại từ bản này"). Class tktv-. ══════════
+let TV_LOC = { mau: '', vat_lieu: '', tu_khoa: '' }
+async function taiThuVien() {
+  await napMauVL()
+  const luoi = $('tktv-luoi'); if (!luoi) return
+  luoi.innerHTML = '<div class="trong-rong">Đang tải…</div>'
+  // bộ lọc (1 lần)
+  const loc = $('tktv-loc')
+  if (!loc.dataset.done) {
+    loc.innerHTML = '<input id="tktv-tk" placeholder="Tìm tên món" style="min-width:160px">'
+      + '<select id="tktv-mau"><option value="">Mọi màu</option>' + MAU_LIST.map(x => `<option value="${esc(x.ten)}">${esc(x.ten)}</option>`).join('') + '</select>'
+      + '<select id="tktv-vl"><option value="">Mọi vật liệu</option>' + VL_LIST.map(x => `<option value="${esc(x.ten)}">${esc(x.ten)}</option>`).join('') + '</select>'
+    loc.dataset.done = '1'
+    $('tktv-tk').oninput = () => { TV_LOC.tu_khoa = $('tktv-tk').value; clearTimeout(loc._t); loc._t = setTimeout(taiThuVien, 400) }
+    $('tktv-mau').onchange = () => { TV_LOC.mau = $('tktv-mau').value; taiThuVien() }
+    $('tktv-vl').onchange = () => { TV_LOC.vat_lieu = $('tktv-vl').value; taiThuVien() }
+  }
+  const { data, error } = await sb.rpc('thu_vien_ban', { p_chi_duyet: false, p_mau: TV_LOC.mau || null, p_vat_lieu: TV_LOC.vat_lieu || null, p_tu_khoa: TV_LOC.tu_khoa || null, p_gioi_han: 60, p_offset: 0 })
+  if (error) { luoi.innerHTML = `<div class="trong-rong"><p>Lỗi: ${esc(error.message)}</p></div>`; return }
+  const ds = data.ds || []
+  if (!ds.length) { luoi.innerHTML = '<div class="trong-rong"><p>Chưa có bản nào khớp.</p></div>'; return }
+  // ký ảnh (signed url) song song
+  const urls = await Promise.all(ds.map(b => b.anh ? sb.storage.from('ban-thiet-ke').createSignedUrl(b.anh, 3600).then(r => r.data?.signedUrl || '').catch(() => '') : ''))
+  luoi.innerHTML = ds.map((b, i) => `<div class="tktv-the">
+    <div class="tktv-anh">${urls[i] ? `<img src="${urls[i]}" loading="lazy">` : '<span>không ảnh</span>'}</div>
+    <div class="tktv-than">
+      <div class="tktv-mon">${esc(b.ten_mon || '(chưa có món)')}${b.so_mon > 1 ? ` <em>+${b.so_mon - 1}</em>` : ''}</div>
+      <div class="tktv-nhan">${[b.dong && ('▦ ' + b.dong), b.phong_cach, b.mau_chu_dao && ('🎨 ' + b.mau_chu_dao), b.vat_lieu_chinh].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('')}</div>
+      <div class="tktv-phu">${esc(b.nguoi_dung || '')} · ${b.trang_thai === 'khach_duyet' ? '✓ khách duyệt' : esc(b.trang_thai)}${b.vong_sua ? ' · ' + b.vong_sua + ' vòng sửa' : ''}</div>
+      <button class="nut-nho nut-xam tktv-dl" data-ban="${b.ban_id}">Dựng lại từ bản này</button>
+    </div></div>`).join('')
+  luoi.querySelectorAll('.tktv-dl').forEach(btn => btn.onclick = () => moDungLai(btn.dataset.ban))
+}
+// "Dựng lại từ bản này" → chọn ĐƠN đang cầm để gắn → ghi_dung_lai_ban
+async function moDungLai(banId) {
+  let data = []; try { const r = await sb.rpc('tk_viec_cua_toi'); data = r.data || [] } catch (e) {}
+  const dons = (Array.isArray(data) ? data : (data && data.ds) || []).filter(v => v.ma_don)
+  moModal('Dựng lại từ bản — gắn vào đơn đang cầm',
+    `<label>Mã đơn đang cầm để gắn</label>
+     <input id="dl-don" list="dl-dons" placeholder="Nhập/chọn mã đơn (vd ${dons[0] ? esc(dons[0].ma_don) : 'ĐH-...'})">
+     <datalist id="dl-dons">${dons.map(v => `<option value="${esc(v.ma_don)}">${esc(v.buoc_thiet_ke || v.trang_thai || '')}</option>`).join('')}</datalist>
+     <label style="margin-top:10px">Sửa gì so với bản gốc (tuỳ chọn)</label>
+     <input id="dl-sua" placeholder="Ví dụ: đổi màu, đổi kích thước">`,
+    `<button class="nut-vien" id="dl-huy">Huỷ</button><button class="nut-chinh" id="dl-ok">Ghi dựng lại</button>`)
+  $('dl-huy').onclick = dongModal
+  $('dl-ok').onclick = async () => {
+    const maDon = $('dl-don').value.trim(); if (!maDon) return bao('Nhập mã đơn trước', true)
+    try { const { error } = await sb.rpc('ghi_dung_lai_ban', { p_ban_id: banId, p_ma_don_moi: maDon, p_sua_gi: $('dl-sua').value || null })
+      if (error) throw new Error(error.message); dongModal(); bao('✓ Đã ghi dựng lại vào ' + maDon) }
+    catch (e) { bao('Lỗi: ' + e.message, true) }
+  }
+}

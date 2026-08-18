@@ -1953,6 +1953,49 @@ const seed = () => {
 let BG_KIEU = "ds"; // nhớ kiểu nhìn trong phiên
 const BG_NHAN = { chua_nhan: "Chưa nhận", dang_dung: "Đang dựng", ban_moi: "Bản mới chưa gửi", da_gui: "Đã gửi khách", sua_gop_y: "Khách chê", du_len_don: "Khách duyệt", thua: "Thua", treo: "Treo" };
 const BG_LOAI = { le_sang: ["Lẻ", "bg-nl-le"], le_rieng: ["Lẻ riêng", "bg-nl-le"], combo: ["Combo", "bg-nl-combo"], combo_moi: ["Combo mới", "bg-nl-combo"], full_can: ["Full căn", "bg-nl-full"], bao_hanh: ["Bảo hành", "bg-nl-bh"], cat_lai: ["Cắt lại", "bg-nl-bh"] };
+// ── L-78: THƯ VIỆN BẢN (sale) — chỉ bản ĐÃ KHÁCH DUYỆT, ẨN tên khách. Cho khách xem bản khách khác. Class tv-.
+const TV_CSS = ".tv-man{padding:16px 22px;max-width:1200px}.tv-hdr h1{margin:0;font-size:20px}.tv-hdr p{margin:2px 0 14px;color:#6B7488;font-size:13px}"
+  + ".tv-loc{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.tv-loc select,.tv-loc input{padding:8px 11px;border:1px solid #D3D9E4;border-radius:8px;font-size:14px}"
+  + ".tv-luoi{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}"
+  + ".tv-the{background:#fff;border:1px solid #E3E7EF;border-radius:12px;overflow:hidden;cursor:pointer}.tv-the:hover{border-color:#9Fb1CE}"
+  + ".tv-anh{aspect-ratio:4/3;background:#EEF1F5;display:flex;align-items:center;justify-content:center;color:#98A2B3;font-size:12px;overflow:hidden}.tv-anh img{width:100%;height:100%;object-fit:cover}"
+  + ".tv-than{padding:9px 11px}.tv-mon{font-weight:600;font-size:13.5px;margin-bottom:4px}.tv-nhan{display:flex;flex-wrap:wrap;gap:4px}.tv-nhan span{font-size:11px;background:#EEF1F5;border-radius:20px;padding:2px 8px;color:#6B7488}"
+  + ".tv-rong{color:#98A2B3;padding:24px;text-align:center}.tv-lb{position:fixed;inset:0;background:rgba(9,11,15,.86);display:flex;align-items:center;justify-content:center;padding:24px;z-index:90;cursor:zoom-out;flex-direction:column;gap:12px}.tv-lb img{max-width:92vw;max-height:78vh;border-radius:8px}.tv-lb-nhan{color:#fff;font-size:13px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.tv-lb-nhan span{background:rgba(255,255,255,.14);border-radius:20px;padding:3px 10px}";
+function ThuVienMan() {
+  const el = React.createElement, sb = window.__sb;
+  const [ds, setDs] = useState(null), [urls, setUrls] = useState({}), [mauList, setMauList] = useState([]);
+  const [fMau, setFMau] = useState(""), [fTk, setFTk] = useState(""), [xem, setXem] = useState(null);
+  useEffect(() => { sb.from("mau_sac").select("ten").eq("ngung", false).order("ten").then(r => setMauList((r.data || []).map(x => x.ten))); }, []);
+  useEffect(() => {
+    let alive = true; setDs(null);
+    const h = setTimeout(() => {
+      sb.rpc("thu_vien_ban", { p_chi_duyet: true, p_mau: fMau || null, p_tu_khoa: fTk || null, p_gioi_han: 60, p_offset: 0 })
+        .then(async r => {
+          if (!alive) return; const rows = (r.data && r.data.ds) || []; setDs(rows);
+          const u = {};
+          await Promise.all(rows.map(b => b.anh ? sb.storage.from("ban-thiet-ke").createSignedUrl(b.anh, 3600).then(s => { u[b.ban_id] = s.data && s.data.signedUrl; }).catch(() => {}) : null));
+          if (alive) setUrls(u);
+        }).catch(() => alive && setDs([]));
+    }, 350);
+    return () => { alive = false; clearTimeout(h); };
+  }, [fMau, fTk]);
+  const nhan = b => [b.dong && "▦ " + b.dong, b.phong_cach, b.mau_chu_dao && "🎨 " + b.mau_chu_dao, b.vat_lieu_chinh].filter(Boolean);
+  return el("div", { className: "tv-man" }, el("style", null, TV_CSS),
+    el("div", { className: "tv-hdr" }, el("h1", null, "Thư viện bản thiết kế"), el("p", null, "Bản đã khách duyệt — cho khách tham khảo mẫu. Tên khách được ẩn.")),
+    el("div", { className: "tv-loc" },
+      el("input", { placeholder: "Tìm tên món", value: fTk, onChange: e => setFTk(e.target.value) }),
+      el("select", { value: fMau, onChange: e => setFMau(e.target.value) }, el("option", { value: "" }, "Mọi màu"), mauList.map(m => el("option", { key: m, value: m }, m)))),
+    ds === null ? el("div", { className: "tv-rong" }, "Đang tải…")
+      : !ds.length ? el("div", { className: "tv-rong" }, "Chưa có bản đã duyệt nào khớp.")
+      : el("div", { className: "tv-luoi", id: "tv-luoi" }, ds.map(b => el("div", { className: "tv-the", key: b.ban_id, onClick: () => setXem(b) },
+          el("div", { className: "tv-anh" }, urls[b.ban_id] ? el("img", { src: urls[b.ban_id], loading: "lazy" }) : el("span", null, "…")),
+          el("div", { className: "tv-than" }, el("div", { className: "tv-mon" }, b.ten_mon || "(mẫu)"),
+            el("div", { className: "tv-nhan" }, nhan(b).map((x, i) => el("span", { key: i }, x))))))),
+    xem && el("div", { className: "tv-lb", onClick: () => setXem(null) },
+      urls[xem.ban_id] ? el("img", { src: urls[xem.ban_id] }) : el("div", { style: { color: "#fff" } }, "không ảnh"),
+      el("div", { className: "tv-lb-nhan" }, [xem.ten_mon].concat(nhan(xem)).filter(Boolean).map((x, i) => el("span", { key: i }, x)))));
+}
+
 // ── L-72: MÀN "NHÓM CỦA TÔI" (truong_nhom_sale/ceo) — chỉ đọc + 2 hành động sẵn (đổi chủ · mở đơn). Class nh-.
 const NH_CSS = ".nh-man{padding:18px 22px;max-width:1100px}.nh-hdr h1{margin:0;font-size:20px}.nh-hdr p{margin:2px 0 14px;color:#6B7488;font-size:13px}"
   + ".nh-khoi{background:#fff;border:1px solid #E3E7EF;border-radius:12px;padding:14px 16px;margin-bottom:14px}.nh-khoi h3{margin:0 0 10px;font-size:15px}.nh-hint{font-weight:400;color:#98A2B3;font-size:12px;margin-left:8px}"
@@ -2420,10 +2463,11 @@ function App() {
     don: true,
     bg: true,
     nhom: ["truong_nhom_sale", "ceo"].includes((window.__saleUser && window.__saleUser.vai_tro) || ""),   // L-72: mục Nhóm CHỈ trưởng nhóm/ceo
+    tv: true,   // L-78: Thư viện bản — mọi sale (cho khách xem bản khách khác)
     sp: true,
     khach: true
   };
-  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["nhom", "Nhóm"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["nhom", "Nhóm"], ["tv", "Thư viện bản"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2520,7 +2564,7 @@ function App() {
     db,
     moDon: ma => { setMoMa(ma); },
     reload: taiBgK
-  }), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
+  }), okTab === "tv" && /*#__PURE__*/React.createElement(ThuVienMan, null), okTab === "sp" && /*#__PURE__*/React.createElement(SanPham, P), okTab === "khach" && /*#__PURE__*/React.createElement(KhachHang, P)));
 }
 function DangNhap({
   users,
