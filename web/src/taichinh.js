@@ -78,6 +78,7 @@ async function napApp() {
   $('cs_luu').onclick = csLuu; $('vn_luu').onclick = vnLuu; $('qy_luu').onclick = qyLuu
   $('dt_no_truoc').onclick = () => { if (DT_TRANG > 1) { DT_TRANG--; taiConPhaiThu() } }
   $('dt_no_sau').onclick = () => { if (DT_TRANG < DT_SOTRANG) { DT_TRANG++; taiConPhaiThu() } }
+  $('nx_ng_luu').onclick = nxNguongLuu   // L-50: lưu ngưỡng nhận xét
   ;['pt_tien', 'cg_tien', 'vn_tien', 'qy_tien'].forEach(id => { const e = $(id); if (e) e.addEventListener('input', () => fmtMoneyEl(e)) })
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
@@ -98,6 +99,7 @@ function doiTab(t) {
   if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
   if (t === 'kenhcac') { KC_BRAND = 'all'; taiKenhCac() }
   if (t === 'dongtien') { DT_TRANG = 1; taiDongTien() }
+  if (t === 'nhanxet') taiNhanXet()
   if (t === 'chiphi') taiChiPhiKy()
   if (t === 'taikhoan') taiTaiKhoan()
 }
@@ -736,6 +738,51 @@ async function qyLuu() {
   await dtRpc('qy_msg', 'quy_ghi', { p_ky: KY, p_so_tien: dtNum('qy_tien'), p_ly_do: $('qy_gc').value.trim() || null })
 }
 
+// ══════════ TAB NHẬN XÉT THEO LUẬT (L-50): nhan_xet_ky (meta-màn, Σ 6 RPC nguồn); bảng ngưỡng sửa tại chỗ ══════════
+const NX_MUC = { canh_bao: ['CẢNH BÁO', 'canh'], dang_soi: ['ĐÁNG SOI', 'soi'], on: ['ỔN', 'tot'] }
+// mỗi dòng ngưỡng: [luật, mô tả, [ô giá trị], [ô mẫu tối thiểu]] · ô = {key, suffix}
+const NX_NGUONG = [
+  ['2 · k3 ăn dòng lẻ', 'k3 / DT lẻ vượt', [{ k: 'nguong_k3_le', s: '%' }], [{ k: 'mau_toi_thieu_don', s: 'đơn trọn' }]],
+  ['3 · kênh yếu', 'CM% kênh thấp hơn TB', [{ k: 'nguong_kenh_yeu', s: 'điểm %' }], [{ k: 'mau_toi_thieu_khach', s: 'khách mới' }]],
+  ['5 · xưởng trống / kín', 'lấp đầy ngoài dải', [{ k: 'nguong_lap_day_thap', s: '' }, { k: 'nguong_lap_day_cao', s: '%' }], []],
+  ['6 · nợ già', 'nợ >60ng / DT kỳ vượt', [{ k: 'nguong_no_gia', s: '%' }], []],
+  ['8 · lãi mà hụt tiền', 'ròng âm vượt', [{ k: 'nguong_lai_hut_tien', s: 'tr' }], []]
+]
+async function taiNhanXet() {
+  const box = $('nx_list'); if (!box) return
+  const { data: g, error } = await sb.rpc('nhan_xet_ky', { p_ky: KY })
+  if (error) { box.innerHTML = `<div class="hint" style="color:#C8202E">Lỗi: ${escH(error.message)}</div>`; return }
+  $('nx_canh').textContent = g.dem.canh_bao; $('nx_soi').textContent = g.dem.dang_soi; $('nx_im').textContent = g.dem.im_lang
+  const items = g.nhan_xet || []
+  box.innerHTML = items.length ? items.map(x => {
+    const [nhan, cls] = NX_MUC[x.muc] || ['', '']
+    return `<div class="nx-item ${cls}"><div class="nx-dau"><span class="nx-bam">${nhan}</span>`
+      + `<div class="nx-cau">${escH(x.cau)}${x.cau_hoi ? `<span class="nx-hoi">${escH(x.cau_hoi)}</span>` : ''}</div></div>`
+      + (x.bang_chung ? `<div class="nx-bang-chung">${escH(x.bang_chung)}</div>` : '')
+      + `<div class="nx-can-cu"${x.bang_chung ? '' : ' style="padding-top:6px"'}>${escH(x.can_cu)}</div></div>`
+  }).join('') : '<div class="nx-item tot"><div class="nx-dau"><span class="nx-bam">ỔN</span><div class="nx-cau">Không luật nào chạm ngưỡng kỳ này.</div></div></div>'
+  // khối im lặng
+  const ims = g.im_lang || []
+  $('nx_imbox').innerHTML = ims.length
+    ? `<div class="nx-im">🤫 <b>Im lặng vì mẫu mỏng / chưa đủ số</b> — ${ims.map(x => `Luật ${escH(x.luat.replace('L', ''))}: ${escH(x.ly_do)}`).join(' · ')} Mẫu mỏng nói bừa còn hại hơn im — luật tự câm cho tới khi đủ số.</div>`
+    : ''
+  // bảng ngưỡng
+  const md = new Set(g.nguong_mac_dinh || [])
+  const inp = o => `<input data-k="${o.k}" value="${g.nguong[o.k] ?? ''}">${md.has(o.k) ? '<span class="nx-ng-md" title="đang dùng mặc định">◆</span>' : ''} ${o.s}`
+  $('nx_ng_body').innerHTML = NX_NGUONG.map(([ten, mota, vals, maus]) =>
+    `<tr><td>${escH(ten)}</td><td class="hint">${escH(mota)}</td>`
+    + `<td class="nx-r">${vals.map((o, i) => (i ? '– ' : '') + inp(o)).join('')}</td>`
+    + `<td class="nx-r">${maus.length ? maus.map(inp).join('') : '—'}</td></tr>`).join('')
+}
+async function nxNguongLuu() {
+  const body = {}; $('nx_ng_body').querySelectorAll('input[data-k]').forEach(i => { const v = i.value.trim(); if (v !== '') body[i.dataset.k] = v })
+  $('nx_ng_msg').style.color = 'var(--mut)'; $('nx_ng_msg').textContent = 'Đang lưu…'
+  const { error } = await sb.rpc('nguong_ghi', { p_ky: KY, p_nguong: body })
+  if (error) { $('nx_ng_msg').style.color = '#C8202E'; $('nx_ng_msg').textContent = 'Lỗi: ' + error.message; return }
+  $('nx_ng_msg').style.color = 'var(--gn)'; $('nx_ng_msg').textContent = `✓ Đã lưu ngưỡng cho kỳ ${KY} (áp từ kỳ này, kỳ cũ giữ nguyên)`
+  await taiNhanXet()
+}
+
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
 let BADGE = {}   // ten_tham_so -> trang_thai
 async function taiBadges() {
@@ -774,6 +821,7 @@ async function loadKy() {
   if ($('tab-cmdon') && $('tab-cmdon').classList.contains('on')) { CM_TRANG = 0; CM_MO = -1; await taiCM() }
   if ($('tab-kenhcac') && $('tab-kenhcac').classList.contains('on')) { KC_BRAND = 'all'; await taiKenhCac() }
   if ($('tab-dongtien') && $('tab-dongtien').classList.contains('on')) { DT_TRANG = 1; await taiDongTien() }
+  if ($('tab-nhanxet') && $('tab-nhanxet').classList.contains('on')) await taiNhanXet()
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
 }
 

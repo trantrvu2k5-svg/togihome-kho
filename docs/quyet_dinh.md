@@ -519,6 +519,9 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Hạng TÁC NGHIỆP** (người đứng chờ thao tác: ghi phiếu, chốt đơn, chuyển trạng thái…): **< 500ms**.
 - **Hạng PHÂN TÍCH** (màn báo cáo/tổng hợp: `pl_ky`, `cm_don_ky`, `kenh_cac_ky`, `dong_tien_ky`, `con_phai_thu`, và MỌI màn
   phân tích sau): **< 900ms warm tại stress 100k**.
+- **Hạng META-MÀN** (RPC GỌI LẠI nhiều RPC phân tích, không tính lại — vd `nhan_xet_ky` gọi 6 nguồn): ngân sách = **Σ các nguồn
+  nó gọi** (không phải <900ms đơn lẻ). Từng nguồn vẫn phải <900ms. `nhan_xet_ky` @100k ~2,6s = tổng 6 nguồn + 1 count guard;
+  real kỳ <100ms. CEO chốt 18/08 (L-50): giữ tái dùng thuần thay vì gộp-quét (tránh "hai bản công thức").
 - **Gốc ngưỡng 900:** plpgsql chạy TUẦN TỰ + 1 worker (PG tắt parallelism trong hàm; instance `max_parallel_workers_per_gather=1`)
   → quét 100k tuần tự = sàn ~500-600ms, cho headroom tải → 900. Kỳ THẬT vài trăm đơn **<50ms** — 100k chỉ là stress.
 - **RPC mới TỰ CHIẾU HẠNG** (không hỏi lại, hết ngoại lệ lẻ QD-37/38/39…). **Tác nghiệp CẤM mượn ngưỡng phân tích** — chậm quá
@@ -532,3 +535,27 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   thật đội lên 980-1210ms). Prod KHÔNG có savepoint lồng nên KHÔNG dính.
 - **⟹ Đo perf phải DIRECT:** set role authenticated + jwt claims **MỘT LẦN** rồi `c.query` thẳng (không savepoint/call), giống hệt
   prod. Áp cho mọi test perf sau. (Ghi cả ở đầu `web/ops/test_116.mjs`.)
+
+## QD-41 (18/08) — Màn "Nhận xét theo luật" (L-50)
+
+- **8 LUẬT đối chiếu số kỳ**, mỗi luật một dòng nhận xét khi đủ điều kiện; mẫu mỏng → khối IM LẶNG kèm lý do (không phán); đạt →
+  không spam (chỉ L4 và tổng thể có dòng ỔN). GIỌNG: câu nói được ↦ **CÂU HỎI** (không mệnh lệnh) ↦ bằng chứng số ↦ căn cứ
+  (luật · nguồn màn · sách/QD). **Garrison ch.6: CẤM gợi ý cắt segment** (định phí chung không biến mất) — máy nêu chỗ đáng
+  soi + đặt câu hỏi, quyết định vẫn của người.
+- **8 luật:** L1 CẢNH BÁO đơn giao thiếu giá vốn/ship-lắp (cm_don_ky.so_thieu, không ngưỡng) · L2 ĐÁNG SOI k3/DT dòng lẻ >
+  ngưỡng (cần ≥ mẫu đơn trọn lẻ) · L3 ĐÁNG SOI CM% kênh < TB − ngưỡng điểm % (cần ≥ khách mới) · L4 CẢNH BÁO kênh vô hạn
+  (ads>0, 0 khách) · L5 ĐÁNG SOI lấp đầy ngoài dải [thấp,cao] — **hai câu KHÁC NHAU** (trống→"đơn CM dương dưới sàn có đáng
+  nhận?" ch.12; kín→"ưu tiên theo CM/khối 2 không theo CM%" ch.12) · L6 ĐÁNG SOI nợ>60 / DT kỳ > ngưỡng + đơn già nhất · L7
+  ĐÁNG SOI số COD kẹt >14 ngày ≥ ngưỡng · L8 CẢNH BÁO lãi P/L dương & ròng tiền âm > ngưỡng, **phân rã chênh** = nợ khách +
+  ở nhà VC + ngoài KD + khác (cộng khớp, Garrison ch.14).
+- **NGUỒN SỐ = TÁI DÙNG RPC màn gốc, KHÔNG tính lại công thức.** nhan_xet_ky GỌI pl_ky + cm_don_ky + kenh_cac_ky + lap_day_ky +
+  con_phai_thu + dong_tien_ky, rút field. Chỉ 1 count guard (đơn trọn theo dòng cho mẫu L2) là truy vấn phụ — sample-size, không
+  phải công thức tài chính.
+- **NGƯỠNG = tham số kỳ** (9 cột NULLABLE trên `tham_so_tai_chinh`; NULL = dùng mặc định + trả cờ `nguong_mac_dinh`). Mặc định:
+  k3_le 8% · mẫu đơn 5 · kênh_yếu 10 điểm% · mẫu khách 3 · lấp_đầy 75–95% · nợ_già 8% · cod_kẹt 2 đơn · lãi_hụt 50tr. `nguong_ghi`
+  set không hồi tố (kỳ cũ giữ nguyên). L1/L4/L7 không cần ngưỡng chỉnh.
+- **META-MÀN (perf):** nhan_xet_ky = Σ 6 nguồn ~2,6s @100k stress (đo direct); real kỳ <100ms. Xem LUẬT TỐC ĐỘ (hạng META-MÀN
+  bổ sung ở QD-40). CEO chốt 18/08: giữ tái dùng thuần 6 RPC (bằng chứng đầy đủ: L1 bắt cả thiếu-GV lẫn ship/lắp; L6 hiện đơn nợ
+  già nhất) thay vì trọn 4 RPC <900ms (nghèo bằng chứng).
+- **Trạng thái:** ĐÃ LÀM (db/117: 9 ngưỡng + nguong_ghi + nhan_xet_ky 8 luật; tab "Nhận xét" app Tài chính; test_117). CHƯA
+  commit — chờ CEO kiểm mắt.

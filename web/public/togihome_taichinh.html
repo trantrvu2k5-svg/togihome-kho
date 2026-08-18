@@ -239,6 +239,31 @@
   #tc .dt-cod-area textarea { width:100%; min-height:74px; padding:9px 11px; font-family:var(--mono); font-size:12.5px; border:1px solid var(--bd); border-radius:10px; resize:vertical; }
   #tc .dt-chan { font-size:11.5px; color:var(--mut); line-height:1.7; margin-top:12px; }
   @media(max-width:1000px){ #tc .dt-luoi { grid-template-columns:1fr; } #tc .dt-the { overflow-x:auto; } #tc .dt-form { grid-template-columns:1fr 1fr; } }
+  /* ── Nhận xét theo luật (L-50) ── */
+  #tc .nx-thanh { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:2px 0 14px; }
+  #tc .nx-dem { display:flex; gap:22px; flex-wrap:wrap; text-align:right; }
+  #tc .nx-dem .nx-nhan { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--fnt); }
+  #tc .nx-dem .nx-so { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #tc .nx-item { background:var(--surface); border-radius:14px; box-shadow:var(--sh); margin-bottom:13px; overflow:hidden; border-left:5px solid var(--bd); }
+  #tc .nx-item.canh { border-left-color:var(--pri); } #tc .nx-item.soi { border-left-color:#C99A3B; } #tc .nx-item.tot { border-left-color:var(--gn); }
+  #tc .nx-dau { display:flex; gap:12px; align-items:flex-start; padding:15px 18px 4px; }
+  #tc .nx-bam { font-size:10px; font-weight:800; letter-spacing:.05em; padding:3px 9px; border-radius:20px; white-space:nowrap; margin-top:2px; }
+  #tc .canh .nx-bam { background:var(--rdB); color:var(--pri); } #tc .soi .nx-bam { background:var(--amB); color:var(--am); } #tc .tot .nx-bam { background:var(--gnB); color:var(--gn); }
+  #tc .nx-cau { font-size:14.5px; line-height:1.55; font-weight:600; }
+  #tc .nx-hoi { display:inline-block; margin-left:6px; font-weight:400; color:var(--mut); }
+  #tc .nx-bang-chung { padding:6px 18px 8px 92px; font-family:var(--mono); font-size:12px; color:var(--tx2); line-height:1.5; }
+  #tc .nx-can-cu { padding:0 18px 14px 92px; font-size:11.5px; color:var(--mut); }
+  #tc .nx-im { background:var(--surface); border-radius:14px; padding:14px 18px; margin-bottom:13px; font-size:12.5px; color:var(--mut); border-left:5px dashed var(--bd); line-height:1.6; }
+  #tc .nx-chan { margin-top:18px; font-size:12px; color:var(--mut); line-height:1.7; }
+  #tc .nx-nguong { background:var(--surface); border-radius:14px; box-shadow:var(--sh); margin-top:20px; overflow:hidden; }
+  #tc .nx-ng-dau { padding:14px 18px; border-bottom:1px solid var(--bd); font-weight:700; font-size:14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  #tc .nx-ng-dau span { font-weight:400; font-size:12px; color:var(--mut); }
+  #tc .nx-ng-tbl { width:100%; border-collapse:collapse; }
+  #tc .nx-ng-tbl th { font-size:11px; color:var(--fnt); text-align:left; padding:9px 18px; border-bottom:1px solid var(--bd); font-weight:700; }
+  #tc .nx-ng-tbl td { padding:8px 18px; border-bottom:1px solid var(--bd2); font-size:13px; }
+  #tc .nx-ng-tbl td.nx-r, #tc .nx-ng-tbl th.nx-r { text-align:right; }
+  #tc .nx-ng-tbl input { width:70px; font-family:var(--mono); text-align:right; padding:5px 8px; border:1px solid var(--bd); border-radius:8px; font-size:13px; }
+  #tc .nx-ng-md { font-size:10px; color:var(--am); margin-left:6px; }
   /* ── mobile: nav thành hàng ngang (như sale) ── */
   @media(max-width:1000px){
     #tc .app { flex-direction:column; }
@@ -261,6 +286,7 @@
     <button class="navi" data-tab="cmdon">Lãi theo đơn</button>
     <button class="navi" data-tab="kenhcac">Kênh &amp; CAC</button>
     <button class="navi" data-tab="dongtien">Dòng tiền</button>
+    <button class="navi" data-tab="nhanxet">Nhận xét</button>
     <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
@@ -655,6 +681,30 @@
       <div class="dt-chan">
         Bốn trạng thái tiền: khách nợ → ở nhà vận chuyển (COD đang giao) → đã thu · nhánh hoàn = tiền không về, hàng quay lại. Dòng tiền ≠ lãi: P/L trả lời "kỳ này LÀM ĂN ra sao" (ngày giao), màn này trả lời "kỳ này TIỀN MẶT ra sao" (ngày tiền về/đi).<br>
         Chi ads ở đây = số GỒM VAT (tiền thật chi ra) — khác màn Kênh &amp; CAC (bóc VAT). Công nợ gồm VAT. Nguồn sự thật thu tiền = sổ phiếu thu (cột thu cũ trên đơn đóng băng lịch sử).
+      </div>
+    </div>
+
+    <!-- ══════════ TAB · NHẬN XÉT THEO LUẬT (L-50) ══════════ -->
+    <div class="tabp" id="tab-nhanxet">
+      <h1>Nhận xét theo luật</h1>
+      <div class="subline">Máy đối chiếu số kỳ này với 8 luật đã ghi QD — nêu chỗ đáng soi kèm bằng chứng, KHÔNG ra lệnh thay người. Kỳ = ô <b>Kỳ</b> ở trên · vai ceo/kế toán.</div>
+      <div class="nx-thanh"><div class="nx-dem">
+        <div><div class="nx-nhan">Cảnh báo</div><div class="nx-so" id="nx_canh" style="color:var(--pri)">—</div></div>
+        <div><div class="nx-nhan">Đáng soi</div><div class="nx-so" id="nx_soi" style="color:#8a6a00">—</div></div>
+        <div><div class="nx-nhan">Im lặng (mẫu mỏng/ổn)</div><div class="nx-so" id="nx_im" style="color:var(--mut)">—</div></div>
+      </div></div>
+      <div id="nx_list"><div class="hint">Đang tải…</div></div>
+      <div id="nx_imbox"></div>
+      <div class="nx-nguong">
+        <div class="nx-ng-dau">Ngưỡng của 8 luật — tham số theo kỳ, sửa được<span>đổi ngưỡng áp dụng từ kỳ đang chọn, kỳ cũ giữ nguyên · <span class="nx-ng-md">◆ đang dùng mặc định</span></span></div>
+        <div style="overflow-x:auto"><table class="nx-ng-tbl"><thead><tr><th>Luật</th><th>Ngưỡng</th><th class="nx-r">Giá trị</th><th class="nx-r">Mẫu tối thiểu</th></tr></thead>
+          <tbody id="nx_ng_body"></tbody></table></div>
+        <div style="padding:12px 18px;display:flex;gap:10px;align-items:center;border-top:1px solid var(--bd2)">
+          <button class="btn" id="nx_ng_luu">Lưu ngưỡng kỳ</button><span class="hint" id="nx_ng_msg"></span>
+        </div>
+      </div>
+      <div class="nx-chan">
+        Luật 1, 4, 7 không cần ngưỡng chỉnh (thiếu số là thiếu, ∞ là ∞, kẹt COD dùng mốc 14 ngày của màn Dòng tiền). Mỗi nhận xét: câu nói được ↦ bằng chứng số ↦ căn cứ (luật · nguồn màn · sách/QD). Máy nêu chỗ đáng soi và ĐẶT CÂU HỎI — quyết định vẫn của người. Không có nhận xét kiểu "hãy cắt dòng X" (Garrison ch.6: cắt segment không làm định phí chung biến mất).
       </div>
     </div>
 

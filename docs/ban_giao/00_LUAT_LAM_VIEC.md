@@ -53,6 +53,7 @@ Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòn
 - **Hạng TÁC NGHIỆP** (người đứng chờ: ghi phiếu, chốt đơn, `quet_tem`…): **< 500ms** (tem thợ chờ: < 300ms).
 - **Hạng PHÂN TÍCH** (màn báo cáo: `pl_ky`/`cm_don_ky`/`kenh_cac_ky`/`dong_tien_ky`/`con_phai_thu`… và mọi màn phân tích sau): **< 900ms warm @100k**.
 - Gốc 900: plpgsql chạy tuần tự + 1 worker (PG tắt parallelism trong hàm) → quét 100k = sàn ~500-600ms + headroom tải. Kỳ thật <50ms.
+- **Hạng META-MÀN** (RPC gọi lại nhiều RPC phân tích, không tính lại — vd `nhan_xet_ky` gọi 6 nguồn): ngân sách = **Σ các nguồn** (~2,6s @100k); từng nguồn vẫn <900ms. Real kỳ <100ms.
 - RPC mới **tự chiếu hạng**, hết ngoại lệ lẻ. **Tác nghiệp CẤM mượn ngưỡng phân tích** — chậm thì tối ưu/denormalize.
 
 **BẪY ĐO PERF — phải đo DIRECT, không savepoint:**
