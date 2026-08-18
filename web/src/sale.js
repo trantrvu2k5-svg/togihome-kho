@@ -91,6 +91,7 @@ function rowToDon(r) {
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
     phongCach: r.phong_cach || '', nganSach: r.ngan_sach_trieu != null ? Number(r.ngan_sach_trieu) : '', tuDung: !!r.tu_dung, nguonKhach: r.nguon_khach || '',
     kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
+    khachMoi: r.khach_moi == null ? null : !!r.khach_moi,   // L-45: khách MỚI/CŨ (DB set lúc da_giao); null = chưa xác định
     salePhuTrach: r.sale_phu_trach || '',   // L-71: chủ đơn (uuid); tên hiện từ bg.sale_ten hoặc roster dsSale
   }
 }

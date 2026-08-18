@@ -372,3 +372,33 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   overhead_phan_bo gồm gì**; tạm xếp CẤM để tránh tính trùng. Bảng này thành **dòng chú thích ranh giới trên màn
   Chi phí kỳ**.
 - **Trạng thái:** RÀ XONG (read-only); nợ TREO chờ kế toán. **CHƯA commit.**
+
+## QD-33 (18/08) — ÉP nguồn khách tại cổng CHỐT đơn (nhắc mềm ở báo giá) (L-45)
+
+- **CEO chốt:** `nguon_khach` (6 giá trị, db/099) — **nhắc mềm** khi lên báo giá (để trống vẫn lưu), **ÉP CỨNG**
+  khi chốt đơn (`bao_gia → moi_len_don`): thiếu → CHẶN với "Chưa chọn nguồn khách — chọn rồi mới chốt đơn."
+- **Lý do:** CAC/phân khúc kênh cần dữ liệu **tại nguồn** — thời điểm chốt là cửa cuối còn hỏi được khách biết qua
+  đâu; qua cửa đó thì vĩnh viễn mất. Ép ở báo giá thì sale bịa cho xong (hỏng dữ liệu); ép ở chốt thì đã có đơn thật.
+- **KHÔNG hồi tố:** gác chỉ bắn khi UPDATE bao_gia→moi_len_don; đơn INSERT thẳng moi_len_don hay đã qua từ trước
+  KHÔNG dính. Bypass test/backfill: GUC `chan.off_nguon`.
+- **Trạng thái:** ĐÃ LÀM (db/109 gác trong `kiem_chuyen_trang_thai`; UI sale: label * + tooltip 2 form + chặn client
+  ở "Chuyển thành đơn"; test_109 #1/#2). **CHƯA commit.**
+
+## QD-34 (18/08) — Khách MỚI xác định lúc da_giao theo ngay_mua_dau (L-45)
+
+- **CEO chốt:** Tại thời điểm đơn `da_giao`, tra `khach` theo `sdt`: **chưa có `ngay_mua_dau`** → đơn `khach_moi=true`
+  + set `khach.ngay_mua_dau = ngay_giao`. Đơn sau cùng sdt → `khach_moi=false`. **KHÔNG ghi đè** `ngay_mua_dau` đã có
+  (backfill 8/9 dòng giữ nguyên).
+- **Dedupe:** trigger `tg_dong_bo_khach` (BEFORE INSERT/UPDATE don_hang) upsert `kho.khach` theo `sdt_khach` (tạo nếu
+  chưa có, nối `ten` nếu trống). `khach.sdt` đã là UNIQUE PK.
+- **Trạng thái:** ĐÃ LÀM (db/109; UI: badge "Khách MỚI/CŨ" ở chi tiết đơn khi da_giao; test_109 #3/#4). **CHƯA commit.**
+
+## QD-35 (18/08) — Cột chuẩn sđt + kg; ĐÍNH CHÍNH `kgs` KHÔNG phải cột trùng (L-45)
+
+- **Chốt cột chuẩn:** số điện thoại = **`sdt_khach`** (điền 14/15); khối lượng = **`khoi_luong_kg`** (app đã map đúng
+  từ trước — sale.js). Không đổi gì thêm cho 2 cột này.
+- 🔴 **ĐÍNH CHÍNH báo cáo L-44:** `kgs` **KHÔNG phải** cột kg trùng — nó là **ARRAY "danh mục không gian"** (phòng
+  khách/ngủ… mã 029), dùng **14× trong app Sale** (`f.kgs.includes`, `db.kgs`). **Drop = vỡ app.** → **GIỮ `kgs`.**
+- **`khach_sdt`** (0 điền) tuy trùng ý nghĩa `sdt_khach` nhưng có **FK `fk_dh_khach → khach(sdt)`** (db/024) + đọc bởi
+  **db/104 công nợ** + sale.js fallback. **HOÃN drop** — cần lô riêng (sửa db/104 + sale.js + gỡ FK) rồi mới drop an toàn.
+- **Trạng thái:** cột chuẩn CHỐT; **drop `kgs` HUỶ (sai tiền đề); drop `khach_sdt` HOÃN chờ lô riêng.** **CHƯA commit.**

@@ -2901,7 +2901,7 @@ function BaoGiaForm({ db, onClose, onSave }) {
         el("div", { className: "fld" }, el("label", null, "Tỉnh thành"),
           el("select", { value: f.tinh, onChange: e => setF({ ...f, tinh: e.target.value }) },
             ["Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Bình Dương", "Tỉnh khác"].map(t => el("option", { key: t }, t))))),
-      el("div", { className: "fld", style: { marginTop: 10 } }, el("label", null, "Khách biết mình qua đâu? ", el("span", { className: "mini" }, "(không bắt buộc)")),
+      el("div", { className: "fld", style: { marginTop: 10 } }, el("label", { title: "Bắt buộc khi CHỐT đơn (nhắc mềm lúc báo giá)" }, "Khách biết mình qua đâu? ", el("span", { className: "mini", style: { color: "#C8202E" } }, "* bắt buộc khi chốt")),
         el("select", { value: f.nguonKhach, onChange: e => setF({ ...f, nguonKhach: e.target.value }) },
           el("option", { value: "" }, "— chưa rõ —"), NGUON_KHACH.map(x => el("option", { key: x.c, value: x.c }, x.n)))),
       el("div", { className: "sec" }, "Khách muốn gì"),
@@ -3157,6 +3157,11 @@ function DonModal({
       window.alert("Chưa chuyển thành đơn hàng được — " + phan.join("; "));
       return;
     }
+    /* L-45: ÉP nguồn khách tại cổng CHỐT (server còn chặn cứng bằng trigger — đây chỉ đỡ UX). */
+    if (!f.nguonKhach) {
+      window.alert("Chưa chọn nguồn khách — chọn rồi mới chốt đơn.");
+      return;
+    }
     if (giam > 0 && !(f.lyDoGiam || "").trim()) {
       window.alert("Cần nhập lý do giảm giá.");
       return;
@@ -3398,9 +3403,9 @@ function DonModal({
     }
   }, "Không hỗ trợ lắp đặt")), /*#__PURE__*/React.createElement("div", {
     className: "fld"
-  }, /*#__PURE__*/React.createElement("label", null, "Khách biết mình qua đâu? ", /*#__PURE__*/React.createElement("span", {
-    className: "mini"
-  }, "(không bắt buộc)")), /*#__PURE__*/React.createElement("select", {
+  }, /*#__PURE__*/React.createElement("label", { title: "Bắt buộc để CHỐT đơn" }, "Khách biết mình qua đâu? ", /*#__PURE__*/React.createElement("span", {
+    className: "mini", style: { color: "#C8202E" }
+  }, "* bắt buộc để chốt")), /*#__PURE__*/React.createElement("select", {
     value: f.nguonKhach || "",
     onChange: e => setF({
       ...f,
@@ -5392,7 +5397,10 @@ function XemDon({
     className: "bdg mut"
   }, "cấp ", loaiOf(d.loai).cap), /*#__PURE__*/React.createElement("span", {
     className: "bdg " + t.mau
-  }, t.n), tien && tx.c !== "khong" && /*#__PURE__*/React.createElement("span", {
+  }, t.n), d.tt === "da_giao" && d.khachMoi != null && /*#__PURE__*/React.createElement("span", {
+    className: "bdg " + (d.khachMoi ? "gn" : "mut"),
+    title: "Xác định lúc giao (theo lần đầu mua của số điện thoại)"
+  }, d.khachMoi ? "Khách MỚI" : "Khách CŨ"), tien && tx.c !== "khong" && /*#__PURE__*/React.createElement("span", {
     className: "bdg " + tx.mau
   }, tx.n), /*#__PURE__*/React.createElement("button", {
     className: "x",
