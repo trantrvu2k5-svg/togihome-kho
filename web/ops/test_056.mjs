@@ -16,6 +16,7 @@ async function asK(uid,q,a=[]){ await c.query('savepoint k'); await c.query('set
 const q1 = async (s,a=[]) => (await c.query(s,a)).rows[0]
 try{
   await c.query('begin'); await c.query(sql); await c.query("set local role postgres").catch(()=>{})
+  await c.query("select set_config('chan.off_nguon','1',true)")   // L-46b: test này không kiểm nguồn khách — bypass gác moi_len_don
   const A = (await q1(`select id from kho.nguoi_dung where auth_uid=$1`,[U.thiet_ke])).id
   const TKB = (await q1(`select id from kho.nguoi_dung where auth_uid=$1`,[U.tk_ban_hang])).id
   await c.query(`insert into kho.don_hang(ma_don,dong,loai,trang_thai,ma_ky_ap_dung,cap_thiet_ke) values

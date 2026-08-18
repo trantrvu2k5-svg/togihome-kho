@@ -383,6 +383,11 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   KHÔNG dính. Bypass test/backfill: GUC `chan.off_nguon`.
 - **Trạng thái:** ĐÃ LÀM (db/109 gác trong `kiem_chuyen_trang_thai`; UI sale: label * + tooltip 2 form + chặn client
   ở "Chuyển thành đơn"; test_109 #1/#2). **CHƯA commit.**
+- **MỞ RỘNG (L-46b, db/111):** vá lỗ "+ Lên đơn" — db/109 chỉ gác UPDATE bao_gia→moi_len_don, bỏ sót INSERT thẳng
+  moi_len_don. db/111 gác **MỌI đường VÀO moi_len_don** (INSERT hoặc từ trạng thái khác), **CHỈ người dùng thật**
+  (`current_vai_tro() <> ''` — seed/service raw không vai bỏ qua, GUC `chan.off_nguon` vẫn bypass), không hồi tố; trigger
+  tái tạo gồm INSERT. UI: chặn client trong `luu` ("+ Lên đơn"). test_111 (8/0). Regression gác nguồn (từ db/109, pre-087
+  chưa ai chạy) đã vá: test_056/069 thêm bypass off_nguon.
 
 ## QD-34 (18/08) — Khách MỚI xác định lúc da_giao theo ngay_mua_dau (L-45)
 

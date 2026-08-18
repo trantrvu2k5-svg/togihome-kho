@@ -3133,6 +3133,11 @@ function DonModal({
       window.alert("Giảm " + pctG.toFixed(1).replace(".", ",") + "% vượt trần " + tranG + "% — chọn người duyệt.");
       return;
     }
+    /* L-46b: "+ Lên đơn" mới INSERT thẳng moi_len_don → cũng đòi nguồn khách (server db/111 chặn cứng cho người dùng thật). */
+    if (!don && !f.nguonKhach) {
+      window.alert("Chưa chọn nguồn khách — chọn rồi mới lên đơn.");
+      return;
+    }
     onSave({
       ...f,
       giaCongThuc: tong,

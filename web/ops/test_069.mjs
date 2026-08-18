@@ -29,6 +29,7 @@ async function asK(uid, s, a = []) {
 
 try {
   await c.query('begin')
+  await c.query("select set_config('chan.off_nguon','1',true)")   // L-46b: test này không kiểm nguồn khách — bypass gác moi_len_don
 
   // ═══════════ VIỆC 1 · NÚT "Nhập số sản xuất" dẫn vào ĐÚNG đơn ═══════════
   console.log('\n══ VIỆC 1 · nút dẫn vào màn Nhập số (nguồn chung nut_nhap_so.js) ══')
