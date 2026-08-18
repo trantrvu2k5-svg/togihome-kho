@@ -529,7 +529,7 @@ async function xemMon() {
 let DONG_LIST = [], BRAND3 = [], SP = null, LOI_DONG = null
 async function napDongBrand() {
   const { data: dd } = await sb.from('dong_san_pham').select('ma_dong,ten').order('thu_tu'); DONG_LIST = dd || []
-  const { data: bb } = await sb.from('thuong_hieu').select('ma,ten,ma_3chu,loai,ngung'); BRAND3 = (bb || []).filter(b => !b.ngung && b.loai !== 'kenh_ban' && b.ma_3chu)
+  const { data: bb } = await sb.from('thuong_hieu_ban').select('ma,ten,ma_3chu,loai,ngung'); BRAND3 = (bb || [])   // L-48a: view danh mục CHUNG (đã lọc bật+không-kênh+có-mã-3-chữ) — khớp app Sale
 }
 const titleCase = s => (s || '').split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 const mmSize = rong => { if (!rong) return ''; const s = (rong / 1000).toFixed(1); return s.replace('.', 'm').replace(/m0$/, 'm') }   // 1600→1m6 · 2000→2m

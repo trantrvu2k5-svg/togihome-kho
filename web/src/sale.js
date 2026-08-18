@@ -128,7 +128,7 @@ async function _get(k) {
     if (error) throw error
     return data.map(u => ({ id: u.id, ten: u.ho_ten, mau: u.vai_tro, on: u.dang_hoat_dong, q: qMap(u.vai_tro) }))
   }
-  if (k === 'c2:brands') { const { data, error } = await sb.from('thuong_hieu').select('*').eq('ngung', false); if (error) throw error
+  if (k === 'c2:brands') { const { data, error } = await sb.from('thuong_hieu_ban').select('*'); if (error) throw error   // L-48a: view danh mục CHUNG (đang bật + không phải kênh + có mã 3 chữ) — khớp app Sản phẩm
     return data.map(b => ({ c: b.ma, n: b.ten, dom: b.domain || '', nguoiId: b.nguoi_ads || '' })) }
   if (k === 'c2:sp') { const { data, error } = await sb.from('san_pham_mau').select('ma,ten,kich_thuoc,vat_lieu,file_tk,to_hop,cnc').eq('ngung', false); if (error) throw error
     return data.map(s => ({ id: s.ma, ma: s.ma, ten: s.ten, kt: s.kich_thuoc || '', vl: s.vat_lieu || '', fileTK: s.file_tk || '', toHop: s.to_hop || 1, cnc: s.cnc || 0 })) }

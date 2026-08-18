@@ -445,3 +445,17 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   THẬT vài trăm đơn <50ms). Nguyên nhân: PostgreSQL TẮT parallelism trong hàm plpgsql (SELECT/EXECUTE INTO) +
   instance `max_parallel_workers_per_gather=1`. Đã tối ưu tối đa (totals deferred + top-N hẹp + fetch-50 indexed).
 - **Trạng thái:** ĐÃ LÀM (db/113 `cm_don_raw`+`cm_don_ky`; tab "Lãi theo đơn"; test_113). **CHƯA commit.**
+
+## QD-38 (18/08) — Một thương hiệu một dòng danh mục; brand thừa TẮT không xoá (L-48a)
+
+- **CEO chốt:** danh mục `thuong_hieu` — **mỗi thương hiệu MỘT dòng**. Gộp **7 biến thể Togihome**
+  (togihome-kr/bcc/gaming/hd/office/bh/vp) về `togihome` gốc: mọi bản ghi trỏ → `togihome` (thực tế 0 bản ghi),
+  rồi **`ngung=true`** cho 7 dòng. **KHÔNG XOÁ** dòng — giữ lịch sử, tránh mồ côi FK (đơn/niêm-yết cũ vẫn tra được tên).
+- **Showroom** (`loai='kenh_ban'`): **GIỮ dòng làm KÊNH**, không phải thương hiệu.
+- **View chung `thuong_hieu_ban`** (đang bật + `loai≠kenh_ban` + có `ma_3chu`) = nguồn DUY NHẤT cho dropdown thương
+  hiệu **cả app Sale lẫn Sản phẩm** → hai app CÙNG danh sách (9 brand: Togihome + Haigo/Khanh Concept/Mulig/Open
+  Living/Sophia Concept/Thago/Togismart/Vufurni). Gộp điều kiện lọc về một chỗ, hết lệch giữa hai app.
+- **Lý do:** CAC/báo cáo theo brand cần danh mục SẠCH — 8 biến thể Togihome làm loãng số theo thương hiệu.
+- **KHÔNG đổi SKU:** mã 3 chữ biến thể (TKR/TBC…) không nằm trong SKU niêm yết nào (kiểm PHA 2) → định danh đã phát
+  hành không gãy; kể cả có, CẤM đổi (gãy truy vết).
+- **Trạng thái:** ĐÃ LÀM (db/114 view + ngung 7 biến thể; sale.js + sanpham.js đọc view chung; test_114 11/0). **CHƯA commit.**
