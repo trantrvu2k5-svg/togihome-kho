@@ -66,6 +66,9 @@ async function napApp() {
   // L-65: ke_toan XEM giá vốn đơn được, nhưng GHI TAY chỉ ceo/kho (ghi_gia_von_tay giữ nguyên) → ẩn form nhập cho không-ceo
   if (USER.vai_tro !== 'ceo') { const gn = $('gv_nhap'); if (gn) gn.style.display = 'none' }
   $('tk_them').onclick = themNguoi
+  $('cpk_them').onclick = () => cpkAddRow()   // L-43: nút màn Chi phí kỳ
+  $('cpk_chep').onclick = cpkChepKyTruoc
+  $('cpk_luu').onclick = cpkLuu
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -81,6 +84,8 @@ function doiTab(t) {
   window.scrollTo(0, 0)
   if (t === 'dieuhanh') taiDieuHanh()
   if (t === 'gvdon') taiGiaVonDon()
+  if (t === 'pl') taiPL()
+  if (t === 'chiphi') taiChiPhiKy()
   if (t === 'taikhoan') taiTaiKhoan()
 }
 
@@ -278,6 +283,120 @@ async function nhapGiaVonTay() {
   taiGiaVonDon()
 }
 
+// ══════════ TAB P/L (L-43): pl_ky trả đủ 1 lần, dựng bảng từ dữ liệu RPP thật (không hardcode số) ══════════
+async function taiPL() {
+  if (!$('pl_tieude')) return
+  $('pl_tieude').textContent = 'Kỳ ' + KY
+  const body = $('pl_body')
+  const { data: pl, error } = await sb.rpc('pl_ky', { p_ky: KY })
+  if (error) { body.innerHTML = `<tr><td class="pl-lbl" colspan="11" style="color:#C8202E">${escH(error.message)}</td></tr>`; $('pl_canhbao').style.display = 'none'; $('pl_donlist').style.display = 'none'; return }
+  const D = pl.dong, vat = Number(pl.vat)
+  const showKhac = Number(D.doanh_thu_thuan.khac || 0) !== 0
+  document.querySelectorAll('#tc .pl-colkhac').forEach(e => e.style.display = showKhac ? '' : 'none')
+  const cols = ['toan_cty', 'le', 'combo', 'du_an'].concat(showKhac ? ['khac'] : [])
+  const pctOf = (v, col) => { const dt = Number(D.doanh_thu_thuan[col]); if (!dt || v == null || isNaN(v)) return null; return v / dt * 100 }
+  const pctTxt = x => x == null ? '—' : x.toFixed(1).replace('.', ',')
+  const ROWS = [
+    ['doanh_thu_thuan', `1. Doanh thu thuần <span class="hint">(đã bóc VAT ${vat}%)</span>`, '', false],
+    ['bien_phi', '2. Biến phí', 'pl-hdr', false],
+    ['k1', '2a. Giá vốn — vật tư (khối 1)', 'pl-sub2', false],
+    ['k2', '2b. Giá vốn — hoạt động (khối 2)', 'pl-sub2', false],
+    ['k3', '2c. Giá vốn — cấp đơn (khối 3)', 'pl-sub2', false],
+    ['ship_lap', '2d. Ship + lắp thực trả', 'pl-sub2', false],
+    ['hoa_hong', '2e. Hoa hồng (sale/quản lý/thiết kế)', 'pl-sub2', false],
+    ['so_du_dam_phi', '3. SỐ DƯ ĐẢM PHÍ', 'pl-em', false],
+    ['dinh_phi_truy', '4. Định phí truy được theo phân khúc', '', false],
+    ['segment_margin', '5. SEGMENT MARGIN', 'pl-em2', false],
+    ['dinh_phi_chung', '6. Định phí chung (không rải)', '', true],
+    ['lai_thuan', '7. LÃI THUẦN HOẠT ĐỘNG', 'pl-final', true]
+  ]
+  body.innerHTML = ROWS.map(([k, lbl, cls, onlyToan]) => {
+    let tds = `<td class="pl-lbl">${lbl}</td>`
+    cols.forEach(col => {
+      if (onlyToan && col !== 'toan_cty') { tds += `<td class="pl-num pl-grp pl-dash">—</td><td class="pl-pct pl-dash">—</td>`; return }
+      const raw = D[k][col]
+      const has = (raw !== undefined && raw !== null)
+      const v = has ? Number(raw) : null
+      const pv = (k === 'doanh_thu_thuan') ? 100 : pctOf(v, col)
+      tds += `<td class="pl-num pl-grp">${has ? fmt(v) : '—'}</td><td class="pl-pct">${has ? pctTxt(pv) : '—'}</td>`
+    })
+    return `<tr class="${cls}">${tds}</tr>`
+  }).join('')
+  const n = pl.so_don_thieu_gia_von || 0, wb = $('pl_canhbao'), dl = $('pl_donlist')
+  if (n > 0) {
+    wb.style.display = 'block'
+    wb.innerHTML = `⚠ Kỳ này có <b>${n} đơn đã giao chưa có dòng giá vốn</b> — số giá vốn đang THIẾU, biên lãi có thể cao ảo. <a href="#" id="pl_xemds">Xem danh sách</a>`
+    dl.textContent = 'Đơn thiếu: ' + (pl.don_thieu || []).join(', ')
+    $('pl_xemds').onclick = e => { e.preventDefault(); dl.style.display = dl.style.display === 'block' ? 'none' : 'block' }
+  } else { wb.style.display = 'none'; dl.style.display = 'none' }
+}
+
+// ══════════ TAB CHI PHÍ KỲ (L-43): sổ actuals, tính tổng+tách CHUNG/truy-được sống theo dữ liệu đang nhập ══════════
+const CPK_LOAI = [['luong_vp', 'Lương văn phòng'], ['luong_sale', 'Lương sale'], ['marketing_ads', 'Marketing / Ads'],
+  ['thue_mat_bang', 'Thuê mặt bằng'], ['khau_hao', 'Khấu hao'], ['dien_nuoc_vh', 'Điện nước / vận hành'], ['khac', 'Khác']]
+const CPK_PK = [['', 'CHUNG'], ['le', 'Lẻ'], ['combo', 'Combo'], ['du_an', 'Dự án']]
+const escA = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+async function taiChiPhiKy() {
+  const tb = $('cpk_rows'); if (!tb) return
+  const { data, error } = await sb.rpc('cpk_ds', { p_ky: KY })
+  tb.innerHTML = ''
+  if (error) { $('cpk_msg').style.color = '#C8202E'; $('cpk_msg').textContent = 'Lỗi: ' + error.message; cpkRecalc(); return }
+  $('cpk_msg').textContent = ''
+  ;((data && data.ds) || []).forEach(r => cpkAddRow(r))
+  cpkRecalc()
+}
+function cpkAddRow(seed) {
+  const tb = $('cpk_rows'); if (!tb) return
+  const tr = document.createElement('tr')
+  const loaiOpts = CPK_LOAI.map(x => `<option value="${x[0]}"${seed && seed.loai === x[0] ? ' selected' : ''}>${x[1]}</option>`).join('')
+  const pkVal = seed ? (seed.phan_khuc || '') : ''
+  const pkOpts = CPK_PK.map(p => `<option value="${p[0]}"${p[0] === pkVal ? ' selected' : ''}>${p[1]}</option>`).join('')
+  tr.innerHTML = `<td><select class="cpk-loai">${loaiOpts}</select></td>`
+    + `<td><input class="cpk-money" inputmode="numeric" value="${seed ? fmt(seed.so_tien) : ''}"></td>`
+    + `<td><select class="cpk-pk">${pkOpts}</select></td>`
+    + `<td><input class="cpk-ghichu" value="${seed ? escA(seed.ghi_chu) : ''}"></td>`
+    + `<td><input class="cpk-nguoi" value="${seed ? escA(seed.nguoi_nhap) : ''}"></td>`
+    + `<td><button class="cpk-del" title="Xoá dòng">×</button></td>`
+  tb.appendChild(tr)
+  tr.querySelector('.cpk-loai').onchange = cpkRecalc
+  tr.querySelector('.cpk-pk').onchange = cpkRecalc
+  const mo = tr.querySelector('.cpk-money'); mo.addEventListener('input', () => { fmtMoneyEl(mo); cpkRecalc() })
+  tr.querySelector('.cpk-del').onclick = () => { tr.remove(); cpkRecalc() }
+}
+const cpkTien = tr => Number((tr.querySelector('.cpk-money').value || '').replace(/\D/g, '')) || 0
+function cpkRecalc() {
+  const rows = [...$('cpk_rows').querySelectorAll('tr')]
+  const byLoai = {}; let chung = 0, pk = 0, tot = 0
+  rows.forEach(tr => {
+    const loai = tr.querySelector('.cpk-loai').value, tien = cpkTien(tr), pkv = tr.querySelector('.cpk-pk').value
+    tot += tien; byLoai[loai] = (byLoai[loai] || 0) + tien
+    if (pkv === '') chung += tien; else pk += tien
+  })
+  $('cpk_tot').textContent = fmt(tot); $('cpk_tot2').textContent = fmt(tot); $('cpk_tot3').textContent = fmt(tot)
+  $('cpk_byloai').innerHTML = CPK_LOAI.filter(x => byLoai[x[0]]).map(x => `<tr><td class="ten">${x[1]}</td><td class="cpk-n">${fmt(byLoai[x[0]])}</td></tr>`).join('') || '<tr><td class="ten hint">Chưa có dòng</td><td class="cpk-n">0</td></tr>'
+  $('cpk_split').innerHTML = `<tr><td class="ten"><span class="cpk-chip chung">CHUNG</span> Định phí chung</td><td class="cpk-n">${fmt(chung)}</td></tr>`
+    + `<tr><td class="ten"><span class="cpk-chip pk">PHÂN KHÚC</span> Định phí truy được</td><td class="cpk-n">${fmt(pk)}</td></tr>`
+}
+async function cpkLuu() {
+  const rows = [...$('cpk_rows').querySelectorAll('tr')].map(tr => ({
+    loai: tr.querySelector('.cpk-loai').value, so_tien: String(cpkTien(tr)),
+    phan_khuc: tr.querySelector('.cpk-pk').value || null,
+    ghi_chu: tr.querySelector('.cpk-ghichu').value.trim(), nguoi_nhap: tr.querySelector('.cpk-nguoi').value.trim()
+  }))
+  $('cpk_msg').style.color = 'var(--mut)'; $('cpk_msg').textContent = 'Đang lưu…'
+  const { data, error } = await sb.rpc('cpk_ghi', { p_ky: KY, p_dong: rows })
+  if (error) { $('cpk_msg').style.color = '#C8202E'; $('cpk_msg').textContent = 'Lỗi: ' + error.message; return }
+  $('cpk_msg').style.color = 'var(--gn)'; $('cpk_msg').textContent = `✓ Đã lưu ${data.so_dong} dòng cho kỳ ${KY}`
+}
+async function cpkChepKyTruoc() {
+  $('cpk_msg').style.color = 'var(--mut)'; $('cpk_msg').textContent = 'Đang chép…'
+  const { data, error } = await sb.rpc('cpk_chep_ky_truoc', { p_ky: KY })
+  if (error) { $('cpk_msg').style.color = '#C8202E'; $('cpk_msg').textContent = 'Lỗi: ' + error.message; return }
+  if (!data.ok) { $('cpk_msg').style.color = 'var(--am)'; $('cpk_msg').textContent = data.msg || 'Không chép được'; return }
+  $('cpk_msg').style.color = 'var(--gn)'; $('cpk_msg').textContent = `✓ Chép ${data.so_dong} dòng từ kỳ ${data.ma_ky_truoc}`
+  await taiChiPhiKy()
+}
+
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
 let BADGE = {}   // ten_tham_so -> trang_thai
 async function taiBadges() {
@@ -309,6 +428,9 @@ async function loadKy() {
   await taiBadges()   // badge TẠM/ĐÃ CHỐT theo từng tham số (thay 1 cột ghi_chu chung)
   await refreshHeSoM(); await refreshBang(); await refreshQuick(); await refreshChotInfo()
   await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn C: ' + (e.message || e) } })  // xưởng hỏng KHÔNG kéo màn cũ
+  // L-43: đổi kỳ → nạp lại P/L + Chi phí kỳ NẾU tab đang mở (đổi kỳ = đổi ngữ cảnh, bỏ chỉnh sửa chi phí chưa lưu)
+  if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
+  if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
 }
 
 // ① Lưu

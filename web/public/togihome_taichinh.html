@@ -120,6 +120,37 @@
   #tc .warn { background:var(--amB); border:1px solid #F0D089; border-radius:10px; padding:10px 13px; font-size:13px; color:var(--am); margin-top:10px; }
   #tc .s6days { color:var(--mut); font-size:11.5px; }
   #tc .tabp { display:none; } #tc .tabp.on { display:block; }
+  /* ── P/L (L-43) ── */
+  #tc .pl-tbl td, #tc .pl-tbl th { white-space:nowrap; }
+  #tc .pl-tbl td.pl-lbl, #tc .pl-tbl th.pl-lbl { text-align:left; }
+  #tc .pl-tbl td.pl-num { font-variant-numeric:tabular-nums; }
+  #tc .pl-tbl td.pl-pct { font-size:11.5px; color:var(--mut); font-variant-numeric:tabular-nums; }
+  #tc .pl-tbl th.pl-grp, #tc .pl-tbl td.pl-grp { border-left:2px solid var(--bd); }
+  #tc .pl-tbl tr.pl-sub2 td.pl-lbl { padding-left:26px; color:var(--mut); }
+  #tc .pl-tbl tr.pl-hdr td.pl-lbl { font-weight:700; }
+  #tc .pl-tbl tr.pl-hdr td { font-weight:700; }
+  #tc .pl-tbl tr.pl-em td { background:var(--priS); font-weight:700; } #tc .pl-tbl tr.pl-em td.pl-lbl { color:var(--priH); }
+  #tc .pl-tbl tr.pl-em2 td { background:var(--gnB); font-weight:700; } #tc .pl-tbl tr.pl-em2 td.pl-lbl { color:var(--gn); }
+  #tc .pl-tbl tr.pl-final td { background:var(--tx); color:#fff; font-weight:800; }
+  #tc .pl-dash { color:var(--fnt); }
+  #tc .pl-foot { font-size:11.5px; color:var(--mut); line-height:1.7; margin-top:10px; }
+  #tc .pl-donlist { margin-top:8px; font-size:12.5px; color:var(--am); display:none; }
+  /* ── Chi phí kỳ (L-43) ── */
+  #tc .cpk-tbl td, #tc .cpk-tbl th { padding:6px 9px; }
+  #tc .cpk-tbl td { text-align:left; }
+  #tc .cpk-tbl select, #tc .cpk-tbl input { padding:7px 9px; font-size:13.5px; }
+  #tc .cpk-tbl select.cpk-loai { min-width:190px; }
+  #tc .cpk-tbl input.cpk-money { text-align:right; font-variant-numeric:tabular-nums; }
+  #tc .cpk-del { border:1px solid var(--bd); background:#fff; color:var(--mut); border-radius:8px; width:30px; height:32px; cursor:pointer; font-size:16px; }
+  #tc .cpk-del:hover { border-color:var(--pri); color:var(--pri); background:var(--priS); }
+  #tc .cpk-note { background:var(--priS); border:1px solid var(--priB); border-radius:11px; padding:11px 14px; font-size:12.5px; color:var(--priH); line-height:1.6; margin-bottom:12px; }
+  #tc .cpk-ranhgioi { background:var(--amB); border:1px solid #F0D089; border-radius:11px; padding:11px 14px; font-size:12.5px; color:var(--am); line-height:1.6; margin-bottom:12px; }
+  #tc .cpk-tot-top { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--pri); }
+  #tc .cpk-sum td.cpk-n { text-align:right; font-variant-numeric:tabular-nums; }
+  #tc .cpk-sum tr.cpk-total td { font-weight:800; background:var(--auto); }
+  #tc .cpk-chip { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; }
+  #tc .cpk-chip.chung { background:var(--amB); color:var(--am); } #tc .cpk-chip.pk { background:var(--gnB); color:var(--gn); }
+  #tc .cpk-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media(max-width:1000px){ #tc .cpk-grid2 { grid-template-columns:1fr; } }
   /* ── mobile: nav thành hàng ngang (như sale) ── */
   @media(max-width:1000px){
     #tc .app { flex-direction:column; }
@@ -138,6 +169,8 @@
     <button class="navi" data-tab="ban">Định giá bán</button>
     <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
+    <button class="navi" data-tab="pl">P/L</button>
+    <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
     <button class="navi" id="tc_out" style="margin-top:6px;background:rgba(255,255,255,.14);color:#fff">Đăng xuất</button>
@@ -315,6 +348,71 @@
         <div class="pager" id="gv_pager"></div>
       </section>
     </div>
+
+    <!-- ══════════ TAB · P/L (L-43) — contribution format, phân khúc theo dong ══════════ -->
+    <div class="tabp" id="tab-pl">
+      <h1>Báo cáo Lãi/Lỗ (P/L)</h1>
+      <div class="subline">Định dạng số dư đảm phí, phân khúc theo dòng đơn (Garrison ch.6). Kỳ = ô <b>Kỳ</b> ở trên · doanh thu đơn <b>đã giao</b> trong kỳ.</div>
+      <section class="card">
+        <div class="ch"><h2 id="pl_tieude">Kỳ —</h2><span class="hint">% = tỷ lệ trên doanh thu thuần của chính cột đó</span></div>
+        <div class="cb" style="overflow-x:auto">
+          <table class="pl-tbl"><thead><tr>
+            <th class="pl-lbl">Chỉ tiêu</th>
+            <th class="pl-grp">Toàn cty</th><th>%</th>
+            <th class="pl-grp">Lẻ</th><th>%</th>
+            <th class="pl-grp">Combo</th><th>%</th>
+            <th class="pl-grp">Dự án</th><th>%</th>
+            <th class="pl-grp pl-colkhac" style="display:none">Khác</th><th class="pl-colkhac" style="display:none">%</th>
+          </tr></thead><tbody id="pl_body"><tr><td class="pl-lbl">Đang tải…</td></tr></tbody></table>
+        </div>
+        <div class="cb" style="padding-top:0">
+          <div class="warn" id="pl_canhbao" style="display:none"></div>
+          <div class="pl-donlist" id="pl_donlist"></div>
+          <div class="pl-foot">
+            <div><b>Quy ước VAT:</b> doanh thu bóc VAT (thuần = giá chốt ÷ (1+VAT/100) theo tham số kỳ); giá vốn nhập CHƯA VAT nên dùng thẳng. VAT không hiện trong P/L (thu hộ nhà nước).</div>
+            <div><b>Định phí chung không chia vào phân khúc</b> — chỉ trừ ở cột Toàn cty (Garrison ch.6: common cost không rải để tránh bóp méo segment margin).</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ══════════ TAB · CHI PHÍ KỲ (L-43) — sổ actuals ══════════ -->
+    <div class="tabp" id="tab-chiphi">
+      <h1>Nhập chi phí kỳ</h1>
+      <div class="subline">Sổ chi phí <b>thực chi</b> trong kỳ — tách khỏi tham số dự toán. Kỳ = ô <b>Kỳ</b> ở trên.</div>
+      <div class="cpk-note">Nhập giá <b>CHƯA VAT</b> với khoản có hoá đơn khấu trừ (ads, thuê mặt bằng có hoá đơn…); <b>lương / khấu hao / khoản không hoá đơn</b> nhập số <b>THỰC CHI</b>.</div>
+      <div class="cpk-ranhgioi" id="cpk_ranhgioi">⚠ <b>Ranh giới với đơn giá xưởng (khối ②):</b> KHÔNG nhập lại ở đây các khoản có thể đã nằm trong <code>overhead_phan_bo</code> của Sổ tham số xưởng — <b>khấu hao máy CNC · điện chạy máy · điện chiếu sáng xưởng · khấu hao xe tải · lương quản đốc</b> đang TREO chờ CEO hỏi kế toán làm rõ; tạm để ngoài để tránh tính trùng. Chỉ nhập chi phí NGOÀI sản xuất (VP/sale/marketing/thuê VP-showroom…).</div>
+      <section class="card">
+        <div class="ch"><h2>Dòng chi</h2><span class="hint">Phân khúc CHUNG = định phí chung; Lẻ/Combo/Dự án = truy được</span>
+          <span style="margin-left:auto;text-align:right"><div class="hint">TỔNG CHI KỲ</div><div class="cpk-tot-top" id="cpk_tot">0</div></span></div>
+        <div class="cb" style="overflow-x:auto">
+          <table class="cpk-tbl"><thead><tr>
+            <th style="text-align:left">Loại</th><th style="text-align:left">Số tiền</th><th style="text-align:left">Phân khúc</th>
+            <th style="text-align:left">Ghi chú</th><th style="text-align:left">Người nhập</th><th></th>
+          </tr></thead><tbody id="cpk_rows"></tbody></table>
+        </div>
+        <div class="cb" style="display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--bd2)">
+          <button class="btn ghost" id="cpk_them">+ Thêm dòng</button>
+          <button class="btn ghost" id="cpk_chep">Chép từ kỳ trước</button>
+          <button class="btn" id="cpk_luu">Lưu kỳ</button>
+          <span class="hint" id="cpk_msg" style="align-self:center"></span>
+        </div>
+      </section>
+      <div class="cpk-grid2">
+        <section class="card"><div class="ch"><h2>Tổng theo loại</h2></div>
+          <div class="cb"><table class="cpk-sum"><thead><tr><th class="ten">Loại</th><th class="r">Số tiền</th></tr></thead>
+            <tbody id="cpk_byloai"></tbody>
+            <tfoot><tr class="cpk-total"><td class="ten">TỔNG KỲ</td><td class="cpk-n" id="cpk_tot2">0</td></tr></tfoot></table></div>
+        </section>
+        <section class="card"><div class="ch"><h2>Tách CHUNG ↔ truy được</h2></div>
+          <div class="cb"><table class="cpk-sum"><tbody id="cpk_split"></tbody>
+            <tfoot><tr class="cpk-total"><td class="ten">TỔNG KỲ</td><td class="cpk-n" id="cpk_tot3">0</td></tr></tfoot></table>
+            <div class="hint" style="margin-top:8px;line-height:1.6">CHUNG → định phí chung, chỉ trừ ở cột Toàn cty của P/L. Lẻ/Combo/Dự án → định phí truy được, vào segment margin (Garrison ch.6).</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <div class="tabp" id="tab-taikhoan">
       <h1>Quản lý tài khoản</h1>
       <div class="subline">Chỉ CEO. Thêm người · đổi vai trò · tắt/bật hoạt động (KHÔNG xoá — giữ vết) · đặt lại mật khẩu.</div>

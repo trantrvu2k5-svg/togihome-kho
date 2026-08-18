@@ -297,3 +297,78 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (cùng câu điều kiện, thêm một vế lọc `sale_phu_trach = current_ns()`).
 - **Trạng thái:** ĐÃ LÀM (db/101; siết sale_ban_cho_gui + sale_bao_gia_ds; app lọc "Ai phụ trách" + chi tiết chủ
   + nút đổi; bấm thật KIEM-L71). **CHƯA commit.** Xem [[sanpham-ba-truc-nhap-web-db060]].
+
+## QD-27 (18/08) — P/L NỘI BỘ định dạng số dư đảm phí, phân khúc theo `dong` (L-43)
+
+- **CEO chốt:** Báo cáo Lãi/Lỗ nội bộ theo **contribution format** (Garrison ch.6): Doanh thu thuần − Biến phí
+  = Số dư đảm phí − Định phí truy được = **Segment margin** − Định phí chung (không rải) = Lãi thuần hoạt động.
+- **Phân khúc = `don_hang.dong`** (`le`/`combo`/`du_an`; `dong` NULL/khác → cột "Khác" nếu phát sinh) — đây là
+  discriminator DUY NHẤT có dữ liệu thật (`nguon_khach` 100% NULL, `so_mon` NULL — xem L-41).
+- **Doanh thu** = `gia_chot` đơn **`da_giao`**, kỳ theo **`ngay_giao`** (không phải ma_ky_ap_dung).
+- **Căn cứ:** Garrison ch.6 (segment margin; **CẤM rải common cost** vào phân khúc — bóp méo quyết định) + DACTA
+  khối ④ (chi phí không phân bổ = định phí chung).
+- **Trạng thái:** ĐÃ LÀM (db/108 `pl_ky`; tab P/L app tài chính; test_108 bất biến hàng-cột + tốc độ 100k <500ms).
+  **CHƯA commit.** Xem [[man-bao-gia-form-db092]].
+
+## QD-28 (18/08) — Bảng `chi_phi_ky` = sổ ACTUALS, tách khỏi tham số dự toán (L-43)
+
+- **CEO chốt:** Chi phí kỳ (lương VP/sale, ads, thuê, khấu hao, điện nước, khác — 7 loại) ghi vào **bảng mới
+  `chi_phi_ky`** (`ma_ky, loai, so_tien, phan_khuc NULL=chung, ghi_chu, nguoi_nhap, cap_nhat_luc`) — **sổ số
+  ĐÃ CHI THẬT**.
+- **TÁCH khỏi `tham_so_tai_chinh`** (là **dự toán**: hệ số/đầu người, ghi rõ "[TẠM]"). **Actuals và dự toán KHÔNG
+  trộn** — trộn thì không biết số nào thật, số nào ước.
+- `phan_khuc` NULL = **CHUNG** (định phí chung, chỉ trừ ở cột Toàn cty của P/L); `le`/`combo`/`du_an` = **truy được**
+  (vào segment margin).
+- **Trạng thái:** ĐÃ LÀM (db/108 bảng + `cpk_ds`/`cpk_ghi`/`cpk_chep_ky_truoc`; tab Chi phí kỳ). **CHƯA commit.**
+
+## QD-29 (18/08) — Nhãn biến phí / định phí (L-43)
+
+- **CEO chốt:** **Biến phí** = giá vốn khối 1 (vật tư) + khối 2 (hoạt động) + khối 3 (cấp đơn) + ship&lắp thực trả
+  + hoa hồng %. **Định phí** = toàn bộ `chi_phi_ky`.
+- **Lý do:** contribution format cần tách biến/định để ra số dư đảm phí; giá vốn 3 khối + ship&lắp + hoa hồng biến
+  theo từng đơn, còn chi phí kỳ cố định trong kỳ.
+- **Trạng thái:** ĐÃ LÀM (nhúng trong công thức `pl_ky`). **CHƯA commit.**
+
+## QD-30 (18/08) — Quy ước VAT trong P/L (L-42/L-43)
+
+- **CEO chốt (xác nhận 18/08):** `gia_chot` là giá **ĐÃ GỒM VAT**. P/L **bóc VAT**: doanh thu thuần =
+  `gia_chot ÷ (1 + vat/100)`, `vat` đọc `tham_so_tai_chinh` **ĐÚNG kỳ**. **VAT không hiện** trong P/L (thu hộ nhà nước).
+- **Giá ván nhập plugin CHƯA VAT** (CEO xác nhận 18/08 — kiểm L-42 truy `gia_tam` trong `luat_cau_tao.json`, không
+  nhãn thuế; CEO xác nhận nguồn số chưa VAT) → **khối 1 dùng THẲNG, KHÔNG bóc ÷1,1**.
+- **Chi phí kỳ:** nhập **CHƯA VAT** với khoản có hoá đơn khấu trừ; **số THỰC CHI** với lương/khấu hao/khoản không hoá đơn.
+- **Trạng thái:** ĐÃ LÀM (nhúng `pl_ky` + chú thích 2 màn). **CHƯA commit.**
+
+## QD-31 (18/08) — Hoa hồng trong P/L = phương án B (cơ sở doanh thu THUẦN) (L-43)
+
+- **CEO chốt phương án B:** Hoa hồng P/L = `(hh_sale + hh_quan_ly + hh_thiet_ke) × DOANH THU THUẦN`, tỷ lệ đọc
+  `tham_so_tai_chinh` theo kỳ. (Lưu ý: cột `hh_*` là **PHÂN SỐ** — hiện 0.03/0.01/0.01 = 5% — khớp `gia_bac_tu_gv`.)
+- **CEO sẽ TỰ nhập** tỷ lệ tương đương **3,3/1,1/1,1** cho kỳ tới qua tab tham số (lệnh L-43 **KHÔNG** tự ghi tham số
+  kỳ mới); **kỳ cũ giữ nguyên**.
+- **Lý do B:** cơ sở doanh thu thuần → **miễn nhiễm đổi thuế suất** + **không trả % trên tiền thu hộ** (VAT).
+- **NGỎ phương án C** (hệ số hoa hồng theo mức giảm giá so giá sàn) — **xét lại sau khi P/L chạy 2–3 kỳ** có số thật.
+- **Tác động đường giá bán nếu CEO nâng 5%→5,5%** (rà read-only Việc 1c, đường giá bán KHÔNG sửa lô này):
+  giá sàn `(tăng_1+phí)/(1−hh)` **+0,529%** (chính xác, độc lập dữ liệu); hệ số m `(dt·(1−hh)−ship−phí)/gcg` giảm
+  **~0,64%** (vd gcg_TB 7,6tr → 1,245 → 1,238). Hoa hồng đường giá bán tính trên **giá sàn CHƯA VAT** (`bao_khach =
+  gia_san×(1+vat)` cộng VAT sau) — đã đúng, không chỗ nào nhân trên giá CÓ VAT.
+- **Trạng thái:** QUY ƯỚC CHỐT; đường giá bán CHƯA đụng (chờ CEO quyết nâng tham số ở lệnh sau). **CHƯA commit.**
+
+## QD-32 (18/08) — RANH GIỚI khối ② (đơn giá xưởng) ↔ chi phí kỳ (L-43 Việc 0)
+
+- **Bối cảnh:** đơn giá hoạt động (khối ②) = `(lương_tổ + overhead_phan_bo + bảo hiểm) × %thời-gian ÷ mẫu số`
+  (`ket_qua_don_gia`, db/038/040/048). Ngoài lương+BH, **chỉ `overhead_phan_bo` là phần "gánh thêm"** — và nó là
+  **một cục NHẬP TAY/tổ, KHÔNG itemize ở đâu** trong code/data/doc. (`db/064:12` ghi "overhead = chi phí kỳ, không
+  nhét/đơn vị" — nhưng đó là công thức `gio_chuan` dùng lương THUẦN; công thức đơn giá đ/sản-phẩm VẪN cộng overhead.)
+- **BẢNG RANH GIỚI** (quy tắc "thà thiếu còn hơn trùng" — không kết luận được thì xếp vào CẤM):
+
+  | ĐÃ/CÓ THỂ ở khối ② → **CẤM nhập chi_phi_ky** | CHƯA ở đâu → **PHẢI nhập chi_phi_ky** |
+  |---|---|
+  | Khấu hao máy CNC — TREO (có thể trong overhead tổ cnc) | Lương văn phòng (không phải tổ SX) |
+  | Điện chạy máy — TREO (gắn tổ SX) | Lương sale |
+  | Điện chiếu sáng xưởng — TREO | Marketing / Ads |
+  | Khấu hao xe tải — TREO (không có tổ giao hàng, nhưng overhead là cục mù) | Thuê mặt bằng VP/showroom |
+  | Lương quản đốc — TREO (giám sát mọi tổ) | Điện nước VP · chi phí NGOÀI sản xuất khác |
+
+- **KHÔNG KẾT LUẬN ĐƯỢC 5 mục bên trái** vì `overhead_phan_bo` là cục mù → **TREO chờ CEO hỏi kế toán làm rõ
+  overhead_phan_bo gồm gì**; tạm xếp CẤM để tránh tính trùng. Bảng này thành **dòng chú thích ranh giới trên màn
+  Chi phí kỳ**.
+- **Trạng thái:** RÀ XONG (read-only); nợ TREO chờ kế toán. **CHƯA commit.**
