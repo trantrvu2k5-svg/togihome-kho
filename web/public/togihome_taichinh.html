@@ -142,6 +142,27 @@
   #tc .pl-nl-o .pl-nl-big { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
   #tc .pl-nl-o .pl-nl-big.pl-nl-am { color:var(--pri); }
   #tc .pl-nl-note { font-size:11px; color:var(--mut); margin-top:9px; line-height:1.6; }
+  /* ── Lãi theo đơn (CM/đơn, L-47b) ── */
+  #tc .cmd-tomtat { display:flex; gap:26px; flex-wrap:wrap; margin:2px 0 14px; }
+  #tc .cmd-tomtat .cmd-nhan { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--fnt); }
+  #tc .cmd-tomtat .cmd-so { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #tc .cmd-tomtat .cmd-so.cmd-am { color:var(--pri); }
+  #tc .cmd-tbl { min-width:900px; }
+  #tc .cmd-tbl th.cmd-sap { cursor:pointer; user-select:none; } #tc .cmd-tbl th.cmd-sap:hover { color:var(--tx); }
+  #tc .cmd-tbl td.cmd-num { text-align:right; font-family:var(--mono); font-size:13px; }
+  #tc .cmd-tbl td.cmd-lbl { text-align:left; }
+  #tc .cmd-tbl tr.cmd-dong { cursor:pointer; } #tc .cmd-tbl tr.cmd-dong:hover td { background:var(--auto); }
+  #tc .cmd-tbl tr.cmd-thieu td { background:var(--amB); }
+  #tc .cmd-nhan-thieu { display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:5px; background:#FBE9C7; color:var(--am); margin-left:6px; }
+  #tc .cmd-ma { font-weight:700; font-family:var(--mono); } #tc .cmd-khach { color:var(--mut); font-size:12px; }
+  #tc .cmd-am { color:var(--pri); }
+  #tc .cmd-ct td { background:var(--raise); }
+  #tc .cmd-ct-bang { font-family:var(--mono); font-size:12.5px; line-height:2; max-width:440px; }
+  #tc .cmd-ct-bang .cmd-r { display:flex; justify-content:space-between; gap:30px; }
+  #tc .cmd-ct-bang .cmd-r.cmd-tong { border-top:1px solid var(--bd); font-weight:700; margin-top:2px; padding-top:2px; }
+  #tc .cmd-tbl tfoot td { font-weight:800; background:var(--auto); border-top:2px solid var(--bd); }
+  #tc .cmd-batbien { padding:11px 2px 2px; font-size:12.5px; color:var(--mut); } #tc .cmd-batbien b { color:var(--gn); }
+  #tc .cmd-trong { padding:48px 20px; text-align:center; color:var(--mut); } #tc .cmd-trong b { display:block; font-size:16px; color:var(--tx); margin-bottom:6px; }
   #tc .dh-lapday { display:flex; gap:20px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed #D7DDE8; }
   #tc .dh-lapday .dh-ld-lbl { font-size:11px; color:#6B7488; } #tc .dh-lapday .dh-ld-big { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
   #tc .pl-donlist { margin-top:8px; font-size:12.5px; color:var(--am); display:none; }
@@ -180,6 +201,7 @@
     <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
     <button class="navi" data-tab="pl">P/L</button>
+    <button class="navi" data-tab="cmdon">Lãi theo đơn</button>
     <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
@@ -391,6 +413,31 @@
             <div><b>Định phí chung không chia vào phân khúc</b> — chỉ trừ ở cột Toàn cty (Garrison ch.6: common cost không rải để tránh bóp méo segment margin).</div>
           </div>
         </div>
+      </section>
+    </div>
+
+    <!-- ══════════ TAB · LÃI THEO ĐƠN (CM/đơn, L-47b) ══════════ -->
+    <div class="tabp" id="tab-cmdon">
+      <h1>Lãi theo đơn</h1>
+      <div class="subline">CM = doanh thu thuần − giá vốn (k1+k2+k3) − ship&amp;lắp thực trả − hoa hồng. Kỳ = ô <b>Kỳ</b> ở trên · đơn <b>đã giao</b> trong kỳ. Chỉ ceo/kế toán (lộ giá vốn).</div>
+      <div class="cmd-tomtat">
+        <div><div class="cmd-nhan">Σ CM kỳ</div><div class="cmd-so" id="cmd_tongcm">—</div></div>
+        <div><div class="cmd-nhan">CM% TB (chỉ đơn trọn)</div><div class="cmd-so" id="cmd_cmtb">—</div></div>
+        <div><div class="cmd-nhan">Đơn đã giao</div><div class="cmd-so" id="cmd_sodon">—</div></div>
+      </div>
+      <section class="card">
+        <div class="ch"><h2 id="cmd_tieude">Kỳ —</h2><span class="hint">mặc định sắp CM% thấp→cao (đơn mỏng lên đầu) · bấm tiêu đề cột đổi sắp · bấm dòng xem phép tính · đơn nền vàng = thiếu số</span></div>
+        <div class="cb" style="overflow-x:auto"><table class="cmd-tbl"><thead><tr>
+          <th class="ten">Mã đơn · Khách</th><th class="ten">Dòng</th><th class="ten">Nguồn</th>
+          <th class="cmd-sap r" data-sap="dt_thuan">DT thuần</th>
+          <th class="cmd-sap r" data-sap="gia_von">Giá vốn k1–3</th>
+          <th class="r">Ship&amp;lắp</th><th class="r">Hoa hồng</th>
+          <th class="cmd-sap r" data-sap="cm">CM (đ)</th>
+          <th class="cmd-sap r" data-sap="cm_pct">CM %</th>
+        </tr></thead><tbody id="cmd_body"><tr><td class="ten">Đang tải…</td></tr></tbody>
+        <tfoot id="cmd_foot"></tfoot></table></div>
+        <div class="pager" id="cmd_pager"></div>
+        <div class="cb" style="padding-top:0"><div class="cmd-batbien" id="cmd_batbien"></div></div>
       </section>
     </div>
 

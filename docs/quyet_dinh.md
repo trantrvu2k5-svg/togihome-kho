@@ -425,3 +425,23 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   số suy + cờ `chua_chot_tham_so`, dùng số suy làm mẫu số.
 - **Trạng thái:** ĐÃ LÀM (db/110 cột + `lap_day_ky` jit=off; UI 3 màn P/L/Điều hành/Sổ tham số; test_110 13/0 gồm tốc
   độ 100k <500ms). **CHƯA commit.**
+
+## QD-37 (18/08) — Màn "Lãi theo đơn" (CM/đơn) (L-47b)
+
+- **Định nghĩa CM/đơn:** `dt_thuan − (khoi_1+khoi_2+khoi_3) − (ship_thuc_tra+lap_thuc_tra) − hoa_hong`;
+  `dt_thuan = gia_chot ÷ (1+vat/100)`; `hoa_hong = (hh_sale+hh_quan_ly+hh_thiet_ke) × dt_thuan`; tham số vat/hh theo
+  KỲ của `ngay_giao`; đơn = `da_giao`, kỳ theo `ngay_giao`. (Contribution margin — Garrison.)
+- **BẤT BIẾN — hai màn một nguồn số:** Σ CM (mọi đơn da_giao trong kỳ, kể cả chưa trọn phần có) = dòng **SỐ DƯ ĐẢM
+  PHÍ** của `pl_ky` cùng kỳ (test_113 đo **sai số 0**). Hàm chung `cm_don_raw` là nguồn per-đơn; `pl_ky` giữ bản gộp
+  nhanh (công thức đồng nhất, khoá bằng bất biến).
+- **Đơn CHƯA TRỌN** (thiếu giá vốn HOẶC thiếu ship/lắp): `cm_pct = NULL` → **LOẠI khỏi xếp hạng CM%** (đẩy xuống cuối)
+  + **loại khỏi CM% trung bình**; chỉ đếm vào ô "chưa trọn". `cm` phần có VẪN cộng tổng kỳ + kèm nhãn `thieu[]`.
+  **Lý do:** đơn thiếu giá vốn cho CM% cao GIẢ leo đầu bảng (CEO bắt trên mẫu 18/08) — chống số đẹp giả.
+- **KHÔNG trừ CAC** (chi phí thu hút khách) — CAC báo cáo ở kênh riêng, nối QD-31 (hoa hồng phương án B).
+- **Vai:** ceo/ke_toan; **sale CHẶN** (màn lộ giá vốn theo đơn).
+- **RPC `cm_don_ky` trả sẵn `cm_tren_k2`** (= cm ÷ khoi_2) cho bài toán **chọn đơn khi xưởng kín** (Garrison ch.12,
+  nguồn lực hạn chế — CM trên đơn vị nguồn lực ràng buộc = giờ khối ②); cột UI **bật sau**.
+- **Perf 100k:** cm_don_ky ~527ms (quá ngưỡng 500 ~30ms) — **CEO chấp nhận** (100k đơn/kỳ là stress phi thực tế; kỳ
+  THẬT vài trăm đơn <50ms). Nguyên nhân: PostgreSQL TẮT parallelism trong hàm plpgsql (SELECT/EXECUTE INTO) +
+  instance `max_parallel_workers_per_gather=1`. Đã tối ưu tối đa (totals deferred + top-N hẹp + fetch-50 indexed).
+- **Trạng thái:** ĐÃ LÀM (db/113 `cm_don_raw`+`cm_don_ky`; tab "Lãi theo đơn"; test_113). **CHƯA commit.**

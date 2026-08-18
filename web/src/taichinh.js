@@ -87,6 +87,7 @@ function doiTab(t) {
   if (t === 'dieuhanh') taiDieuHanh()
   if (t === 'gvdon') taiGiaVonDon()
   if (t === 'pl') taiPL()
+  if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
   if (t === 'chiphi') taiChiPhiKy()
   if (t === 'taikhoan') taiTaiKhoan()
 }
@@ -451,6 +452,73 @@ async function cpkChepKyTruoc() {
   await taiChiPhiKy()
 }
 
+// ══════════ TAB LÃI THEO ĐƠN (CM/đơn, L-47b): dữ liệu từ cm_don_ky; KHÔNG tính lại ở client ══════════
+let CM_SAP = 'cm_pct.asc', CM_TRANG = 0, CM_MO = -1, CM_DATA = null
+const CM_DONG = { le: 'Lẻ', combo: 'Combo', du_an: 'Dự án', khac: 'Khác' }
+const CM_NGUON = { quang_cao: 'Quảng cáo', gioi_thieu: 'Giới thiệu', cua_hang: 'Cửa hàng', san_tmdt: 'Sàn TMĐT', khach_cu: 'Khách cũ', khac: 'Khác' }
+const cmPct = v => v == null ? '—' : Number(v).toFixed(1).replace('.', ',') + '%'
+async function taiCM() {
+  if (!$('cmd_tieude')) return
+  $('cmd_tieude').textContent = 'Kỳ ' + KY
+  const body = $('cmd_body'), foot = $('cmd_foot'), pg = $('cmd_pager')
+  const { data: g, error } = await sb.rpc('cm_don_ky', { p_ky: KY, p_trang: CM_TRANG, p_sap: CM_SAP })
+  if (error) { body.innerHTML = `<tr><td class="ten" colspan="9" style="color:#C8202E">${escH(error.message)}</td></tr>`; foot.innerHTML = ''; pg.innerHTML = ''; $('cmd_batbien').textContent = ''; $('cmd_tongcm').textContent = '—'; $('cmd_cmtb').textContent = '—'; $('cmd_sodon').textContent = '—'; return }
+  CM_DATA = g
+  const t = g.tong, hhPct = (Number(g.hh) * 100).toFixed(1).replace(/\.0$/, '').replace('.', ',')
+  $('cmd_tongcm').textContent = fmt(t.cm); $('cmd_tongcm').classList.toggle('cmd-am', Number(t.cm) < 0)
+  $('cmd_cmtb').textContent = cmPct(t.cm_pct_tb)
+  $('cmd_sodon').textContent = t.so_don + (t.so_thieu > 0 ? ' · ' + t.so_thieu + ' chưa trọn' : '')
+  const ds = g.ds || []
+  if (!ds.length) {
+    body.innerHTML = '<tr><td colspan="9"><div class="cmd-trong"><b>Kỳ này chưa có đơn đã giao</b>Đơn vào trạng thái ĐÃ GIAO trong kỳ mới xuất hiện ở đây.</div></td></tr>'
+    foot.innerHTML = ''; pg.innerHTML = ''; $('cmd_batbien').textContent = ''; return
+  }
+  const mtico = c => CM_SAP.split('.')[0] === c ? (CM_SAP.split('.')[1] === 'asc' ? ' ▲' : ' ▼') : ''
+  document.querySelectorAll('#tc .cmd-sap').forEach(th => th.textContent = th.textContent.replace(/ [▲▼]$/, '') + mtico(th.dataset.sap))
+  body.innerHTML = ds.map((r, i) => {
+    const thieu = (r.thieu || []).map(x => `<span class="cmd-nhan-thieu">thiếu ${x}</span>`).join('')
+    const amCM = Number(r.cm) < 0 ? ' cmd-am' : ''
+    let h = `<tr class="cmd-dong${(r.thieu && r.thieu.length) ? ' cmd-thieu' : ''}" data-i="${i}">`
+      + `<td class="cmd-lbl"><span class="cmd-ma">${escH(r.ma_don)}</span>${thieu}<br><span class="cmd-khach">${escH(r.khach || '')}</span></td>`
+      + `<td class="cmd-lbl">${CM_DONG[r.dong] || r.dong || '—'}</td>`
+      + `<td class="cmd-lbl" style="font-size:12px;color:var(--mut)">${CM_NGUON[r.nguon_khach] || '—'}</td>`
+      + `<td class="cmd-num">${fmt(r.dt_thuan)}</td><td class="cmd-num">${fmt(r.gv)}</td>`
+      + `<td class="cmd-num">${fmt(r.ship_lap)}</td><td class="cmd-num">${fmt(r.hoa_hong)}</td>`
+      + `<td class="cmd-num${amCM}">${fmt(r.cm)}</td><td class="cmd-num${amCM}">${cmPct(r.cm_pct)}</td></tr>`
+    if (CM_MO === i) {
+      const coGV = !(r.thieu || []).includes('giá vốn'), coSL = !(r.thieu || []).includes('ship/lắp')
+      h += `<tr class="cmd-ct"><td colspan="9"><div class="cmd-ct-bang">`
+        + `<div class="cmd-r"><span>Giá chốt (gồm VAT ${g.vat}%)</span><span>${fmt(r.gia_chot)}</span></div>`
+        + `<div class="cmd-r"><span>Doanh thu thuần (÷ ${(1 + Number(g.vat) / 100).toFixed(2).replace('.', ',')})</span><span>${fmt(r.dt_thuan)}</span></div>`
+        + `<div class="cmd-r"><span>− Giá vốn vật tư (k1)</span><span class="cmd-am">${coGV ? fmt(r.k1) : '— thiếu'}</span></div>`
+        + `<div class="cmd-r"><span>− Giá vốn hoạt động (k2)</span><span class="cmd-am">${coGV ? fmt(r.k2) : '— thiếu'}</span></div>`
+        + `<div class="cmd-r"><span>− Giá vốn cấp đơn (k3)</span><span class="cmd-am">${coGV ? fmt(r.k3) : '— thiếu'}</span></div>`
+        + `<div class="cmd-r"><span>− Ship + lắp thực trả</span><span class="cmd-am">${coSL ? fmt(r.ship_lap) : '— thiếu'}</span></div>`
+        + `<div class="cmd-r"><span>− Hoa hồng ${hhPct}% × DT thuần</span><span class="cmd-am">${fmt(r.hoa_hong)}</span></div>`
+        + `<div class="cmd-r cmd-tong"><span>= CM đơn${(r.thieu && r.thieu.length) ? ' (chưa trọn)' : ''}</span><span class="${Number(r.cm) < 0 ? 'cmd-am' : ''}">${fmt(r.cm)} · ${cmPct(r.cm_pct)}</span></div>`
+        + `</div></td></tr>`
+    }
+    return h
+  }).join('')
+  foot.innerHTML = `<tr><td class="ten" colspan="3">TỔNG KỲ (${t.so_don} đơn${t.so_thieu > 0 ? ' · ' + t.so_thieu + ' chưa trọn' : ''})</td>`
+    + `<td class="cmd-num">${fmt(t.dt)}</td><td class="cmd-num">${fmt(t.gv)}</td><td class="cmd-num">${fmt(t.ship_lap)}</td><td class="cmd-num">${fmt(t.hoa_hong)}</td>`
+    + `<td class="cmd-num${Number(t.cm) < 0 ? ' cmd-am' : ''}">${fmt(t.cm)}</td><td class="cmd-num">${cmPct(Number(t.dt) > 0 ? Number(t.cm) / Number(t.dt) * 100 : null)}</td></tr>`
+  $('cmd_batbien').innerHTML = `BẤT BIẾN: Σ CM kỳ (${fmt(t.cm)}) <b>= dòng SỐ DƯ ĐẢM PHÍ</b> của P/L kỳ ${KY} (sai số &lt; 1đ) — hai màn một nguồn số.`
+  // phân trang
+  const soTrang = g.so_trang || 1
+  pg.innerHTML = `<button id="cmd_prev"${CM_TRANG <= 0 ? ' disabled' : ''}>← Trước</button>`
+    + `<span>Trang <b>${CM_TRANG + 1}</b>/${soTrang} · ${t.so_don} đơn</span>`
+    + `<button id="cmd_next"${(CM_TRANG + 1) >= soTrang ? ' disabled' : ''}>Sau →</button>`
+  if ($('cmd_prev')) $('cmd_prev').onclick = () => { if (CM_TRANG > 0) { CM_TRANG--; CM_MO = -1; taiCM() } }
+  if ($('cmd_next')) $('cmd_next').onclick = () => { if ((CM_TRANG + 1) < soTrang) { CM_TRANG++; CM_MO = -1; taiCM() } }
+  body.querySelectorAll('tr.cmd-dong').forEach(tr => tr.onclick = () => { const i = +tr.dataset.i; CM_MO = (CM_MO === i ? -1 : i); taiCM() })
+  document.querySelectorAll('#tc .cmd-sap').forEach(th => th.onclick = () => {
+    const c = th.dataset.sap, cur = CM_SAP.split('.')
+    CM_SAP = (cur[0] === c) ? c + '.' + (cur[1] === 'asc' ? 'desc' : 'asc') : c + '.asc'
+    CM_TRANG = 0; CM_MO = -1; taiCM()
+  })
+}
+
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
 let BADGE = {}   // ten_tham_so -> trang_thai
 async function taiBadges() {
@@ -486,6 +554,7 @@ async function loadKy() {
   await refreshSuyNangLuc().catch(() => {})   // L-46: số suy năng lực cho ô tham số
   // L-43: đổi kỳ → nạp lại P/L + Chi phí kỳ NẾU tab đang mở (đổi kỳ = đổi ngữ cảnh, bỏ chỉnh sửa chi phí chưa lưu)
   if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
+  if ($('tab-cmdon') && $('tab-cmdon').classList.contains('on')) { CM_TRANG = 0; CM_MO = -1; await taiCM() }
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
 }
 
