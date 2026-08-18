@@ -134,6 +134,16 @@
   #tc .pl-tbl tr.pl-final td { background:var(--tx); color:#fff; font-weight:800; }
   #tc .pl-dash { color:var(--fnt); }
   #tc .pl-foot { font-size:11.5px; color:var(--mut); line-height:1.7; margin-top:10px; }
+  #tc .pl-nl { margin:12px 0 4px; border:1px solid var(--bd); border-radius:12px; padding:13px 16px; background:var(--raise); }
+  #tc .pl-nl.pl-nl-do { background:var(--rdB); border-color:#F1C0C5; }
+  #tc .pl-nl-h { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--fnt); margin-bottom:9px; }
+  #tc .pl-nl-3 { display:flex; gap:26px; flex-wrap:wrap; }
+  #tc .pl-nl-o .pl-nl-lbl { font-size:11px; color:var(--mut); }
+  #tc .pl-nl-o .pl-nl-big { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #tc .pl-nl-o .pl-nl-big.pl-nl-am { color:var(--pri); }
+  #tc .pl-nl-note { font-size:11px; color:var(--mut); margin-top:9px; line-height:1.6; }
+  #tc .dh-lapday { display:flex; gap:20px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed #D7DDE8; }
+  #tc .dh-lapday .dh-ld-lbl { font-size:11px; color:#6B7488; } #tc .dh-lapday .dh-ld-big { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
   #tc .pl-donlist { margin-top:8px; font-size:12.5px; color:var(--am); display:none; }
   /* ── Chi phí kỳ (L-43) ── */
   #tc .cpk-tbl td, #tc .cpk-tbl th { padding:6px 9px; }
@@ -243,6 +253,13 @@
           <div class="grp"><div class="sec">Chính sách giảm giá</div><div class="grid">
             <div><label>Sale tự giảm tối đa (%) <span class="tag" data-param="tran_sale"></span></label><input type="number" id="transale" step="0.5"></div>
             <div><label>Trưởng nhóm duyệt tới (%) <span class="tag" data-param="tran_truong_nhom"></span></label><input type="number" id="trantn" step="0.5"></div>
+          </div></div>
+          <div class="grp"><div class="sec">Năng lực xưởng (Garrison App.3A)</div><div class="grid">
+            <div style="grid-column:1/3"><label>Chi phí năng lực / kỳ (đồng) <span class="hint" id="cpnl_suy"></span></label>
+              <input class="money" id="cpnl" placeholder="để trống = dùng số suy từ lương tổ">
+              <div style="margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <button class="btn ghost cpnl-nut" type="button" id="cpnl_dung" style="padding:5px 11px;font-size:12.5px">Dùng số suy</button>
+                <span class="hint" id="cpnl_canhbao"></span></div></div>
           </div></div>
           <div class="grp"><div class="sec">Thuế</div><div class="grid">
             <div><label>Thuế VAT (%) <span class="tag" data-param="vat"></span></label><input type="number" id="vat"></div>
@@ -368,6 +385,7 @@
         <div class="cb" style="padding-top:0">
           <div class="warn" id="pl_canhbao" style="display:none"></div>
           <div class="pl-donlist" id="pl_donlist"></div>
+          <div class="pl-nl" id="pl_nangluc"></div>
           <div class="pl-foot">
             <div><b>Quy ước VAT:</b> doanh thu bóc VAT (thuần = giá chốt ÷ (1+VAT/100) theo tham số kỳ); giá vốn nhập CHƯA VAT nên dùng thẳng. VAT không hiện trong P/L (thu hộ nhà nước).</div>
             <div><b>Định phí chung không chia vào phân khúc</b> — chỉ trừ ở cột Toàn cty (Garrison ch.6: common cost không rải để tránh bóp méo segment margin).</div>

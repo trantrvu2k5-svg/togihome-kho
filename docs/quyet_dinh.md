@@ -407,3 +407,21 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **`khach_sdt`** (0 điền) tuy trùng ý nghĩa `sdt_khach` nhưng có **FK `fk_dh_khach → khach(sdt)`** (db/024) + đọc bởi
   **db/104 công nợ** + sale.js fallback. **HOÃN drop** — cần lô riêng (sửa db/104 + sale.js + gỡ FK) rồi mới drop an toàn.
 - **Trạng thái:** cột chuẩn CHỐT; **drop `kgs` HUỶ (sai tiền đề); drop `khach_sdt` HOÃN chờ lô riêng.** **CHƯA commit.**
+
+## QD-36 (18/08) — Thước LẤP ĐẦY năng lực bằng TIỀN (Garrison App.3A) (L-46)
+
+- **Căn cứ sách — Garrison Phụ lục 3A:** mẫu số overhead nên là **practical capacity**; chênh lệch (năng lực thừa)
+  HIỆN thành dòng riêng **"Cost of Unused Capacity"** — là **chi phí kỳ, KHÔNG chôn vào giá vốn**, KHÔNG rải vào sản
+  phẩm (RCA/Clopay: năng lực thừa phải hiện ra để thấy, không giấu vào đơn giá).
+- **CEO chốt:** thước **TIỀN** cho P/L (lô này) chạy **SONG SONG** thước **GIỜ** (`nang_luc_to`, xếp lịch) — hai thước,
+  không thay nhau.
+  - Tham số kỳ mới `tham_so_tai_chinh.chi_phi_nang_luc` (đồng/kỳ). Mặc định **suy = Σ(luong_to + overhead_phan_bo +
+    bao_hiem)** cùng kỳ; **CEO sửa tay được**; lệch >10% số suy → **cảnh báo mềm** (không chặn).
+  - **Lấp đầy %** = Σ khoi_2 (đơn da_giao trong kỳ theo ngay_giao) ÷ chi_phi_nang_luc.
+  - **Năng lực bỏ trống (đ)** = chi_phi_nang_luc − Σ khoi_2 (âm = **"vượt năng lực"** — làm nhiều hơn chuẩn, cũng là tín hiệu).
+  - **Dòng này là THÔNG TIN** (dưới P/L + ô tab Điều hành) — **KHÔNG cộng/trừ vào lãi thuần** (lương tổ đã nằm trong
+    giá vốn khối ②, trừ nữa là trùng).
+- **RPC `lap_day_ky` KHÔNG fail-đóng** (khác `pl_ky`): số suy luôn tính được từ luong_to; kỳ chưa chốt tham số → trả
+  số suy + cờ `chua_chot_tham_so`, dùng số suy làm mẫu số.
+- **Trạng thái:** ĐÃ LÀM (db/110 cột + `lap_day_ky` jit=off; UI 3 màn P/L/Điều hành/Sổ tham số; test_110 13/0 gồm tốc
+  độ 100k <500ms). **CHƯA commit.**

@@ -69,6 +69,8 @@ async function napApp() {
   $('cpk_them').onclick = () => cpkAddRow()   // L-43: nút màn Chi phí kỳ
   $('cpk_chep').onclick = cpkChepKyTruoc
   $('cpk_luu').onclick = cpkLuu
+  $('cpnl_dung').onclick = () => { setMoney('cpnl', window.__suyNL || 0); capNhatCanhBaoNL() }   // L-46: dùng số suy
+  $('cpnl').addEventListener('input', capNhatCanhBaoNL)
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -172,6 +174,7 @@ async function taiDieuHanh() {
     }).join('') : '<div class="dh-empty">Không có công nợ đã giao.</div>'
     box.querySelectorAll('.dh-conno-kh').forEach(b => b.onclick = () => { const d = $('dh-conno-' + b.dataset.kh); d.style.display = d.style.display === 'none' ? 'block' : 'none' })
   }
+  await veLapDayDH().catch(() => {})   // L-46: ô Lấp đầy xưởng vào khối Xưởng
 }
 function oStat(lbl, big, sub) { return `<div class="dh-o"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></div>` }
 function oClick(id, lbl, big, sub, cls) { return `<button class="dh-o click ${cls || ''}" id="${id}" data-n="${big}"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></button>` }
@@ -329,6 +332,57 @@ async function taiPL() {
     dl.textContent = 'Đơn thiếu: ' + (pl.don_thieu || []).join(', ')
     $('pl_xemds').onclick = e => { e.preventDefault(); dl.style.display = dl.style.display === 'block' ? 'none' : 'block' }
   } else { wb.style.display = 'none'; dl.style.display = 'none' }
+  await veNangLucPL()
+}
+
+// L-46: khối NĂNG LỰC XƯỞNG dưới bảng P/L (thước TIỀN, Garrison App.3A — số thông tin, KHÔNG trừ lãi)
+async function veNangLucPL() {
+  const box = $('pl_nangluc'); if (!box) return
+  const { data: g, error } = await sb.rpc('lap_day_ky', { p_ky: KY })
+  if (error || !g) { box.style.display = 'none'; return }
+  box.style.display = 'block'
+  const mau = Number(g.mau_so_dung) || 0, bt = Number(g.tien_bo_trong) || 0, boTrong = bt >= 0
+  const ty = g.ty_le_lap_day == null ? null : Number(g.ty_le_lap_day) * 100
+  const pctBoTrong = mau > 0 ? bt / mau * 100 : 0
+  box.classList.toggle('pl-nl-do', boTrong && pctBoTrong > 20)
+  box.innerHTML = `<div class="pl-nl-h">Năng lực xưởng${g.chua_chot_tham_so ? ' · <span style="color:var(--am)">chưa chốt tham số (dùng số suy từ lương tổ)</span>' : ''}</div>`
+    + `<div class="pl-nl-3">`
+    + `<div class="pl-nl-o"><div class="pl-nl-lbl">Chi phí năng lực kỳ</div><div class="pl-nl-big">${fmt(mau)}</div></div>`
+    + `<div class="pl-nl-o"><div class="pl-nl-lbl">Lấp đầy</div><div class="pl-nl-big">${ty == null ? '—' : ty.toFixed(1).replace('.', ',') + '%'}</div></div>`
+    + `<div class="pl-nl-o"><div class="pl-nl-lbl">${boTrong ? 'Năng lực bỏ trống' : 'Vượt năng lực chuẩn'}</div><div class="pl-nl-big ${boTrong ? '' : 'pl-nl-am'}">${boTrong ? fmt(bt) : '+' + fmt(-bt)}</div></div>`
+    + `</div>`
+    + `<div class="pl-nl-note">Garrison App.3A — số THÔNG TIN, <b>không trừ vào lãi thuần</b> (lương tổ đã nằm trong giá vốn khối ②, trừ nữa là trùng). Mẫu số = chi phí năng lực kỳ (Sổ tham số); để trống thì suy từ lương tổ.</div>`
+}
+
+// L-46: số suy + cảnh báo mềm lệch >10% cho ô chi_phi_nang_luc (Sổ tham số)
+async function refreshSuyNangLuc() {
+  if (!$('cpnl_suy')) return
+  const { data: g, error } = await sb.rpc('lap_day_ky', { p_ky: KY })
+  if (error || !g) return
+  window.__suyNL = Number(g.so_suy_tu_luong_to) || 0
+  $('cpnl_suy').textContent = 'Suy từ lương tổ: ' + fmt(window.__suyNL) + ' đ'
+  capNhatCanhBaoNL()
+}
+function capNhatCanhBaoNL() {
+  const el = $('cpnl_canhbao'); if (!el) return
+  const suy = window.__suyNL || 0, v = Number(($('cpnl').value || '').replace(/\D/g, '')) || 0
+  if (!v || !suy) { el.textContent = ''; return }
+  const lech = Math.abs(v - suy) / suy * 100
+  if (lech > 10) { el.style.color = 'var(--am)'; el.textContent = `⚠ lệch ${lech.toFixed(0)}% so số suy (${fmt(suy)} đ) — kiểm lại` }
+  else { el.style.color = 'var(--gn)'; el.textContent = '≈ khớp số suy' }
+}
+// L-46: ô "Lấp đầy xưởng" trên tab Điều hành (thêm vào khối Xưởng)
+async function veLapDayDH() {
+  const box = $('dh_xuong'); if (!box) return
+  const { data: g, error } = await sb.rpc('lap_day_ky', { p_ky: KY })
+  if (error || !g) return
+  const ty = g.ty_le_lap_day == null ? null : Number(g.ty_le_lap_day) * 100
+  const bt = Number(g.tien_bo_trong) || 0, boTrong = bt >= 0
+  const div = document.createElement('div')
+  div.className = 'dh-lapday'
+  div.innerHTML = `<div><div class="dh-ld-lbl">Lấp đầy xưởng${g.chua_chot_tham_so ? ' (suy)' : ''}</div><div class="dh-ld-big">${ty == null ? '—' : ty.toFixed(1).replace('.', ',') + '%'}</div></div>`
+    + `<div><div class="dh-ld-lbl">${boTrong ? 'Năng lực bỏ trống' : 'Vượt năng lực'}</div><div class="dh-ld-big" style="${boTrong ? '' : 'color:var(--pri)'}">${boTrong ? fmt(bt) : '+' + fmt(-bt)} đ</div></div>`
+  box.appendChild(div)
 }
 
 // ══════════ TAB CHI PHÍ KỲ (L-43): sổ actuals, tính tổng+tách CHUNG/truy-được sống theo dữ liệu đang nhập ══════════
@@ -424,10 +478,12 @@ async function loadKy() {
   setMoney('dt', t.dt_muc_tieu); $('sodon').value = t.so_don_ke_hoach ?? ''
   $('vat').value = t.vat ?? ''; $('hhs').value = t.hh_sale ?? ''; $('hhq').value = t.hh_quan_ly ?? ''; $('hht').value = t.hh_thiet_ke ?? ''
   setMoney('phile', t.phi_don_le); setMoney('phicombo', t.phi_don_combo); setMoney('phitk', t.phi_don_thiet_ke)
+  setMoney('cpnl', t.chi_phi_nang_luc)   // L-46: chi phí năng lực xưởng (để trống = dùng số suy)
   $('transale').value = t.tran_sale ?? ''; $('trantn').value = t.tran_truong_nhom ?? ''; $('ghichu').value = t.ghi_chu ?? ''
   await taiBadges()   // badge TẠM/ĐÃ CHỐT theo từng tham số (thay 1 cột ghi_chu chung)
   await refreshHeSoM(); await refreshBang(); await refreshQuick(); await refreshChotInfo()
   await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn C: ' + (e.message || e) } })  // xưởng hỏng KHÔNG kéo màn cũ
+  await refreshSuyNangLuc().catch(() => {})   // L-46: số suy năng lực cho ô tham số
   // L-43: đổi kỳ → nạp lại P/L + Chi phí kỳ NẾU tab đang mở (đổi kỳ = đổi ngữ cảnh, bỏ chỉnh sửa chi phí chưa lưu)
   if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
@@ -439,6 +495,7 @@ async function luuKy() {
     dt_muc_tieu: money('dt'), so_don_ke_hoach: numv('sodon'), vat: numv('vat'),
     hh_sale: numv('hhs'), hh_quan_ly: numv('hhq'), hh_thiet_ke: numv('hht'),
     phi_don_le: money('phile'), phi_don_combo: money('phicombo'), phi_don_thiet_ke: money('phitk'),
+    chi_phi_nang_luc: (($('cpnl').value || '').replace(/\D/g, '') || null) && Number($('cpnl').value.replace(/\D/g, '')),   // L-46: trống = NULL (dùng số suy)
     tran_sale: numv('transale'), tran_truong_nhom: numv('trantn'), ghi_chu: $('ghichu').value
   }
   const { error } = await sb.from('tham_so_tai_chinh').update(row).eq('ma_ky', KY)
