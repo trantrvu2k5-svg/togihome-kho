@@ -71,6 +71,8 @@ async function napApp() {
   $('cpk_luu').onclick = cpkLuu
   $('cpnl_dung').onclick = () => { setMoney('cpnl', window.__suyNL || 0); capNhatCanhBaoNL() }   // L-46: dùng số suy
   $('cpnl').addEventListener('input', capNhatCanhBaoNL)
+  $('kc_them').onclick = () => kcAddRow()   // L-48: nút màn Kênh & CAC
+  $('kc_luu').onclick = kcLuu
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -88,6 +90,7 @@ function doiTab(t) {
   if (t === 'gvdon') taiGiaVonDon()
   if (t === 'pl') taiPL()
   if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
+  if (t === 'kenhcac') { KC_BRAND = 'all'; taiKenhCac() }
   if (t === 'chiphi') taiChiPhiKy()
   if (t === 'taikhoan') taiTaiKhoan()
 }
@@ -519,6 +522,96 @@ async function taiCM() {
   })
 }
 
+// ══════════ TAB KÊNH & CAC (L-48): dữ liệu từ kenh_cac_ky; form ads gồm VAT, "thật" bóc theo vat kỳ ══════════
+let KC_BRAND = 'all', KC_VAT = 10, KC_BRANDS = {}   // ma→ten brand bật
+const KC_KENH = [['quang_cao', 'Quảng cáo'], ['gioi_thieu', 'Giới thiệu'], ['cua_hang', 'Cửa hàng'], ['san_tmdt', 'Sàn TMĐT'], ['khach_cu', 'Khách cũ'], ['khac', 'Khác']]
+const KC_KMAP = Object.fromEntries(KC_KENH.concat([['(chưa ghi nguồn)', 'Chưa ghi nguồn']]))
+const tenBrand = ma => KC_BRANDS[ma] || (ma === '(chưa ghi TH)' ? '(Chưa ghi thương hiệu)' : ma)
+async function napBrandsKC() {
+  if (Object.keys(KC_BRANDS).length) return
+  const { data } = await sb.from('thuong_hieu_ban').select('ma,ten')
+  KC_BRANDS = Object.fromEntries((data || []).map(b => [b.ma, b.ten]))
+}
+async function taiKenhCac() {
+  if (!$('kc_body')) return
+  await napBrandsKC()
+  const { data: g, error } = await sb.rpc('kenh_cac_ky', { p_ky: KY, p_brand: null })
+  const body = $('kc_body'), foot = $('kc_foot')
+  if (error) { body.innerHTML = `<tr><td class="kc-lbl" colspan="8" style="color:#C8202E">${escH(error.message)}</td></tr>`; foot.innerHTML = ''; $('kc_brand').innerHTML = ''; $('kc_tongads').textContent = '—'; $('kc_khachmoi').textContent = '—'; $('kc_sauads').textContent = '—'; return }
+  KC_VAT = Number(g.vat) || 10
+  const all = g.dong || []
+  // nút brand + tổng ads thật mỗi brand
+  const adsB = {}; all.forEach(r => { adsB[r.brand] = (adsB[r.brand] || 0) + (Number(r.chi_ads_that) || 0) })
+  const brandMa = [...new Set(all.map(r => r.brand))].filter(b => b !== '(chưa ghi TH)')
+  let hb = `<button class="${KC_BRAND === 'all' ? 'kc-chon' : ''}" data-b="all">Tất cả</button>`
+  brandMa.forEach(b => hb += `<button class="${KC_BRAND === b ? 'kc-chon' : ''}" data-b="${b}">${escH(tenBrand(b))}<span class="kc-n">${fmt(adsB[b] || 0)}</span></button>`)
+  $('kc_brand').innerHTML = hb
+  $('kc_brand').querySelectorAll('button').forEach(bt => bt.onclick = () => { KC_BRAND = bt.dataset.b; taiKenhCac() })
+  $('kc_tieude').textContent = 'Hiệu quả kênh — ' + (KC_BRAND === 'all' ? 'Tất cả thương hiệu' : tenBrand(KC_BRAND))
+  // lọc theo brand
+  const loc = KC_BRAND === 'all' ? all : all.filter(r => r.brand === KC_BRAND)
+  const hangKenh = r => {
+    const ads = Number(r.chi_ads_that) || 0
+    const cacTxt = r.cac == null ? (r.vo_han ? '∞' : '—') : fmt(r.cac) + (r.mau_mong ? ' *' : '')
+    const sauCls = Number(r.cm_sau_ads) < 0 ? 'kc-xau' : (ads > 0 ? 'kc-tot' : '')
+    return `<tr><td class="kc-lbl">${KC_KMAP[r.kenh] || r.kenh}${ads > 0 ? '' : '<span class="kc-phu">khách tự đến</span>'}</td>`
+      + `<td class="kc-num">${r.don_giao}</td><td class="kc-num">${r.khach_moi_brand}</td>`
+      + `<td class="kc-num kc-ads">${ads ? fmt(ads) : '—'}</td>`
+      + `<td class="kc-num kc-ads${r.mau_mong ? ' kc-im' : ''}">${cacTxt}</td>`
+      + `<td class="kc-num">${fmt(r.dt_thuan)}</td><td class="kc-num">${fmt(r.cm_kenh)}</td>`
+      + `<td class="kc-num ${sauCls}">${fmt(r.cm_sau_ads)}</td></tr>`
+  }
+  let h = ''
+  if (!loc.length) h = '<tr><td colspan="8" class="hint" style="padding:36px;text-align:center">Kỳ này chưa có đơn giao / chi ads.</td></tr>'
+  else if (KC_BRAND === 'all') {
+    [...new Set(loc.map(r => r.brand))].forEach(b => {
+      h += `<tr class="kc-nhom"><td colspan="8">${escH(tenBrand(b).toUpperCase())}</td></tr>`
+      loc.filter(r => r.brand === b).forEach(r => h += hangKenh(r))
+    })
+  } else loc.forEach(r => h += hangKenh(r))
+  body.innerHTML = h
+  // tổng theo lọc
+  const T = loc.reduce((a, r) => ({ ads: a.ads + (Number(r.chi_ads_that) || 0), moi: a.moi + r.khach_moi_brand, don: a.don + r.don_giao, dt: a.dt + Number(r.dt_thuan), cm: a.cm + Number(r.cm_kenh), sau: a.sau + Number(r.cm_sau_ads) }), { ads: 0, moi: 0, don: 0, dt: 0, cm: 0, sau: 0 })
+  foot.innerHTML = loc.length ? `<tr><td class="kc-lbl">TỔNG${KC_BRAND !== 'all' ? '' : ' (tất cả)'}</td><td class="kc-num">${T.don}</td><td class="kc-num">${T.moi}</td><td class="kc-num kc-ads">${fmt(T.ads)}</td><td class="kc-num kc-ads">—</td><td class="kc-num">${fmt(T.dt)}</td><td class="kc-num">${fmt(T.cm)}</td><td class="kc-num ${T.sau < 0 ? 'kc-xau' : ''}">${fmt(T.sau)}</td></tr>` : ''
+  $('kc_tongads').textContent = fmt(T.ads); $('kc_khachmoi').textContent = T.moi
+  $('kc_sauads').textContent = fmt(T.sau); $('kc_sauads').style.color = T.sau < 0 ? 'var(--pri)' : ''
+  await taiAdsForm()
+}
+async function taiAdsForm() {
+  const box = $('kc_rows'); if (!box) return
+  const { data, error } = await sb.rpc('ads_ds', { p_ky: KY })
+  box.innerHTML = ''
+  if (error) { $('kc_msg').style.color = '#C8202E'; $('kc_msg').textContent = 'Lỗi: ' + error.message; return }
+  $('kc_msg').textContent = ''
+  ;((data && data.ds) || []).forEach(r => kcAddRow(r))
+}
+function kcAddRow(seed) {
+  const box = $('kc_rows'); if (!box) return
+  const div = document.createElement('div'); div.className = 'kc-form-hang'
+  const bOpts = Object.entries(KC_BRANDS).map(([m, t]) => `<option value="${m}"${seed && seed.thuong_hieu === m ? ' selected' : ''}>${escH(t)}</option>`).join('')
+  const kOpts = KC_KENH.map(([m, t]) => `<option value="${m}"${seed && seed.kenh === m ? ' selected' : ''}>${t}</option>`).join('')
+  div.innerHTML = `<select class="kc-th">${bOpts}</select><select class="kc-k">${kOpts}</select>`
+    + `<div><input class="kc-tien money" inputmode="numeric" value="${seed ? fmt(seed.so_tien_nhap) : ''}"><div class="kc-that"></div></div>`
+    + `<input class="kc-ghi" value="${seed ? escA(seed.ghi_chu) : ''}"><input class="kc-ng" value="${seed ? escA(seed.nguoi_nhap) : ''}">`
+    + `<button class="kc-del" title="Xoá">×</button>`
+  box.appendChild(div)
+  const mo = div.querySelector('.kc-tien'); const veThat = () => { const v = Number((mo.value || '').replace(/\D/g, '')) || 0; div.querySelector('.kc-that').textContent = v ? 'thật: ' + fmt(v / (1 + KC_VAT / 100)) : '' }
+  mo.addEventListener('input', () => { fmtMoneyEl(mo); veThat() }); veThat()
+  div.querySelector('.kc-del').onclick = () => div.remove()
+}
+async function kcLuu() {
+  const rows = [...$('kc_rows').querySelectorAll('.kc-form-hang')].filter(d => d.querySelector('.kc-th')).map(d => ({
+    thuong_hieu: d.querySelector('.kc-th').value, kenh: d.querySelector('.kc-k').value,
+    so_tien_nhap: String(Number((d.querySelector('.kc-tien').value || '').replace(/\D/g, '')) || 0),
+    ghi_chu: d.querySelector('.kc-ghi').value.trim(), nguoi_nhap: d.querySelector('.kc-ng').value.trim()
+  }))
+  $('kc_msg').style.color = 'var(--mut)'; $('kc_msg').textContent = 'Đang lưu…'
+  const { data, error } = await sb.rpc('ads_ghi', { p_ky: KY, p_dong: rows })
+  if (error) { $('kc_msg').style.color = '#C8202E'; $('kc_msg').textContent = 'Lỗi: ' + error.message; return }
+  $('kc_msg').style.color = 'var(--gn)'; $('kc_msg').textContent = `✓ Đã lưu ${data.so_dong} dòng ads cho kỳ ${KY}`
+  await taiKenhCac()
+}
+
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──
 let BADGE = {}   // ten_tham_so -> trang_thai
 async function taiBadges() {
@@ -555,6 +648,7 @@ async function loadKy() {
   // L-43: đổi kỳ → nạp lại P/L + Chi phí kỳ NẾU tab đang mở (đổi kỳ = đổi ngữ cảnh, bỏ chỉnh sửa chi phí chưa lưu)
   if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
   if ($('tab-cmdon') && $('tab-cmdon').classList.contains('on')) { CM_TRANG = 0; CM_MO = -1; await taiCM() }
+  if ($('tab-kenhcac') && $('tab-kenhcac').classList.contains('on')) { KC_BRAND = 'all'; await taiKenhCac() }
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
 }
 

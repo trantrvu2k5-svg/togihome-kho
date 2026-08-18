@@ -459,3 +459,28 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **KHÔNG đổi SKU:** mã 3 chữ biến thể (TKR/TBC…) không nằm trong SKU niêm yết nào (kiểm PHA 2) → định danh đã phát
   hành không gãy; kể cả có, CẤM đổi (gãy truy vết).
 - **Trạng thái:** ĐÃ LÀM (db/114 view + ngung 7 biến thể; sale.js + sanpham.js đọc view chung; test_114 11/0). **CHƯA commit.**
+
+## QD-39 (18/08) — Màn "Kênh & CAC theo thương hiệu" + bảng chi_ads (L-48)
+
+- **chi_ads theo brand × kênh** (mỗi thương hiệu một team ads): bảng `chi_ads(ma_ky, thuong_hieu, kenh, so_tien_nhap,…)`.
+  Kênh = 6 giá trị `nguon_khach`. Chi tiết FB/Google ghi vào `ghi_chu` (kênh con để **NGỎ cho v2**).
+- **KHÁCH MỚI THEO BRAND (cho CAC):** SĐT lần đầu có đơn `da_giao` của **brand đó** (cặp sdt × thuong_hieu, min ngay_giao
+  rơi vào kỳ). Khách cũ brand A mua brand B lần đầu = khách **MỚI của B**. **Cờ `khach_moi` toàn công ty (QD-34) GIỮ
+  NGUYÊN cho P/L** — hai thước, hai câu hỏi (CAC dùng khách-mới-theo-brand; P/L dùng cờ toàn cty).
+- **VAT ADS (CEO xác nhận 18/08 — KHÔNG có thuế nhà thầu):** kế toán nhập số **GỒM VAT** đúng hoá đơn vào `so_tien_nhap`
+  (giữ vết); **chi ads THẬT = so_tien_nhap ÷ (1+vat/100)** SUY trong RPC (vat theo kỳ, không hardcode, không cột thứ hai).
+  VAT ads **khấu trừ được → KHÔNG phải chi phí** (nối QD-30). **→ XOÁ câu "hỏi kế toán về thuế nhà thầu ads" khỏi danh
+  sách treo** (CEO đã trả lời: không có).
+- **CAC** = chi ads thật(brand,kênh) ÷ khách mới(brand,kênh); **`vo_han`** khi ads>0 & 0 khách mới; **`mau_mong`** khi
+  khách mới <3 (UI in **mờ + \***, không kết luận trên mẫu mỏng).
+- **CM sau ads = cm_kenh − ads đúng cặp brand×kênh, KHÔNG rải** sang kênh khách tự đến. `cm_kenh` = Σ cm từ `cm_don_raw`
+  (MỘT nguồn số với màn Lãi theo đơn, CHỈ đơn trọn) — **bất biến Σ cm_kenh = Σ cm đơn trọn** (test_115 sai số 0đ).
+- **Đơn thiếu nguon_khach/thuong_hieu → dòng "(chưa ghi …)"** — hiện thật, không giấu.
+- **GÁC ép `thuong_hieu`** tại cổng chốt đơn (mở rộng `kiem_chuyen_trang_thai` db/109+111, cùng nguon_khach — vai thật,
+  GUC `chan.off_thuonghieu`, không hồi tố; form Sale đã có * + chặn client). Nối QD-33.
+- **Perf 100k:** kenh_cac_ky quét **2 vòng 100k** (cm_don_raw trọn + "khách mua brand lần đầu" all-time) → ~gấp đôi
+  cm_don_ky (1 quét). Đo sạch **~910–930ms**, dao động tới ~1533ms khi DB bị nhiều test 100k liên tiếp làm nặng;
+  PG tắt parallelism trong hàm → đây là sàn. **Ngưỡng test chốt <2000ms** (bền với dao động tải). Kỳ THẬT vài trăm
+  đơn <50ms. Nối tiếp quyết định perf cm_don_ky (§QD trên: 100k là stress phi thực tế, CEO chấp nhận).
+- **Trạng thái:** ĐÃ LÀM + duyệt mắt (db/115 chi_ads + ads_ds/ads_ghi/kenh_cac_ky + cm_don_raw(+thuong_hieu) + gác;
+  tab "Kênh & CAC" app Tài chính bản `300abb14`; test_115 23/23). Commit v-kho-102.

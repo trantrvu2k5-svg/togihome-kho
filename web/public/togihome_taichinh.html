@@ -163,6 +163,32 @@
   #tc .cmd-tbl tfoot td { font-weight:800; background:var(--auto); border-top:2px solid var(--bd); }
   #tc .cmd-batbien { padding:11px 2px 2px; font-size:12.5px; color:var(--mut); } #tc .cmd-batbien b { color:var(--gn); }
   #tc .cmd-trong { padding:48px 20px; text-align:center; color:var(--mut); } #tc .cmd-trong b { display:block; font-size:16px; color:var(--tx); margin-bottom:6px; }
+  /* ── Kênh & CAC (L-48) ── */
+  #tc .kc-tomtat { display:flex; gap:26px; flex-wrap:wrap; margin:2px 0 12px; }
+  #tc .kc-tomtat .kc-nhan { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--fnt); }
+  #tc .kc-tomtat .kc-so { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  #tc .kc-brand { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  #tc .kc-brand button { border:1px solid var(--bdS); background:#fff; border-radius:20px; padding:7px 15px; font:inherit; font-size:13px; cursor:pointer; color:var(--tx2); }
+  #tc .kc-brand button.kc-chon { background:var(--tx); border-color:var(--tx); color:#fff; }
+  #tc .kc-brand button .kc-n { font-family:var(--mono); font-size:11px; color:var(--mut); margin-left:6px; }
+  #tc .kc-brand button.kc-chon .kc-n { color:#c9d2e0; }
+  #tc .kc-tbl td.kc-num { text-align:right; font-variant-numeric:tabular-nums; }
+  #tc .kc-tbl td.kc-lbl, #tc .kc-tbl th.kc-lbl { text-align:left; }
+  #tc .kc-tbl td.kc-ads, #tc .kc-tbl th.kc-ads { background:var(--raise); }
+  #tc .kc-tbl tr.kc-nhom td { background:var(--auto); font-weight:700; font-size:12px; letter-spacing:.03em; }
+  #tc .kc-tbl td.kc-im { color:var(--fnt); }
+  #tc .kc-tbl td.kc-tot { color:var(--gn); } #tc .kc-tbl td.kc-xau { color:var(--pri); }
+  #tc .kc-tbl tfoot td { font-weight:800; background:var(--auto); border-top:2px solid var(--bd); }
+  #tc .kc-phu { color:var(--fnt); font-size:11px; margin-left:6px; }
+  #tc .kc-form-hang { display:grid; grid-template-columns:180px 150px 1fr 1fr 130px 36px; gap:9px; padding:6px 0; align-items:center; }
+  #tc .kc-form-hang.kc-tieude { font-size:10.5px; font-weight:700; color:var(--fnt); text-transform:uppercase; letter-spacing:.04em; }
+  #tc .kc-form-hang select, #tc .kc-form-hang input { font:inherit; font-size:13.5px; padding:7px 9px; border:1px solid var(--bdS); border-radius:8px; width:100%; }
+  #tc .kc-form-hang input.kc-tien { text-align:right; font-variant-numeric:tabular-nums; }
+  #tc .kc-that { font-size:11px; color:var(--mut); margin-top:3px; }
+  #tc .kc-del { border:1px solid var(--bd); background:#fff; color:var(--mut); border-radius:8px; height:34px; cursor:pointer; }
+  #tc .kc-del:hover { border-color:var(--pri); color:var(--pri); }
+  #tc .kc-chan { font-size:11.5px; color:var(--mut); line-height:1.7; margin-top:10px; }
+  @media(max-width:1000px){ #tc .kc-form-hang { grid-template-columns:1fr 1fr; } }
   #tc .dh-lapday { display:flex; gap:20px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px dashed #D7DDE8; }
   #tc .dh-lapday .dh-ld-lbl { font-size:11px; color:#6B7488; } #tc .dh-lapday .dh-ld-big { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
   #tc .pl-donlist { margin-top:8px; font-size:12.5px; color:var(--am); display:none; }
@@ -202,6 +228,7 @@
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
     <button class="navi" data-tab="pl">P/L</button>
     <button class="navi" data-tab="cmdon">Lãi theo đơn</button>
+    <button class="navi" data-tab="kenhcac">Kênh &amp; CAC</button>
     <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
@@ -439,6 +466,42 @@
         <div class="pager" id="cmd_pager"></div>
         <div class="cb" style="padding-top:0"><div class="cmd-batbien" id="cmd_batbien"></div></div>
       </section>
+    </div>
+
+    <!-- ══════════ TAB · KÊNH & CAC (L-48) ══════════ -->
+    <div class="tabp" id="tab-kenhcac">
+      <h1>Kênh &amp; CAC theo thương hiệu</h1>
+      <div class="subline">Mỗi thương hiệu một team ads — CAC đo theo cặp thương hiệu × kênh · khách MỚI tính theo thương hiệu. Kỳ = ô <b>Kỳ</b> ở trên.</div>
+      <div class="kc-tomtat">
+        <div><div class="kc-nhan">Tổng ads thật</div><div class="kc-so" id="kc_tongads">—</div></div>
+        <div><div class="kc-nhan">Khách mới brand</div><div class="kc-so" id="kc_khachmoi">—</div></div>
+        <div><div class="kc-nhan">CM sau ads</div><div class="kc-so" id="kc_sauads">—</div></div>
+      </div>
+      <div class="kc-brand" id="kc_brand"></div>
+      <section class="card">
+        <div class="ch"><h2 id="kc_tieude">Hiệu quả kênh</h2><span class="hint">Tất cả = nhóm theo thương hiệu · chọn 1 brand = bảng kênh riêng · CAC in mờ * = dưới 3 khách mới · ∞ = có ads chưa ra khách</span></div>
+        <div class="cb" style="overflow-x:auto"><table class="kc-tbl"><thead><tr>
+          <th class="kc-lbl">Kênh</th><th class="r">Đơn giao</th><th class="r">Khách mới</th>
+          <th class="kc-ads r">Chi ads</th><th class="kc-ads r">CAC</th>
+          <th class="r">DT thuần</th><th class="r">CM kênh</th><th class="r">CM sau ads</th>
+        </tr></thead><tbody id="kc_body"><tr><td class="kc-lbl">Đang tải…</td></tr></tbody><tfoot id="kc_foot"></tfoot></table></div>
+      </section>
+      <section class="card">
+        <div class="ch"><h2>Nhập chi ads kỳ</h2><span class="hint">mỗi dòng gắn THƯƠNG HIỆU + KÊNH · chi tiết FB/Google ghi vào ghi chú · nhập số ĐÚNG HOÁ ĐƠN (gồm VAT), máy bóc VAT theo tham số kỳ</span></div>
+        <div class="cb">
+          <div class="kc-form-hang kc-tieude"><div>Thương hiệu</div><div>Kênh</div><div>Số tiền (gồm VAT)</div><div>Ghi chú</div><div>Người nhập</div><div></div></div>
+          <div id="kc_rows"></div>
+        </div>
+        <div class="cb" style="display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--bd2)">
+          <button class="btn ghost" id="kc_them">+ Thêm dòng</button>
+          <button class="btn" id="kc_luu">Lưu kỳ</button>
+          <span class="hint" id="kc_msg" style="align-self:center"></span>
+        </div>
+      </section>
+      <div class="cb" style="padding-top:0"><div class="kc-chan">
+        Khách MỚI theo thương hiệu = SĐT lần đầu có đơn giao của <b>brand đó</b> (khách cũ Togihome mua Vufurni lần đầu vẫn là khách MỚI của team Vufurni). Cờ khach_moi toàn công ty giữ nguyên cho P/L — hai thước, hai câu hỏi.<br>
+        CM kênh cùng nguồn số màn Lãi theo đơn (chỉ đơn trọn) · CM sau ads chỉ trừ ads đúng brand × kênh, không rải sang kênh khách tự đến. VAT ads khấu trừ được (gồm VAT ÷ (1+VAT/100)).
+      </div></div>
     </div>
 
     <!-- ══════════ TAB · CHI PHÍ KỲ (L-43) — sổ actuals ══════════ -->
