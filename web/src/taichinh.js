@@ -1,6 +1,7 @@
 // TRANG BỌC app TÀI CHÍNH: Supabase + đăng nhập + cổng vai trò (CHỈ ceo/ke_toan) + nối 4 phần vào hàm DB.
 // Mọi con số do DB tính (bang_gia, gia_bac_tu_gv, tinh_he_so_m, chot_niem_yet) — giá vốn không rời server.
 import { createClient } from '@supabase/supabase-js'
+import HD_MD from '../../docs/huong_dan_taichinh.md?raw'   // L-52: tài liệu = 1 nguồn (docs/), inline vào bundle
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 window.__sb = sb
@@ -85,7 +86,8 @@ async function napApp() {
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))
   await loadKy()
-  taiDieuHanh()   // L-69: tab Điều hành là tab MỞ MẶC ĐỊNH (đầu tiên) → tải ngay khi vào app
+  // L-52: default tab THEO VAI — kế toán đáp thẳng "Dòng tiền" (nơi nhập chính), còn lại đáp "Điều hành".
+  doiTab(USER.vai_tro === 'ke_toan' ? 'dongtien' : 'dieuhanh')
 }
 
 // Chuyển tab — dữ liệu GIỮ NGUYÊN (chỉ ẩn/hiện, không dựng lại DOM).
@@ -101,6 +103,7 @@ function doiTab(t) {
   if (t === 'dongtien') { DT_TRANG = 1; taiDongTien() }
   if (t === 'nhanxet') taiNhanXet()
   if (t === 'chiphi') taiChiPhiKy()
+  if (t === 'huongdan') taiHuongDan()
   if (t === 'taikhoan') taiTaiKhoan()
 }
 
@@ -419,7 +422,7 @@ function cpkAddRow(seed) {
   const pkVal = seed ? (seed.phan_khuc || '') : ''
   const pkOpts = CPK_PK.map(p => `<option value="${p[0]}"${p[0] === pkVal ? ' selected' : ''}>${p[1]}</option>`).join('')
   tr.innerHTML = `<td><select class="cpk-loai">${loaiOpts}</select></td>`
-    + `<td><input class="cpk-money" inputmode="numeric" value="${seed ? fmt(seed.so_tien) : ''}"></td>`
+    + `<td><input class="cpk-money" inputmode="numeric" placeholder="đ · CHƯA VAT nếu có HĐ" value="${seed ? fmt(seed.so_tien) : ''}"></td>`
     + `<td><select class="cpk-pk">${pkOpts}</select></td>`
     + `<td><input class="cpk-ghichu" value="${seed ? escA(seed.ghi_chu) : ''}"></td>`
     + `<td><input class="cpk-nguoi" value="${seed ? escA(seed.nguoi_nhap) : ''}"></td>`
@@ -600,7 +603,7 @@ function kcAddRow(seed) {
   const bOpts = Object.entries(KC_BRANDS).map(([m, t]) => `<option value="${m}"${seed && seed.thuong_hieu === m ? ' selected' : ''}>${escH(t)}</option>`).join('')
   const kOpts = KC_KENH.map(([m, t]) => `<option value="${m}"${seed && seed.kenh === m ? ' selected' : ''}>${t}</option>`).join('')
   div.innerHTML = `<select class="kc-th">${bOpts}</select><select class="kc-k">${kOpts}</select>`
-    + `<div><input class="kc-tien money" inputmode="numeric" value="${seed ? fmt(seed.so_tien_nhap) : ''}"><div class="kc-that"></div></div>`
+    + `<div><input class="kc-tien money" inputmode="numeric" min="0" placeholder="đ · GỒM VAT" value="${seed ? fmt(seed.so_tien_nhap) : ''}"><div class="kc-that"></div></div>`
     + `<input class="kc-ghi" value="${seed ? escA(seed.ghi_chu) : ''}"><input class="kc-ng" value="${seed ? escA(seed.nguoi_nhap) : ''}">`
     + `<button class="kc-del" title="Xoá">×</button>`
   box.appendChild(div)
@@ -630,6 +633,9 @@ const DT_CHI_L = [['chi_phi_ky', 'Chi phí kỳ', 'sổ chi_phi_ky: lương VP, 
 const DT_VON_L = { vay_moi: 'Vay ngân hàng mới', tra_goc_vay: 'Trả gốc vay', mua_tai_san: 'Mua tài sản', ban_tai_san: 'Bán tài sản', gop_von: 'Góp vốn', rut_von: 'Rút vốn' }
 const dmy = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '—'
 async function taiDongTien() {
+  // L-52: prefill ngày hôm nay cho các ô date còn trống (đỡ quên) — không đè ô người đã nhập
+  const hnay = new Date().toISOString().slice(0, 10)
+  ;['pt_ngay', 'cg_ngay', 'ch_ngay', 'vn_ngay'].forEach(id => { const e = $(id); if (e && !e.value) e.value = hnay })
   const { data: g, error } = await sb.rpc('dong_tien_ky', { p_ky: KY })
   if (error) { $('dt_thu_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
   const n = (x) => Number(x) || 0
@@ -768,7 +774,7 @@ async function taiNhanXet() {
     : ''
   // bảng ngưỡng
   const md = new Set(g.nguong_mac_dinh || [])
-  const inp = o => `<input data-k="${o.k}" value="${g.nguong[o.k] ?? ''}">${md.has(o.k) ? '<span class="nx-ng-md" title="đang dùng mặc định">◆</span>' : ''} ${o.s}`
+  const inp = o => `<input data-k="${o.k}" inputmode="numeric" min="0" placeholder="${g.nguong[o.k] ?? ''}" title="Để trống = dùng mặc định (${g.nguong[o.k] ?? ''} ${o.s})" value="${md.has(o.k) ? '' : (g.nguong[o.k] ?? '')}">${md.has(o.k) ? '<span class="nx-ng-md" title="đang dùng mặc định">◆</span>' : ''} ${o.s}`
   $('nx_ng_body').innerHTML = NX_NGUONG.map(([ten, mota, vals, maus]) =>
     `<tr><td>${escH(ten)}</td><td class="hint">${escH(mota)}</td>`
     + `<td class="nx-r">${vals.map((o, i) => (i ? '– ' : '') + inp(o)).join('')}</td>`
@@ -781,6 +787,38 @@ async function nxNguongLuu() {
   if (error) { $('nx_ng_msg').style.color = '#C8202E'; $('nx_ng_msg').textContent = 'Lỗi: ' + error.message; return }
   $('nx_ng_msg').style.color = 'var(--gn)'; $('nx_ng_msg').textContent = `✓ Đã lưu ngưỡng cho kỳ ${KY} (áp từ kỳ này, kỳ cũ giữ nguyên)`
   await taiNhanXet()
+}
+
+// ══════════ TAB HƯỚNG DẪN (L-52): render docs/huong_dan_taichinh.md (mini-markdown, mọi vai đọc) ══════════
+let HD_DONE = false
+const hdInline = s => escH(s)   // escape TRƯỚC
+  .replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+function taiHuongDan() {
+  if (HD_DONE) return   // tài liệu tĩnh — render 1 lần
+  const box = $('hd_doc'); if (!box) return
+  const lines = HD_MD.split('\n'); let html = '', i = 0, para = []
+  const flushP = () => { if (para.length) { html += `<p>${para.join(' ')}</p>`; para = [] } }
+  const cell = c => c.trim().replace(/^:?-+:?$/, '')   // bỏ dòng phân cách bảng
+  while (i < lines.length) {
+    const ln = lines[i]
+    if (/^\s*#{1,3}\s/.test(ln)) { flushP(); const lv = ln.match(/^#+/)[0].length; html += `<h${lv}>${hdInline(ln.replace(/^#+\s*/, ''))}</h${lv}>` }
+    else if (/^\s*>/.test(ln)) { flushP(); let bq = []; while (i < lines.length && /^\s*>/.test(lines[i])) { bq.push(hdInline(lines[i].replace(/^\s*>\s?/, ''))); i++ } html += `<blockquote>${bq.join('<br>')}</blockquote>`; continue }
+    else if (/^\s*\|.*\|/.test(ln)) {   // bảng: dòng | ... |
+      flushP(); const rows = []; while (i < lines.length && /^\s*\|.*\|/.test(lines[i])) { rows.push(lines[i]); i++ }
+      const parse = r => r.trim().replace(/^\||\|$/g, '').split('|').map(cell)
+      const head = parse(rows[0]); const body = rows.slice(rows[1] && /^[\s|:-]+$/.test(rows[1]) ? 2 : 1)
+      html += `<div class="hd-tbl-wrap"><table><thead><tr>${head.map(h => `<th>${hdInline(h)}</th>`).join('')}</tr></thead><tbody>`
+        + body.map(r => `<tr>${parse(r).map(c => `<td>${hdInline(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>'
+      continue
+    }
+    else if (/^\s*[-*]\s/.test(ln)) { flushP(); let items = []; while (i < lines.length && /^\s*[-*]\s/.test(lines[i])) { items.push(`<li>${hdInline(lines[i].replace(/^\s*[-*]\s+/, ''))}</li>`); i++ } html += `<ul>${items.join('')}</ul>`; continue }
+    else if (/^\s*---+\s*$/.test(ln)) { flushP(); html += '<hr>' }
+    else if (/^\s*$/.test(ln)) { flushP() }
+    else para.push(hdInline(ln.trim()))
+    i++
+  }
+  flushP(); box.innerHTML = html; HD_DONE = true
 }
 
 // ── Badge TẠM/ĐÃ CHỐT theo TỪNG tham số (bảng trang_thai_tham_so) ──

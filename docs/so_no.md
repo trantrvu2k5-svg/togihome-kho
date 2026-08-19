@@ -79,21 +79,24 @@ begin while d <= date '2028-12-01' loop
 KHÔNG ai biết, nhưng DEFAULT phình dần → truy vấn theo `luc` chậm dần (mất lợi ích phân mảnh). Không vỡ ngay,
 hỏng ngầm. Đặt nhắc lịch hằng năm.
 
-## NỢ HIỆU NĂNG — RPC trả danh sách KHÔNG giới hạn (L-29 VIỆC 4) — CÒN 6 RPC
-> Phát hiện khi vá phân trang 3 RPC xưởng (v-kho-78). CHỈ liệt kê, CHƯA sửa — chờ CEO quyết lô sau.
-> Cùng loại lỗi "trả cả bảng": số dòng phồng theo quy mô, chưa có `limit`/phân trang. Ước ở **3.000 đơn**.
-> **L-65 (db/098):** `gia_von_don_ds` (nặng nhất) ĐÃ SỬA — thêm phân trang `{tong, ds}` 50/trang + cho ke_toan XEM.
-> Đo 50ms/3.011 đơn, payload cắt còn 50 dòng. **Còn 6 RPC dưới bảng** (lô riêng khi scale).
+## NỢ HIỆU NĂNG — RPC trả danh sách KHÔNG giới hạn (L-29 VIỆC 4) — ✅ ĐÃ VÁ HẾT (L-51/db-118)
+> Phát hiện khi vá phân trang 3 RPC xưởng (v-kho-78). **L-51 (db/118) đã thêm LIMIT trần cho cả 6 RPC còn lại** →
+> nợ này ĐÓNG. `gia_von_don_ds` đã vá L-65 (db/098). Ước ở **3.000 đơn**.
+>
+> **CÁCH VÁ (bài học quan trọng — GIỮ CHỮ KÝ, KHÔNG thêm param):** thêm `limit <trần>` BÊN TRONG hàm, GIỮ NGUYÊN chữ ký gốc
+> (zero-arg vẫn zero-arg). ⚠ **KHÔNG dùng `p_gioi_han int default N`** — nó tạo overload `(int,int)` SONG SONG bản `()`; khi test
+> tự-nạp-lại migration cũ (test_054/056/057 nạp db/054…) tái tạo bản `()` → gọi `f()` khớp CẢ HAI → `function is not unique`
+> (đã vấp NGAY trong L-51, bản đầu). Trần: 1000 (đơn/việc) · 2000 (sp niêm yết) — chặn thảm hoạ, không cắt dữ liệu thật.
 
-| RPC | Màn đang gọi | Số dòng ~ ở 3.000 đơn |
+| RPC | Màn đang gọi | Trạng thái |
 |---|---|---|
-| ~~`gia_von_don_ds`~~ ✅ SỬA L-65 | Tài chính · "Giá vốn theo đơn" | ĐÃ phân trang (db/098) — bỏ khỏi nợ |
-| `xuong_don_cho_vao_chuyen` | Xưởng · Quản đốc (`taiChoVaoChuyen`) | = đơn `moi_len_don`+`xong_file` chờ vào chuyền (tồn đọng, hàng chục→hàng trăm) |
-| `can_ceo_quyet` | Xưởng · Quản đốc (panel "Cần CEO quyết") | = số tình huống cần CEO (thường nhỏ, phồng theo đơn có vấn đề) |
-| `sp_danh_sach` | Sản phẩm (app #6) | = số niêm yết (272 nay → hàng nghìn khi catalog lớn) |
-| `tk_bang_cong_viec` | Thiết kế · bảng công việc | = đơn ở các bước thiết kế (phồng theo pipeline TK) |
-| `tk_viec_cua_toi` | Thiết kế · việc của tôi | = việc gán cho người TK |
-| `tk_don_cho_nhan` | Thiết kế · đơn chờ nhận | = tồn đọng đơn chờ nhận TK |
+| ~~`gia_von_don_ds`~~ ✅ SỬA L-65 | Tài chính · "Giá vốn theo đơn" | phân trang (db/098) |
+| ~~`xuong_don_cho_vao_chuyen`~~ ✅ L-51 | Xưởng · Quản đốc | LIMIT 1000 (db/118) |
+| ~~`can_ceo_quyet`~~ ✅ L-51 | Xưởng · Quản đốc | LIMIT 1000 khối group-by (db/118) |
+| ~~`sp_danh_sach`~~ ✅ L-51 | Sản phẩm (app #6) | LIMIT 2000 (db/118) |
+| ~~`tk_bang_cong_viec`~~ ✅ L-51 | Thiết kế · bảng công việc | LIMIT 1000 (db/118) |
+| ~~`tk_viec_cua_toi`~~ ✅ L-51 | Thiết kế · việc của tôi | LIMIT 1000 (db/118) |
+| ~~`tk_don_cho_nhan`~~ ✅ L-51 | Thiết kế · đơn chờ nhận | LIMIT 1000 (db/118) |
 
 **Bọc N+1 liên quan (không phải "list không limit"):** `web/src/xuong.js:taiViec` gọi `xuong_mon_cua_don` **một lần
 mỗi đơn** → nổ N lời gọi. v-kho-78 đã chặn xuống **50/lần** nhờ gom-dồn `taiDon`, nhưng gốc N+1 vẫn còn.
@@ -134,3 +137,18 @@ test_tntk_kiem (vai truong_nhom_thiet_ke): tài khoản kiểm tự động, m�
 
 ## test_xuong_kiem — tài khoản kiểm quản đốc xưởng (L-74)
 test_xuong_kiem (vai xuong): tài khoản kiểm tự động, mật khẩu riêng trong .env.test, CEO duyệt GIỮ LÂU DÀI (L-74) — để bấm-thật khối "Nhìn lại" app Xưởng (giờ chuẩn-vs-thực · lỗi&làm-lại · tắc quét). Tạo qua RPC chuẩn qly_them_nguoi.
+
+## NỢ TEST ĐỎ PRE-EXISTING — 5 test + overload gui_ban_thiet_ke (rà L-51, chưa do L-51)
+> Rà khi sweep test cho L-51 (dọn nợ). Các đỏ này CÓ TRƯỚC L-51, do các lô trước làm test-drift; **KHÔNG do db/118**.
+> db/118 (L-51) đã kiểm sạch: test_118 24/0 + test_116 48/0 (dieu_hanh + drop khach_sdt không vỡ). Xử ở **lô riêng**.
+
+| Test | Đỏ vì | Gốc (lô nào) | Cách xử dự kiến |
+|---|---|---|---|
+| `test_043` | `can_ceo_quyet` không ra `gap_chen_don_tre` — dữ liệu `viec_uu_tien` không dựng đủ tình huống | logic viec_uu_tien | dựng lại seed test cho 5 luật ưu tiên |
+| `test_045` | test kỳ vọng `xuong_don_cho_vao_chuyen` trả `cho_cat`/`cho_giao`; hàm LIVE (byte-identical) chỉ trả `moi_len_don`/`xong_file` | hàm đổi định nghĩa ở lô trước, test chưa cập nhật | sửa kỳ vọng test theo hàm hiện hành |
+| `test_056` | seed đơn KHÔNG điền `thuong_hieu` → dính **gác thương hiệu** (trigger db/115) | L-48 (gác brand) | thêm `set local chan.off_thuonghieu='1'` vào seed |
+| `test_057` | (a) `gui_ban_thiet_ke(unknown,unknown,jsonb,jsonb) is not unique` — **overload** hàm; (b) gác thương hiệu | overload từ db/048 (memory ghi "test_057 đỏ sẵn từ db/048"); L-48 | drop overload thừa `gui_ban_thiet_ke` + off_thuonghieu seed |
+| `test_104` | `dieu_hanh_cong_no_khach` nay đọc `phieu_thu` (không còn `so_tien_thuc_thu`); seed cũ dùng `so_tien_thuc_thu` → nợ = doanh thu đầy đủ | L-49 (hợp nhất công nợ về phieu_thu) | seed phiếu thu thay `so_tien_thuc_thu` |
+
+**Nợ riêng — overload `gui_ban_thiet_ke`:** có ≥2 chữ ký cùng tên → gọi 4-tham-số bị `is not unique`. Cần drop bản thừa,
+giữ 1 chữ ký (như bài học L-51: KHÔNG để 2 overload cùng tên gây ambiguous). Chạm app Thiết kế → lô riêng, không phình L-52.

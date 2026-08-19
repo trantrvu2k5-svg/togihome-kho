@@ -559,3 +559,20 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   già nhất) thay vì trọn 4 RPC <900ms (nghèo bằng chứng).
 - **Trạng thái:** ĐÃ LÀM (db/117: 9 ngưỡng + nguong_ghi + nhan_xet_ky 8 luật; tab "Nhận xét" app Tài chính; test_117). CHƯA
   commit — chờ CEO kiểm mắt.
+
+## QD-42 (19/08) — Cấu trúc nav 3 nhóm + Hướng dẫn là một phần app (L-51/L-52)
+
+- **NAV 2 CẤP, 3 NHÓM** (CEO chốt, thực thi L-52): **NHẬP SỔ** (Dòng tiền · Chi phí kỳ · Kênh & CAC · Giá vốn theo đơn) ·
+  **BÁO CÁO** (Điều hành · P/L · Lãi theo đơn · Nhận xét) · **THAM SỐ** (Định giá bán · Sổ tham số xưởng · Hướng dẫn ·
+  Quản lý tài khoản [CEO-only]). Chỉ XẾP CHỖ — giữ nguyên id/loader mỗi tab, không đập code màn.
+- **DEFAULT THEO VAI:** `ke_toan` đáp thẳng **Dòng tiền** (nơi nhập chính, tránh lạc đường vào màn chỉ-đọc); vai khác đáp
+  **Điều hành**. (Trước đây mọi vai đều mở Điều hành — người nhập liệu vào màn không nhập được gì.)
+- **HƯỚNG DẪN LÀ MỘT PHẦN APP:** `docs/huong_dan_taichinh.md` = MỘT nguồn (repo), inline vào bundle qua `?raw`, render bằng
+  mini-markdown ở tab "Hướng dẫn" (mọi vai đọc). Sửa tài liệu = sửa file docs → build lại. KHÔNG chép nội dung sang HTML/JS.
+- **VÁ 10 CHỖ HỞ NGHIỆP VỤ (B3):** đơn vị "(đ)" + placeholder mọi ô tiền; nhắc **3,3/1,1/1,1** + "% trên DT thuần" ở hoa hồng;
+  min/max/step + placeholder VAT; "(chưa VAT)" ở giá vốn tay (k1/k2/k3, QD-30); tooltip "đối soát COD ghi ở form COD" cho
+  loại phiếu thu; placeholder mã đơn COD; prefill ngày hôm nay ô date dòng tiền; placeholder mặc-định + min ở ngưỡng nhận xét;
+  "gồm VAT" + min ở ô ads; "CHƯA VAT nếu có HĐ" ở cột chi phí kỳ.
+- **BÀI HỌC OVERLOAD (db/118):** thêm `param default` cho hàm có test-tự-nạp-lại tạo overload ambiguous → **giữ chữ ký gốc +
+  LIMIT trần bên trong** (xem so_no.md §nợ hiệu năng L-29).
+- **Trạng thái:** ĐÃ LÀM + deploy (nav 3 nhóm · tab Hướng dẫn · 10 vá · db/118 dọn nợ). Commit gộp L-51+L-52 (v-kho-105).

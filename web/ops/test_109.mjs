@@ -51,9 +51,9 @@ try {
   const r7 = await asK(U.ceo, `update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='T109-7'`)
   ok('#7 moi_len_don→dang_thiet_ke KHÔNG dính gác nguon_khach (không hồi tố)', r7.e === null, r7.e)
 
-  console.log('\n── 5+6 · phần DROP cột (kgs/khach_sdt) — HOÃN (không thực thi lô này) ──')
+  console.log('\n── 5+6 · phần DROP cột ──')
   ok('#5 kgs VẪN CÒN (đúng chủ ý: array không-gian, không drop)', (await q(`select 1 from information_schema.columns where table_schema='kho' and table_name='don_hang' and column_name='kgs'`)).length === 1)
-  ok('#6 khach_sdt VẪN CÒN (có FK + db/104 đọc — chờ CEO quyết)', (await q(`select 1 from information_schema.columns where table_schema='kho' and table_name='don_hang' and column_name='khach_sdt'`)).length === 1)
+  ok('#6 khach_sdt ĐÃ DROP (L-51/db-118: cột FK không đường ghi; reader dùng sdt_khach)', (await q(`select 1 from information_schema.columns where table_schema='kho' and table_name='don_hang' and column_name='khach_sdt'`)).length === 0)
 
   await c.query('rollback')
   const clean = (await q(`select count(*)::int n from kho.don_hang where ma_don like 'T109-%'`))[0].n

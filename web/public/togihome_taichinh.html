@@ -264,6 +264,22 @@
   #tc .nx-ng-tbl td.nx-r, #tc .nx-ng-tbl th.nx-r { text-align:right; }
   #tc .nx-ng-tbl input { width:70px; font-family:var(--mono); text-align:right; padding:5px 8px; border:1px solid var(--bd); border-radius:8px; font-size:13px; }
   #tc .nx-ng-md { font-size:10px; color:var(--am); margin-left:6px; }
+  /* ── Hướng dẫn (L-52) — tài liệu render từ markdown ── */
+  #tc .hd-doc { max-width:820px; font-size:14px; line-height:1.7; color:var(--tx2); }
+  #tc .hd-doc h1 { font-size:24px; font-weight:800; color:var(--tx); margin:2px 0 6px; }
+  #tc .hd-doc h2 { font-size:18px; font-weight:800; color:var(--tx); margin:26px 0 8px; padding-top:14px; border-top:1px solid var(--bd2); }
+  #tc .hd-doc h3 { font-size:15px; font-weight:700; color:var(--tx); margin:18px 0 6px; }
+  #tc .hd-doc p { margin:8px 0; }
+  #tc .hd-doc ul { margin:8px 0 8px 4px; padding-left:20px; }
+  #tc .hd-doc li { margin:4px 0; }
+  #tc .hd-doc strong { color:var(--tx); font-weight:700; }
+  #tc .hd-doc code { font-family:var(--mono); font-size:12.5px; background:var(--auto); padding:1px 5px; border-radius:5px; color:var(--priH); }
+  #tc .hd-doc blockquote { margin:10px 0; padding:9px 14px; background:var(--auto); border-left:3px solid var(--bdS); border-radius:0 8px 8px 0; font-size:13px; color:var(--mut); }
+  #tc .hd-doc hr { border:0; border-top:1px solid var(--bd); margin:20px 0; }
+  #tc .hd-doc table { border-collapse:collapse; margin:12px 0; width:100%; font-size:13px; }
+  #tc .hd-doc th, #tc .hd-doc td { border:1px solid var(--bd); padding:7px 11px; text-align:left; vertical-align:top; }
+  #tc .hd-doc th { background:var(--auto); font-weight:700; color:var(--tx); }
+  #tc .hd-doc .hd-tbl-wrap { overflow-x:auto; }
   /* ── mobile: nav thành hàng ngang (như sale) ── */
   @media(max-width:1000px){
     #tc .app { flex-direction:column; }
@@ -277,17 +293,20 @@
   <aside class="nav">
     <div class="brand">Togihome</div>
     <div class="brandsub">Tài chính</div>
-    <div class="navsec">Khu vực</div>
-    <button class="navi on" data-tab="dieuhanh">Điều hành</button>
-    <button class="navi" data-tab="ban">Định giá bán</button>
-    <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
+    <div class="navsec">Nhập sổ</div>
+    <button class="navi" data-tab="dongtien">Dòng tiền</button>
+    <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
+    <button class="navi" data-tab="kenhcac">Kênh &amp; CAC</button>
     <button class="navi" data-tab="gvdon">Giá vốn theo đơn</button>
+    <div class="navsec">Báo cáo</div>
+    <button class="navi on" data-tab="dieuhanh">Điều hành</button>
     <button class="navi" data-tab="pl">P/L</button>
     <button class="navi" data-tab="cmdon">Lãi theo đơn</button>
-    <button class="navi" data-tab="kenhcac">Kênh &amp; CAC</button>
-    <button class="navi" data-tab="dongtien">Dòng tiền</button>
     <button class="navi" data-tab="nhanxet">Nhận xét</button>
-    <button class="navi" data-tab="chiphi">Chi phí kỳ</button>
+    <div class="navsec">Tham số</div>
+    <button class="navi" data-tab="ban">Định giá bán</button>
+    <button class="navi" data-tab="xuong">Sổ tham số xưởng</button>
+    <button class="navi" data-tab="huongdan">Hướng dẫn</button>
     <button class="navi" data-tab="taikhoan" id="nav_tk" style="display:none">Quản lý tài khoản</button>
     <div class="navft" id="tc_who"></div>
     <button class="navi" id="tc_out" style="margin-top:6px;background:rgba(255,255,255,.14);color:#fff">Đăng xuất</button>
@@ -348,9 +367,9 @@
             <div><label>Số đơn kế hoạch / tháng <span class="tag" data-param="so_don_ke_hoach"></span></label><input type="number" id="sodon"></div>
           </div></div>
           <div class="grp"><div class="sec">Hoa hồng</div><div class="grid">
-            <div><label>Hoa hồng sale (%) <span class="tag" data-param="hh_sale"></span></label><input type="number" id="hhs" step="0.5"></div>
-            <div><label>Hoa hồng quản lý (%) <span class="tag" data-param="hh_quan_ly"></span></label><input type="number" id="hhq" step="0.5"></div>
-            <div><label>Hoa hồng thiết kế (%) <span class="tag" data-param="hh_thiet_ke"></span></label><input type="number" id="hht" step="0.5"></div>
+            <div><label>Hoa hồng sale (%) <span class="tag" data-param="hh_sale"></span></label><input type="number" id="hhs" step="0.5" min="0" max="100" placeholder="vd 3.3" title="% trên doanh thu thuần (QD-31) · chuẩn CEO: 3,3"></div>
+            <div><label>Hoa hồng quản lý (%) <span class="tag" data-param="hh_quan_ly"></span></label><input type="number" id="hhq" step="0.5" min="0" max="100" placeholder="vd 1.1" title="% trên doanh thu thuần (QD-31) · chuẩn CEO: 1,1"></div>
+            <div><label>Hoa hồng thiết kế (%) <span class="tag" data-param="hh_thiet_ke"></span></label><input type="number" id="hht" step="0.5" min="0" max="100" placeholder="vd 1.1" title="% trên doanh thu thuần (QD-31) · chuẩn CEO: 1,1"></div>
           </div></div>
           <div class="grp"><div class="sec">Phí mỗi đơn</div><div class="grid">
             <div><label>Hàng lẻ <span class="tag" data-param="phi_don_le"></span></label><input class="money" id="phile"></div>
@@ -369,7 +388,7 @@
                 <span class="hint" id="cpnl_canhbao"></span></div></div>
           </div></div>
           <div class="grp"><div class="sec">Thuế</div><div class="grid">
-            <div><label>Thuế VAT (%) <span class="tag" data-param="vat"></span></label><input type="number" id="vat"></div>
+            <div><label>Thuế VAT (%) <span class="tag" data-param="vat"></span></label><input type="number" id="vat" min="0" max="100" step="0.5" placeholder="vd 10" title="Thuế suất VAT áp cho kỳ (%). Giá chốt/công nợ GỒM VAT, máy bóc khi tính P/L."></div>
             <div style="grid-column:2/4"><label>Ghi chú kỳ</label><input type="text" id="ghichu"></div>
           </div></div>
           <div style="margin-top:16px"><button class="btn" id="btn_luu">Lưu tham số kỳ</button> <span id="luu_msg" class="hint" style="margin-left:10px"></span></div>
@@ -458,9 +477,9 @@
         <div class="ch"><h2>Nhập tay cho đơn chưa có giá vốn</h2></div>
         <div class="cb" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <select id="gv_don" style="min-width:200px"><option value="">— chọn đơn chưa có giá vốn —</option></select>
-          <input id="gv_k1" class="money" placeholder="① vật tư" style="width:130px">
-          <input id="gv_k2" class="money" placeholder="② chế biến" style="width:130px">
-          <input id="gv_k3" class="money" placeholder="③ cấp đơn" style="width:130px">
+          <input id="gv_k1" class="money" placeholder="① vật tư (chưa VAT)" title="Khối ① vật tư — nhập giá CHƯA VAT (QD-30)" style="width:150px">
+          <input id="gv_k2" class="money" placeholder="② chế biến (chưa VAT)" title="Khối ② chế biến — nhập giá CHƯA VAT (QD-30)" style="width:150px">
+          <input id="gv_k3" class="money" placeholder="③ cấp đơn (chưa VAT)" title="Khối ③ cấp đơn — nhập giá CHƯA VAT (QD-30)" style="width:150px">
           <input id="gv_lydo" placeholder="Lý do (bắt buộc): giường gỗ / mua ngoài…" style="flex:1;min-width:220px">
           <button class="btn" id="gv_ghi">Ghi giá vốn tay</button>
           <span class="hint" id="gv_msg"></span>
@@ -625,8 +644,8 @@
         <div class="cb"><div class="dt-form">
           <div><label>Mã đơn</label><input id="pt_ma" placeholder="DH-…"></div>
           <div><label>Ngày</label><input id="pt_ngay" type="date"></div>
-          <div><label>Số tiền</label><input id="pt_tien" inputmode="numeric"></div>
-          <div><label>Loại</label><select id="pt_loai"><option value="coc">Cọc đơn mới</option><option value="thu_khi_giao">Thu khi giao</option><option value="thu_no">Thu nợ kỳ trước</option></select></div>
+          <div><label>Số tiền (đ)</label><input id="pt_tien" inputmode="numeric" placeholder="vd 5.000.000"></div>
+          <div><label>Loại</label><select id="pt_loai" title="Đối soát COD KHÔNG ghi ở đây — dùng form &quot;Đối soát COD về đợt&quot; bên dưới."><option value="coc">Cọc đơn mới</option><option value="thu_khi_giao">Thu khi giao</option><option value="thu_no">Thu nợ kỳ trước</option></select></div>
           <div><label>Ghi chú</label><input id="pt_gc"></div>
           <div><button class="btn" id="pt_luu">Ghi phiếu</button></div>
         </div><span class="hint" id="pt_msg"></span></div>
@@ -635,8 +654,8 @@
       <div class="cpk-grid2" style="margin-top:16px">
         <section class="card"><div class="ch"><h2>Xuất COD (đơn giao thu hộ)</h2></div>
           <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
-            <div><label>Mã đơn</label><input id="cg_ma"></div>
-            <div><label>Tiền thu hộ</label><input id="cg_tien" inputmode="numeric"></div>
+            <div><label>Mã đơn</label><input id="cg_ma" placeholder="DH-…"></div>
+            <div><label>Tiền thu hộ (đ)</label><input id="cg_tien" inputmode="numeric" placeholder="vd 8.000.000"></div>
             <div><label>Ngày xuất</label><input id="cg_ngay" type="date"></div>
             <div><label>Đơn vị VC</label><input id="cg_vc" placeholder="GHN / GHTK…"></div>
             <div style="grid-column:1/-1"><button class="btn" id="cg_luu">Ghi COD đang giao</button> <span class="hint" id="cg_msg"></span></div>
@@ -644,7 +663,7 @@
         </section>
         <section class="card"><div class="ch"><h2>Hoàn COD (hàng quay lại)</h2><span class="hint">KHÔNG sinh phiếu — tiền không đếm</span></div>
           <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
-            <div><label>Mã đơn</label><input id="ch_ma"></div>
+            <div><label>Mã đơn</label><input id="ch_ma" placeholder="DH-…"></div>
             <div><label>Ngày hoàn</label><input id="ch_ngay" type="date"></div>
             <div style="grid-column:1/-1"><label>Lý do</label><input id="ch_gc" placeholder="khách từ chối / hỏng…"></div>
             <div style="grid-column:1/-1"><button class="btn ghost" id="ch_luu">Ghi hoàn</button> <span class="hint" id="ch_msg"></span></div>
@@ -664,14 +683,14 @@
           <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
             <div><label>Ngày</label><input id="vn_ngay" type="date"></div>
             <div><label>Loại</label><select id="vn_loai"><option value="vay_moi">Vay mới (vào)</option><option value="tra_goc_vay">Trả gốc vay (ra)</option><option value="mua_tai_san">Mua tài sản (ra)</option><option value="ban_tai_san">Bán tài sản (vào)</option><option value="gop_von">Góp vốn (vào)</option><option value="rut_von">Rút vốn (ra)</option></select></div>
-            <div><label>Số tiền</label><input id="vn_tien" inputmode="numeric"></div>
+            <div><label>Số tiền (đ)</label><input id="vn_tien" inputmode="numeric" placeholder="vd 400.000.000"></div>
             <div><label>Ghi chú</label><input id="vn_gc"></div>
             <div style="grid-column:1/-1"><button class="btn" id="vn_luu">Ghi giao dịch</button> <span class="hint" id="vn_msg"></span></div>
           </div></div>
         </section>
         <section class="card"><div class="ch"><h2>Quỹ đầu kỳ</h2><span class="hint">kỳ đầu nhập tay · kỳ sau gợi ý = quỹ cuối kỳ trước · sửa phải ghi lý do</span></div>
           <div class="cb"><div class="dt-form" style="grid-template-columns:1fr 1fr">
-            <div><label>Quỹ đầu kỳ (đồng)</label><input id="qy_tien" inputmode="numeric"></div>
+            <div><label>Quỹ đầu kỳ (đ)</label><input id="qy_tien" inputmode="numeric" placeholder="= số dư ngân hàng thật"></div>
             <div><label>Lý do (nếu sửa)</label><input id="qy_gc"></div>
             <div style="grid-column:1/-1"><button class="btn" id="qy_luu">Lưu quỹ đầu kỳ</button> <span class="hint" id="qy_msg"></span></div>
           </div></div>
@@ -719,7 +738,7 @@
           <span style="margin-left:auto;text-align:right"><div class="hint">TỔNG CHI KỲ</div><div class="cpk-tot-top" id="cpk_tot">0</div></span></div>
         <div class="cb" style="overflow-x:auto">
           <table class="cpk-tbl"><thead><tr>
-            <th style="text-align:left">Loại</th><th style="text-align:left">Số tiền</th><th style="text-align:left">Phân khúc</th>
+            <th style="text-align:left">Loại</th><th style="text-align:left">Số tiền (đ) <span class="hint" style="font-weight:400">· CHƯA VAT nếu có HĐ</span></th><th style="text-align:left">Phân khúc</th>
             <th style="text-align:left">Ghi chú</th><th style="text-align:left">Người nhập</th><th></th>
           </tr></thead><tbody id="cpk_rows"></tbody></table>
         </div>
@@ -743,6 +762,11 @@
           </div>
         </section>
       </div>
+    </div>
+
+    <!-- ══════════ TAB · HƯỚNG DẪN (L-52) — render docs/huong_dan_taichinh.md ══════════ -->
+    <div class="tabp" id="tab-huongdan">
+      <div class="hd-doc" id="hd_doc">Đang tải…</div>
     </div>
 
     <div class="tabp" id="tab-taikhoan">

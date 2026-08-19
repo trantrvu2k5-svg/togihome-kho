@@ -76,7 +76,7 @@ function donToRow(d, khMap) {
 function rowToDon(r) {
   return {
     id: r.ma_don, ma: r.ma_don, ngay: r.ngay_chot || '', brand: r.thuong_hieu || '',
-    khachId: r.khach_sdt || r.sdt_khach || '', diaChi: r.dia_chi_khach || '',
+    khachId: r.sdt_khach || '', diaChi: r.dia_chi_khach || '',
     dong: DONG_R[r.dong] || r.dong || 'ban_le', loai: r.loai || '', giam: Number(r.chiet_khau) || 0,
     giaCongThuc: r.gia_cong_thuc != null ? Number(r.gia_cong_thuc) : null, giaChot: r.gia_chot != null ? Number(r.gia_chot) : null,
     nsDuyet: r.ma_ns_duyet_giam || '', lyDoGiam: r.ly_do_giam || '',
