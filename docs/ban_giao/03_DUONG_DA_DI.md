@@ -22,6 +22,7 @@
 - **QD-17 — Tab Quy trình (app Sản phẩm) nhập PHÚT không nhập giờ; mỗi sửa gọi `kiem_quy_trinh` (fail-đóng).** Nhập giờ thì hiện 0,0333 cho người — vô nghĩa. Không kiểm = routing hỏng (chu trình/trỏ sai) lọt xuống sản xuất.
 - **QD-18 — Sổ quét là SỔ GHI THÊM bất biến; quét bị chặn VẪN ghi sổ; giờ chạm tay ≠ thời gian trôi qua.** Sổ có force RLS, chỉ INSERT+SELECT (kể cả ceo không sửa được) — sự thật lịch sử đính chính bằng dòng mới. Quét chặn mà không ghi = mất dấu vết. Chạm tay và trôi qua là hai số (MES 6.1.3), gộp = sai năng suất.
 - **QD-19 — TRA SÁCH + ĐỌC HẾT BÁO CÁO trước khi đề xuất** (= LUẬT 1 & 2, xem file `00`).
+- **QD-48 — Đơn mua = đầu đơn + dòng, MỘT cột trạng thái 6 giá trị, cổng ở DB (WP-20).** Sagegg&Alfnes §4.2/4.3.1/4.3.3/4.4: D365 tách 3 ô (đặt/nhận/khớp HĐ) gây khó theo dõi → gộp một cột `moi→da_gui→xac_nhan→da_nhan→da_khop_hd (+huy trước nhận)`. Chỉ đi tới, không lùi, qua RPC `dm_chuyen_trang_thai` — cổng ở DB (tinh thần QD-47), không ai lách. `da_nhan/da_khop_hd` tạm ceo, WP-21/22 nối (GUC `kho.dm_he_thong`). Số đơn `DM-YYYY-NNNN` qua `cap_so_phieu` (reset năm).
 
 ---
 

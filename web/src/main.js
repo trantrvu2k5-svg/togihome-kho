@@ -38,6 +38,7 @@ async function vaoApp(user) {
   if (error || !nd) { $('#lg-err').textContent = 'Tài khoản chưa được gán vai trò trong kho.nguoi_dung — báo CEO.'; await sb.auth.signOut(); return }
   if (!nd.dang_hoat_dong) { $('#lg-err').textContent = 'Tài khoản đã bị tắt hoạt động — báo CEO.'; await sb.auth.signOut(); return }
   ROLE = nd.vai_tro; ME = nd.ho_ten; ME_ID = nd.id
+  if (laQuanLy()) { const nd_ = $('#nav-dm'); if (nd_) nd_.style.display = '' }   // WP-20: Đơn mua chỉ kho/ceo
   $('#login').classList.remove('on')
   $('#ai').textContent = `${nd.ho_ten} · ${ROLE.toUpperCase()}`
   // nút Đăng xuất (thêm 1 lần)
@@ -154,7 +155,7 @@ function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) retur
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
 
-function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat'); if (m === 'ghep') veGhepMa() }
+function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat'); if (m === 'ghep') veGhepMa(); if (m === 'dm') veDonMua() }
 // ── điều khiển bố cục điện thoại (chỉ tác dụng ở màn hẹp; desktop các phần tử ẩn) ──
 function moNav() { $('nav')?.classList.add('mo'); $('#navNen')?.classList.add('mo') }
 function dongNav() { $('nav')?.classList.remove('mo'); $('#navNen')?.classList.remove('mo') }
@@ -795,3 +796,125 @@ function boot() {
 
 // phơi hàm cho onclick trong HTML sinh động
 Object.assign(window, { moThe, dongThe, phongTo, dongDen, anhHong, taiAnh, themNcc, moiPhieu, themDong, xoaDong, datDong, datSo, vePhieu, ghiSo, P, tien, bao, suaVatTu, luuVatTu, lamMoiTon, moNav, dongNav, toggleLoc, toggleTien, veDsPhieu, phXemThem, moPhieuXem, moXacNhanHuy, xacNhanHuy, veGhepMa, gmChon, gmKhongGhep, gmXuat, gmModalDong, gmMoChua, gmBoQuaMa, gmMoThem, gmThemLoc, gmThemUngVien, gmMoGhepVao, gmGhepLoc, gmGhepVaoChon, gmXoaUngVien })
+
+// ═══════════════════ WP-20 · ĐƠN MUA (màn dm) ═══════════════════
+const DM = { loc: null, ncc: '', tim: '', ds: [], vt: null, form: null, _t: null }
+const DM_BUOC = [['moi', 'Mới'], ['da_gui', 'Đã gửi NCC'], ['xac_nhan', 'NCC xác nhận'], ['da_nhan', 'Đã nhận'], ['da_khop_hd', 'Khớp HĐ']]
+const DM_TT = { moi: 'Mới', da_gui: 'Đã gửi', xac_nhan: 'NCC xác nhận', da_nhan: 'Đã nhận', da_khop_hd: 'Khớp HĐ', huy: 'Đã huỷ' }
+const dmTien = v => Math.round(v || 0).toLocaleString('vi-VN')
+const dmNgay = s => s ? new Date(s).toLocaleDateString('vi-VN') : '—'
+const dmTre = (hen, can) => hen && can && new Date(hen) > new Date(can)
+
+async function dmVatTu() { if (!DM.vt) { const { data } = await sb.from('vat_tu').select('id,ma,ten,dvt').eq('ngung_dung', false).order('ma'); DM.vt = data || [] } return DM.vt }
+// LƯU Ý: global KHO trong app này là danh sách VẬT TƯ (không phải kho hàng). Kho hàng phải fetch riêng.
+async function dmKho() { if (!DM.kho) { const { data } = await sb.from('kho').select('id,ten,la_mac_dinh').order('ten'); DM.kho = data || [] } return DM.kho }
+
+async function veDonMua() {
+  $('#dm-ct').style.display = 'none'; $('#dm-form').style.display = 'none'; $('#dm-list').style.display = ''
+  const chips = [['', 'Tất cả'], ...Object.entries(DM_TT)]
+  $('#dm-chips').innerHTML = chips.map(([v, t]) => `<span class="dm-chip ${DM.loc === (v || null) ? 'sel' : ''}" data-tt="${v}">${t}</span>`).join('')
+  $$('#dm-chips .dm-chip').forEach(c => c.onclick = () => { DM.loc = c.dataset.tt || null; veDonMua() })
+  const sel = $('#dm-f-ncc')
+  if (sel && !sel.dataset.done) { sel.innerHTML = '<option value="">Mọi NCC</option>' + NCC.map(x => `<option value="${x.id}">${x.ten}</option>`).join(''); sel.onchange = () => { DM.ncc = sel.value; veDonMua() }; sel.dataset.done = '1' }
+  $('#dm-f-tim').oninput = e => { DM.tim = e.target.value; clearTimeout(DM._t); DM._t = setTimeout(veDonMua, 300) }
+  $('#dm-moi-btn').onclick = () => dmMoiForm()   // KHÔNG truyền event làm suaId (event truthy → tưởng đang sửa)
+  const r = await sb.rpc('dm_danh_sach', { p_trang_thai: DM.loc, p_ncc: DM.ncc || null, p_tim: DM.tim || null })
+  if (r.error) { $('#dm-ds').innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${r.error.message} <button class="n nho" onclick="veDonMua()">Thử lại</button></div>`; return }
+  DM.ds = r.data || []
+  const c = (f) => DM.ds.filter(f).length
+  $('#dm-dem').textContent = `${DM.ds.length} đơn · ${c(x => ['moi', 'da_gui', 'xac_nhan'].includes(x.trang_thai))} đang mở · ${c(x => ['da_gui', 'xac_nhan'].includes(x.trang_thai))} chờ hàng về · ${c(x => x.co_qua_ngay_can)} quá ngày cần`
+  if (!DM.ds.length) { $('#dm-ds').innerHTML = '<div class="rong">Chưa có đơn mua nào.</div>'; return }
+  $('#dm-ds').innerHTML = `<table><thead><tr><th>Số đơn</th><th>NCC</th><th>Kho nhận</th><th>Ngày đặt</th><th>Ngày cần</th><th>NCC hẹn</th><th class="r">Dòng</th><th class="r">Tạm tính</th><th>Trạng thái</th></tr></thead><tbody>${DM.ds.map(d => `<tr style="cursor:pointer" data-id="${d.id}"><td class="dm-mono"><b>${d.so_don}</b></td><td>${d.ncc}</td><td>${d.kho}</td><td>${dmNgay(d.ngay_dat)}</td><td class="${d.co_qua_ngay_can ? 'dm-late' : ''}">${dmNgay(d.ngay_can)}</td><td class="${dmTre(d.ngay_ncc_hen, d.ngay_can) ? 'dm-late' : ''}">${dmNgay(d.ngay_ncc_hen)}</td><td class="r dm-mono">${d.so_dong}</td><td class="r dm-mono">${dmTien(d.tam_tinh)}</td><td><span class="dm-tt ${d.trang_thai}">${DM_TT[d.trang_thai]}</span></td></tr>`).join('')}</tbody></table>`
+  $$('#dm-ds tr[data-id]').forEach(tr => tr.onclick = () => dmXem(tr.dataset.id))
+}
+
+async function dmXem(id) {
+  $('#dm-list').style.display = 'none'; $('#dm-form').style.display = 'none'
+  const box = $('#dm-ct'); box.style.display = ''; box.innerHTML = '<div class="rong">Đang tải…</div>'
+  const r = await sb.rpc('dm_chi_tiet', { p_id: id })
+  if (r.error) { box.innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${r.error.message}</div>`; return }
+  const j = r.data, d = j.dau_don, tt = d.trang_thai
+  const idx = DM_BUOC.findIndex(b => b[0] === tt)
+  const lsBy = {}; (j.lich_su || []).forEach(l => { if (l.toi) lsBy[l.toi] = l })
+  const steps = DM_BUOC.map((b, i) => { const done = tt !== 'huy' && i <= idx; const l = lsBy[b[0]]; const auto = i >= 3 && !l; return `<div class="dm-step ${done ? 'done' : ''}">${b[1]}<div class="d">${l ? dmNgay(l.luc) + (l.boi ? ' · ' + l.boi : '') : (auto ? 'tự động · WP-21/22' : '')}</div></div>` }).join('')
+  const lh = j.lien_he_ncc || {}
+  const rows = (j.dong || []).map(x => `<tr><td class="r">${x.stt}</td><td class="dm-mono">${x.ma}</td><td>${x.ten}</td><td class="r dm-mono">${dmTien(x.so_luong)}</td><td>${x.dvt || ''}</td><td class="r dm-mono">${dmTien(x.don_gia)}</td><td class="r dm-mono">${dmTien(x.thanh_tien)}</td><td class="r dm-mono">${dmTien(x.so_luong_da_nhan)}</td></tr>`).join('')
+  // nút theo cổng (màn phản chiếu; DB là cổng thật)
+  const B = []
+  if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Sửa dòng', 'sua', true])
+  if (tt === 'moi') B.push(['Gửi NCC', 'da_gui', true])
+  if (tt === 'da_gui') B.push(['NCC xác nhận', 'xac_nhan', true])
+  if (tt === 'xac_nhan') B.push(['Đã nhận (tạm — tới WP-21)', 'da_nhan', ROLE === 'ceo'])
+  if (tt === 'da_nhan') B.push(['Khớp hoá đơn (tạm — WP-22)', 'da_khop_hd', ROLE === 'ceo'])
+  if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Huỷ đơn', 'huy', true])
+  box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button><h3 class="dm-mono" style="margin:0 0 0 6px">${d.so_don}</h3><span class="dm-tt ${tt}" style="margin-left:8px">${DM_TT[tt]}</span></div>
+    <div class="dm-steps">${steps}</div>
+    <div class="dm-kv"><b>Nhà cung cấp</b><div>${d.ncc}${lh.dien_thoai ? ' · ' + lh.dien_thoai : ''}${lh.dia_chi ? ' · ' + lh.dia_chi : ''}${lh.lead_time_ngay != null ? ' · lead ' + lh.lead_time_ngay + ' ngày' : ''}</div>
+      <b>Kho nhận</b><div>${d.kho}</div><b>Ngày đặt / cần</b><div>${dmNgay(d.ngay_dat)} → <span class="${d.ngay_ncc_hen && dmTre(d.ngay_ncc_hen, d.ngay_can) ? 'dm-late' : ''}">${dmNgay(d.ngay_can)}</span></div>
+      <b>NCC hẹn</b><div class="${dmTre(d.ngay_ncc_hen, d.ngay_can) ? 'dm-late' : ''}">${dmNgay(d.ngay_ncc_hen)}</div>${d.ghi_chu ? '<b>Ghi chú</b><div>' + d.ghi_chu + '</div>' : ''}${d.ly_do_huy ? '<b>Lý do huỷ</b><div class="dm-late">' + d.ly_do_huy + '</div>' : ''}</div>
+    <table><thead><tr><th class="r">#</th><th>Mã</th><th>Tên</th><th class="r">SL đặt</th><th>ĐVT</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">Đã nhận</th></tr></thead><tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="6" class="r"><b>Tạm tính</b></td><td class="r dm-mono"><b>${dmTien(d.tam_tinh)}</b></td><td></td></tr></tfoot></table>
+    <div class="dm-gate">${B.map(([l, a, en]) => `<button class="n ${en ? (a === 'huy' ? '' : 'chinh') : 'mo'}" ${en ? '' : 'disabled'} data-act="${a}">${l}</button>`).join('')}</div>
+    <div class="dm-err" id="dm-ct-err"></div><div class="dm-legend">Nút mờ = cổng DB chưa cho (vai/trạng thái). Mọi lỗi hiện nguyên văn.</div>`
+  box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => dmNutCt(id, b.dataset.act, box.querySelector('#dm-ct-err')))
+}
+
+async function dmNutCt(id, act, errEl) {
+  errEl.textContent = ''
+  if (act === 'sua') return dmMoiForm(id)
+  let toi = act, ngay = null, lyDo = null
+  if (act === 'xac_nhan') { const cur = DM.ds.find(x => x.id === id); const def = cur ? cur.ngay_can : ''; ngay = prompt('Ngày NCC hẹn giao (YYYY-MM-DD), mặc định = ngày cần:', def || ''); if (ngay === null) return; ngay = ngay.trim() || null }
+  if (act === 'huy') { lyDo = prompt('Lý do huỷ (bắt buộc):', ''); if (lyDo === null) return; if (!lyDo.trim()) { errEl.textContent = 'Huỷ phải có lý do.'; return } }
+  const r = await sb.rpc('dm_chuyen_trang_thai', { p_id: id, p_toi: toi, p_ngay_ncc_hen: ngay, p_ly_do: lyDo })
+  if (r.error) { errEl.textContent = r.error.message; return }
+  dmXem(id)
+}
+
+async function dmMoiForm(suaId) {
+  $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'
+  const box = $('#dm-form'); box.style.display = ''
+  const vt = await dmVatTu()
+  const khoList = await dmKho()
+  let dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }]
+  let dauNcc = NCC[0]?.id || '', dauKho = (khoList.find(x=>x.la_mac_dinh)||khoList[0])?.id || '', dauCan = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10), dauGc = ''
+  let ct = null
+  if (suaId) { const r = await sb.rpc('dm_chi_tiet', { p_id: suaId }); if (!r.error) { ct = r.data.dau_don; dong = r.data.dong.map(x => ({ vat_tu_id: x.vat_tu_id, so_luong: x.so_luong, don_gia: x.don_gia })) } }
+  const opt = (id) => '<option value="">— chọn vật tư —</option>' + vt.map(v => `<option value="${v.id}" ${v.id === id ? 'selected' : ''}>${v.ma} — ${v.ten}</option>`).join('')
+  const veDong = () => `<table><thead><tr><th style="width:38%">Vật tư</th><th class="r">SL</th><th>ĐVT</th><th class="r">Đơn giá (gợi ý)</th><th></th></tr></thead><tbody>${dong.map((d, i) => {
+    const v = vt.find(x => x.id === d.vat_tu_id)
+    return `<tr><td><select class="ip d-vt" data-i="${i}" style="width:100%">${opt(d.vat_tu_id)}</select></td><td><input class="ip d-sl" data-i="${i}" style="width:70px" inputmode="decimal" value="${d.so_luong}"></td><td class="d-dvt">${v ? v.dvt || '' : ''}</td><td><input class="ip d-dg" data-i="${i}" style="width:100px" inputmode="numeric" value="${d.don_gia}"></td><td><button class="n nho d-xoa" data-i="${i}">×</button></td></tr>`
+  }).join('')}</tbody></table>`
+  box.innerHTML = `<div class="dm-row"><button class="n" id="dm-huy-form">← Danh sách</button><h3 style="margin:0 0 0 6px">${suaId ? 'Sửa dòng · ' + ct.so_don : 'Đơn mua mới'}</h3></div>
+    ${suaId ? '' : `<div class="dm-row"><div><label>Nhà cung cấp</label><select class="ip" id="dm-f-ncc2" style="width:220px">${NCC.map(x => `<option value="${x.id}">${x.ten}</option>`).join('')}</select></div>
+      <div><label>Kho nhận</label><select class="ip" id="dm-f-kho" style="width:160px">${khoList.map(x => `<option value="${x.id}" ${x.la_mac_dinh ? 'selected' : ''}>${x.ten}</option>`).join('')}</select></div>
+      <div><label>Ngày cần</label><input class="ip" id="dm-f-can" type="date" value="${dauCan}"></div>
+      <div style="flex:1;min-width:180px"><label>Ghi chú</label><input class="ip" id="dm-f-gc" style="width:100%" placeholder="tuỳ chọn"></div></div>`}
+    <div id="dm-dong">${veDong()}</div>
+    <button class="n nho" id="dm-them-dong">+ Thêm dòng</button>
+    <div class="dm-err" id="dm-form-err"></div>
+    <div class="dm-gate">${suaId ? '<button class="n chinh" id="dm-luu-sua">Lưu dòng</button>' : '<button class="n" id="dm-luu">Lưu (Mới)</button><button class="n chinh" id="dm-luu-gui">Lưu và gửi NCC</button>'}</div>`
+  const bind = () => {
+    box.querySelectorAll('.d-vt').forEach(s => s.onchange = () => { const i = +s.dataset.i; dong[i].vat_tu_id = s.value; const v = vt.find(x => x.id === s.value); if (v && !dong[i].don_gia) sbGia(v.id, i); $('#dm-dong').innerHTML = veDong(); bind() })
+    box.querySelectorAll('.d-sl').forEach(s => s.oninput = () => { dong[+s.dataset.i].so_luong = s.value })
+    box.querySelectorAll('.d-dg').forEach(s => s.oninput = () => { dong[+s.dataset.i].don_gia = s.value })
+    box.querySelectorAll('.d-xoa').forEach(s => s.onclick = () => { if (dong.length > 1) { dong.splice(+s.dataset.i, 1); $('#dm-dong').innerHTML = veDong(); bind() } })
+  }
+  const sbGia = async (vid, i) => { const { data } = await sb.from('v_gia_tham_khao').select('gia_tham_khao').eq('vat_tu_id', vid).maybeSingle(); if (data && data.gia_tham_khao != null && !dong[i].don_gia) { dong[i].don_gia = data.gia_tham_khao; $('#dm-dong').innerHTML = veDong(); bind() } }
+  bind()
+  $('#dm-huy-form').onclick = veDonMua
+  $('#dm-them-dong').onclick = () => { dong.push({ vat_tu_id: '', so_luong: '', don_gia: '' }); $('#dm-dong').innerHTML = veDong(); bind() }
+  const goiDong = () => dong.filter(d => d.vat_tu_id).map(d => ({ vat_tu_id: d.vat_tu_id, so_luong: Number(d.so_luong) || 0, don_gia: d.don_gia === '' ? null : Number(d.don_gia) }))
+  const luu = async (gui) => {
+    const err = $('#dm-form-err'); err.textContent = ''
+    const ds = goiDong()
+    if (!ds.length) { err.textContent = 'Đơn phải có ít nhất một dòng vật tư.'; return }
+    if (suaId) { const r = await sb.rpc('dm_sua_dong', { p_id: suaId, p_dong: ds }); if (r.error) { err.textContent = r.error.message; return } dmXem(suaId); return }
+    const r = await sb.rpc('dm_tao', { p_ncc: $('#dm-f-ncc2').value, p_kho: $('#dm-f-kho').value, p_ngay_can: $('#dm-f-can').value, p_ghi_chu: $('#dm-f-gc').value || null, p_dong: ds, p_gui_ngay: !!gui })
+    if (r.error) { err.textContent = r.error.message; return }
+    if (r.data.canh_bao_gia) alert(r.data.canh_bao_gia)
+    dmXem(r.data.id)
+  }
+  if (suaId) $('#dm-luu-sua').onclick = () => luu(false)
+  else { $('#dm-luu').onclick = () => luu(false); $('#dm-luu-gui').onclick = () => luu(true) }
+}
+window.veDonMua = veDonMua

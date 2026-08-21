@@ -645,4 +645,16 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **(c) da_giao phải có NÚT:** hiện không app nào có đường `cho_giao→da_giao` (Sale chỉ giao từ `xong_sx`). Mẫu tĩnh
   `~/Downloads/mau_nut_da_giao.html` (nút "Đã giao xong" ở thẻ `cho_giao` + modal xác nhận) **chờ CEO duyệt** rồi mới code.
 - **Kiểm chứng:** `web/ops/test_123.mjs` (10/0). **Nợ:** `xoa_demo` không xoá được đơn đã bàn giao (trigger `MOC_CHUAN_DA_CHOT`
-  chặn xoá số chốt) → D6 phải tạm gỡ trigger; nên cho `xoa_demo` một cờ bypass (WP sau).
+  chặn xoá số chốt) → D6 phải tạm gỡ trigger; nên cho `xoa_demo` một cờ bypass (WP sau). **→ VÁ ở db/125 (D8): GUC `kho.xoa_demo`.**
+
+## QD-48 (21/08) — ĐƠN MUA: đầu đơn + dòng, MỘT cột trạng thái 6 giá trị, cổng ở DB (WP-20, db/126)
+
+- **Đơn mua = đầu đơn (`don_mua`) + dòng đơn (`don_mua_dong`)**, MỘT cột `trang_thai` 6 giá trị:
+  `moi→da_gui→xac_nhan→da_nhan→da_khop_hd` (+ `huy` chỉ TRƯỚC da_nhan). Chỉ đi tới, **không lùi**, qua RPC
+  `dm_chuyen_trang_thai` (cổng cứng ở DB — không ai lách, tinh thần QD-47). `da_nhan`/`da_khop_hd` thuộc **WP-21/22**,
+  tạm chỉ ceo (GUC `kho.dm_he_thong='1'` để RPC nhận-hàng/khớp-HĐ sau này bypass vai).
+- **Lý do:** ERP Sagegg & Alfnes §4.2/4.3.1/4.3.3/4.4 — sách chỉ ra D365 tách **3 ô trạng thái** (đặt/nhận/khớp HĐ) gây
+  khó theo dõi → **gộp MỘT cột**. Số đơn `DM-YYYY-NNNN` qua `cap_so_phieu('DM')` (reset theo NĂM; chuoi_so chưa reset tháng).
+- **Đơn giá gợi ý** từ `v_gia_tham_khao` (chưa làm bảng giá NCC — để WP-23). `so_luong_da_nhan` dòng để WP-21 ghi.
+- **Kiểm chứng:** `web/ops/test_126.mjs` (18/0, gồm 100k stress). Màn "Đơn mua" trong app Kho (nhóm Chứng từ, kho/ceo).
+- **Trạng thái:** ĐANG ÁP DỤNG (db/126).
