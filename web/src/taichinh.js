@@ -268,7 +268,9 @@ async function datMatKhau(id) {
 let GV_TRANG = 0; const GV_CO = 50
 async function taiGiaVonDon() {
   const tb = $('gv_ds'), sel = $('gv_don'), pg = $('gv_pager')
-  const { data, error } = await sb.rpc('gia_von_don_ds', { p_gioi_han: GV_CO, p_offset: GV_TRANG * GV_CO })
+  // WP-03: đây là màn NHẬP giá vốn (không phải báo cáo) → gom cả đơn demo để nhập được giá vốn cho đơn DEMO.
+  //   5 RPC BÁO CÁO (cm_don_ky, pl_ky…) vẫn giữ lọc demo mặc định (p_gom_demo=false).
+  const { data, error } = await sb.rpc('gia_von_don_ds', { p_gioi_han: GV_CO, p_offset: GV_TRANG * GV_CO, p_gom_demo: true })
   if (error) { tb.innerHTML = `<tr><td colspan="8">Lỗi: ${error.message}</td></tr>`; if (pg) pg.innerHTML = ''; return }
   const rows = (data && data.ds) || [], tong = (data && data.tong) || 0
   const nguonNhan = r => r.co_gia_von ? (r.nguon === 'nhap_tay' ? '<b style="color:var(--pri,#C8202E)">[NHẬP TAY]</b>' : 'plugin') : '<span class="hint">chưa có</span>'

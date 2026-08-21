@@ -2,6 +2,7 @@
 //   Thứ tự sống còn: window.storage được gán TRƯỚC khi mã file sale chạy -> file dùng của ta (dòng 48 `if(!window.storage)`).
 //   CẤM lùi localStorage. Lỗi mạng/quyền -> hiện banner đỏ, KHÔNG nuốt.
 import { createClient } from '@supabase/supabase-js'
+import SALE_HTML from '../public/togihome_sale.html?raw'   // WP-04: mã app Sale inline vào bundle (hash) thay vì fetch runtime
 
 const URL = import.meta.env.VITE_SUPABASE_URL
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -384,7 +385,9 @@ window.nenAnh = async function (file) {
 
 // ══════════ ĐĂNG NHẬP + nạp mã app (thứ tự: storage đã gán ở trên -> giờ mới nạp file sale) ══════════
 async function napApp() {
-  const html = await (await fetch('/togihome_sale.html')).text()
+  // WP-04: INLINE togihome_sale.html vào bundle qua ?raw (như tab Hướng dẫn Tài chính) — KHÔNG fetch runtime.
+  //   Lý do: file tĩnh fetch lúc chạy bị CDN cache/minify → sửa UI KHÔNG tới prod. Đi qua bundle có HASH thì chắc.
+  const html = SALE_HTML
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])   // 2 script inline (không src)
   for (const code of scripts) { const s = document.createElement('script'); s.textContent = code; document.body.appendChild(s) }
 }

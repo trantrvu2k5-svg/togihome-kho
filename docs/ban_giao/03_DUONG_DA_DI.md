@@ -44,6 +44,7 @@
 - **Bẫy NULL trong guard vai (dính 4 lần).** `current_vai_tro()` trả NULL (chưa đăng nhập) → `NULL not in (...)` là NULL, không TRUE → guard hớ. Luôn `coalesce(...,'')`. **Phát hiện:** test vai NULL phải CHẶN.
 - **Test xanh GIẢ vì chỉ chạy trên một đơn seed / vài chục dòng.** Logic đúng nhưng tốc độ/biên chưa đo. **Phát hiện:** đo ở 100.000 dòng; test cắn hai vế.
 - **Class CSS 2 ký tự đụng class toàn cục** (`.mo` đụng nền modal). Không test nào bắt. **Phát hiện:** chỉ MẮT bắt → tiền tố theo màn.
+- **File tĩnh fetch runtime bị CACHE → sửa UI KHÔNG tới prod** (WP-04). App Sale `napApp()` `fetch('/togihome_sale.html')` lúc chạy; Cloudflare Pages serve bản cũ (clean-URL redirect + edge cache), deploy không đẩy được nội dung mới → nút "Đã giao xong" đã code nhưng app chạy vẫn bản cũ. **Phát hiện:** curl prod so với dist local (size/chuỗi lệch). **Chữa:** UI đi qua BUNDLE CÓ HASH — `import togihome_sale.html?raw` inline vào bundle (như tab Hướng dẫn Tài chính), mọi sửa qua hash mới → chắc tới prod.
 - **Sửa dữ liệu để ép ảnh đẹp (2 lần: L-10b, L-11).** **Phát hiện:** CEO soi con số. → dựng-rollback hoặc báo rõ.
 - **Migration không idempotent** (db/069 đổi khóa `ma_bien_the→mon_id`; chạy lần 2 hỏng). **Phát hiện:** cảnh báo ở đầu file + chạy đúng một lần.
 - **`create or replace` khi ĐỔI tham số KHÔNG thay bản cũ** → tạo overload mới, bản cũ vẫn còn, gọi nhầm. Phải `drop function` cũ trước (đã làm ở `atp`: drop `atp(text)` trước khi tạo `atp(text,text)`).

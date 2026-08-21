@@ -618,3 +618,31 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   plugin/test/DB nào gọi; 0 dòng `nguon='quet_tem'` = chưa từng chạy thật), và nó là **đường ghi `ton` thứ hai** — cấm theo tinh
   thần QD-03 (một đường ghi). File `db/037` GIỮ làm lịch sử (comment trỏ QD-45). 45 dòng `kiem_ke` là SEED, GIỮ NGUYÊN (QD-18).
 - **Trạng thái:** đang áp dụng (db/119).
+
+## QD-46 (21/08) — Đơn demo = ma_don `DEMO-*`, cờ tự động, loại khỏi tài chính mặc định, xoá bằng `xoa_demo()` duy nhất
+
+- **Cờ bắt theo MÃ ĐƠN HOẶC KHÁCH DEMO** (db/121, L-60): trigger `don_hang_tu_danh_dau_demo` set `la_demo=true` khi `ma_don
+  ILIKE 'DEMO-%'` **HOẶC** `ten_khach ILIKE 'DEMO%'` **HOẶC** khách của đơn demo (nối `sdt_khach → khach.la_demo`). Lý do: Sale sinh
+  mã `DH-…` nên bắt-theo-mã một mình không đủ; khách `ten ILIKE 'DEMO%'` cũng tự demo. Không nút bật/tắt trên màn (G1) — chỉ dữ liệu quyết.
+- **Loại demo khỏi tài chính MẶC ĐỊNH:** 6 RPC (`cm_don_ky`, `cm_don_raw`, `gia_von_don_ds`, `pl_ky`, `kenh_cac_ky`, `lap_day_ky`)
+  thêm tham số cuối `p_gom_demo boolean DEFAULT false` → mặc định `WHERE NOT la_demo`; `true` mới gom demo. Drop chữ ký cũ, tạo 1 bản
+  (không đẻ overload — bài học QD-42). 4 RPC đã lọc sẵn (con_phai_thu, dieu_hanh_cong_no_khach, dong_tien_ky, nhan_xet_ky) giữ nguyên.
+- **`xoa_demo(p_ma_don, p_xac_nhan)` là ĐƯỜNG XOÁ DUY NHẤT** (SECURITY DEFINER, chỉ ceo): `p_ma_don` → xoá 1 đơn (phải la_demo);
+  NULL → xoá **TOÀN BỘ** la_demo (kể cả seed cũ) bắt buộc `p_xac_nhan='XOA_HET'` (G2). Xoá theo FK: su_kien_quet (theo tem qua
+  tien_do_tem) + tem phụ + don_hang (CASCADE con) + khách demo mồ côi + phieu_dem_ngay (chỉ global). **KHÔNG chạm `giao_dich`/`ton`**
+  (sổ kho, demo không nhập/xuất → giữ 199/199).
+- **Căn cứ:** MES Meyer §9.4 (pilot test) + §9.1.2 (triển khai từng quy trình). Kiểm chứng: `web/ops/test_120.mjs`.
+- **Trạng thái:** đang áp dụng (db/120). Bàn giao chưa nối lịch (WP-43) → demo gọi `luu_xep_lich` tay (G3).
+
+## QD-47 (21/08) — Trạng thái đơn chỉ đổi qua CỔNG NGHIỆP VỤ của nó (WP-03, db/123)
+
+- **(a) Tem KHÔNG phát hành lệnh SX** (ERP §6.4): `day_tem_ban_ve` chỉ LƯU tem, **không** còn bắc cầu `trang_thai='cho_cat'`.
+  `ban_giao_xuong` là **cổng DUY NHẤT** chuyển `cho_cat`. Trước đây đẩy tem từ plugin làm đơn nhảy vào chuyền bỏ qua
+  giá vốn/số/bàn giao. PHÁT SINH giữ nguyên (không sửa lô này): `day_so_san_xuat` (db/068, **chết** — không caller) và
+  `dua_vao_chuyen` (db/045, **nút thủ công** quản đốc — cổng hợp lệ) cũng set cho_cat.
+- **(b) thu-khi-giao chỉ SAU khi giao:** `pt_ghi` RAISE khi `loai='thu_khi_giao'` mà đơn ∉ {cho_giao, da_giao} — gợi ý
+  dùng `loai='coc'`. Nhận tiền trước khi giao = cọc, không phải thu-khi-giao.
+- **(c) da_giao phải có NÚT:** hiện không app nào có đường `cho_giao→da_giao` (Sale chỉ giao từ `xong_sx`). Mẫu tĩnh
+  `~/Downloads/mau_nut_da_giao.html` (nút "Đã giao xong" ở thẻ `cho_giao` + modal xác nhận) **chờ CEO duyệt** rồi mới code.
+- **Kiểm chứng:** `web/ops/test_123.mjs` (10/0). **Nợ:** `xoa_demo` không xoá được đơn đã bàn giao (trigger `MOC_CHUAN_DA_CHOT`
+  chặn xoá số chốt) → D6 phải tạm gỡ trigger; nên cho `xoa_demo` một cờ bypass (WP sau).
