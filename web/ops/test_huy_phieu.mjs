@@ -23,12 +23,12 @@ const reconcile = async (vid) => {
   const A = Number((await one(`select so_luong s from kho.ton where vat_tu_id=$1`, [vid]))?.s ?? 0)
   // ⚠ TRONG 1 TX now() đóng băng → mọi tao_luc bằng nhau; dùng ctid (thứ tự chèn vật lý) làm tiebreak thật.
   //   (Prod: ghi/huỷ ở tx khác → tao_luc khác → so_ba_nguon.sql sắp tao_luc DESC,id DESC là đủ — đã chứng minh 199/199.)
-  const B = Number((await one(`select so_du_sau s from kho.giao_dich where vat_tu_id=$1 order by tao_luc desc, ctid desc limit 1`, [vid]))?.s ?? A)
+  const B = Number((await one(`select so_du_sau s from kho.giao_dich where vat_tu_id=$1 order by stt desc limit 1`, [vid]))?.s ?? A)
   const C = Number((await one(`select coalesce(sum(con_lai),$2) s from kho.lo_nhap where vat_tu_id=$1 and lo_da_huy=false`, [vid, A]))?.s ?? A)
   return { A, B, C, khop: A === B && A === C }
 }
 const chainOk = async (vid) => {
-  const g = await q(`select so_luong, so_du_sau from kho.giao_dich where vat_tu_id=$1 order by tao_luc asc, id asc`, [vid])
+  const g = await q(`select so_luong, so_du_sau from kho.giao_dich where vat_tu_id=$1 order by stt asc`, [vid])
   let prev = null, good = true
   for (const r of g) { if (prev !== null && Math.abs((Number(prev) + Number(r.so_luong)) - Number(r.so_du_sau)) >= 0.001) good = false; prev = r.so_du_sau }
   return { good, n: g.length }
@@ -94,10 +94,15 @@ try {
   console.log('\n── CA6 · xích so_du_sau liên tục (+ bẻ thử) ──')
   const ch = await chainOk(B)   // B: nhập+10 → xuất-4 → dieu_chinh+4  = xích liên tục
   ok(`CA6 xích so_du_sau VT_B liên tục (${ch.n} dòng) = XANH`, ch.good)
+  // BẺ: cố chèn 1 dòng so_du_sau SAI (999). Từ db/119 (QD-44) trigger gd_ins_cap_ton GHI ĐÈ so_du_sau = running balance
+  //   → sổ KHÔNG THỂ bịa sai; dòng chèn có so_du_sau đúng (≠999), xích vẫn liên tục. (Trước đây phải kiểm tay bắt lỗi.)
   await c.query('savepoint be')
+  const tonB = Number((await one(`select so_luong from kho.ton where vat_tu_id=$1`, [B])).so_luong)
   await c.query(`insert into kho.giao_dich(vat_tu_id,kho_id,loai,so_luong,so_du_sau,nguon,tao_luc) values($1,$2,'dieu_chinh',1,999,'kiem_ke',now())`, [B, kid])
-  const chBad = await chainOk(B)
-  ok('CA6 BẺ: chèn 1 dòng sds sai (999) → kiểm bắt được (đỏ)', chBad.good === false)
+  const sdsMoi = Number((await one(`select so_du_sau from kho.giao_dich where vat_tu_id=$1 order by stt desc limit 1`, [B])).so_du_sau)
+  const chAfter = await chainOk(B)
+  ok('CA6 BẺ: trigger GHI ĐÈ sds sai 999 → sds đúng = tồn+1', sdsMoi === tonB + 1 && sdsMoi !== 999)
+  ok('CA6 xích VẪN liên tục sau khi cố bịa (sổ không thể sai)', chAfter.good === true)
   await c.query('rollback to savepoint be')
 
   console.log(`\n${F === 0 ? '🟢' : '🔴'} test_huy_phieu: ${P} pass / ${F} fail`)

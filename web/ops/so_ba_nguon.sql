@@ -1,14 +1,13 @@
--- so_ba_nguon.sql — SO BA NGUỒN TỒN (script chuẩn dùng chung, WP-11 về sau). CHỈ ĐỌC.
--- Sắp theo tao_luc, KHÔNG sắp theo id UUID (L-53 dương tính giả BL-03: id UUID ngẫu nhiên → bốc nhầm "dòng mới nhất").
---   A = ton.so_luong
---   B = so_du_sau của dòng giao_dich CUỐI  (ORDER BY tao_luc DESC, id DESC · DISTINCT ON (vat_tu_id,kho_id))
---   C = Σ lo_nhap.con_lai  WHERE lo_da_huy = false
--- Khớp khi A = B = C (coalesce về A khi thiếu B/C). Chạy trên DB thật kỳ vọng: 199/199.
+-- so_ba_nguon.sql — SO BA NGUỒN TỒN (script chuẩn dùng chung, WP-11). CHỈ ĐỌC.
+-- Sắp theo STT (bigserial, db/119), KHÔNG sắp theo id UUID (L-53 dương tính giả BL-03) và KHÔNG theo tao_luc
+--   (nhiều dòng cùng tao_luc trong 1 tx — WP-16). stt là thứ tự ghi sổ ngặt → "dòng cuối" = max(stt).
+--   A = ton.so_luong  ·  B = so_du_sau dòng CUỐI (ORDER BY stt DESC · DISTINCT ON (vat_tu_id,kho_id))
+--   C = Σ lo_nhap.con_lai WHERE lo_da_huy=false. Khớp khi A=B=C (coalesce về A khi thiếu B/C).
 
 with lastgd as (
   select distinct on (vat_tu_id, kho_id) vat_tu_id, kho_id, so_du_sau
   from kho.giao_dich
-  order by vat_tu_id, kho_id, tao_luc desc, id desc          -- tao_luc, KHÔNG id UUID
+  order by vat_tu_id, kho_id, stt desc                       -- STT bigserial, KHÔNG tao_luc/id UUID
 ),
 lo as (
   select vat_tu_id, kho_id, sum(con_lai) sc

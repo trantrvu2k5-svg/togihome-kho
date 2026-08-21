@@ -590,3 +590,31 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   test `web/ops/test_huy_phieu.mjs` 6 ca (20/20).
 - **Liên quan:** QD-18 (sổ bất biến). **WP-11 sẽ bỏ bước UPDATE `ton`** (tồn suy từ `giao_dich`, không giữ cache ghi tay).
 - **Trạng thái:** đang áp dụng (`db/015`).
+
+## QD-44 (21/08) — Tồn = tổng từ sổ giao_dich; bảng `ton` chỉ trigger ghi; sổ append-only, thứ tự bằng `stt` bigserial
+
+- **`ton` = CACHE, KHÔNG phải nguồn.** Nguồn sự thật tồn = sổ `giao_dich` (Σ `so_luong`). Bảng `ton` chỉ được làm tươi bởi
+  **MỘT trigger `gd_cap_nhat_ton` BEFORE INSERT `giao_dich`** (ghi `so_luong` + `so_du_sau` + `gia_von_bq`). **Không RPC, không
+  người, không policy nào UPDATE `ton` nữa** (revoke + policy chỉ SELECT). 2 RPC `ghi_so_phieu`/`huy_phieu` XOÁ mọi `update ton`,
+  chỉ còn INSERT `giao_dich` + xử lý `lo_nhap`.
+- **`giao_dich` APPEND-ONLY:** revoke UPDATE/DELETE (authenticated chỉ INSERT/SELECT); policy `gd_doc`(select)+`gd_ghi`(insert
+  ceo/kho)+`gd_tho_quet`(tho) theo mẫu `su_kien_quet`; force RLS; trigger `gd_chan_sua` chặn UPDATE/DELETE (đính chính bằng dòng
+  điều chỉnh mới — QD-18).
+- **Thứ tự = `stt` bigserial** (cột mới, backfill theo tao_luc rồi khoá). "Dòng cuối" = `max(stt)`. Lý do: **BL-03 dương tính giả**
+  do sắp theo `id` UUID (L-53); và **nhiều dòng cùng `tao_luc` trong 1 transaction** (now() đóng băng — WP-16/L-55). `so_ba_nguon.sql`
+  đổi sang `order by stt desc`.
+- **GIẢ ĐỊNH (điểm lệch cần CEO duyệt):** `giao_dich` KHÔNG có cột đơn giá → `gia_von_bq` tính lại **trong trigger từ LÔ SỐNG**
+  (`lo_nhap.gia_von_lo`, bình quân gia quyền — y hệt logic `huy_phieu` cũ), CHỈ khi có lô sống có giá; đường không-lô
+  (kiểm kê/seed) KHÔNG đụng `gia_von_bq`. Khác gợi ý "trigger không đụng gia_von_bq" — chọn vậy vì cấm RPC update `ton` mà giá vốn
+  phải đúng. **Âm kho: GIỮ cho phép** (gắn cờ `ton_am`, không raise — như RPC cũ).
+- **Căn cứ:** ERP Sagegg & Alfnes §3.3.5. **Liên quan:** QD-18 (sổ bất biến), QD-43 (huỷ phiếu). Kiểm chứng: test `web/ops/test_119_ton_tu_so.mjs`.
+- **CEO duyệt (21/08):** (1) `gia_von_bq` = bình quân lô sống là **TẠM** — chính sách giá vốn chốt ở **WP-13**. (2) Giữ policy
+  `gd_tho_quet` (tho INSERT giao_dich thẳng) tới **WP-33** rồi revoke.
+- **Trạng thái:** đang áp dụng (db/119).
+
+## QD-45 (21/08) — Khai tử `quet_giao_dich` (db/037)
+
+- **DROP `kho.quet_giao_dich(text,text,numeric)`** + revoke execute. Lý do: **0 caller suốt 2 tuần** (WP-17/L-56: không UI/JS/
+  plugin/test/DB nào gọi; 0 dòng `nguon='quet_tem'` = chưa từng chạy thật), và nó là **đường ghi `ton` thứ hai** — cấm theo tinh
+  thần QD-03 (một đường ghi). File `db/037` GIỮ làm lịch sử (comment trỏ QD-45). 45 dòng `kiem_ke` là SEED, GIỮ NGUYÊN (QD-18).
+- **Trạng thái:** đang áp dụng (db/119).
