@@ -576,3 +576,17 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **BÀI HỌC OVERLOAD (db/118):** thêm `param default` cho hàm có test-tự-nạp-lại tạo overload ambiguous → **giữ chữ ký gốc +
   LIMIT trần bên trong** (xem so_no.md §nợ hiệu năng L-29).
 - **Trạng thái:** ĐÃ LÀM + deploy (nav 3 nhóm · tab Hướng dẫn · 10 vá · db/118 dọn nợ). Commit gộp L-51+L-52 (v-kho-105).
+
+## QD-43 (21/08) — Huỷ phiếu kho = ghi dòng giao dịch ĐẢO, không sửa/xoá sổ
+
+- **HUỶ PHIẾU = GHI DÒNG `giao_dich` ĐẢO** (`loai='dieu_chinh'`, `nguon='phieu'`, trỏ `phieu_id` gốc), KÈM đảo lô:
+  huỷ NHẬP → `lo_da_huy=true`, `con_lai=0`, **tính lại `gia_von_bq` từ lô còn sống**; huỷ XUẤT → **trả `con_lai` theo
+  `lo_nhap_id` gốc**. **CẤM xoá/sửa dòng sổ đã ghi.**
+- **CHẶN:** phiếu nhập đã xuất một phần KHÔNG được huỷ → buộc lập **phiếu điều chỉnh**; chặn **huỷ hai lần**; chỉ huỷ
+  phiếu `trang_thai='ghi_so'`.
+- **Lý do:** ERP Sagegg-Alfnes §3.3.5 (tồn SUY từ giao dịch; bảng `ton` chỉ là cache làm tươi khi có giao dịch) + §3.4.2
+  (lệch ghi thành giao dịch điều chỉnh, không sửa số trực tiếp) + **QD-18** (sổ ghi-thêm bất biến, đính chính bằng dòng mới).
+  Hành vi có sẵn ở `db/015` từ trước; nay ghi QD để người sau KHÔNG "sửa lại cho gọn". Kiểm chứng: WP-16 (L-54/L-55),
+  test `web/ops/test_huy_phieu.mjs` 6 ca (20/20).
+- **Liên quan:** QD-18 (sổ bất biến). **WP-11 sẽ bỏ bước UPDATE `ton`** (tồn suy từ `giao_dich`, không giữ cache ghi tay).
+- **Trạng thái:** đang áp dụng (`db/015`).
