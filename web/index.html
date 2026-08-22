@@ -491,6 +491,56 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   .dm-goi-item{padding:7px 10px;font-size:13px;cursor:pointer} .dm-goi-item:hover{background:var(--bg-do-nhat,#FDECEA)}
   .dm-goi-dvt{color:var(--muted,#6B7488);font-size:11.5px} .dm-goi-none{padding:7px 10px;font-size:12.5px;color:var(--muted,#6B7488)}
   .dm-hint{font-size:10.5px;color:var(--am,#9A6412);margin-top:2px}
+  /* ── WP-21 · Nhận hàng đơn mua (dmn-) ── */
+  .dmn-prog{display:inline-block;width:64px;height:6px;background:#E3E7E3;border-radius:3px;vertical-align:middle;margin-right:6px;overflow:hidden}
+  .dmn-prog i{display:block;height:100%;background:var(--xanh,#1B8A54)}
+  .dmn-chip{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:600;white-space:nowrap}
+  .dmn-chip.thieu{background:#FBF1D6;color:#9A6400}
+  .dmn-chip.du{background:#E7F5EC;color:#1B8A54}
+  .dmn-chip.nguon{background:#E8F0FF;color:#1B5FA8;cursor:pointer}
+  .dmn-head{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;margin:8px 0 12px}
+  .dmn-head span{color:var(--muted,#6B7488)}
+  .dmn-tbl{width:100%;border-collapse:collapse}
+  .dmn-tbl th,.dmn-tbl td{padding:7px 8px;border-bottom:1px solid var(--vien,#E3E6EC);text-align:left;vertical-align:middle}
+  .dmn-tbl th{font-size:11px;color:var(--muted,#6B7488);font-weight:600}
+  .dmn-tbl td.n,.dmn-tbl th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',ui-monospace,monospace}
+  .dmn-tbl tr.done{background:var(--bg2,#F7F8FA);color:var(--muted,#6B7488)}
+  .dmn-inp{width:84px;padding:5px 7px;border:1px solid #B8C0BA;border-radius:5px;text-align:right;font:inherit;box-sizing:border-box}
+  .dmn-inp.err{border-color:var(--do,#A82C27);background:var(--bg-do-nhat,#FBE6E4)}
+  .dmn-inp.ok{border-color:var(--xanh,#1B8A54);background:#E7F5EC}
+  .dmn-inp.txt{width:150px;text-align:left}
+  .dmn-inp:disabled{background:#EFF1F4;color:#9AA1AC}
+  .dmn-err{color:var(--do,#A82C27);font-size:11.5px;margin-top:2px}
+  .dmn-prev{background:var(--bg2,#F5F7F9);border-left:3px solid var(--xanh,#1B8A54);padding:9px 12px;border-radius:4px;font-size:13px;margin:12px 0}
+  .dmn-prev b{color:var(--tx,#151B2C)}
+  .dmn-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--vien,#E3E6EC)}
+  .dmn-hist{font-size:12px;color:var(--muted,#6B7488)}
+  .dmn-hist a{color:var(--do,#A82C27);cursor:pointer;text-decoration:underline}
+  .dmn-step{width:34px;height:34px;border-radius:7px;border:1px solid #B8C0BA;background:#fff;font-size:19px;line-height:1;cursor:pointer;flex:0 0 auto}
+  .dmn-step:disabled{opacity:.4;cursor:not-allowed}
+  .dmn-res{border:1px solid var(--vien,#E3E6EC);border-radius:8px;overflow:hidden;margin:4px 0 12px}
+  .dmn-res-head{font-size:11px;color:var(--muted,#6B7488);padding:7px 12px;background:var(--bg2,#F7F8FA);border-bottom:1px solid var(--vien,#E3E6EC)}
+  .dmn-res-row{display:flex;justify-content:space-between;gap:12px;padding:8px 12px;border-bottom:1px solid var(--vien,#E3E6EC);font-size:13px}
+  .dmn-res-row:last-child{border-bottom:0}
+  .dmn-cards{display:none}
+  @media(max-width:480px){
+    #dm-nhan .dmn-tbl{display:none}
+    #dm-nhan .dmn-cards{display:block}
+    .dmn-card{border:1px solid var(--vien,#E3E6EC);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+    .dmn-card.done{background:var(--bg2,#F7F8FA)}
+    .dmn-card .dmn-name{font-weight:600;margin-bottom:6px}
+    .dmn-card .dmn-row2{display:flex;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted,#6B7488);margin-bottom:8px}
+    .dmn-card .dmn-row2 b{color:var(--tx,#151B2C)}
+    .dmn-in{display:flex;align-items:center;gap:8px}
+    .dmn-in .dmn-inp{width:96px;height:44px;font-size:20px}
+    .dmn-in .dmn-inp.txt{flex:1;width:auto;font-size:14px;height:40px}
+    .dmn-foot{position:sticky;bottom:0;background:var(--surface,#fff);border-top:1px solid var(--vien,#E3E6EC);padding:10px 0;display:grid;gap:8px;margin-top:12px}
+    .dmn-foot .n{height:48px;font-size:16px}
+    .dmn-list-cards .dmn-po{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--vien,#E3E6EC);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px}
+    .dmn-list-cards .dmn-po .n{height:44px;flex:0 0 auto}
+    #dm-ds > table{display:none}
+    #dm-ds .dmn-list-cards{display:block}
+  }
 </style>
 <section class="man" id="m-dm">
   <h2>Đơn mua</h2>
@@ -507,6 +557,7 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   </div>
   <div id="dm-ct" style="display:none"></div>
   <div id="dm-form" style="display:none"></div>
+  <div id="dm-nhan" style="display:none"></div>
 </section>
 
 <section class="man" id="m-nhap">

@@ -658,3 +658,23 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Đơn giá gợi ý** từ `v_gia_tham_khao` (chưa làm bảng giá NCC — để WP-23). `so_luong_da_nhan` dòng để WP-21 ghi.
 - **Kiểm chứng:** `web/ops/test_126.mjs` (18/0, gồm 100k stress). Màn "Đơn mua" trong app Kho (nhóm Chứng từ, kho/ceo).
 - **Trạng thái:** ĐANG ÁP DỤNG (db/126).
+
+## QD-49 (22/08) — NHẬN HÀNG ĐƠN MUA = phiếu nhập tự sinh qua `ghi_so_phieu`, gắn `don_mua_id` (WP-21, db/127)
+
+- **Nhận hàng không đẻ đường ghi mới.** `dm_nhan_hang(don_mua_id, dòng[{dong_id, so_luong, ghi_chu_lo}], ngày)` gọi
+  **`ghi_so_phieu`** (đúng một đường ghi sổ — QD-03/QD-44) sinh **1 phiếu nhập + dòng sổ giao dịch + lô nhập** như nhập tay,
+  rồi gắn `phieu.don_mua_id`. **Giá lô = đơn giá dòng đơn** (→ `gia_von_lo`) — TẠM tới WP-22/13 (khớp hoá đơn / giá vốn thật).
+- **Nhận một phần giữ `xac_nhan`; đủ MỌI dòng mới `da_nhan`** (tự chuyển qua cổng, GUC `kho.dm_he_thong` — QD-48).
+  **Vượt số đặt → CHẶN** (`DM_VUOT_SO_DAT`, không ghi nửa vời). Sai trạng thái → `DM_SAI_TRANG_THAI`. Vai kho/ceo.
+- **Huỷ phiếu nhận = nút Huỷ phiếu hiện có (QD-43):** sổ đảo + trừ lại `so_luong_da_nhan` theo từng dòng
+  (`phieu_dong.don_mua_dong_id`). Đơn **đã `da_nhan` → KHOÁ huỷ** (`DM_DA_NHAN_KHONG_HUY`, QD-48 — muốn đảo phải TRẢ HÀNG NCC, việc sau).
+- **`ghi_so_phieu` mở rộng TẠI CHỖ, GIỮ chữ ký 6 tham số** (không overload — nếu không test_037 áp lại db/037 sẽ đụng "not
+  unique"): dòng đọc thêm `ghi_chu` (→ `phieu_dong.ly_do`) + `don_mua_dong_id`; trả thêm `phieu_id`. Kho vẫn **mặc định** (xưởng 1
+  kho) — `dm_nhan_hang` **guard** `don_mua.kho_id = kho mặc định` (mở đa kho ở WP sau mới nới).
+- **Lý do:** ERP Sagegg & Alfnes §4.4 (nhận hàng đối chiếu PO) + §3.3.5 (tồn suy từ sổ) — sách không nói nhận-một-phần /
+  nhận-vượt → **quyết CEO 22/08**. Điện thoại & máy tính dùng CHUNG `dm_nhan_hang` (không app riêng, không đường ghi thứ hai).
+- **Kiểm chứng:** `web/ops/test_127.mjs` (35/0: một phần/nốt/vượt/sai-trạng-thái/vai/huỷ-đảo/huỷ-khoá + 100k stress
+  159ms + so_ba_nguon 199/199 + test_119/huy_phieu/126/037 không vỡ). Màn "Nhận hàng" trong tab Đơn mua (bảng máy tính +
+  thẻ điện thoại ≤480px). Chip "Nguồn: Đơn mua …" ở tab Phiếu nhập.
+- **Trạng thái:** ĐANG ÁP DỤNG (db/127).
+- **Việc phát sinh:** WP "Trả hàng NCC" (đảo sau `da_nhan`) · WP-22 (khớp hoá đơn — phiếu nhận đã có `don_mua_id` để nối) · đa kho.

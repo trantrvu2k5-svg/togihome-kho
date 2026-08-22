@@ -369,8 +369,8 @@ async function veDsPhieu(loai) {
   const pre = PH_PRE[loai]
   // Đơn giá/thành tiền ở phieu_dong (đã cấp quyền đọc ở migration 016). Vật tư nhúng để hiện tên.
   const { data, error } = await sb.from('phieu')
-    .select('id,so_phieu,loai,trang_thai,ncc_id,ly_do,phieu_goc_id,tao_luc,ghi_so_luc,ghi_so_boi,' +
-            'ncc:ncc_id(ten), nguoi:ghi_so_boi(ho_ten), dong:phieu_dong(so_luong,don_gia,thanh_tien, vt:vat_tu_id(ma,ten))')
+    .select('id,so_phieu,loai,trang_thai,ncc_id,ly_do,phieu_goc_id,tao_luc,ghi_so_luc,ghi_so_boi,don_mua_id,' +
+            'ncc:ncc_id(ten), nguoi:ghi_so_boi(ho_ten), dm:don_mua_id(so_don), dong:phieu_dong(so_luong,don_gia,thanh_tien, vt:vat_tu_id(ma,ten))')
     .or(pre.map(p => `so_phieu.like.${p}-*`).join(','))
     .order('tao_luc', { ascending: false })
     .limit(phGioi[loai])
@@ -390,10 +390,12 @@ async function veDsPhieu(loai) {
     const tag = huy ? '<span class="dsp-tag huy">ĐÃ HUỶ</span>'
       : nguoc ? `<span class="dsp-tag nguoc">↩ huỷ ${r._goc}</span>`
         : r.trang_thai === 'ghi_so' ? '<span class="dsp-tag so">ĐÃ GHI SỔ</span>' : '<span class="dsp-tag nhap">NHÁP</span>'
+    const nguon = r.dm?.so_don ? `<span class="dmn-chip nguon" data-dm="${r.don_mua_id}" title="Mở đơn mua">Đơn mua ${r.dm.so_don}</span>` : (loai === 'nhap' && !nguoc ? '<span class="dmn-hist">nhập tay</span>' : '')
     return `<div class="dsp-row ${huy ? 'huy' : ''}" onclick="moPhieuXem('${loai}','${r.id}')">
-      <div><span class="dsp-so">${r.so_phieu}</span>${tag}</div>
+      <div><span class="dsp-so">${r.so_phieu}</span>${tag} ${nguon}</div>
       <div class="dsp-meta">${gio(new Date(r.tao_luc))}${r.ncc?.ten ? ' · ' + r.ncc.ten : ''} · ${dong.length} dòng · SL ${n(sl)} · ${n(tien)} đ · ${r.nguoi?.ho_ten || '—'}</div></div>`
   }).join('') + (DSPH[loai].length >= phGioi[loai] ? `<div class="dsp-more"><button class="n nho" onclick="phXemThem('${loai}')">Xem thêm</button></div>` : '')
+  el.querySelectorAll('.dmn-chip.nguon').forEach(c => c.onclick = e => { e.stopPropagation(); chuyenMan('dm'); dmXem(c.dataset.dm) })
 }
 async function phXemThem(loai) { phGioi[loai] += 50; await veDsPhieu(loai) }
 
@@ -809,8 +811,16 @@ async function dmVatTu() { if (!DM.vt) { const { data } = await sb.from('vat_tu'
 // LƯU Ý: global KHO trong app này là danh sách VẬT TƯ (không phải kho hàng). Kho hàng phải fetch riêng.
 async function dmKho() { if (!DM.kho) { const { data } = await sb.from('kho').select('id,ten,la_mac_dinh').order('ten'); DM.kho = data || [] } return DM.kho }
 
+// tiến độ nhận: thanh + chip n/m dòng (còn thiếu / đủ)
+function dmProg(d) {
+  const m = d.so_dong || 0, nn = d.dong_da_nhan || 0, pct = m ? Math.round(nn / m * 100) : 0
+  const chip = d.trang_thai === 'da_nhan' ? `<span class="dmn-chip du">${nn}/${m} dòng</span>`
+    : (d.trang_thai === 'xac_nhan' && nn < m) ? `<span class="dmn-chip thieu">${nn}/${m} dòng · còn thiếu</span>`
+      : `${nn}/${m} dòng`
+  return `<span class="dmn-prog"><i style="width:${pct}%"></i></span>${chip}`
+}
 async function veDonMua() {
-  $('#dm-ct').style.display = 'none'; $('#dm-form').style.display = 'none'; $('#dm-list').style.display = ''
+  $('#dm-ct').style.display = 'none'; $('#dm-form').style.display = 'none'; $('#dm-nhan').style.display = 'none'; $('#dm-list').style.display = ''
   const chips = [['', 'Tất cả'], ...Object.entries(DM_TT)]
   $('#dm-chips').innerHTML = chips.map(([v, t]) => `<span class="dm-chip ${DM.loc === (v || null) ? 'sel' : ''}" data-tt="${v}">${t}</span>`).join('')
   $$('#dm-chips .dm-chip').forEach(c => c.onclick = () => { DM.loc = c.dataset.tt || null; veDonMua() })
@@ -824,12 +834,15 @@ async function veDonMua() {
   const c = (f) => DM.ds.filter(f).length
   $('#dm-dem').textContent = `${DM.ds.length} đơn · ${c(x => ['moi', 'da_gui', 'xac_nhan'].includes(x.trang_thai))} đang mở · ${c(x => ['da_gui', 'xac_nhan'].includes(x.trang_thai))} chờ hàng về · ${c(x => x.co_qua_ngay_can)} quá ngày cần`
   if (!DM.ds.length) { $('#dm-ds').innerHTML = '<div class="rong">Chưa có đơn mua nào.</div>'; return }
-  $('#dm-ds').innerHTML = `<table><thead><tr><th>Số đơn</th><th>NCC</th><th>Kho nhận</th><th>Ngày đặt</th><th>Ngày cần</th><th>NCC hẹn</th><th class="r">Dòng</th><th class="r">Tạm tính</th><th>Trạng thái</th></tr></thead><tbody>${DM.ds.map(d => `<tr style="cursor:pointer" data-id="${d.id}"><td class="dm-mono"><b>${d.so_don}</b></td><td>${d.ncc}</td><td>${d.kho}</td><td>${dmNgay(d.ngay_dat)}</td><td class="${d.co_qua_ngay_can ? 'dm-late' : ''}">${dmNgay(d.ngay_can)}</td><td class="${dmTre(d.ngay_ncc_hen, d.ngay_can) ? 'dm-late' : ''}">${dmNgay(d.ngay_ncc_hen)}</td><td class="r dm-mono">${d.so_dong}</td><td class="r dm-mono">${dmTien(d.tam_tinh)}</td><td><span class="dm-tt ${d.trang_thai}">${DM_TT[d.trang_thai]}</span></td></tr>`).join('')}</tbody></table>`
-  $$('#dm-ds tr[data-id]').forEach(tr => tr.onclick = () => dmXem(tr.dataset.id))
+  $('#dm-ds').innerHTML = `<table><thead><tr><th>Số đơn</th><th>NCC</th><th>Kho nhận</th><th>Ngày cần</th><th>NCC hẹn</th><th class="r">Tạm tính</th><th>Trạng thái</th><th>Đã nhận</th><th></th></tr></thead><tbody>${DM.ds.map(d => `<tr style="cursor:pointer" data-id="${d.id}"><td class="dm-mono"><b>${d.so_don}</b></td><td>${d.ncc}</td><td>${d.kho}</td><td class="${d.co_qua_ngay_can ? 'dm-late' : ''}">${dmNgay(d.ngay_can)}</td><td class="${dmTre(d.ngay_ncc_hen, d.ngay_can) ? 'dm-late' : ''}">${dmNgay(d.ngay_ncc_hen)}</td><td class="r dm-mono">${dmTien(d.tam_tinh)}</td><td><span class="dm-tt ${d.trang_thai}">${DM_TT[d.trang_thai]}</span></td><td>${dmProg(d)}</td><td>${d.trang_thai === 'xac_nhan' && laQuanLy() ? `<button class="n chinh nho dmn-nhan-btn" data-id="${d.id}">Nhận hàng</button>` : ''}</td></tr>`).join('')}</tbody></table>`
+  // điện thoại: thẻ từng đơn (CSS ẩn bảng, hiện thẻ ở ≤480px)
+  $('#dm-ds').insertAdjacentHTML('beforeend', `<div class="dmn-list-cards">${DM.ds.map(d => `<div class="dmn-po" data-id="${d.id}"><div><b class="dm-mono">${d.so_don}</b> · ${d.ncc}<br><span class="dmn-hist">${d.kho} · hẹn ${dmNgay(d.ngay_ncc_hen)}</span><br><span class="dm-tt ${d.trang_thai}">${DM_TT[d.trang_thai]}</span> ${dmProg(d)}</div>${d.trang_thai === 'xac_nhan' && laQuanLy() ? `<button class="n chinh dmn-nhan-btn" data-id="${d.id}">Nhận</button>` : ''}</div>`).join('')}</div>`)
+  $$('#dm-ds tr[data-id], #dm-ds .dmn-po[data-id]').forEach(el => el.onclick = () => dmXem(el.dataset.id))
+  $$('#dm-ds .dmn-nhan-btn').forEach(b => b.onclick = e => { e.stopPropagation(); dmNhanForm(b.dataset.id) })
 }
 
 async function dmXem(id) {
-  $('#dm-list').style.display = 'none'; $('#dm-form').style.display = 'none'
+  $('#dm-list').style.display = 'none'; $('#dm-form').style.display = 'none'; $('#dm-nhan').style.display = 'none'
   const box = $('#dm-ct'); box.style.display = ''; box.innerHTML = '<div class="rong">Đang tải…</div>'
   const r = await sb.rpc('dm_chi_tiet', { p_id: id })
   if (r.error) { box.innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${r.error.message}</div>`; return }
@@ -844,7 +857,7 @@ async function dmXem(id) {
   if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Sửa dòng', 'sua', true])
   if (tt === 'moi') B.push(['Gửi NCC', 'da_gui', true])
   if (tt === 'da_gui') B.push(['NCC xác nhận', 'xac_nhan', true])
-  if (tt === 'xac_nhan') B.push(['Đã nhận (tạm — tới WP-21)', 'da_nhan', ROLE === 'ceo'])
+  if (tt === 'xac_nhan') B.push(['Nhận hàng', 'nhan', laQuanLy()])
   if (tt === 'da_nhan') B.push(['Khớp hoá đơn (tạm — WP-22)', 'da_khop_hd', ROLE === 'ceo'])
   if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Huỷ đơn', 'huy', true])
   box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button><h3 class="dm-mono" style="margin:0 0 0 6px">${d.so_don}</h3><span class="dm-tt ${tt}" style="margin-left:8px">${DM_TT[tt]}</span></div>
@@ -862,6 +875,7 @@ async function dmXem(id) {
 async function dmNutCt(id, act, errEl) {
   errEl.textContent = ''
   if (act === 'sua') return dmMoiForm(id)
+  if (act === 'nhan') return dmNhanForm(id)
   let toi = act, ngay = null, lyDo = null
   if (act === 'xac_nhan') { const cur = DM.ds.find(x => x.id === id); const def = cur ? cur.ngay_can : ''; ngay = prompt('Ngày NCC hẹn giao (YYYY-MM-DD), mặc định = ngày cần:', def || ''); if (ngay === null) return; ngay = ngay.trim() || null }
   if (act === 'huy') { lyDo = prompt('Lý do huỷ (bắt buộc):', ''); if (lyDo === null) return; if (!lyDo.trim()) { errEl.textContent = 'Huỷ phải có lý do.'; return } }
@@ -967,4 +981,99 @@ async function dmMoiForm(suaId) {
   if (suaId) $('#dm-luu-sua').onclick = () => luu(false)
   else { $('#dm-luu').onclick = () => luu(false); $('#dm-luu-gui').onclick = () => luu(true) }
 }
+// ── WP-21 · Hộp NHẬN HÀNG đơn mua (bảng máy tính + thẻ điện thoại, cùng RPC dm_nhan_hang) ──
+async function dmNhanForm(id) {
+  $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'; $('#dm-form').style.display = 'none'
+  const box = $('#dm-nhan'); box.style.display = ''; box.innerHTML = '<div class="rong">Đang tải…</div>'
+  const r = await sb.rpc('dm_chi_tiet', { p_id: id })
+  if (r.error) { box.innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${r.error.message}</div>`; return }
+  const d = r.data.dau_don
+  if (d.trang_thai !== 'xac_nhan') { box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button></div><div class="rong">Đơn ${d.so_don} đang "${DM_TT[d.trang_thai]}" — chỉ nhận hàng khi NCC đã xác nhận.</div>`; return }
+  const lh = r.data.lien_he_ncc || {}
+  // dòng nhận: con = đặt − đã nhận; dòng đủ (con<=0) khoá
+  const L = (r.data.dong || []).map(x => ({ ...x, con: Number(x.so_luong) - Number(x.so_luong_da_nhan), nhan: '', ghi: '' }))
+  // lịch sử nhận (phiếu gắn đơn này)
+  const { data: phs } = await sb.from('phieu').select('so_phieu,tao_luc,trang_thai,phieu_dong(so_luong)').eq('don_mua_id', id).order('tao_luc', { ascending: false })
+  const hist = (phs || []).map(p => `<tr><td>${gio(new Date(p.tao_luc))}</td><td class="dm-mono">${p.so_phieu}${p.trang_thai === 'da_huy' ? ' <span class="dsp-tag huy">huỷ</span>' : ''}</td><td>${(p.phieu_dong || []).length} dòng · ${dmTien((p.phieu_dong || []).reduce((s, x) => s + Number(x.so_luong || 0), 0))} đơn vị</td></tr>`).join('')
+
+  const vuot = i => L[i].con > 0 && (Number(L[i].nhan) || 0) > L[i].con
+  const coVuot = () => L.some((_, i) => vuot(i))
+  const dongGhi = () => L.map((x, i) => ({ i, x })).filter(({ x, i }) => x.con > 0 && (Number(x.nhan) || 0) > 0 && !vuot(i))
+
+  const rowDesk = (x, i) => x.con <= 0
+    ? `<tr class="done"><td>${x.ma} — ${x.ten}</td><td>${x.dvt || ''}</td><td class="n">${dmTien(x.so_luong)}</td><td class="n">${dmTien(x.so_luong_da_nhan)}</td><td class="n">0</td><td class="n"><input class="dmn-inp" value="0" disabled></td><td class="n">${dmTien(x.don_gia)}</td><td><span class="dmn-chip du">đã đủ</span></td></tr>`
+    : `<tr><td>${x.ma} — ${x.ten}</td><td>${x.dvt || ''}</td><td class="n">${dmTien(x.so_luong)}</td><td class="n">${dmTien(x.so_luong_da_nhan)}</td><td class="n">${dmTien(x.con)}</td>
+       <td class="n"><input class="dmn-inp n-sl" data-i="${i}" inputmode="decimal" placeholder="0" value="${x.nhan}">${vuot(i) ? `<div class="dmn-err">vượt ${dmTien((Number(x.nhan) || 0) - x.con)} so với đặt</div>` : ''}</td>
+       <td class="n">${dmTien(x.don_gia)}</td><td><input class="dmn-inp txt n-gc" data-i="${i}" placeholder="vd: lô ML-0821" value="${(x.ghi || '').replace(/"/g, '&quot;')}"></td></tr>`
+
+  const cardPhone = (x, i) => x.con <= 0
+    ? `<div class="dmn-card done"><div class="dmn-name">${x.ma} — ${x.ten}</div><div class="dmn-row2"><span>Đặt <b>${dmTien(x.so_luong)}</b></span><span>Đã nhận <b>${dmTien(x.so_luong_da_nhan)}</b></span><span class="dmn-chip du">đủ</span></div></div>`
+    : `<div class="dmn-card"><div class="dmn-name">${x.ma} — ${x.ten}</div>
+       <div class="dmn-row2"><span>Đặt <b>${dmTien(x.so_luong)}</b></span><span>Đã nhận <b>${dmTien(x.so_luong_da_nhan)}</b></span><span>Còn <b>${dmTien(x.con)}</b></span><span>${dmTien(x.don_gia)}/${x.dvt || 'đv'}</span></div>
+       <div class="dmn-in"><button class="dmn-step n-minus" data-i="${i}">−</button><input class="dmn-inp n-sl" data-i="${i}" inputmode="decimal" placeholder="0" value="${x.nhan}"><button class="dmn-step n-plus" data-i="${i}" ${vuot(i) || (Number(x.nhan) || 0) >= x.con ? 'disabled' : ''}>+</button><span class="dmn-hist">${x.dvt || ''}</span></div>
+       ${vuot(i) ? `<div class="dmn-err">vượt ${dmTien((Number(x.nhan) || 0) - x.con)} so với đặt</div>` : ''}
+       <div class="dmn-in" style="margin-top:8px"><input class="dmn-inp txt n-gc" data-i="${i}" placeholder="Ghi chú lô (không bắt buộc)" value="${(x.ghi || '').replace(/"/g, '&quot;')}"></div></div>`
+
+  const render = () => {
+    const nDong = dongGhi().length, chan = coVuot() || nDong === 0
+    box.innerHTML = `<div class="dm-row"><button class="n" id="dmn-back">← Danh sách</button><h3 class="dm-mono" style="margin:0 0 0 6px">Nhận hàng · ${d.so_don}</h3></div>
+      <div class="dmn-head"><div><span>NCC</span> <b>${d.ncc}</b>${lh.dien_thoai ? ' · ' + lh.dien_thoai : ''}</div><div><span>Kho nhận</span> <b>${d.kho}</b></div><div><span>Ngày nhận</span> <b>${dmNgay(new Date())}</b></div><div><span>Người nhận</span> <b>${ME || '—'}</b></div></div>
+      <table class="dmn-tbl"><thead><tr><th>Vật tư</th><th>ĐVT</th><th class="n">Đặt</th><th class="n">Đã nhận</th><th class="n">Còn</th><th class="n">Nhận lần này</th><th class="n">Đơn giá (đơn)</th><th>Ghi chú lô</th></tr></thead>
+        <tbody>${L.map(rowDesk).join('')}</tbody></table>
+      <div class="dmn-cards">${L.map(cardPhone).join('')}</div>
+      <div class="dmn-prev">Bấm <b>Ghi nhận</b> → tự sinh <b>1 phiếu nhập</b> (số tự cấp, nguồn = đơn mua) · dòng sổ + lô nhập (giá vốn = đơn giá theo đơn). Nhận thiếu → đơn vẫn <b>NCC xác nhận</b>; đủ mọi dòng → tự sang <b>Đã nhận</b>.</div>
+      <div class="dmn-bar">
+        <div><button class="n nho" id="dmn-fill">Điền nhận đủ phần còn lại</button> <span class="dmn-hist" style="margin-left:8px">Đếm được bao nhiêu ghi bấy nhiêu — lần sau nhận tiếp.</span></div>
+        <div style="text-align:right"><button class="n chinh" id="dmn-ghi" ${chan ? 'disabled' : ''}>Ghi nhận${nDong ? ' · ' + nDong + ' dòng' : ''}</button>${coVuot() ? '<div class="dmn-err">Sửa dòng đỏ (vượt số đặt) rồi mới ghi được</div>' : ''}<div class="dmn-err" id="dmn-err"></div></div>
+      </div>
+      <table class="dmn-tbl" style="margin-top:14px"><thead><tr><th colspan="3">Lịch sử nhận của đơn này</th></tr></thead><tbody class="dmn-hist">${hist || '<tr><td colspan="3">Chưa nhận lần nào.</td></tr>'}</tbody></table>
+      <div class="dmn-foot">${''}</div>`
+    bind()
+  }
+  const setNhan = (i, val) => { L[i].nhan = val === '' ? '' : Math.max(0, Number(val) || 0); render() }
+  function bind() {
+    $('#dmn-back').onclick = () => veDonMua()
+    $('#dmn-fill').onclick = () => { L.forEach(x => { if (x.con > 0) x.nhan = x.con }); render() }
+    box.querySelectorAll('.n-sl').forEach(inp => { inp.oninput = () => { const i = +inp.dataset.i; L[i].nhan = inp.value === '' ? '' : Number(inp.value.replace(/[^\d.]/g, '')) || 0; render(); const el = box.querySelector(`.n-sl[data-i="${i}"]`); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } } })
+    box.querySelectorAll('.n-gc').forEach(inp => inp.oninput = () => { L[+inp.dataset.i].ghi = inp.value })   // không render lại (giữ con trỏ)
+    box.querySelectorAll('.n-minus').forEach(b => b.onclick = () => { const i = +b.dataset.i; setNhan(i, Math.max(0, (Number(L[i].nhan) || 0) - 1)) })
+    box.querySelectorAll('.n-plus').forEach(b => b.onclick = () => { const i = +b.dataset.i; setNhan(i, (Number(L[i].nhan) || 0) + 1) })
+    const g = $('#dmn-ghi'); if (g) g.onclick = ghiNhan
+  }
+  async function ghiNhan() {
+    const err = $('#dmn-err'); err.textContent = ''
+    if (coVuot()) { err.textContent = 'Còn dòng vượt số đặt — sửa rồi mới ghi.'; return }
+    // dm_chi_tiet trả stt (không trả id dòng) → map stt→id để ghép dong_id cho RPC
+    const payload = await dmDongIds(id, dongGhi())
+    if (!payload.length) { err.textContent = 'Cần nhập số nhận cho ít nhất 1 dòng.'; return }
+    $('#dmn-ghi').disabled = true
+    const res = await sb.rpc('dm_nhan_hang', { p_don_mua_id: id, p_dong: payload, p_ngay: new Date().toISOString().slice(0, 10) })
+    if (res.error) { err.textContent = res.error.message; $('#dmn-ghi').disabled = false; return }
+    dmNhanXong(id, res.data, L)
+  }
+  render()
+}
+// dm_chi_tiet trả stt, không trả id dòng → map stt→id để ghép dong_id cho RPC
+async function dmDongIds(donId, chon) {
+  const { data } = await sb.from('don_mua_dong').select('id,stt').eq('don_mua_id', donId)
+  const byStt = Object.fromEntries((data || []).map(r => [r.stt, r.id]))
+  return chon.map(({ x }) => ({ dong_id: byStt[x.stt], so_luong: Number(x.nhan), ghi_chu_lo: x.ghi || null })).filter(p => p.dong_id && p.so_luong > 0)
+}
+// màn kết quả sau ghi nhận
+function dmNhanXong(id, res, L) {
+  const box = $('#dm-nhan')
+  const byId = Object.fromEntries(L.map(x => [x.vat_tu_id, x]))
+  const ts = (res.ton_truoc_sau || []).map(t => { const x = byId[t.vat_tu_id]; return `<div class="dmn-res-row"><span>${x ? x.ma + ' — ' + x.ten : t.vat_tu_id}</span><span class="dm-mono">${dmTien(t.truoc)} → <b>${dmTien(t.sau)}</b></span></div>` }).join('')
+  const ttTxt = DM_TT[res.trang_thai_don] || res.trang_thai_don
+  box.innerHTML = `<div class="dm-row"><button class="n" id="dmn-back2">← Danh sách đơn</button></div>
+    <div class="dmn-prev" style="border-left-color:var(--xanh,#1B8A54)">✔ Đã ghi nhận · phiếu <b>${res.so_phieu}</b> · đơn <b>${ttTxt}</b> (đủ ${res.dong_du}/${res.dong_tong} dòng).</div>
+    <div class="dmn-res"><div class="dmn-res-head">Tồn trước → sau</div>${ts}</div>
+    <div class="dmn-foot" style="position:static;border:0;padding-top:14px">
+      <div class="dm-row"><button class="n chinh" id="dmn-ve">Về danh sách đơn</button><button class="n" id="dmn-xemdon">Xem đơn</button><button class="n" id="dmn-xemphieu">Xem phiếu nhập</button></div></div>`
+  $('#dmn-back2').onclick = () => veDonMua()
+  $('#dmn-ve').onclick = () => veDonMua()
+  $('#dmn-xemdon').onclick = () => dmXem(id)
+  $('#dmn-xemphieu').onclick = () => { chuyenMan('nhap') }
+}
 window.veDonMua = veDonMua
+window.dmNhanForm = dmNhanForm

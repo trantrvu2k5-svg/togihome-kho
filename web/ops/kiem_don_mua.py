@@ -100,10 +100,10 @@ def main(pw):
     late = pg.locator('#dm-ct .dm-late').count()
     ok("8 · xác nhận → chip 'NCC xác nhận' + hẹn trễ tô cảnh báo", (tt8 or "") == "NCC xác nhận" and late >= 1, f"chip={tt8} late={late}")
 
-    # 9 · 'Đã nhận' sáng (KHÔNG bấm); Huỷ trống lý do → lỗi, không huỷ
+    # 9 · nút 'Nhận hàng' sáng (WP-21 thay nút 'Đã nhận tạm'); Huỷ trống lý do → lỗi, không huỷ
     btns9 = pg.evaluate("""() => [...document.querySelectorAll('#dm-ct .dm-gate button')].map(b=>({t:b.textContent.trim(), mo:b.classList.contains('mo')||b.disabled}))""")
-    danhan = next((b for b in btns9 if "Đã nhận" in b["t"]), None)
-    ok("9 · nút 'Đã nhận (tạm — WP-21)' SÁNG (ceo), không bấm", danhan is not None and not danhan["mo"], json.dumps(btns9, ensure_ascii=False))
+    nhanBtn = next((b for b in btns9 if "Nhận hàng" in b["t"]), None)
+    ok("9 · nút 'Nhận hàng' SÁNG (kho/ceo)", nhanBtn is not None and not nhanBtn["mo"], json.dumps(btns9, ensure_ascii=False))
     pg.once("dialog", lambda d: d.accept(""))   # huỷ modal, để trống lý do
     pg.get_by_role("button", name="Huỷ đơn").click(); time.sleep(1.5)
     err9 = pg.locator('#dm-ct-err').inner_text()
@@ -120,6 +120,52 @@ def main(pw):
     ok("10 · lọc 'NCC xác nhận' + tìm số đơn đều thấy · đếm đang mở≥1", thay_loc and thay_tim and "đang mở" in dem, dem)
     ok("10 · console không lỗi JS", len(errs) == 0, "; ".join(errs[:3]))
     shot(pg, "wp20_danh_sach.png")
+
+    # ═══════════ WP-21 · NHẬN HÀNG — re-runnable trên đơn ''so'' (điện thoại nhận 1 phần → máy tính nhận nốt). ═══════════
+    #   (Eye-test THẬT trên DM-2026-0003 → Đã nhận đã chạy ở lượt đầu; nay demo tự-chứa trên đơn mới ''so'' để robot xanh lại.)
+    OUT21 = pathlib.Path.home() / "Documents" / "togihome-kho" / "web" / "ops" / "anh"; OUT21.mkdir(parents=True, exist_ok=True)
+    def shot21(name): f = OUT21 / name; pg.screenshot(path=str(f)); print("  📸", f.name)
+    open_nhan = lambda s: pg.evaluate("(s)=>{const tr=[...document.querySelectorAll('#dm-ds tr[data-id]')].find(t=>t.querySelector('td b')?.textContent.trim()===s); tr.querySelector('.dmn-nhan-btn').click()}", s)
+    findId = lambda s: pg.evaluate("(s)=>{const el=[...document.querySelectorAll('#dm-ds .dmn-po[data-id]')].find(x=>x.innerText.includes(s)); return el?el.dataset.id:null}", s)
+
+    # ── ĐIỆN THOẠI 390×844 · 3 màn — nhận MỘT PHẦN (dòng 1) → đơn giữ xác nhận ──
+    pg.set_viewport_size({"width": 390, "height": 844}); time.sleep(0.4)
+    pg.evaluate("() => window.veDonMua()"); time.sleep(1.5)   # đang ở tab Đơn mua (nav ẩn trong drawer trên mobile) — render lại
+    pg.fill('#dm-f-tim', so); time.sleep(1.3)
+    ok("WP21 · phone: danh sách = thẻ đơn", pg.locator('#dm-ds .dmn-list-cards .dmn-po').count() >= 1)
+    shot21("wp21_phone_ds.png")
+    idSo = findId(so)
+    pg.evaluate("(id)=>window.dmNhanForm(id)", idSo); time.sleep(1.8)
+    ok("WP21 · phone: hộp nhận = thẻ + nút ±", pg.locator('#dm-nhan .dmn-cards .n-plus').count() >= 1)
+    for _ in range(4): pg.locator('#dm-nhan .dmn-cards .n-plus[data-i="0"]').first.click(); time.sleep(0.2)  # dòng1 nhận 4/10
+    shot21("wp21_phone_nhan.png")
+    pg.locator('#dmn-ghi').click(); time.sleep(3)
+    ok("WP21 · phone: màn xong có tồn trước→sau + nút Về danh sách", pg.locator('#dmn-ve').count() >= 1 and pg.locator('#dm-nhan .dmn-res-row').count() >= 1)
+    shot21("wp21_phone_xong.png")
+
+    # ── MÁY TÍNH 1440 · vượt số đặt → nhận nốt → Đã nhận → chip nguồn ──
+    pg.set_viewport_size({"width": 1440, "height": 960}); time.sleep(0.4)
+    pg.evaluate("() => window.veDonMua()"); time.sleep(1); pg.fill('#dm-f-tim', so); time.sleep(1.3)
+    ok("WP21 · list có cột Đã nhận (thanh tiến độ) + nút Nhận hàng", pg.locator('#dm-ds .dmn-nhan-btn').count() >= 1)
+    shot21("wp21_ds_tien_do.png")
+    open_nhan(so); time.sleep(1.6)
+    pg.locator('.dmn-tbl .n-sl[data-i="1"]').fill('99'); time.sleep(0.9)   # VƯỢT dòng 2 (đặt 6)
+    vuotErr = pg.locator('.dmn-tbl .dmn-err').filter(has_text="vượt").count()
+    ok("WP21 · gõ vượt → báo 'vượt' + nút Ghi nhận khoá", vuotErr >= 1 and pg.locator('#dmn-ghi').is_disabled(), f"errVuot={vuotErr}")
+    shot21("wp21_vuot.png")
+    pg.locator('.dmn-tbl .n-sl[data-i="1"]').fill('')   # bỏ dòng 2, chỉ nhận nốt dòng 1
+    pg.locator('#dmn-fill').click(); time.sleep(0.9)     # điền nhận đủ phần còn lại (dòng1 6, dòng2 6)
+    ok("WP21 · dòng đã nhận một phần vẫn mở để nhận tiếp", pg.locator('.dmn-tbl .n-sl:not([disabled])').count() >= 1)
+    shot21("wp21_nhan_not.png")
+    pg.locator('#dmn-ghi').click(); time.sleep(3)
+    kq2 = pg.locator('.dmn-prev').inner_text()
+    ok("WP21 · nhận nốt → đơn Đã nhận (đủ 2/2)", 'Đã nhận' in kq2, kq2[:70])
+    shot21("wp21_da_nhan.png")
+    pg.locator('#dmn-ve').click(); time.sleep(1)
+    pg.locator('nav button[data-m="nhap"]').click(); time.sleep(2.2)
+    chip = pg.evaluate("(s)=>[...document.querySelectorAll('.dmn-chip.nguon')].some(c=>c.textContent.includes(s))", so)
+    ok("WP21 · tab Phiếu nhập có chip 'Đơn mua' nguồn", chip)
+    shot21("wp21_phieu_nguon.png")
 
     print(f"\n⏱  robot: {R['pass']} pass / {R['fail']} fail · số đơn = {SO_DON['v']}")
     ctx.close()

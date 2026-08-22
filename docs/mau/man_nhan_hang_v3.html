@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MẪU · Nhận hàng đơn mua (WP-21) — v3</title>
+<style>
+  :root{
+    --dmn-ink:#1f2a24; --dmn-mute:#6b766f; --dmn-line:#d9ded9; --dmn-bg:#f3f5f2; --dmn-card:#fff;
+    --dmn-ok:#1f7a4d; --dmn-ok-bg:#e4f3ea; --dmn-warn:#9a6400; --dmn-warn-bg:#fbf1d6;
+    --dmn-red:#a33; --dmn-red-bg:#fbe6e4; --dmn-blue:#245e9a; --dmn-blue-bg:#e6eef8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--dmn-ink);background:var(--dmn-bg);padding:20px}
+  h1{font-size:16px;margin:0 0 4px}
+  .dmn-note{color:var(--dmn-mute);font-size:12.5px;margin:0 0 16px}
+  .dmn-note b{color:var(--dmn-red)}
+  .dmn-wrap{display:grid;gap:18px;max-width:1080px;margin:0 auto}
+  .dmn-card{background:var(--dmn-card);border:1px solid var(--dmn-line);border-radius:8px;padding:14px 16px}
+  .dmn-card h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--dmn-mute);margin:0 0 10px}
+  .dmn-chip{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600}
+  .dmn-chip.xac_nhan{background:var(--dmn-blue-bg);color:var(--dmn-blue)}
+  .dmn-chip.da_nhan{background:var(--dmn-ok-bg);color:var(--dmn-ok)}
+  .dmn-chip.thieu{background:var(--dmn-warn-bg);color:var(--dmn-warn)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 8px;border-bottom:1px solid var(--dmn-line);text-align:left;vertical-align:middle}
+  th{font-size:12px;color:var(--dmn-mute);font-weight:600}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .dmn-inp{width:88px;padding:5px 7px;border:1px solid #b8c0ba;border-radius:5px;text-align:right;font:inherit}
+  .dmn-inp.err{border-color:var(--dmn-red);background:var(--dmn-red-bg)}
+  .dmn-inp.ok{border-color:var(--dmn-ok);background:var(--dmn-ok-bg)}
+  .dmn-inp.txt{width:150px;text-align:left}
+  .dmn-btn{padding:7px 14px;border-radius:6px;border:1px solid #b8c0ba;background:#fff;font:inherit;cursor:pointer}
+  .dmn-btn.primary{background:var(--dmn-ok);border-color:var(--dmn-ok);color:#fff;font-weight:600}
+  .dmn-btn:disabled{opacity:.45;cursor:not-allowed}
+  .dmn-btn.ghost{border-style:dashed;color:var(--dmn-mute)}
+  .dmn-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .dmn-head{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;margin-bottom:10px}
+  .dmn-head span{color:var(--dmn-mute)}
+  .dmn-prev{background:var(--dmn-bg);border-left:3px solid var(--dmn-blue);padding:8px 12px;border-radius:4px;font-size:13px;margin-top:10px}
+  .dmn-prev b{color:var(--dmn-blue)}
+  .dmn-err{color:var(--dmn-red);font-size:12px}
+  .dmn-hist{font-size:12.5px;color:var(--dmn-mute)}
+  .dmn-hist td{padding:4px 8px;border:0}
+  .dmn-prog{display:inline-block;width:70px;height:6px;background:#e3e7e3;border-radius:3px;vertical-align:middle;margin-right:6px;overflow:hidden}
+  .dmn-prog i{display:block;height:100%;background:var(--dmn-ok)}
+  .dmn-split{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.dmn-split{grid-template-columns:1fr}}
+
+  /* ---- bản điện thoại: thẻ từng dòng ---- */
+  .dmn-phone{width:390px;max-width:100%;margin:0;border:10px solid #222;border-radius:28px;background:#fff;overflow:hidden}
+  .dmn-phone .dmn-ph-top{padding:12px 14px 8px;border-bottom:1px solid var(--dmn-line)}
+  .dmn-phone .dmn-ph-top h3{margin:0 0 4px;font-size:16px}
+  .dmn-phone .dmn-ph-top .dmn-hist{display:block}
+  .dmn-ph-card{padding:12px 14px;border-bottom:1px solid var(--dmn-line)}
+  .dmn-ph-card.done{background:var(--dmn-bg)}
+  .dmn-ph-name{font-weight:600;margin-bottom:6px}
+  .dmn-ph-row{display:flex;gap:6px;font-size:13px;color:var(--dmn-mute);margin-bottom:8px;flex-wrap:wrap}
+  .dmn-ph-row b{color:var(--dmn-ink)}
+  .dmn-ph-in{display:flex;align-items:center;gap:8px}
+  .dmn-ph-in .dmn-inp{width:90px;height:44px;font-size:20px}
+  .dmn-step{width:44px;height:44px;border-radius:8px;border:1px solid #b8c0ba;background:#fff;font-size:22px;line-height:1;cursor:pointer}
+  .dmn-ph-in .dmn-inp.txt{flex:1;width:auto;font-size:14px}
+  .dmn-ph-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--dmn-line);padding:10px 14px;display:grid;gap:8px}
+  .dmn-ph-foot .dmn-btn{height:48px;font-size:16px}
+  .dmn-ph-list{padding:0}
+  .dmn-ph-list .dmn-ph-card{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
+  .dmn-ph-list .dmn-ph-card .dmn-btn{height:44px;padding:0 14px}
+</style>
+</head>
+<body>
+<div class="dmn-wrap">
+  <div>
+    <h1>MẪU v3 — Nhận hàng đơn mua · app Kho › tab Đơn mua (WP-21)</h1>
+    <p class="dmn-note">Số liệu dưới đây là <b>minh hoạ cho mẫu</b>, không phải số thật. Ba khung = (A) nút mở từ danh sách đơn · (B) hộp Nhận hàng · (C) sau khi bấm Ghi nhận.</p>
+  </div>
+
+  <!-- A. Danh sách đơn mua: dòng PO với nút Nhận hàng -->
+  <div class="dmn-card">
+    <h2>A · Danh sách Đơn mua — thêm cột "Đã nhận" và nút "Nhận hàng" (chỉ đơn ở Xác nhận, vai kho/ceo)</h2>
+    <table>
+      <tr><th>Số</th><th>NCC</th><th>Kho nhận</th><th>NCC hẹn</th><th>Trạng thái</th><th>Đã nhận</th><th></th></tr>
+      <tr><td>DM-2026-0004</td><td>Gỗ Minh Long</td><td>Kho ván</td><td>25/08</td><td><span class="dmn-chip xac_nhan">Xác nhận</span></td><td><span class="dmn-prog"><i style="width:0%"></i></span>0/3 dòng</td><td><button class="dmn-btn">Nhận hàng</button></td></tr>
+      <tr><td><b>DM-2026-0003</b></td><td>Gỗ Minh Long</td><td>Kho ván</td><td>22/08</td><td><span class="dmn-chip xac_nhan">Xác nhận</span></td><td><span class="dmn-prog"><i style="width:40%"></i></span><span class="dmn-chip thieu">1/3 dòng · còn thiếu</span></td><td><button class="dmn-btn primary">Nhận hàng</button></td></tr>
+      <tr><td>DM-2026-0002</td><td>Phụ kiện Hafele VN</td><td>Kho phụ kiện</td><td>18/08</td><td><span class="dmn-chip da_nhan">Đã nhận</span></td><td><span class="dmn-prog"><i style="width:100%"></i></span>2/2 dòng</td><td><button class="dmn-btn" disabled>Nhận hàng</button></td></tr>
+    </table>
+  </div>
+
+  <!-- B. Hộp nhận hàng -->
+  <div class="dmn-card">
+    <h2>B · Hộp "Nhận hàng" — DM-2026-0003 (lần nhận thứ 2)</h2>
+    <div class="dmn-head">
+      <div><span>NCC</span> <b>Gỗ Minh Long</b></div>
+      <div><span>Kho nhận</span> <b>Kho ván</b></div>
+      <div><span>Ngày nhận</span> <b>21/08/2026</b></div>
+      <div><span>Người nhận</span> <b>Hùng (kho)</b></div>
+    </div>
+    <table>
+      <tr>
+        <th>Vật tư</th><th>ĐVT</th><th class="n">Đặt</th><th class="n">Đã nhận</th><th class="n">Còn</th>
+        <th class="n">Nhận lần này</th><th class="n">Đơn giá (theo đơn)</th><th>Ghi chú lô</th>
+      </tr>
+      <tr>
+        <td>Ván MDF 17mm phủ melamine trắng 1220×2440</td><td>tấm</td><td class="n">40</td><td class="n">40</td><td class="n">0</td>
+        <td class="n"><input class="dmn-inp" value="0" disabled></td><td class="n">385.000</td><td><span class="dmn-hist">đã đủ (nhận 19/08)</span></td>
+      </tr>
+      <tr>
+        <td>Ván MDF 17mm phủ melamine vân sồi 1220×2440</td><td>tấm</td><td class="n">30</td><td class="n">10</td><td class="n">20</td>
+        <td class="n"><input class="dmn-inp ok" value="20"></td><td class="n">412.000</td><td><input class="dmn-inp txt" placeholder="vd: lô ML-0821"></td>
+      </tr>
+      <tr>
+        <td>Ván MDF 9mm thường 1220×2440</td><td>tấm</td><td class="n">20</td><td class="n">0</td><td class="n">20</td>
+        <td class="n"><input class="dmn-inp err" value="25"><div class="dmn-err">vượt 5 tấm so với đặt</div></td><td class="n">198.000</td><td><input class="dmn-inp txt" placeholder="vd: lô ML-0821"></td>
+      </tr>
+    </table>
+    <div class="dmn-prev">
+      Khi bấm <b>Ghi nhận</b>, hệ tự sinh: <b>1 phiếu nhập</b> (số PN tự cấp, nguồn = đơn mua, không ai gõ tay) · <b>2 dòng sổ giao dịch</b> nhập kho · <b>2 lô nhập</b> giá vốn = đơn giá theo đơn.
+      Đơn còn thiếu → vẫn <b>Xác nhận</b>; nhận đủ mọi dòng → tự sang <b>Đã nhận</b>.
+    </div>
+    <div class="dmn-bar">
+      <div>
+        <button class="dmn-btn ghost">Điền "nhận đủ phần còn lại"</button>
+        <span class="dmn-hist" style="margin-left:10px">Nhập thiếu thì cứ ghi số thực đếm được — lần sau nhận tiếp.</span>
+      </div>
+      <div>
+        <button class="dmn-btn">Đóng</button>
+        <button class="dmn-btn primary" disabled title="còn 1 dòng vượt số đặt">Ghi nhận</button><div class="dmn-err" style="text-align:right">Sửa dòng đỏ rồi mới ghi được</div>
+      </div>
+    </div>
+    <table class="dmn-hist" style="margin-top:12px">
+      <tr><td colspan="3"><b>Lịch sử nhận của đơn này</b></td></tr>
+      <tr><td>19/08 14:20</td><td>Hùng (kho)</td><td>PN-2026-0187 · 40 tấm trắng + 10 tấm vân sồi · <a href="#">xem phiếu</a></td></tr>
+    </table>
+  </div>
+
+  <!-- C. Sau khi ghi nhận -->
+  <div class="dmn-split">
+    <div class="dmn-card">
+      <h2>C1 · Sau Ghi nhận (đã sửa dòng 3 về 20) — thông báo</h2>
+      <div class="dmn-prev" style="border-left-color:var(--dmn-ok)">
+        ✔ Đã nhận <b>40 tấm</b> vào Kho ván · phiếu <b>PN-2026-0192</b> · đơn <b>DM-2026-0003 → Đã nhận</b> (đủ 3/3 dòng).<br>
+        <span class="dmn-hist">Tồn Ván vân sồi: 12 → 32 · Ván 9mm: 5 → 25 (xem tab Tồn kho)</span>
+      </div>
+    </div>
+    <div class="dmn-card">
+      <h2>C2 · Tab Phiếu nhập — phiếu sinh tự động có nhãn nguồn</h2>
+      <table>
+        <tr><th>Số</th><th>Ngày</th><th>Nguồn</th><th>NCC</th><th class="n">Dòng</th></tr>
+        <tr><td>PN-2026-0192</td><td>21/08</td><td><span class="dmn-chip xac_nhan">Đơn mua DM-2026-0003</span></td><td>Gỗ Minh Long</td><td class="n">2</td></tr>
+        <tr><td>PN-2026-0191</td><td>21/08</td><td><span class="dmn-hist">tay</span></td><td>—</td><td class="n">1</td></tr>
+      </table>
+      <p class="dmn-hist" style="margin:8px 0 0">Huỷ phiếu PN sinh từ đơn mua: đi đúng nút Huỷ phiếu hiện có (QD-43) → sổ đảo + trừ lại "đã nhận". Đơn đã ở <b>Đã nhận</b> thì khoá huỷ (QD-48 — muốn đảo phải trả NCC, việc sau).</p>
+    </div>
+  </div>
+
+  <!-- D. Bản điện thoại -->
+  <div class="dmn-card">
+    <h2>D · Bản điện thoại (≤ 480px) — cùng RPC, cùng luật; chỉ khác cách xếp</h2>
+    <p class="dmn-hist" style="margin:0 0 12px">Thủ kho cầm điện thoại đứng cạnh xe ván: mỗi dòng vật tư là một thẻ, ô số to, nút ± để bấm bằng ngón tay, nút Ghi nhận dính đáy màn. Bảng 8 cột của bản máy tính không dùng ở đây.</p>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+      <div class="dmn-phone">
+        <div class="dmn-ph-top"><h3>Đơn mua</h3><span class="dmn-hist">Chỉ đơn đang chờ nhận · vai kho</span></div>
+        <div class="dmn-ph-list">
+          <div class="dmn-ph-card">
+            <div><b>DM-2026-0003</b> · Gỗ Minh Long<br><span class="dmn-hist">Kho ván · hẹn 22/08</span><br><span class="dmn-prog"><i style="width:40%"></i></span><span class="dmn-chip thieu">1/3 dòng · còn thiếu</span></div>
+            <button class="dmn-btn primary">Nhận</button>
+          </div>
+          <div class="dmn-ph-card">
+            <div><b>DM-2026-0004</b> · Gỗ Minh Long<br><span class="dmn-hist">Kho ván · hẹn 25/08</span><br><span class="dmn-prog"><i style="width:0%"></i></span><span class="dmn-hist">0/3 dòng</span></div>
+            <button class="dmn-btn primary">Nhận</button>
+          </div>
+          <div class="dmn-ph-card done">
+            <div><b>DM-2026-0002</b> · Phụ kiện Hafele VN<br><span class="dmn-hist">Kho phụ kiện · 18/08</span><br><span class="dmn-chip da_nhan">Đã nhận</span></div>
+            <button class="dmn-btn" disabled>Nhận</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dmn-phone">
+        <div class="dmn-ph-top">
+          <h3>Nhận · DM-2026-0003</h3>
+          <span class="dmn-hist">Gỗ Minh Long → Kho ván · 21/08 · Hùng (kho)</span>
+        </div>
+        <div class="dmn-ph-card done">
+          <div class="dmn-ph-name">Ván MDF 17mm melamine trắng 1220×2440</div>
+          <div class="dmn-ph-row"><span>Đặt <b>40</b></span>·<span>Đã nhận <b>40</b></span>·<span class="dmn-chip da_nhan">đủ (19/08)</span></div>
+        </div>
+        <div class="dmn-ph-card">
+          <div class="dmn-ph-name">Ván MDF 17mm melamine vân sồi 1220×2440</div>
+          <div class="dmn-ph-row"><span>Đặt <b>30</b></span>·<span>Đã nhận <b>10</b></span>·<span>Còn <b>20</b></span>·<span>412.000/tấm</span></div>
+          <div class="dmn-ph-in"><button class="dmn-step">−</button><input class="dmn-inp ok" value="20"><button class="dmn-step">+</button><span class="dmn-hist">tấm</span></div>
+          <div class="dmn-ph-in" style="margin-top:8px"><input class="dmn-inp txt" placeholder="Ghi chú lô (không bắt buộc)"></div>
+        </div>
+        <div class="dmn-ph-card">
+          <div class="dmn-ph-name">Ván MDF 9mm thường 1220×2440</div>
+          <div class="dmn-ph-row"><span>Đặt <b>20</b></span>·<span>Đã nhận <b>0</b></span>·<span>Còn <b>20</b></span>·<span>198.000/tấm</span></div>
+          <div class="dmn-ph-in"><button class="dmn-step">−</button><input class="dmn-inp err" value="25"><button class="dmn-step" disabled>+</button><span class="dmn-err">vượt 5 tấm so với đặt</span></div>
+          <div class="dmn-ph-in" style="margin-top:8px"><input class="dmn-inp txt" placeholder="Ghi chú lô (không bắt buộc)"></div>
+        </div>
+        <div class="dmn-ph-foot">
+          <button class="dmn-btn ghost">Điền nhận đủ phần còn lại</button>
+          <button class="dmn-btn primary" disabled>Ghi nhận · 45 tấm</button>
+          <div class="dmn-err" style="text-align:center">Sửa dòng đỏ rồi mới ghi được</div>
+        </div>
+      </div>
+
+      <div class="dmn-phone">
+        <div class="dmn-ph-top"><h3>Đã ghi nhận ✔</h3></div>
+        <div class="dmn-ph-card">
+          <div class="dmn-prev" style="border-left-color:var(--dmn-ok);margin:0">
+            Nhận <b>40 tấm</b> vào Kho ván<br>Phiếu <b>PN-2026-0192</b><br>Đơn <b>DM-2026-0003 → Đã nhận</b> (3/3 dòng)
+          </div>
+          <p class="dmn-hist" style="margin:10px 0 0">Ván vân sồi 12 → 32 · Ván 9mm 5 → 25</p>
+        </div>
+        <div class="dmn-ph-foot"><button class="dmn-btn primary">Về danh sách đơn</button><button class="dmn-btn">Xem phiếu</button></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
