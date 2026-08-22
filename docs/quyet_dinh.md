@@ -678,3 +678,46 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   thẻ điện thoại ≤480px). Chip "Nguồn: Đơn mua …" ở tab Phiếu nhập.
 - **Trạng thái:** ĐANG ÁP DỤNG (db/127).
 - **Việc phát sinh:** WP "Trả hàng NCC" (đảo sau `da_nhan`) · WP-22 (khớp hoá đơn — phiếu nhận đã có `don_mua_id` để nối) · đa kho.
+
+## QD-50 (22/08) — BOM THUỘC MÓN: đơn cấp, gắn `don_hang_mon.id`, KHÔNG thuộc plugin/biến thể (WP-30, db/128)
+
+- **BOM gắn MÓN** (`don_hang_mon_bom.mon_id`, QD-13), **ĐƠN CẤP**, không thuộc plugin/biến thể. Dòng BOM **FK `vat_tu`**.
+  `nguon ∈ {cutlist, go_tay, uoc}` (cutlist = plugin/nesting; go_tay = người nhập; uoc = ước theo m²/lõi) — **món không cutlist
+  VẪN có BOM** (QD-06). `moc ∈ {du_kien, chuan}`; **`thuc_te` KHÔNG ở BOM** mà là sổ `giao_dich` (QD-44). Mốc `chuan` chốt lúc
+  `ban_giao_xuong` (WP-32, QD-16) qua `chot_luc` + trigger cấm sửa/xoá. Mỗi dòng có `hoat_dong` nullable (trạm tiêu hao,
+  FK `don_gia_baseline` — WP-33 back-flush theo trạm). **BOM chỉ chứa vật tư TRUY ĐƯỢC theo món**; vật tư phân xưởng giá trị
+  thấp (đinh, vít, keo sữa, nhám) KHÔNG vào BOM → xuất gộp, tính overhead (WP-41). **Đa cấp** chỉ mở khi có bán thành phẩm
+  CẤT KHO dùng chung (WP-41; cấu trúc không cản — `vat_tu_id` trỏ cụm).
+- **Lý do:** ERP Sagegg & Alfnes §6.2 (dòng BOM = item trong item master, "BOM là chìa khoá nối chuỗi cung ứng"; lệnh SX sao
+  chép BOM riêng, sửa không chạm master → BOM của ta gắn MÓN; món tự do không có master, plugin đẩy thẳng = CAD-to-ERP),
+  §6.3.1/6.3.2 (BOM đơn cấp; nhánh cánh/thùng/hộc kéo là phantom ở tầng quy trình — QD-01/MES 4.1 — không lặp ở BOM),
+  §6.3.6 (planned/actual → `du_kien`/`chuan`; `thuc_te` = sổ), §6.5.2/6.5.3 (chỉ vật tư truy được; vật tư phân xưởng ngoài
+  BOM; % hao theo dòng `hao_hut_pct` NULL, WP-33 điền) + QD-13/QD-15/QD-44. MES 4.2.4: parts list suy từ work-plan có thể chỉ
+  là báo cáo — ta **VẪN lưu bảng** vì món tự do không có work-plan-chuẩn để suy + cần chốt lịch sử (QD-16). Sách không nói
+  ETO-không-master-BOM: **đây là tôi đoán**.
+- **Đường ghi:** `ghi_bom_mon(mon_id, nguon, dong[])` (SecDef, vai thiet_ke/tk_ban_hang/truong_nhom/kho/ceo) thay TOÀN BỘ dòng
+  `du_kien` của (món, nguồn) — idempotent, plugin đẩy lại được. Plugin **KHÔNG dùng GUC riêng** — đăng nhập vai thật (như
+  `ghi_gia_von_don` db/034). `bom_don_ds(don_id, moc)` trả mọi nguồn song song + `nguon_bom` ưu tiên (cutlist>go_tay>uoc) +
+  `co_bom`. Ghi trực tiếp bị RLS chặn; dòng chốt bị trigger chặn (bypass CHỈ qua `xoa_demo`/GUC `kho.xoa_demo`, db/125).
+- **Kiểm chứng:** `web/ops/test_128.mjs` **18/0** (go_tay/cutlist-đè/song-song/RLS/chốt/lỗi-rõ/vai/xoa_demo + @100k: bom_don_ds
+  47ms · vat_tu-query 17ms). KHÔNG UI, KHÔNG nối `ban_giao_xuong`, KHÔNG chạm ton/giao_dich, KHÔNG sửa plugin (WP-31/32/33).
+- **Trạng thái:** ĐANG ÁP DỤNG (db/128).
+- **Việc phát sinh:** Ván thừa = dòng BOM âm (ERP 6.5.3) cần mã "ván lỡ cỡ" + định giá + kho tái chế (ngoài lộ trình) · cột
+  phân loại vật tư (BOM/phân xưởng/hard-reserve theo lô) trên `vat_tu` → WP-41 cùng `pp_ke_hoach` · PO 3 tầng trạng thái
+  (main/document/approval) — QD-48 chọn 1 cột, cân nhắc khi làm WP-22.
+
+## QD-51 (22/08) — Tài khoản robot tiền tố `test_` là CỐ ĐỊNH, chỉ chạm đơn demo; mật khẩu trong `.env.robot` ngoài git (L-66)
+
+- **6 tài khoản robot** `test_ceo·test_sale·test_thiet_ke·test_quan_doc(vai xuong)·test_tho·test_kho`
+  (`ho_ten` tiền tố `test_`, `@togihome.local`) là **CỐ ĐỊNH** — tạo qua `qly_them_nguoi` (db/052), mật khẩu ngẫu nhiên ≥20 ký tự
+  ghi `web/ops/.env.robot` (đã `.gitignore`, chmod 600, KHÔNG in ra, KHÔNG vào git). Dựng lại/idempotent: `node ops/dung_tk_robot.mjs`.
+- **NGOẠI LỆ của luật "test_ dùng xong xoá"** (05 §D): robot là **vòng hồi quy CHUẨN sau mỗi lô**, không thể bắt CEO nhập mật khẩu
+  mỗi lần → tài khoản giữ lại; chỉ **dữ liệu** demo bị `xoa_demo()` cuối vòng (0 dấu vết), **tài khoản KHÔNG xoá**.
+- **An toàn (dev=prod cùng project):** trigger `chan_test_ngoai_demo` (db/129) — tài khoản `test_%` INSERT/UPDATE `don_hang`
+  KHÔNG `la_demo` → RAISE `TEST_ROBOT_NGOAI_DEMO`. Đơn thật miễn nhiễm (chủ không phải `test_`). `giao_dich`/`phieu_thu`:
+  robot demo hiện KHÔNG ghi → chưa gắn cổng; thêm khi có robot ghi vào chúng.
+- **Cơ chế login:** `demo_phong_hop.py` nạp `.env.robot` → mặc định `DEMO_USER/DEMO_PASS = test_ceo` (ceo vào được cả 4 app,
+  đúng cơ chế cũ) → **hết nhập mật khẩu tay**; env truyền tay vẫn ưu tiên. `demo_kiem.mjs`/`trams_don.mjs` nối DB trực tiếp
+  (`docConfig`, read-only) — không login, không cần `.env.robot`.
+- **Lý do:** 05 §D (robot = vòng hồi quy chuẩn). **Trạng thái:** ĐANG ÁP DỤNG (db/129 + .env.robot + dung_tk_robot.mjs).
+- **Chạy hồi quy:** `cd web && python3 ops/demo_phong_hop.py`

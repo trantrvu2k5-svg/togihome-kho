@@ -14,6 +14,25 @@ sys.stdout.reconfigure(line_buffering=True)
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 SMOKE = os.environ.get("SMOKE") == "1"
+
+# L-66 · TÀI KHOẢN ROBOT — nạp web/ops/.env.robot (ngoài git) → hết nhập mật khẩu tay.
+#   demo dùng test_ceo cho MỌI app (ceo vào được cả 4 app — như cơ chế DEMO_USER cũ, đảm bảo 10/10).
+#   env DEMO_USER/DEMO_PASS truyền tay VẪN được ưu tiên (không ghi đè).
+def _nap_env_robot():
+    p = pathlib.Path(__file__).with_name(".env.robot")
+    if p.exists():
+        for ln in p.read_text().splitlines():
+            ln = ln.strip()
+            if ln and not ln.startswith("#") and "=" in ln:
+                k, v = ln.split("=", 1); os.environ.setdefault(k.strip(), v.strip())
+    os.environ.setdefault("DEMO_USER", os.environ.get("TEST_CEO_EMAIL", ""))
+    os.environ.setdefault("DEMO_PASS", os.environ.get("TEST_CEO_PASS", ""))
+    if not os.environ.get("DEMO_USER") or not os.environ.get("DEMO_PASS"):
+        print("⛔ [harness] Thiếu web/ops/.env.robot (hoặc thiếu TEST_CEO_EMAIL/PASS) và không có DEMO_USER/DEMO_PASS.")
+        print("   Dựng tài khoản robot: cd web && node ops/dung_tk_robot.mjs  (sinh .env.robot). Rồi chạy lại.")
+        sys.exit(2)
+_nap_env_robot()
+
 MA = {"don": os.environ.get("DEMO_MA", "DEMO-PH01")}   # cập nhật sau bước 1 = mã Sale sinh thật
 OUT = pathlib.Path.home() / "Downloads" / "demo_phong_hop"; OUT.mkdir(parents=True, exist_ok=True)
 PROFILE = str(pathlib.Path.home() / ".togihome-demo-profile")
@@ -598,6 +617,16 @@ if __name__ == "__main__":
         print(r.stdout); print(r.stderr[:400] if r.stderr else "", end="")
     except Exception as e:
         print("  ⚠ demo_kiem lỗi:", str(e)[:120])
+
+    # ── DỌN CUỐI VÒNG (L-66): xoa_demo đơn vừa chạy → 0 dấu vết. GIỮ tài khoản test_ (ngoại lệ luật, QD-51). ──
+    if not stop_msg and D:
+        print("\n══════ DỌN CUỐI · xoa_demo(", D, ") ══════")
+        try:
+            r = subprocess.run(["node", str(pathlib.Path(__file__).with_name("xoa_1_demo.mjs")), D],
+                               cwd=str(pathlib.Path(__file__).resolve().parents[1]), capture_output=True, text=True, timeout=60)
+            print(" ", (r.stdout or r.stderr or "").strip()[:200])
+        except Exception as e:
+            print("  ⚠ dọn cuối lỗi:", str(e)[:120])
 
     print("\n═══ LỖI UI / BƯỚC KẸT (kết quả pilot) ═══")
     if KET: [print(f"  • {k}") for k in KET]

@@ -62,9 +62,9 @@
 
 ---
 
-## D. BẢN ĐỒ BẢNG (88 bảng — nhóm theo miền; NGUỒN = người/hệ nhập gốc, SUY = tính ra)
+## D. BẢN ĐỒ BẢNG (89 bảng — nhóm theo miền; NGUỒN = người/hệ nhập gốc, SUY = tính ra)
 
-**Đơn hàng & khách:** `don_hang`(NGUỒN, sale) · `don_hang_mon`(NGUỒN, sale) · `don_hang_gia_von`(NGUỒN, plugin/tài chính) · `don_hang_nhat_ky`·`don_hang_mon_nhat_ky`(SUY, trigger, bất biến) · `khach`(NGUỒN, sale) · `gio_don_da_tinh`(SUY, materialize giờ đơn).
+**Đơn hàng & khách:** `don_hang`(NGUỒN, sale) · `don_hang_mon`(NGUỒN, sale) · `don_hang_mon_bom`(NGUỒN, thiết kế/plugin — BOM đơn cấp theo món, cutlist/go_tay/uoc × du_kien/chuan, db/128 QD-50) · `don_hang_gia_von`(NGUỒN, plugin/tài chính) · `don_hang_nhat_ky`·`don_hang_mon_nhat_ky`(SUY, trigger, bất biến) · `khach`(NGUỒN, sale) · `gio_don_da_tinh`(SUY, materialize giờ đơn).
 
 **Bản thiết kế:** `ban_thiet_ke`·`anh_ban_thiet_ke`(NGUỒN, thiết kế) · `link_ban_khach`(SUY, RPC) · `tem_ban_ve`·`tem_da_in`·`lan_in_tem`·`tien_do_tem`(NGUỒN/SUY, tem) · `file_san_xuat`(NGUỒN, thiết kế) · `dung_lai_ban`.
 
