@@ -629,8 +629,11 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (không đẻ overload — bài học QD-42). 4 RPC đã lọc sẵn (con_phai_thu, dieu_hanh_cong_no_khach, dong_tien_ky, nhan_xet_ky) giữ nguyên.
 - **`xoa_demo(p_ma_don, p_xac_nhan)` là ĐƯỜNG XOÁ DUY NHẤT** (SECURITY DEFINER, chỉ ceo): `p_ma_don` → xoá 1 đơn (phải la_demo);
   NULL → xoá **TOÀN BỘ** la_demo (kể cả seed cũ) bắt buộc `p_xac_nhan='XOA_HET'` (G2). Xoá theo FK: su_kien_quet (theo tem qua
-  tien_do_tem) + tem phụ + don_hang (CASCADE con) + khách demo mồ côi + phieu_dem_ngay (chỉ global). **KHÔNG chạm `giao_dich`/`ton`**
-  (sổ kho, demo không nhập/xuất → giữ 199/199).
+  tien_do_tem) + tem phụ + don_hang (CASCADE con) + khách demo mồ côi + phieu_dem_ngay (chỉ global).
+- **"0 TÁC ĐỘNG" (sửa từ "0 dấu vết", WP-33/QD-54):** từ khi có back-flush, đơn demo CÓ thể sinh `giao_dich` (phiếu `xuat_sx`).
+  `xoa_demo` đưa **tồn / giữ chỗ / công nợ về NHƯ CŨ** (phiếu `xuat_sx` demo → huỷ bằng **dòng đảo** HX, cặp ròng 0), nhưng **bản
+  ghi vẫn còn** (phiếu XSX+HX, dòng đảo, giao_dich) mang `la_demo=true` — mọi màn/RPC danh sách phiếu **lọc `la_demo=false` mặc định**
+  (tham số `p_gom_demo`). Lý do: **sổ append-only QD-44 THẮNG** (không xoá cứng sổ). `ton` vẫn khớp `so_ba_nguon` sau xoá.
 - **Căn cứ:** MES Meyer §9.4 (pilot test) + §9.1.2 (triển khai từng quy trình). Kiểm chứng: `web/ops/test_120.mjs`.
 - **Trạng thái:** đang áp dụng (db/120). Bàn giao chưa nối lịch (WP-43) → demo gọi `luu_xep_lich` tay (G3).
 
@@ -755,3 +758,20 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   0,1ms · ghi_bom_mon 50 dòng 22ms) + so_ba_nguon 199/199 + test_119/huy_phieu/128/130 xanh. **Trạng thái:** ĐANG ÁP DỤNG (db/131).
 - **Nợ (PHÁT SINH):** màn nhập quy đổi tab Tồn kho (mẫu trước) · đổi tên `quy_doi` · `don_mua_dong` đơn vị mua≠cơ sở (WP-22/23) ·
   làm tròn tấm lẻ (WP-33) · seed quy đổi m²→tấm CHƯA có (vat_tu thiếu cột dài/rộng).
+
+## QD-54 (22/08) — BACK-FLUSH: quét CẮT tự xuất ván, quét LẮP tự xuất phụ kiện (WP-33, db/132) · DUYỆT
+
+- **ERP §6.5.2:** vật tư tự ghi XUẤT khi công đoạn sau báo xong. Quét **CẮT** (`cat`) → back-flush **ván**; quét **LẮP**
+  (`thung,canh,ray,cup,cam,giuong_lap`) → back-flush **phụ kiện**. Nối trong `sq_ghi` sau khi ghi NHẬN (QD-18 bọc exception —
+  lỗi back-flush KHÔNG hỏng ghi sổ quét).
+- **Lượng xuất = BOM chuẩn (`so_luong_co_so`) × (1 + hao_hut_pct) làm tròn** (`lam_tron_xuat`: tam/cai/cay/bo/chiec/thanh/cuon → CEIL;
+  m/m2/kg/lit → round 3). Ghi kèm `phieu_dong.so_luong_chuan / hao_hut_pct_ap_dung / so_du_lam_tron` (WP-34/WP-94 đọc).
+  **Hao hụt ván 10% / phụ kiện 0% = số khởi đầu [TẠM]; WP-34 đo lại sau 10 đơn thật.**
+- **MỘT ĐƯỜNG GHI** qua `ghi_so_phieu('xuat_sx', nguon='quet_tem')` (QD-03/44 — không hàm ghi sổ mới). Idempotent theo
+  `unique(mon_id, nhom_back_flush) where loai='xuat_sx'` → lần quét sau trả `da_xuat_truoc`. **Tồn âm VẪN xuất** (tín hiệu đếm sai
+  — WP-14/42; `gd_cap_nhat_ton` chỉ gắn cờ). `xuat_back_flush` chỉ gọi NỘI BỘ (GUC `kho.back_flush_he_thong`; client → RAISE).
+- **Giữ chỗ:** back-flush tăng `giu_cho.so_luong_da_xuat` (cap tại `so_luong_giu`); `huy_phieu` phiếu `xuat_sx` → sổ đảo + hoàn
+  giữ chỗ. **BOM `thuc_te` = TỪ SỔ** (`bom_don_ds.thuc_te` / view `v_bom_thuc_te`) — KHÔNG ghi dòng (QD-50, một bản sự thật).
+- **REVOKE `gd_tho_quet`** (hẹn từ QD-44): tho không còn INSERT `giao_dich` thẳng; mọi xuất qua RPC.
+- **Kiểm chứng:** `web/ops/test_132.mjs` (quét thật + GUC + perf WARM 80–84ms @100k < 300 + so_ba_nguon 199/199 + 119/huy/128/130/wp35 xanh).
+- **Trạng thái:** ĐANG ÁP DỤNG (db/132). Nợ: màn nhập hao hụt · toast back-flush trạm quét · WP-34 so thực tế · WP-94 ván thừa.

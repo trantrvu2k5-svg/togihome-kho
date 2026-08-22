@@ -368,18 +368,21 @@ async function ghiSo(loai) {
 // ── DANH SÁCH PHIẾU ĐÃ LẬP · XEM CHI TIẾT (chỉ đọc) · HUỶ PHIẾU (gọi RPC huy_phieu) ──
 // Trang nhập hiện tiền tố NK (nhập) + HN (huỷ nhập); trang xuất hiện XK + HX. Phiếu ngược mang loai 'dieu_chinh'
 // nên KHÔNG lọc theo loai mà lọc theo tiền tố mã phiếu.
-const PH_PRE = { nhap: ['NK', 'HN'], xuat: ['XK', 'HX'] }
+// XSX = xuất back-flush (WP-33) hiện ở trang xuất. Lọc theo TIỀN TỐ (không theo loai) để giữ phiếu ĐẢO (dieu_chinh): HN ở nhập, HX ở xuất.
+const PH_PRE = { nhap: ['NK', 'HN'], xuat: ['XK', 'HX', 'XSX'] }
 let DSPH = { nhap: [], xuat: [] }, phGioi = { nhap: 50, xuat: 50 }, phXem = null
 
-async function veDsPhieu(loai) {
+async function veDsPhieu(loai, gomDemo = false) {
   const el = $('#ds-' + loai); if (!el) return
   el.innerHTML = '<div class="rong">Đang tải…</div>'
   const pre = PH_PRE[loai]
   // Đơn giá/thành tiền ở phieu_dong (đã cấp quyền đọc ở migration 016). Vật tư nhúng để hiện tên.
-  const { data, error } = await sb.from('phieu')
-    .select('id,so_phieu,loai,trang_thai,ncc_id,ly_do,phieu_goc_id,tao_luc,ghi_so_luc,ghi_so_boi,don_mua_id,' +
-            'ncc:ncc_id(ten), nguoi:ghi_so_boi(ho_ten), dm:don_mua_id(so_don), dong:phieu_dong(so_luong,don_gia,thanh_tien, vt:vat_tu_id(ma,ten))')
+  let query = sb.from('phieu')
+    .select('id,so_phieu,loai,trang_thai,ncc_id,ly_do,phieu_goc_id,tao_luc,ghi_so_luc,ghi_so_boi,don_mua_id,la_demo,ma_don,mon_id,' +
+            'ncc:ncc_id(ten), nguoi:ghi_so_boi(ho_ten), dm:don_mua_id(so_don), mon:mon_id(ten), dong:phieu_dong(so_luong,don_gia,thanh_tien, vt:vat_tu_id(ma,ten))')
     .or(pre.map(p => `so_phieu.like.${p}-*`).join(','))
+  if (!gomDemo) query = query.eq('la_demo', false)   // WP-33/QD-46: phiếu demo (xuat_sx back-flush) lọc mặc định như 6 RPC tài chính
+  const { data, error } = await query
     .order('tao_luc', { ascending: false })
     .limit(phGioi[loai])
   if (error) {   // KHÔNG để trống im lặng — báo rõ lỗi + nút thử lại
@@ -398,7 +401,10 @@ async function veDsPhieu(loai) {
     const tag = huy ? '<span class="dsp-tag huy">ĐÃ HUỶ</span>'
       : nguoc ? `<span class="dsp-tag nguoc">↩ huỷ ${r._goc}</span>`
         : r.trang_thai === 'ghi_so' ? '<span class="dsp-tag so">ĐÃ GHI SỔ</span>' : '<span class="dsp-tag nhap">NHÁP</span>'
-    const nguon = r.dm?.so_don ? `<span class="dmn-chip nguon" data-dm="${r.don_mua_id}" title="Mở đơn mua">Đơn mua ${r.dm.so_don}</span>` : (loai === 'nhap' && !nguoc ? '<span class="dmn-hist">nhập tay</span>' : '')
+    const laSX = r.loai === 'xuat_sx'
+    const nguon = r.dm?.so_don ? `<span class="dmn-chip nguon" data-dm="${r.don_mua_id}" title="Mở đơn mua">Đơn mua ${r.dm.so_don}</span>`
+      : laSX ? `<span class="dsp-tag sx">Xuất SX</span> <span class="dmn-hist">${r.mon?.ten ? (r.ma_don || '') + ' · ' + r.mon.ten : (r.ma_don || 'đơn demo đã xoá')}</span>`
+      : (loai === 'nhap' && !nguoc ? '<span class="dmn-hist">nhập tay</span>' : '')
     return `<div class="dsp-row ${huy ? 'huy' : ''}" onclick="moPhieuXem('${loai}','${r.id}')">
       <div><span class="dsp-so">${r.so_phieu}</span>${tag} ${nguon}</div>
       <div class="dsp-meta">${gio(new Date(r.tao_luc))}${r.ncc?.ten ? ' · ' + r.ncc.ten : ''} · ${dong.length} dòng · SL ${n(sl)} · ${n(tien)} đ · ${r.nguoi?.ho_ten || '—'}</div></div>`
