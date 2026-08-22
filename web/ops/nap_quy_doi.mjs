@@ -1,4 +1,4 @@
-// nap_quy_doi.mjs — NẠP dữ liệu đề xuất vào kho.quy_doi (bảng độc lập).
+// nap_quy_doi.mjs — NẠP dữ liệu đề xuất vào kho.plugin_ma_map (bảng độc lập).
 //   Nguồn: (a) 6 mã đã có ma_kho trong luat_cau_tao.json -> DA_DUYET/CHAC/mặc định.
 //          (b) 30 mã chưa cầu: MỌI ứng viên đã đề xuất -> CHUA_DUYET, tin cậy theo báo cáo.
 //          (c) mã không ứng viên -> 1 dòng ma_kho NULL, CHUA_DUYET, ghi_chu lý do.
@@ -126,7 +126,7 @@ let them = 0
 try {
   for (const [mo_ta, ten, mp, dvt, gia, nhom, ma_kho, heso, tc, md, tt, ghi] of ROWS) {
     const r = await c.query(
-      `insert into kho.quy_doi
+      `insert into kho.plugin_ma_map
          (mo_ta_thiet_ke, ten_mo_ta, ma_plugin, dvt_plugin, gia_plugin, nhom_dinh_muc,
           ma_kho, he_so_quy_doi, muc_tin_cay, la_mac_dinh, trang_thai, ghi_chu)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -136,11 +136,11 @@ try {
   }
 
   const s = (await c.query(`select
-    (select count(distinct mo_ta_thiet_ke)::int from kho.quy_doi) mo_ta,
-    (select count(*)::int from kho.quy_doi) dong,
-    (select count(*)::int from kho.quy_doi where trang_thai='DA_DUYET') da_duyet,
-    (select count(*)::int from kho.quy_doi where trang_thai='CHUA_DUYET') chua_duyet,
-    (select count(*)::int from kho.quy_doi where ma_kho is null) makho_null`)).rows[0]
+    (select count(distinct mo_ta_thiet_ke)::int from kho.plugin_ma_map) mo_ta,
+    (select count(*)::int from kho.plugin_ma_map) dong,
+    (select count(*)::int from kho.plugin_ma_map where trang_thai='DA_DUYET') da_duyet,
+    (select count(*)::int from kho.plugin_ma_map where trang_thai='CHUA_DUYET') chua_duyet,
+    (select count(*)::int from kho.plugin_ma_map where ma_kho is null) makho_null`)).rows[0]
   console.log(`Nạp xong. Thêm mới lần này: ${them} dòng.`)
   console.log(`Thống kê: ${s.mo_ta} mô tả · ${s.dong} dòng · DA_DUYET ${s.da_duyet} · CHUA_DUYET ${s.chua_duyet} · ma_kho NULL ${s.makho_null}`)
 } finally { await c.end() }

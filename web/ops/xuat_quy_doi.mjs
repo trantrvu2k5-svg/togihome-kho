@@ -1,4 +1,4 @@
-// xuat_quy_doi.mjs — XUẤT các dòng DA_DUYET của kho.quy_doi ra JSON (để sau copy sang plugin).
+// xuat_quy_doi.mjs — XUẤT các dòng DA_DUYET của kho.plugin_ma_map ra JSON (để sau copy sang plugin).
 //   Mỗi mô tả: mã kho mặc định + he_so + GIÁ VỐN đọc động từ kho (KHÔNG lưu trong bảng).
 //   Deterministic: sắp theo mo_ta_thiet_ke, dấu thời gian = MAX(tao_luc) trong dữ liệu (không phải
 //   giờ máy) -> hai lần xuất liền nhau ra file GIỐNG HỆT từng byte (tiện so bằng git).
@@ -20,7 +20,7 @@ try {
     `select q.mo_ta_thiet_ke, q.ma_plugin, q.ma_kho, q.he_so_quy_doi,
             t.gia_von_bq gia_von_kho,
             to_char(max(q.tao_luc) over (), 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') moc
-       from kho.quy_doi q
+       from kho.plugin_ma_map q
        left join kho.vat_tu v on v.ma = q.ma_kho
        left join kho.ton    t on t.vat_tu_id = v.id
       where q.trang_thai = 'DA_DUYET' and q.la_mac_dinh = true

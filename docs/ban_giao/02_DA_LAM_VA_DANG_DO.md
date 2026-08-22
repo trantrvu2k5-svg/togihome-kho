@@ -32,6 +32,8 @@
 
 **Thư viện bản thiết kế (95):** **95 (L-78):** db/107 — thư viện bản dùng lại. `ban_thiet_ke` +mau_chu_dao/vat_lieu_chinh/an_thu_vien; `gui_ban_thiet_ke(+3)`. **Nhãn SUY TỰ ĐỘNG** (tên món · phong cách/ngân sách · dòng SP · trạng thái/vòng sửa/người dựng) + ảnh đại diện, KHÔNG cột trùng. **Hai cửa cùng RPC `thu_vien_ban`** (guard sale/thiết kế/trưởng nhóm/ceo, phân trang, 360ms/3.000 bản): ① app Sale mục "Thư viện bản" — mặc định CHỈ bản khách-duyệt, **ẨN tên/sđt khách** (kể cả response), lọc màu/từ khoá, lightbox · ② app Thiết kế mục "Thư viện" — mọi bản + nút **"Dựng lại từ bản này"** → `ghi_dung_lai_ban` gắn vào đơn đang cầm + nhật ký (bảng `dung_lai_ban` chờ từ v-kho-46 nay SỐNG). Form gửi bản 3D thêm 2 ô nhãn + tick ẩn. Không giá vốn.
 
+**Kho — đơn vị đo · back-flush · tham số vật tư (L-74→L-77):** WP-35 (db/131, v-kho-114) đơn vị cơ sở khoá + quy đổi `vat_tu_don_vi` (QD-53) · WP-33 (db/132, v-kho-115) back-flush quét CẮT→ván / LẮP→phụ kiện qua `ghi_so_phieu('xuat_sx')` (QD-54) · **WP-36 (L-76 làm · L-77 đóng, db/134, v-kho-116):** màn Kho **tab-8 "Đơn vị & hao hụt"** (khổ ván→hệ số m², %hao hụt, đơn vị tay, lịch sử append-only) + **thiếu hệ số KHÔNG chặn thợ** → dòng BOM CHỜ (`so_luong_co_so` NULL) + `quet_tem` trả `back_flush`/`thieu_he_so` (toast xưởng xanh/vàng) + nhập hệ số → `chay_lai_back_flush` xuất bù + đổi tên `quy_doi`→`plugin_ma_map` (view compat DEPRECATED). QD-55. `test_134` 34/0 · perf ds@100k 325ms · quet_tem@100k 28ms · robot prod 4 ảnh.
+
 *(Không có tag v-kho-3, 63, **83** (cụm màn Báo giá treo từ L-48 nên nhảy 82→84), **89** (nhảy 88→90 lô L-72); các số L-xx trong commit là số LỆNH, khác số tag.)*
 
 ---

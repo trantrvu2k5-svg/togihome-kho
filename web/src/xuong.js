@@ -556,11 +556,37 @@ function veKq(g) {
         ${g.buoc_ke ? `<div><p>Tiếp theo</p><b>${esc(g.buoc_ke)}</b></div>` : ''}
         ${g.xong != null && g.tong_buoc != null ? `<div><p>Tấm này</p><b>${g.xong}/${g.tong_buoc} bước</b></div>` : ''}
       </div></div></div>`
+    veBfToast(g)
   } else {
     box.innerHTML = `<div class="tq-kq chan"><div class="tq-kq-dau"><div class="bieu">✕</div><b>Chặn</b></div>
       <div class="tq-kq-than"><div class="tem">${esc(g.tem_ma || '')}</div><p class="mon">${monLine}</p>
       <p class="tq-kq-loi">${esc(g.ly_do || 'Không quét được')}<span>${esc(g.duong_thoat || 'Báo tổ trưởng để xử lý.')}</span></p></div></div>`
   }
+}
+// WP-36 · toast back-flush: kho tự xuất ván/phụ kiện khi quét (xanh) hoặc báo thiếu hệ số (vàng). Tự ẩn 6s, chạm để giữ.
+const bfSo = v => (v == null || isNaN(Number(v))) ? '' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
+function veBfToast(g) {
+  const dong = Array.isArray(g.back_flush) ? g.back_flush : []
+  const thieu = Array.isArray(g.thieu_he_so) ? g.thieu_he_so : []
+  if (!dong.length && !thieu.length) return
+  let el = $('tqBf')
+  if (!el) { el = document.createElement('div'); el.id = 'tqBf'; document.body.appendChild(el); el.onclick = () => { el._giu = !el._giu; if (el._giu) clearTimeout(el._t) } }
+  el._giu = false
+  const xanh = dong.length > 0
+  let html = ''
+  if (xanh) {
+    const list = dong.map(d => `<b>${bfSo(d.so_luong)} ${esc(d.don_vi || '')} ${esc(d.ma || '')}</b>`).join(', ')
+    const ph = g.bf_phieu || (dong[0] && dong[0].phieu_so)
+    const ton = dong[0] && dong[0].ton_con != null ? ` · tồn còn ${bfSo(dong[0].ton_con)}` : ''
+    html += `<div class="tq-bf-body">Kho đã xuất ${list}<small>${ph ? 'Phiếu ' + esc(ph) : 'Đã ghi phiếu xuất'}${ton}</small></div>`
+  }
+  if (thieu.length) {
+    const list = thieu.map(t => `<b>${esc(t.ma || '')}</b> thiếu hệ số ${esc(t.don_vi_bom || '')}${t.don_vi_co_so ? '→' + esc(t.don_vi_co_so) : ''}`).join('; ')
+    html += `<div class="tq-bf-body canh">Chưa xuất ván: ${list}<small>Báo kho vào tab "Đơn vị &amp; hao hụt". Tem vẫn chạy tiếp.</small></div>`
+  }
+  el.className = 'tq-bf' + (xanh ? '' : ' canh') + ' hien'
+  el.innerHTML = html
+  clearTimeout(el._t); el._t = setTimeout(() => { if (!el._giu) el.classList.remove('hien') }, 6000)
 }
 function veKqMang(ma) {
   $('tqKq').innerHTML = `<div class="tq-kq mang"><div class="tq-kq-dau"><div class="bieu">⚠</div><b>Mất mạng</b></div>
@@ -924,4 +950,4 @@ async function tlLuuDoi() {
 function tlDong(id) { $(id).classList.remove('tl-mo') }
 
 // WP-32: phơi mở màn đơn cho robot/kiểm mắt (như __sb) — không đổi hành vi người dùng.
-window.moDon = moDon; window.moMon = moMon;
+window.moDon = moDon; window.moMon = moMon; window.veBfToast = veBfToast;

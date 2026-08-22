@@ -160,7 +160,7 @@ function phongTo(ma) { const v = KHO.find(x => x.ma === ma); if (!ANH[ma]) retur
 const dongDen = () => $('#den').classList.remove('on')
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { dongDen(); dongThe() } })
 
-function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat'); if (m === 'ghep') veGhepMa(); if (m === 'dm') veDonMua() }
+function chuyenMan(m) { $$('nav button[data-m]').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $$('.man').forEach(s => s.classList.toggle('on', s.id === 'm-' + m)); dongThe(); dongNav(); if (m === 'ton') lamMoiTon(); if (m === 'dat') veDat(); if (m === 'ncc') veNcc(); if (m === 'nhap') veDsPhieu('nhap'); if (m === 'xuat') veDsPhieu('xuat'); if (m === 'ghep') veGhepMa(); if (m === 'dm') veDonMua(); if (m === 'tsvt') veTsvt() }
 // ── điều khiển bố cục điện thoại (chỉ tác dụng ở màn hẹp; desktop các phần tử ẩn) ──
 function moNav() { $('nav')?.classList.add('mo'); $('#navNen')?.classList.add('mo') }
 function dongNav() { $('nav')?.classList.remove('mo'); $('#navNen')?.classList.remove('mo') }
@@ -457,7 +457,7 @@ async function xacNhanHuy(loai, id, so) {
 
 function bao(t) { let e = $('#toast'); if (!e) { e = document.createElement('div'); e.id = 'toast'; e.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#2A323C;color:#fff;padding:11px 20px;border-radius:4px;font-size:14px;z-index:70;box-shadow:0 6px 20px rgba(0,0,0,.28);max-width:min(92vw,620px)'; document.body.appendChild(e) } e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(() => e.style.display = 'none', 4200) }
 
-// ═══════════ GHÉP MÃ — đọc/ghi kho.quy_doi (bảng quy đổi thiết kế ↔ mã kho) ═══════════
+// ═══════════ GHÉP MÃ PLUGIN — đọc/ghi kho.plugin_ma_map (map MÃ plugin ↔ mã kho; đổi tên từ quy_doi ở WP-36) ═══════════
 let GHEP = [], gmFilter = 'tat_ca'
 const gmSelectCols = 'id,mo_ta_thiet_ke,ten_mo_ta,ma_plugin,dvt_plugin,gia_plugin,nhom_dinh_muc,ma_kho,he_so_quy_doi,muc_tin_cay,la_mac_dinh,trang_thai,ghi_chu'
 const gmKm = () => Object.fromEntries(KHO.map(x => [x.ma, x]))   // ma -> {ten,nhom,dvt,ton,gia(=giá vốn)}
@@ -486,7 +486,7 @@ function gmWarnHtml(g) {
 async function veGhepMa() {
   const el = $('#gm-ds'); if (!el) return
   el.innerHTML = '<div class="rong">Đang tải…</div>'
-  const { data, error } = await sb.from('quy_doi').select(gmSelectCols)
+  const { data, error } = await sb.from('plugin_ma_map').select(gmSelectCols)
     .order('mo_ta_thiet_ke').order('la_mac_dinh', { ascending: false }).order('ma_kho', { nullsFirst: false })
   if (error) { el.innerHTML = `<div class="gm-loi">Không tải được bảng ghép mã: ${error.message}. <button class="nut" onclick="veGhepMa()">Thử lại</button></div>`; return }
   const g = {}
@@ -502,7 +502,7 @@ async function veGhepMa() {
 function gmBoQua() { try { return new Set(JSON.parse(localStorage.getItem('gm_bo_qua') || '[]')) } catch { return new Set() } }
 async function gmCanhBao() {
   const el = $('#gm-canhbao'), box = $('#gm-chuaghep'); if (!el) return
-  const { data, error } = await sb.from('quy_doi').select('ma_kho')
+  const { data, error } = await sb.from('plugin_ma_map').select('ma_kho')
   if (error) { el.style.display = 'none'; return }
   const daCo = new Set((data || []).map(r => r.ma_kho).filter(Boolean))   // mã kho đã có TRONG bảng (bất kỳ dòng nào)
   const boQua = gmBoQua()
@@ -537,7 +537,7 @@ function gmBoQuaMa(ma) {
 
 // ── XUẤT bảng quy đổi: dựng file GIỐNG HỆT web/ops/xuat_quy_doi.mjs, tải về máy ──
 async function gmXuat() {
-  const { data, error } = await sb.from('quy_doi').select('mo_ta_thiet_ke,trang_thai,la_mac_dinh')
+  const { data, error } = await sb.from('plugin_ma_map').select('mo_ta_thiet_ke,trang_thai,la_mac_dinh')
   if (error) { bao('Đọc quy_doi lỗi: ' + error.message); return }
   const soMoTa = new Set((data || []).map(r => r.mo_ta_thiet_ke)).size
   const daDuyet = (data || []).filter(r => r.trang_thai === 'DA_DUYET' && r.la_mac_dinh).length
@@ -552,7 +552,7 @@ async function gmXuat() {
 function gmModalDong() { const m = $('#gm-modal'); if (m) m.style.display = 'none' }
 async function gmTaiFile() {
   // ĐỌC + DỰNG y hệt xuat_quy_doi.mjs: chỉ DA_DUYET+la_mac_dinh, sắp theo mo_ta_thiet_ke, giá vốn từ v_ton_gia_von (raw, null giữ nguyên)
-  const { data, error } = await sb.from('quy_doi')
+  const { data, error } = await sb.from('plugin_ma_map')
     .select('mo_ta_thiet_ke,ma_plugin,ma_kho,he_so_quy_doi,tao_luc')
     .eq('trang_thai', 'DA_DUYET').eq('la_mac_dinh', true).order('mo_ta_thiet_ke', { ascending: true })
   if (error) { bao('Đọc quy_doi lỗi: ' + error.message); return }
@@ -643,7 +643,7 @@ function gmLoc() {
   })
 }
 async function gmReload(mo_ta) {
-  const { data } = await sb.from('quy_doi').select(gmSelectCols).eq('mo_ta_thiet_ke', mo_ta)
+  const { data } = await sb.from('plugin_ma_map').select(gmSelectCols).eq('mo_ta_thiet_ke', mo_ta)
     .order('la_mac_dinh', { ascending: false }).order('ma_kho', { nullsFirst: false })
   const g = GHEP.find(x => x.mo_ta === mo_ta)
   if (g && data && data.length) { g.rows = data; g.ten = data[0].ten_mo_ta ?? g.ten }
@@ -656,15 +656,15 @@ async function gmChon(id, mo_ta) {
   const g = GHEP.find(x => x.mo_ta === mo_ta), row = g && g.rows.find(r => r.id === id)
   // BỎ CHỌN: bấm lại ứng viên đang chọn -> về CHUA_DUYET, không mặc định (để đổi / xoá được).
   if (row && row.la_mac_dinh && row.trang_thai === 'DA_DUYET') {
-    const { error } = await sb.from('quy_doi').update({ la_mac_dinh: false, trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('id', id)
+    const { error } = await sb.from('plugin_ma_map').update({ la_mac_dinh: false, trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('id', id)
     if (error) { bao('Bỏ chọn lỗi: ' + error.message); return }
     bao('Đã BỎ CHỌN mã kho cho mô tả này.'); return gmReload(mo_ta)
   }
   // CHỌN: revert DA_DUYET cũ về CHUA_DUYET + bỏ MỌI cờ mặc định TRƯỚC (ràng buộc 1-mặc-định) rồi đặt cờ mới.
-  const eR = (await sb.from('quy_doi').update({ trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('mo_ta_thiet_ke', mo_ta).eq('trang_thai', 'DA_DUYET')).error
-  const eC = (await sb.from('quy_doi').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
+  const eR = (await sb.from('plugin_ma_map').update({ trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('mo_ta_thiet_ke', mo_ta).eq('trang_thai', 'DA_DUYET')).error
+  const eC = (await sb.from('plugin_ma_map').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
   if (eR || eC) { bao('Bỏ cờ mặc định cũ lỗi: ' + (eR || eC).message); return }
-  const { error } = await sb.from('quy_doi').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id)
+  const { error } = await sb.from('plugin_ma_map').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id)
   if (error) { bao('Chốt lỗi: ' + error.message); return }   // hiện NGUYÊN VĂN lỗi (gồm lỗi ràng buộc)
   bao('Đã chốt mã kho mặc định cho mô tả này.')
   await gmReload(mo_ta)
@@ -682,7 +682,7 @@ async function gmThemUngVien(mo_ta, ma) {
   const g = GHEP.find(x => x.mo_ta === mo_ta); if (!g) return
   if (g.rows.some(r => r.ma_kho === ma)) { bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`); return }
   const khac = GHEP.filter(x => x.mo_ta !== mo_ta && x.rows.some(r => r.ma_kho === ma)).map(x => x.mo_ta)
-  const { error } = await sb.from('quy_doi').insert({
+  const { error } = await sb.from('plugin_ma_map').insert({
     mo_ta_thiet_ke: mo_ta, ten_mo_ta: g.ten, ma_plugin: g.mp, dvt_plugin: g.dvt, gia_plugin: g.gia,
     nhom_dinh_muc: g.nhom, ma_kho: ma, he_so_quy_doi: 1, muc_tin_cay: 'CHUA_RO', la_mac_dinh: false,
     trang_thai: 'CHUA_DUYET', ghi_chu: 'CEO thêm tay từ giao diện'
@@ -748,7 +748,7 @@ async function gmXoaUngVien(id, mo_ta) {
   if (!row) return
   if (row.la_mac_dinh || row.trang_thai === 'DA_DUYET') { bao('Ứng viên đang là MẶC ĐỊNH / đã duyệt — BỎ CHỌN trước khi xoá (bấm lại nút Đã chọn).'); return }
   gmModal(`Xoá hẳn ứng viên <b>${row.ma_kho}</b> khỏi mô tả này? Không hoàn tác được.`, 'Xoá', async () => {
-    const { error } = await sb.from('quy_doi').delete().eq('id', id)
+    const { error } = await sb.from('plugin_ma_map').delete().eq('id', id)
     if (error) { bao('Xoá lỗi: ' + error.message); return }
     bao(`Đã xoá ứng viên ${row.ma_kho}.`)
     await gmReload(mo_ta); gmCanhBao()
@@ -760,7 +760,7 @@ async function gmKhongGhep(mo_ta) {
   const ghiInp = $(`#gm-k-${mo_ta} [data-ghi]`), ly = (ghiInp ? ghiInp.value : '').trim()
   if (!ly) { bao('Nhập LÝ DO vào ô ghi chú trước khi bấm Không ghép.'); if (ghiInp) ghiInp.focus(); return }
   const primary = gmActive(g)
-  const { error } = await sb.from('quy_doi').update({ trang_thai: 'KHONG_GHEP', ma_kho: null, la_mac_dinh: false, ghi_chu: ly, nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', primary.id)
+  const { error } = await sb.from('plugin_ma_map').update({ trang_thai: 'KHONG_GHEP', ma_kho: null, la_mac_dinh: false, ghi_chu: ly, nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', primary.id)
   if (error) { bao('Lưu Không ghép lỗi: ' + error.message); return }
   bao(`Đã đánh dấu KHÔNG GHÉP: ${g.mp}.`)
   await gmReload(mo_ta)
@@ -783,13 +783,13 @@ function gmGanSuKien() {
       const val = t.value.trim()
       if (val !== '' && !(parseFloat(val) > 0)) { bao('Hệ số quy đổi phải là số DƯƠNG.'); t.value = ''; return }
       const so = val === '' ? 1 : parseFloat(val)
-      const { error } = await sb.from('quy_doi').update({ he_so_quy_doi: so }).eq('id', t.dataset.hs)
+      const { error } = await sb.from('plugin_ma_map').update({ he_so_quy_doi: so }).eq('id', t.dataset.hs)
       if (error) { bao('Lưu hệ số lỗi: ' + error.message); return }
       const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.hs); if (row) row.he_so_quy_doi = so
       const slot = $(`#gm-k-${t.dataset.mota} .gm-cbao-slot`); if (slot && g) slot.innerHTML = gmWarnHtml(g)
       gmDem(); gmLoc(); bao('Đã lưu hệ số quy đổi.')
     } else if (t.dataset.ghi != null && t.dataset.ghi !== '') {
-      const { error } = await sb.from('quy_doi').update({ ghi_chu: t.value }).eq('id', t.dataset.ghi)
+      const { error } = await sb.from('plugin_ma_map').update({ ghi_chu: t.value }).eq('id', t.dataset.ghi)
       if (error) { bao('Lưu ghi chú lỗi: ' + error.message); return }
       const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.ghi); if (row) row.ghi_chu = t.value
       bao('Đã lưu ghi chú.')
@@ -1091,3 +1091,123 @@ function dmNhanXong(id, res, L) {
 }
 window.veDonMua = veDonMua
 window.dmNhanForm = dmNhanForm
+
+// ═══════════════════ WP-36 · ĐƠN VỊ & HAO HỤT (màn tsvt) ═══════════════════
+const TSVT = { ds: [], sel: null, tim: '', chithieu: false }
+// số VN: dấu phẩy thập phân; d = số lẻ. Trả '—' khi rỗng.
+const tsN = (v, d = 2) => (v == null || v === '' || isNaN(Number(v))) ? '—' : Number(v).toLocaleString('vi-VN', { minimumFractionDigits: d, maximumFractionDigits: d })
+const tsParse = s => { if (s == null) return null; const t = String(s).trim().replace(/\./g, '').replace(',', '.'); return t === '' ? null : Number(t) }
+
+async function veTsvt() {
+  const el = $('#tsvt-ds'); if (el) el.innerHTML = '<li>Đang tải…</li>'
+  const r = await sb.rpc('tham_so_vat_tu_ds')
+  if (r.error) { if (el) el.innerHTML = `<li class="tsvt-loi">Không tải được: ${r.error.message}</li>`; return }
+  TSVT.ds = r.data || []
+  tsvtLoc()
+  if (TSVT.sel && !TSVT.ds.find(v => v.id === TSVT.sel)) TSVT.sel = null
+  if (TSVT.sel) tsvtChon(TSVT.sel, true)
+}
+function tsvtLoc() {
+  TSVT.tim = ($('#tsvt-tim')?.value || '').trim().toLowerCase()
+  TSVT.chithieu = !!$('#tsvt-chithieu')?.checked
+  const ds = TSVT.ds.filter(v =>
+    (!TSVT.chithieu || v.thieu_he_so) &&
+    (!TSVT.tim || (v.ma + ' ' + (v.ten || '')).toLowerCase().includes(TSVT.tim)))
+  const el = $('#tsvt-ds'); if (!el) return
+  el.innerHTML = ds.length ? ds.map(v => {
+    const m2 = (v.don_vi || []).find(u => u.don_vi === 'm2')
+    let tag = '<span class="tsvt-tag">—</span>'
+    if (v.thieu_he_so) tag = '<span class="tsvt-tag thieu">thiếu hệ số</span>'
+    else if (m2 && Number(m2.he_so) > 0) tag = `<span class="tsvt-tag">${tsN(1 / Number(m2.he_so))} m²/tấm</span>`
+    return `<li class="${v.id === TSVT.sel ? 'on' : ''}" onclick="tsvtChon('${v.id}')">
+      <span>${v.ma}<br><small>${(v.ten || '').replace(/</g, '&lt;')} · ${v.don_vi_co_so}</small></span>${tag}</li>`
+  }).join('') : '<li><small>Không có mã khớp bộ lọc.</small></li>'
+}
+function tsvtChon(id, giuHtml) {
+  TSVT.sel = id
+  if (!giuHtml) $$('#tsvt-ds li').forEach(li => li.classList.toggle('on', li.getAttribute('onclick')?.includes(id)))
+  const v = TSVT.ds.find(x => x.id === id); const box = $('#tsvt-ct'); if (!v || !box) return
+  const dv = (v.don_vi || []).slice().filter(u => u.don_vi !== v.don_vi_co_so)
+  const khoaLy = `đã khoá — ${v.so_lo || 0} lô nhập · ${v.so_giu_cho || 0} giữ chỗ`
+  const khoRow = v.la_van ? `
+    <div class="tsvt-hang"><label>Khổ ván (mm)</label>
+      <div><input id="ts-dai" inputmode="numeric" value="${v.kho_dai_mm ?? ''}" oninput="tsvtDienTich()"> ×
+        <input id="ts-rong" inputmode="numeric" value="${v.kho_rong_mm ?? ''}" oninput="tsvtDienTich()">
+        <span class="tsvt-chugiai" id="ts-dt"></span></div></div>` : ''
+  const haoVal = v.hao_hut_pct == null ? '' : v.hao_hut_pct
+  box.innerHTML = `
+    <h3>${v.ma} — ${(v.ten || '').replace(/</g, '&lt;')}</h3>
+    <div class="tsvt-hang"><label>Đơn vị cơ sở (kho đếm)</label>
+      <div><input value="${v.don_vi_co_so}" disabled> <span class="tsvt-tag khoa">${khoaLy}</span></div></div>
+    ${khoRow}
+    <div class="tsvt-hang"><label>% hao hụt khi cắt</label>
+      <div><input id="ts-hao" inputmode="decimal" value="${haoVal}"> % <span class="tsvt-tag tam">[TẠM] — WP-34 đo lại</span></div></div>
+    <div class="tsvt-hang" style="border:0;padding-top:0"><label></label>
+      <div class="tsvt-chugiai">Bỏ trống = dùng <b>mặc định nhóm</b> (ván 10 % · phụ kiện 0 %). Hiện áp: <b>${tsN(v.hao_hut_hieu_luc, 0)} %</b> (${v.hao_hut_nguon === 'tay' ? 'nhập tay' : 'mặc định nhóm'}).</div></div>
+    <table class="tsvt-dv" id="ts-dv"><tr><th>Đơn vị khác</th><th>1 đơn vị = ? ${v.don_vi_co_so}</th><th>Nguồn</th><th></th></tr>
+      ${dv.map((u, i) => tsvtRowDv(u.don_vi, u.he_so, v)).join('')}
+      <tr id="ts-dv-add"><td colspan="4"><span class="tsvt-dvlink" onclick="tsvtThemDv()">+ thêm đơn vị</span> <span class="tsvt-chugiai">(đơn vị mua NCC, đơn vị bản vẽ…)</span></td></tr>
+    </table>
+    <div class="tsvt-ktra" id="ts-ktra"><span class="mo">Đang tính kiểm thử…</span></div>
+    <div class="tsvt-nut"><button onclick="tsvtChon('${id}')">Huỷ</button><button class="chinh" onclick="tsvtLuu('${id}')">Lưu tham số</button></div>
+    <div class="tsvt-chugiai">Lưu qua <code>luu_tham_so_vat_tu</code> (vai kho/ceo). Đổi hệ số KHÔNG sửa BOM đã snapshot — chỉ áp cho bàn giao sau; mỗi lần lưu ghi lịch sử.</div>`
+  tsvtDienTich(); tsvtKtra(id)
+}
+function tsvtRowDv(don_vi, he_so, v) {
+  const suy = don_vi === 'm2' && v.la_van
+  return `<tr data-dv="${don_vi}"><td>${don_vi}</td>
+    <td><input class="ts-hs" inputmode="decimal" value="${he_so == null ? '' : tsN(he_so, 5).replace(/\.?0+$/, '')}"></td>
+    <td><span class="tsvt-tag ${suy ? 'suy' : ''}">${suy ? 'suy từ khổ' : 'nhập tay'}</span></td>
+    <td><span class="tsvt-dvlink" onclick="this.closest('tr').remove()">xoá</span></td></tr>`
+}
+function tsvtThemDv() {
+  const add = $('#ts-dv-add'); if (!add) return
+  const tr = document.createElement('tr')
+  tr.innerHTML = `<td><input class="ts-dv-ma" placeholder="vd: kien" style="width:90px;padding:6px 8px;border:1px solid var(--line);border-radius:6px"></td>
+    <td><input class="ts-hs" inputmode="decimal" placeholder="hệ số"></td>
+    <td><span class="tsvt-tag">nhập tay</span></td><td><span class="tsvt-dvlink" onclick="this.closest('tr').remove()">xoá</span></td>`
+  add.parentNode.insertBefore(tr, add)
+}
+function tsvtDienTich() {
+  const out = $('#ts-dt'); if (!out) return
+  const d = tsParse($('#ts-dai')?.value), r = tsParse($('#ts-rong')?.value)
+  out.innerHTML = (d > 0 && r > 0) ? `→ diện tích 1 tấm = <span class="tsvt-suy">${tsN(d * r / 1e6, 4)} m²</span> · hệ số m² = ${tsN(1e6 / (d * r), 5)}` : ''
+}
+async function tsvtKtra(id) {
+  const box = $('#ts-ktra'); const v = TSVT.ds.find(x => x.id === id); if (!box || !v) return
+  if (!v.don_demo) { box.innerHTML = '<span class="mo">Chưa có đơn demo nào dùng mã này để kiểm thử.</span>'; return }
+  const r = await sb.rpc('thu_quy_doi_bom', { p_vat_tu_id: id, p_don_hang_id: v.don_demo.id })
+  if (r.error || !r.data?.co) { box.innerHTML = `<span class="mo">Không tính được kiểm thử${r.error ? ': ' + r.error.message : ''}.</span>`; return }
+  const g = r.data
+  if (g.thieu_he_so) {
+    box.innerHTML = `<b>Kiểm thử trên đơn demo ${v.don_demo.ma_don}</b> (chỉ tính)<br>
+      BOM chuẩn mã này: <b>${tsN(g.bom_so_luong)} ${g.bom_don_vi}</b> → <span style="color:var(--do-dam)">chưa quy được (thiếu hệ số ${g.bom_don_vi}→${v.don_vi_co_so})</span>.
+      <span class="mo">Nhập hệ số rồi Lưu → kho xuất bù các tem đã cắt.</span>`
+    return
+  }
+  box.innerHTML = `<b>Kiểm thử trên đơn demo ${v.don_demo.ma_don}</b> (chỉ tính, không ghi sổ)<br>
+    BOM chuẩn mã này: <b>${tsN(g.bom_so_luong)} ${g.bom_don_vi}</b> → ${tsN(g.so_co_so)} ${v.don_vi_co_so} → × (1 + ${tsN(g.hao_hut_pct, 0)} %) → làm tròn = <b>xuất ${tsN(g.so_xuat_ceil, 0)} ${v.don_vi_co_so}</b> khi quét CẮT.
+    <span class="mo">Dư làm tròn ${tsN(g.so_du_lam_tron)} ${v.don_vi_co_so}.</span><br>
+    <span class="mo">Giữ chỗ hiện tại: ${tsN(g.giu_cho_hien_tai)} → sau khi lưu: ${tsN(g.giu_cho_sau_khi_luu)} ${v.don_vi_co_so}.</span>`
+}
+async function tsvtLuu(id) {
+  const v = TSVT.ds.find(x => x.id === id); if (!v) return
+  const dai = v.la_van ? tsParse($('#ts-dai')?.value) : null
+  const rong = v.la_van ? tsParse($('#ts-rong')?.value) : null
+  const hao = tsParse($('#ts-hao')?.value)   // null = xoá ghi đè → mặc định nhóm
+  const dv = []
+  for (const tr of $$('#ts-dv tr[data-dv], #ts-dv tr:not([id])')) {
+    const maEl = tr.querySelector('.ts-dv-ma'); const hsEl = tr.querySelector('.ts-hs'); if (!hsEl) continue
+    const don_vi = maEl ? (maEl.value || '').trim() : tr.getAttribute('data-dv')
+    const he_so = tsParse(hsEl.value)
+    if (!don_vi || he_so == null) continue
+    if (don_vi === 'm2' && v.la_van && dai > 0 && rong > 0) continue   // m² suy từ khổ → RPC tự ghi, khỏi gửi tay
+    dv.push({ don_vi, he_so })
+  }
+  const r = await sb.rpc('luu_tham_so_vat_tu', { p_vat_tu_id: id, p_kho_dai_mm: dai, p_kho_rong_mm: rong, p_hao_hut_pct: hao, p_don_vi: dv })
+  if (r.error) { bao('Lưu lỗi: ' + r.error.message); return }
+  const bu = r.data?.tem_xuat_bu || 0
+  bao(bu > 0 ? `Đã lưu · đã xuất bù ${bu} tem` : 'Đã lưu tham số')
+  await veTsvt()
+}
+Object.assign(window, { veTsvt, tsvtLoc, tsvtChon, tsvtThemDv, tsvtDienTich, tsvtLuu })

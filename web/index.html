@@ -320,6 +320,40 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 #m-ghep .gm-loc{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
 #m-ghep .gm-chip{border:1px solid var(--line);background:var(--surface);border-radius:100px;padding:0 18px;min-height:48px;display:inline-flex;align-items:center;cursor:pointer;font-size:14px;color:var(--ink)}
 #m-ghep .gm-chip.on{background:var(--do);border-color:var(--do);color:#fff;font-weight:600}
+/* ═══ WP-36 · Đơn vị & hao hụt ═══ */
+#m-tsvt .tsvt-wrap{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+@media(max-width:820px){#m-tsvt .tsvt-wrap{grid-template-columns:1fr}}
+#m-tsvt .tsvt-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px}
+#m-tsvt .tsvt-card h3{margin:0 0 10px;font-size:15px}
+#m-tsvt .tsvt-tim{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;font-size:14px}
+#m-tsvt .tsvt-loc{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px}
+#m-tsvt .tsvt-ds{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
+#m-tsvt .tsvt-ds li{padding:9px 8px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;gap:6px;cursor:pointer}
+#m-tsvt .tsvt-ds li.on{background:#E9F1EC}
+#m-tsvt .tsvt-ds small{color:var(--muted)}
+#m-tsvt .tsvt-tag{font-size:11px;padding:2px 7px;border-radius:10px;background:var(--line2);color:var(--muted);white-space:nowrap;align-self:center}
+#m-tsvt .tsvt-tag.thieu{background:var(--do-nhat);color:var(--do-dam);font-weight:600}
+#m-tsvt .tsvt-tag.tam{background:#FBF1DC;color:var(--amber)}
+#m-tsvt .tsvt-tag.khoa{background:#ECEAF1;color:var(--muted)}
+#m-tsvt .tsvt-tag.suy{background:#E9F1EC;color:var(--xanh)}
+#m-tsvt .tsvt-hang{display:grid;grid-template-columns:190px 1fr;gap:8px 14px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line2)}
+@media(max-width:560px){#m-tsvt .tsvt-hang{grid-template-columns:1fr}}
+#m-tsvt .tsvt-hang label{color:var(--muted)}
+#m-tsvt .tsvt-hang input,#m-tsvt .tsvt-hang select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;width:120px;font-size:14px;font-variant-numeric:tabular-nums}
+#m-tsvt .tsvt-hang input[disabled]{background:var(--line2);color:var(--muted)}
+#m-tsvt .tsvt-suy{color:var(--xanh);font-weight:600}
+#m-tsvt table.tsvt-dv{width:100%;border-collapse:collapse;margin-top:10px}
+#m-tsvt .tsvt-dv th,#m-tsvt .tsvt-dv td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line2);font-variant-numeric:tabular-nums}
+#m-tsvt .tsvt-dv th{color:var(--muted);font-weight:500;font-size:12px}
+#m-tsvt .tsvt-dv td input{width:100px;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+#m-tsvt .tsvt-nut{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+#m-tsvt .tsvt-nut button{padding:9px 16px;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px}
+#m-tsvt .tsvt-nut .chinh{background:var(--xanh);color:#fff;border-color:var(--xanh)}
+#m-tsvt .tsvt-ktra{margin-top:14px;background:#F1F6F3;border:1px solid #CFE3D6;border-radius:8px;padding:11px 13px;font-size:13px}
+#m-tsvt .tsvt-ktra b{color:var(--xanh)}
+#m-tsvt .tsvt-ktra .mo{color:var(--muted)}
+#m-tsvt .tsvt-chugiai{font-size:12px;color:var(--muted);margin-top:8px}
+#m-tsvt .tsvt-dvlink{color:var(--do-dam);cursor:pointer;font-size:12px}
 #m-ghep .khoi{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:24px;overflow:hidden}
 #m-ghep .khoi.chot{border-color:#BFD8C8;box-shadow:inset 5px 0 0 var(--xanh)}
 #m-ghep .khoi.bo{opacity:.7;box-shadow:inset 5px 0 0 #4A5159}
@@ -415,7 +449,8 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   <button data-m="xuat">Phiếu xuất kho</button>
   <div class="cap">Danh mục</div>
   <button data-m="ncc">Nhà cung cấp</button>
-  <button data-m="ghep">Ghép mã</button>
+  <button data-m="ghep">Ghép mã plugin</button>
+  <button data-m="tsvt">Đơn vị &amp; hao hụt</button>
 </nav>
 <main>
 <section class="man on" id="m-ton">
@@ -602,7 +637,7 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 </section>
 
 <section class="man" id="m-ghep">
-  <h2>Ghép mã</h2>
+  <h2>Ghép mã plugin</h2>
   <p class="lead" style="font-size:14px">Ghép mỗi <b>mô tả thiết kế</b> (bên plugin) với một <b>mã kho</b> làm mặc định. Chốt xong, phần <b>Đã duyệt</b> được xuất sang plugin để báo giá lấy đúng giá vốn kho. Chọn ở đây <b>lưu thẳng</b> vào bảng quy đổi.</p>
   <div id="gm-canhbao" onclick="gmMoChua()" style="display:none"></div>
   <div id="gm-chuaghep" style="display:none"></div>
@@ -627,6 +662,21 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
       <div id="gm-modal-msg"></div>
       <div class="gm-modal-nut"><button class="nut chinh" id="gm-modal-ok">Xuất</button><button class="nut" onclick="gmModalDong()">Để sau</button></div>
     </div>
+  </div>
+</section>
+
+<section class="man" id="m-tsvt">
+  <h2>Đơn vị &amp; hao hụt</h2>
+  <p class="lead" style="font-size:14px">Khai <b>khổ ván</b>, <b>% hao hụt</b> và <b>đơn vị quy đổi</b> cho từng mã. Khi cắt/lắp, kho tự xuất ván theo hệ số này — mã ván nào BOM ghi <b>m²</b> mà chưa có hệ số sẽ <b>gắn nhãn đỏ</b> và tem vẫn chạy (xuất bù khi có hệ số).</p>
+  <div class="tsvt-wrap">
+    <div class="tsvt-card">
+      <h3>Vật tư</h3>
+      <input class="tsvt-tim" id="tsvt-tim" placeholder="Tìm mã / tên…" oninput="tsvtLoc()">
+      <label class="tsvt-loc"><input type="checkbox" id="tsvt-chithieu" onchange="tsvtLoc()"> chỉ mã thiếu hệ số</label>
+      <ul class="tsvt-ds" id="tsvt-ds"></ul>
+      <div class="tsvt-chugiai">Mã ván (đơn vị cơ sở = tấm) mà BOM ghi m² nhưng chưa có hệ số → nhãn đỏ. Chọn một mã để khai bên phải.</div>
+    </div>
+    <div class="tsvt-card" id="tsvt-ct"><div class="tsvt-chugiai">Chọn một vật tư ở danh sách để khai tham số.</div></div>
   </div>
 </section>
 

@@ -628,6 +628,22 @@ if __name__ == "__main__":
         except Exception as e:
             print("  ⚠ dọn cuối lỗi:", str(e)[:120])
 
+    # ── BƯỚC 11 · WP-36 Đơn vị & hao hụt + toast back-flush (2 ca vàng/xanh; robot_wp36.py tự seed + dọn) ──
+    print("\n══════ BƯỚC 11 · WP-36 (robot_wp36.py — vàng thiếu hệ số → nhập → xanh xuất bù) ══════")
+    try:
+        r = subprocess.run([sys.executable, str(pathlib.Path(__file__).with_name("robot_wp36.py"))],
+                           cwd=str(pathlib.Path(__file__).resolve().parents[1]), capture_output=True, text=True, timeout=300)
+        for l in (r.stdout or "").strip().splitlines()[-6:]: print("  ", l)
+        two = ("xuong_toast_vang" in (r.stdout or "")) and ("xuong_toast_xanh" in (r.stdout or "")) and r.returncode == 0
+        RESULT[11] = 'OK' if two else 'KET'
+        if not two: KET.append("BƯỚC 11 WP-36 (app): " + (r.stderr or r.stdout or "")[-160:])
+    except Exception as e:
+        RESULT[11] = 'HARNESS'; KET.append("BƯỚC 11 WP-36 (harness): " + str(e)[:140])
+
+    _ok = sum(1 for v in RESULT.values() if v == 'OK')
+    _har = [k for k, v in RESULT.items() if v == 'HARNESS']
+    print(f"\n═══ robot {_ok}/{len(RESULT)} bước  (KET app: {[k for k,v in RESULT.items() if v=='KET']} · BỎ: {[k for k,v in RESULT.items() if v=='BO']} · HARNESS: {_har}) ═══")
+
     print("\n═══ LỖI UI / BƯỚC KẸT (kết quả pilot) ═══")
     if KET: [print(f"  • {k}") for k in KET]
     else: print("  (không bước nào kẹt)")

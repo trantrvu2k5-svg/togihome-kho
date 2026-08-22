@@ -56,7 +56,7 @@ try {
   const M = await mkMon('c1', [{ vat_tu_id: VAN, so_luong_co_so: 5, don_vi: 'tam' }, { vat_tu_id: PK, so_luong_co_so: 4, don_vi: 'cai' }])
   { const r = await quet(M.tem, 'TRAM-CAT-01')
     const g = r.r?.[0]?.g
-    ok('#1 quét cắt OK + back_flush xuat', r.e === null && g?.ket_qua === 'nhan' && g?.back_flush?.ket_qua === 'xuat', r.e || JSON.stringify(g?.back_flush))
+    ok('#1 quét cắt OK + back_flush xuất (mảng dòng WP-36 + bf_phieu)', r.e === null && g?.ket_qua === 'nhan' && Array.isArray(g?.back_flush) && g.back_flush.length === 1 && !!g?.bf_phieu, r.e || JSON.stringify(g?.back_flush))
     const ph = await one(`select id, loai, nhom_back_flush, mon_id from kho.phieu where mon_id=$1 and nhom_back_flush='van'`, [M.mon])
     ok('#1 có phiếu loai=xuat_sx nhóm van gắn món', ph && ph.loai === 'xuat_sx', JSON.stringify(ph))
     const gd = await one(`select coalesce(sum(so_luong),0) s, min(nguon) nguon from kho.giao_dich where phieu_id=$1 and vat_tu_id=$2`, [ph?.id, VAN])
@@ -71,7 +71,7 @@ try {
     const n0 = Number((await one(`select count(*) c from kho.phieu where mon_id=$1 and nhom_back_flush='van'`, [M.mon])).c)
     const r = await quet('T132-c1b', 'TRAM-CAT-01')
     const n1 = Number((await one(`select count(*) c from kho.phieu where mon_id=$1 and nhom_back_flush='van'`, [M.mon])).c)
-    ok('#2 tem 2 cắt → da_xuat_truoc, phiếu không tăng', r.r?.[0]?.g?.back_flush?.ket_qua === 'da_xuat_truoc' && n0 === n1, JSON.stringify([n0, n1, r.r?.[0]?.g?.back_flush])) }
+    ok('#2 tem 2 cắt → không xuất lại (dong rỗng), phiếu không tăng', Array.isArray(r.r?.[0]?.g?.back_flush) && r.r[0].g.back_flush.length === 0 && n0 === n1, JSON.stringify([n0, n1, r.r?.[0]?.g?.back_flush])) }
 
   console.log('\n── #3 · back-flush phụ kiện (lắp), hao 0 ──')
   { const r = await bf(M.mon, 'phu_kien')
@@ -99,7 +99,7 @@ try {
   { const M2 = await mkMon('c6', [])   // không dòng BOM
     await moCa('TRAM-CAT-01')   // ca đã mở ở trên; mở thêm vô hại
     const r = await quet(M2.tem, 'TRAM-CAT-01')
-    ok('#6 quét vẫn nhận, back_flush=bo_qua', r.r?.[0]?.g?.ket_qua === 'nhan' && r.r?.[0]?.g?.back_flush?.ket_qua === 'bo_qua', JSON.stringify(r.r?.[0]?.g?.back_flush || r.e)) }
+    ok('#6 quét vẫn nhận, back_flush rỗng (không BOM)', r.r?.[0]?.g?.ket_qua === 'nhan' && Array.isArray(r.r?.[0]?.g?.back_flush) && r.r[0].g.back_flush.length === 0, JSON.stringify(r.r?.[0]?.g?.back_flush ?? r.e)) }
 
   console.log('\n── #7 · vai tho INSERT giao_dich thẳng → CHẶN (đã revoke gd_tho_quet) ──')
   { const e = (await as(U.tho, `insert into kho.giao_dich(vat_tu_id,kho_id,loai,so_luong,so_du_sau,nguon) values($1,$2,'lay',-1,0,'quet_tem')`, [VAN, U.kho_id])).e
@@ -116,7 +116,7 @@ try {
     await quet(M10.tem, 'TRAM-CAT-01')          // ra (BF idempotent) → dán mới thoả buoc_truoc
     await moCa('TRAM-DAN-01')
     const r = await quet(M10.tem, 'TRAM-DAN-01')
-    ok('#10 quét dán: nhận, back_flush=null (không cắt/lắp)', r.r?.[0]?.g?.ket_qua === 'nhan' && !r.r?.[0]?.g?.back_flush, JSON.stringify(r.r?.[0]?.g))
+    ok('#10 quét dán: nhận, back_flush rỗng (không cắt/lắp)', r.r?.[0]?.g?.ket_qua === 'nhan' && Array.isArray(r.r?.[0]?.g?.back_flush) && r.r[0].g.back_flush.length === 0, JSON.stringify(r.r?.[0]?.g))
     const nDan = Number((await one(`select count(*) c from kho.phieu where mon_id=$1 and nhom_back_flush is not null and loai='xuat_sx'`, [M10.mon])).c)
     ok('#10 chỉ 1 phiếu (ván, từ cắt) — dán không thêm', nDan === 1, `phiếu xuat_sx=${nDan}`) }
 

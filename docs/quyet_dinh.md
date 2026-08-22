@@ -775,3 +775,24 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **REVOKE `gd_tho_quet`** (hẹn từ QD-44): tho không còn INSERT `giao_dich` thẳng; mọi xuất qua RPC.
 - **Kiểm chứng:** `web/ops/test_132.mjs` (quét thật + GUC + perf WARM 80–84ms @100k < 300 + so_ba_nguon 199/199 + 119/huy/128/130/wp35 xanh).
 - **Trạng thái:** ĐANG ÁP DỤNG (db/132). Nợ: màn nhập hao hụt · toast back-flush trạm quét · WP-34 so thực tế · WP-94 ván thừa.
+
+## QD-55 (22/08) — Thiếu hệ số KHÔNG chặn thợ (nới QD-53 cho cutlist) · đổi tên `quy_doi`→`plugin_ma_map` (WP-36, db/134) · DUYỆT
+
+- **Plugin (`cutlist`) đẩy BOM đơn vị chưa có hệ số → dòng CHỜ** (`so_luong_co_so` NULL), KHÔNG raise. Người nhập (`go_tay`/`uoc`)
+  VẪN strict (QD-53) → `test_wp35` giữ xanh. Quét CẮT: tem NHẬN như thường, ván bị HOÃN, `quet_tem` trả thêm
+  `back_flush:[{ma,so_luong,don_vi,phieu_so,ton_con,ton_truoc}]` + `thieu_he_so:[{ma,don_vi_bom,don_vi_co_so}]`
+  (toast xưởng: xanh = đã xuất · vàng = thiếu hệ số, tem chạy tiếp).
+- **Back-flush tính LIVE** (snapshot NULL → quy đổi theo `vat_tu_don_vi` hiện tại), **KHÔNG sửa BOM đã chốt** (QD-53 test 11 bất biến).
+  Kho nhập khổ/hao/đơn vị qua màn **"Đơn vị & hao hụt"** (`luu_tham_so_vat_tu`, vai kho/ceo) → cuối hàm gọi `chay_lai_back_flush`
+  xuất bù các tem đã cắt còn chờ (idempotent theo `unique(mon,nhom)`, QD-54).
+- **Khổ ván (`kho_dai_mm`×`kho_rong_mm`) → tự suy hệ số m²** = `1/(dài·rộng/1e6)` (nguồn "suy từ khổ"). **Hao hụt NULL = mặc định nhóm**
+  (ván 10% · khác 0%) — `hao_hut_hieu_luc`; ghi tay ghi đè. Mọi thay đổi ghi `vat_tu_tham_so_lich_su` (append-only: trigger owner +
+  revoke authenticated). `ban_giao_xuong` **bỏ qua dòng chờ** khi sinh giữ chỗ (`so_luong_giu` NOT NULL). Nhãn "thiếu hệ số" ở
+  `tham_so_vat_tu_ds` theo **quy-được-hay-chưa** (KHÔNG theo snapshot NULL) → nhập xong nhãn tự tắt.
+- **`quy_doi` đổi tên → `plugin_ma_map`** (đúng nghĩa: map MÃ plugin ↔ mã kho, KHÔNG phải quy đổi đơn vị). View compat `quy_doi`
+  (`security_invoker`) DEPRECATED, gỡ ở WP-91. `quy_doi_export` + `nap/xuat_quy_doi.mjs` + màn Ghép mã (nay "Ghép mã plugin") trỏ bảng mới.
+- **Lý do:** ERP §3.3.4 — mỗi vật tư MỘT đơn vị cơ sở khoá khi đã dùng, quy đổi qua BẢNG ĐĂNG KÝ (không hard-code); MES trạm quét
+  KHÔNG chờ kho (dữ liệu cấu hình thiếu không được dừng sản xuất — ghi nợ, xử sau).
+- **Kiểm chứng:** `web/ops/test_134.mjs` **34/0** (khổ→m², 12 m²→5 tấm ceil, guard hệ số/hao/cơ sở, lịch sử append-only, quét thiếu→xuất bù,
+  snapshot bất biến, nhãn tự tắt, view compat) + perf `tham_so_vat_tu_ds` @100k 325ms<500 · `quet_tem` @100k 28ms<300 + robot prod 4 ảnh.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/134). Nợ: WP-34 đo hao thực · WP-91 gỡ view compat + trigger fill · WP-94 ván thừa (`so_du_lam_tron`).
