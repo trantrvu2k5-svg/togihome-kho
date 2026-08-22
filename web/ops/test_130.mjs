@@ -28,7 +28,7 @@ async function mkDon(sfx, mons) {
     for (const hd of ['cat', 'dan', 'cam', 'thung', 'goi'])
       await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,bieu_thuc,nguon,moc) values($1,$2,10,'10','go_tay','chuan')`, [mon, hd])
     for (const b of (mn.bom || []))
-      await c.query(`insert into kho.don_hang_mon_bom(mon_id,vat_tu_id,so_luong,don_vi,nguon,moc) values($1,$2,$3,'c',$4,'du_kien')`, [mon, b.vat_tu_id, b.so_luong, b.nguon])
+      await c.query(`insert into kho.don_hang_mon_bom(mon_id,vat_tu_id,so_luong,so_luong_co_so,don_vi,nguon,moc) values($1,$2,$3,$3,'c',$4,'du_kien')`, [mon, b.vat_tu_id, b.so_luong, b.nguon])
   }
   await c.query(`set local session_replication_role='origin'`)
   return { ma_don: `DEMO-130-${sfx}`, don, monIds }

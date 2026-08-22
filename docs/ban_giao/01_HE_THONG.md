@@ -74,7 +74,7 @@
 
 **Xưởng & quét:** `su_kien_quet`(+ partition tháng, NGUỒN bất biến, sổ quét) · `tram`·`to_san_xuat`·`nang_luc_to`·`ca_lam`·`trang_thai_tram`·`ly_do_dung` · `phieu_dem_ngay`·`san_luong_don` · `loi_lam_lai` · `xep_lich`·`moc_lich`(SUY, lịch) · `nhan_vai_tro_tam`.
 
-**Kho vật tư:** `vat_tu`·`ton`·`lo_nhap`·`phieu`·`phieu_dong`·`giao_dich`·`nha_cung_cap`·`quy_doi`(NGUỒN, app kho) · `don_mua`·`don_mua_dong`·`don_mua_lich_su`(NGUỒN, app kho — WP-20, đơn mua NCC, ghi qua RPC dm_*) · `vat_lieu_ban`·`mau_sac`·`khong_gian`·`don_vi_van_chuyen`(danh mục).
+**Kho vật tư:** `vat_tu`(+`don_vi_co_so` no-dấu FK, `dvt` giữ hiển thị — WP-35)·`ton`·`lo_nhap`·`phieu`·`phieu_dong`·`giao_dich`·`nha_cung_cap` · `don_vi`(danh mục đơn vị)·`vat_tu_don_vi`(quy đổi 1 đv = he_so × cơ sở, RPC vat_tu_don_vi_ghi/xoa, hàm `quy_ve_co_so`) — WP-35/QD-53 db/131 · `quy_doi`(NGUỒN, app kho — **là map MÃ plugin**, KHÔNG phải quy đổi đơn vị; đơn vị đã xử lý ở WP-35, giữ nguyên tên) · `don_mua`·`don_mua_dong`·`don_mua_lich_su`(NGUỒN, app kho — WP-20, đơn mua NCC, ghi qua RPC dm_*) · `vat_lieu_ban`·`mau_sac`·`khong_gian`·`don_vi_van_chuyen`(danh mục). **Sổ/tồn/giữ chỗ LUÔN ở đơn vị cơ sở; BOM `don_hang_mon_bom` giữ đơn vị nguồn + `so_luong_co_so` + `he_so_ap_dung` snapshot (WP-35).**
 
 **Người & tài chính:** `nguoi_dung`·`nhom`·`tho`·`vai_phu`·`quyen_duyet_giam` · `luong_to`·`tham_so_tai_chinh`·`trang_thai_tham_so` · `cai_dat`·`chuoi_so`·`nhat_ky_danh_muc`·`nhat_ky_giao_viec` · `gio_thiet_ke_thuc`.
 

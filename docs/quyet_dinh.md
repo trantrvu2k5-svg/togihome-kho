@@ -737,3 +737,21 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (`UNIQUE(don_hang_mon_bom_id) WHERE mo` + guard `DA_VAO_CHUYEN`).
 - **Lý do:** ERP Sagegg & Alfnes §3.3.7 (giữ chỗ để on-hand khả dụng đúng; soft cho hàng không serial) + QD-16 + QD-44
   (một bản sự thật tồn) + WP-10. **Kiểm chứng:** `web/ops/test_130.mjs` (10 ca). **Trạng thái:** ĐANG ÁP DỤNG (db/130).
+
+## QD-53 (22/08) — Mỗi vật tư MỘT đơn vị cơ sở = đơn vị đếm trong kho; quy đổi qua vat_tu_don_vi (WP-35, db/131)
+
+- **Đơn vị cơ sở** `vat_tu.don_vi_co_so` (no-dấu, FK `don_vi.ma`) = đơn vị người kho ĐẾM. **Khoá** khi vật tư đã có
+  sổ `giao_dich` / `giu_cho` / BOM `chuan` / `lo_nhap` (trigger `chan_doi_don_vi_co_so`). `dvt` (có dấu) GIỮ song song cho HIỂN THỊ
+  (không đổi tên → không vỡ app).
+- **Đơn vị khác** qua `vat_tu_don_vi(vat_tu_id, don_vi, he_so)`: 1 [don_vi] = `he_so` × [cơ sở]. Hàm `quy_ve_co_so(vat_tu,don_vi,so_luong)`
+  (không làm tròn; đơn vị lạ/không quy đổi → RAISE — không tự chuẩn hoá ngầm). Ghi qua RPC `vat_tu_don_vi_ghi/xoa` (kho/ceo).
+- **Sổ `giao_dich` / `giu_cho` / `phieu_dong` / `lo_nhap` LUÔN ở đơn vị cơ sở** (không cột đơn vị → COMMENT). **BOM giữ đơn vị nguồn**
+  (`don_hang_mon_bom.don_vi`) + `so_luong_co_so` (đã quy về cơ sở) + `he_so_ap_dung` (snapshot — đổi hệ số sau KHÔNG làm BOM chốt trôi số).
+  `ghi_bom_mon` quy về cơ sở; `ban_giao_xuong` giữ chỗ = `so_luong_co_so`; `bom_don_ds`/`giu_cho_ds` trả thêm cơ sở.
+- **Trigger auto-fill** (`vat_tu_fill_co_so`, `bom_fill_co_so`) cho INSERT thẳng là **TẠM** (giữ 3 test cũ xanh) — **gỡ ở WP-91**
+  sau khi 3 test đi qua RPC. Đường THẬT (`ghi_bom_mon`) vẫn strict qua `quy_ve_co_so`.
+- **Lý do:** ERP Sagegg & Alfnes §3.3.4 tr.59 (một đơn vị cơ sở, khoá khi đã dùng, quy đổi qua bảng). `quy_doi` cũ là **map mã
+  plugin** (tên sai nhưng đổi tên là việc riêng — giữ nguyên). **Kiểm chứng:** `web/ops/test_wp35.mjs` 20/0 (gồm @100k: quy_ve_co_so
+  0,1ms · ghi_bom_mon 50 dòng 22ms) + so_ba_nguon 199/199 + test_119/huy_phieu/128/130 xanh. **Trạng thái:** ĐANG ÁP DỤNG (db/131).
+- **Nợ (PHÁT SINH):** màn nhập quy đổi tab Tồn kho (mẫu trước) · đổi tên `quy_doi` · `don_mua_dong` đơn vị mua≠cơ sở (WP-22/23) ·
+  làm tròn tấm lẻ (WP-33) · seed quy đổi m²→tấm CHƯA có (vat_tu thiếu cột dài/rộng).

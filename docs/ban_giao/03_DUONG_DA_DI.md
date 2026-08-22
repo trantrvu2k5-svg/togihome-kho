@@ -27,6 +27,7 @@
 - **QD-50 — BOM thuộc MÓN, đơn cấp (WP-30, db/128).** ERP §6.2/6.3.1/6.5.2: dòng BOM FK `vat_tu`, gắn `don_hang_mon.id` (QD-13), `nguon`∈{cutlist,go_tay,uoc}×`moc`∈{du_kien,chuan}; chỉ vật tư truy được theo món (phân xưởng ngoài BOM). `ghi_bom_mon`/`bom_don_ds`; chốt qua trigger. `web/ops/test_128.mjs` 18/0.
 - **QD-51 — Tài khoản robot `test_` cố định, chỉ chạm đơn demo (L-66, db/129).** Mật khẩu trong `.env.robot` ngoài git; ngoại lệ luật "test_ dùng xong xoá" vì robot là vòng hồi quy chuẩn. Cổng `chan_test_ngoai_demo` chặn `test_` ghi đơn không `la_demo`.
 - **QD-52 — Giữ chỗ MỀM lúc bàn giao xưởng (WP-32, db/130).** ERP §3.3.7: bàn giao (QD-16) đóng băng BOM `du_kien→chuan` + sinh `giu_cho` soft (không trừ tồn, không lô — ván không serial); khả dụng = tồn − giữ chỗ (+PO đang về, `v_ton_kha_dung`). Thiếu hàng VẪN bàn giao + báo `vat_tu_thieu` (chờ hàng về); trừ tồn thật để WP-33 back-flush. `web/ops/test_130.mjs` 16/0.
+- **QD-53 — Mỗi vật tư MỘT đơn vị cơ sở (`don_vi_co_so`), quy đổi qua `vat_tu_don_vi` (WP-35, db/131).** ERP §3.3.4 tr.59: đơn vị đếm trong kho, khoá khi đã có sổ/giữ chỗ/BOM chuẩn/lô; sổ luôn cơ sở, BOM giữ đơn vị nguồn + `so_luong_co_so` + `he_so_ap_dung` snapshot. `quy_doi` cũ là map mã plugin (giữ nguyên tên). Trigger auto-fill INSERT thẳng là TẠM (gỡ WP-91). `web/ops/test_wp35.mjs` 20/0.
 
 ---
 
