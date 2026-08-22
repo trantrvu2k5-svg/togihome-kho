@@ -45,17 +45,22 @@ def main(pw):
     else: ncc_sel.select_option(index=0); print("  NCC (Tản Viên không có → đầu list):", ncc_opts[0] if ncc_opts else "?")
     can = pg.evaluate("() => { const d=new Date(Date.now()+7*864e5); return d.toISOString().slice(0,10); }")
     pg.fill('#dm-f-can', can); pg.fill('#dm-f-gc', "WP-20 kiểm mắt")
-    # 2 dòng vật tư: chọn option index 1 và 2, SL 10/5
-    def set_dong(i, sl):
-        vt = pg.locator(f'.d-vt[data-i="{i}"]'); vt.select_option(index=i + 1); time.sleep(0.8)
+    # 2 dòng vật tư: GÕ TÌM → chọn gợi ý đầu, SL 10/5 (ô vật tư nay là input gõ tìm, không phải select)
+    def set_dong(i, query, sl, shot_goi=False):
+        inp = pg.locator(f'.d-vt[data-i="{i}"]'); inp.click(); inp.fill(''); inp.press_sequentially(query, delay=55); time.sleep(1)
+        goi = pg.locator(f'.dm-goi[data-i="{i}"] .dm-goi-item')
+        goi.first.wait_for(timeout=6000)
+        if shot_goi: shot(pg, "wp20_form_moi_v2.png")   # ĐANG GÕ TÌM, có gợi ý
+        goi.first.click(); time.sleep(0.6)              # onmousedown chọn → focus SL
         pg.locator(f'.d-sl[data-i="{i}"]').fill(str(sl))
-    set_dong(0, 10)
-    pg.locator('#dm-them-dong').click(); time.sleep(0.5); set_dong(1, 5); time.sleep(1)
-    dvt0 = pg.locator('.d-dvt').first.inner_text()
+    set_dong(0, "gỗ", 10, shot_goi=True)
+    pg.locator('#dm-them-dong').click(); time.sleep(0.5); set_dong(1, "bản", 5); time.sleep(1)
+    dvt0 = pg.locator('.d-dvt[data-i="0"]').inner_text()
     dg0 = pg.locator('.d-dg[data-i="0"]').input_value()
-    ok("3 · ĐVT tự điền + đơn giá gợi ý", dvt0.strip() != "", f"dvt='{dvt0}' dongia='{dg0}'")
-    print(f"  dòng1 ĐVT='{dvt0}' đơn giá gợi ý='{dg0}'")
-    shot(pg, "wp20_form_moi.png")
+    tam = pg.locator('#dm-tam').inner_text()
+    ok("3 · ĐVT tự điền + đơn giá gợi ý", dvt0.strip() != "" and dg0.strip() != "", f"dvt='{dvt0}' dongia='{dg0}'")
+    print(f"  dòng1 ĐVT='{dvt0}' đơn giá gợi ý='{dg0}' · tạm tính='{tam}'")
+    shot(pg, "wp20_form_dong.png")   # 2 dòng đã chọn: ĐVT + giá + tạm tính
 
     # 4 · lưu
     pg.locator('#dm-luu').click()   # → dm_tao (RPC) → dmXem chi tiết (RPC) — async qua remote, phải CHỜ h3

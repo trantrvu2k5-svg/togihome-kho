@@ -870,21 +870,35 @@ async function dmNutCt(id, act, errEl) {
   dmXem(id)
 }
 
+async function dmGia() { if (!DM.gia) { const { data } = await sb.from('v_gia_tham_khao').select('vat_tu_id,gia_tham_khao'); DM.gia = Object.fromEntries((data || []).map(r => [r.vat_tu_id, r.gia_tham_khao])) } return DM.gia }
+const dmFmt = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Math.round(Number(v)).toLocaleString('vi-VN')
+
+// Form tạo/sửa đơn mua — ô GÕ TÌM vật tư + bảng dòng 7 cột. suaId → sửa dòng (cùng bảng, không bản thứ hai).
 async function dmMoiForm(suaId) {
   $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'
   const box = $('#dm-form'); box.style.display = ''
-  const vt = await dmVatTu()
-  const khoList = await dmKho()
-  let dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }]
-  let dauNcc = NCC[0]?.id || '', dauKho = (khoList.find(x=>x.la_mac_dinh)||khoList[0])?.id || '', dauCan = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10), dauGc = ''
-  let ct = null
+  const vt = await dmVatTu(), khoList = await dmKho(), gia = await dmGia()
+  const dauCan = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
+  let dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }], ct = null
   if (suaId) { const r = await sb.rpc('dm_chi_tiet', { p_id: suaId }); if (!r.error) { ct = r.data.dau_don; dong = r.data.dong.map(x => ({ vat_tu_id: x.vat_tu_id, so_luong: x.so_luong, don_gia: x.don_gia })) } }
-  const opt = (id) => '<option value="">— chọn vật tư —</option>' + vt.map(v => `<option value="${v.id}" ${v.id === id ? 'selected' : ''}>${v.ma} — ${v.ten}</option>`).join('')
-  const veDong = () => `<table><thead><tr><th style="width:38%">Vật tư</th><th class="r">SL</th><th>ĐVT</th><th class="r">Đơn giá (gợi ý)</th><th></th></tr></thead><tbody>${dong.map((d, i) => {
-    const v = vt.find(x => x.id === d.vat_tu_id)
-    return `<tr><td><select class="ip d-vt" data-i="${i}" style="width:100%">${opt(d.vat_tu_id)}</select></td><td><input class="ip d-sl" data-i="${i}" style="width:70px" inputmode="decimal" value="${d.so_luong}"></td><td class="d-dvt">${v ? v.dvt || '' : ''}</td><td><input class="ip d-dg" data-i="${i}" style="width:100px" inputmode="numeric" value="${d.don_gia}"></td><td><button class="n nho d-xoa" data-i="${i}">×</button></td></tr>`
-  }).join('')}</tbody></table>`
+  const vById = id => vt.find(x => x.id === id)
+  const rowTT = i => (Number(dong[i].so_luong) || 0) * (Number(dong[i].don_gia) || 0)
+  const tamTinh = () => dong.reduce((s, d, i) => s + (d.vat_tu_id ? rowTT(i) : 0), 0)
+
+  const veDong = () => `<table class="dm-tbl"><thead><tr><th style="width:32px">#</th><th>Vật tư</th><th class="r" style="width:78px">SL</th><th style="width:64px">ĐVT</th><th class="r" style="width:120px">Đơn giá</th><th class="r" style="width:128px">Thành tiền</th><th style="width:32px"></th></tr></thead><tbody>${dong.map((d, i) => {
+    const v = vById(d.vat_tu_id), lbl = v ? `${v.ma} — ${v.ten}` : ''
+    const nogia = v && (d.don_gia === '' || d.don_gia == null || Number(d.don_gia) === 0) && (gia[v.id] == null)
+    return `<tr data-i="${i}"><td>${i + 1}</td>
+      <td class="dm-vtcell"><input class="ip d-vt" data-i="${i}" autocomplete="off" placeholder="gõ mã hoặc tên vật tư…" value="${lbl.replace(/"/g, '&quot;')}"><div class="dm-goi" data-i="${i}"></div>${nogia ? '<div class="dm-hint">chưa có giá tham khảo</div>' : ''}</td>
+      <td class="r"><input class="ip d-sl" data-i="${i}" inputmode="decimal" placeholder="0" value="${d.so_luong}"></td>
+      <td class="d-dvt" data-i="${i}">${v ? v.dvt || '' : ''}</td>
+      <td class="r"><input class="ip d-dg" data-i="${i}" inputmode="numeric" value="${dmFmt(d.don_gia)}"></td>
+      <td class="r dm-mono d-tt" data-i="${i}">${d.vat_tu_id ? dmFmt(rowTT(i)) : ''}</td>
+      <td><button class="n nho d-xoa" data-i="${i}" title="Xoá dòng">×</button></td></tr>`
+  }).join('')}<tr class="dm-tam-r"><td colspan="5" class="r"><b>Tạm tính (chưa VAT)</b></td><td class="r dm-mono" id="dm-tam"><b>${dmFmt(tamTinh())}</b></td><td></td></tr></tbody></table>`
+
   box.innerHTML = `<div class="dm-row"><button class="n" id="dm-huy-form">← Danh sách</button><h3 style="margin:0 0 0 6px">${suaId ? 'Sửa dòng · ' + ct.so_don : 'Đơn mua mới'}</h3></div>
+    <div class="dm-sub">${suaId ? 'Sửa số lượng / đơn giá các dòng.' : 'Chọn nhà cung cấp, gõ mã vật tư, nhập số lượng → Lưu. Số đơn cấp tự động.'}</div>
     ${suaId ? '' : `<div class="dm-row"><div><label>Nhà cung cấp</label><select class="ip" id="dm-f-ncc2" style="width:220px">${NCC.map(x => `<option value="${x.id}">${x.ten}</option>`).join('')}</select></div>
       <div><label>Kho nhận</label><select class="ip" id="dm-f-kho" style="width:160px">${khoList.map(x => `<option value="${x.id}" ${x.la_mac_dinh ? 'selected' : ''}>${x.ten}</option>`).join('')}</select></div>
       <div><label>Ngày cần</label><input class="ip" id="dm-f-can" type="date" value="${dauCan}"></div>
@@ -893,25 +907,61 @@ async function dmMoiForm(suaId) {
     <button class="n nho" id="dm-them-dong">+ Thêm dòng</button>
     <div class="dm-err" id="dm-form-err"></div>
     <div class="dm-gate">${suaId ? '<button class="n chinh" id="dm-luu-sua">Lưu dòng</button>' : '<button class="n" id="dm-luu">Lưu (Mới)</button><button class="n chinh" id="dm-luu-gui">Lưu và gửi NCC</button>'}</div>`
-  const bind = () => {
-    box.querySelectorAll('.d-vt').forEach(s => s.onchange = () => { const i = +s.dataset.i; dong[i].vat_tu_id = s.value; const v = vt.find(x => x.id === s.value); if (v && !dong[i].don_gia) sbGia(v.id, i); $('#dm-dong').innerHTML = veDong(); bind() })
-    box.querySelectorAll('.d-sl').forEach(s => s.oninput = () => { dong[+s.dataset.i].so_luong = s.value })
-    box.querySelectorAll('.d-dg').forEach(s => s.oninput = () => { dong[+s.dataset.i].don_gia = s.value })
-    box.querySelectorAll('.d-xoa').forEach(s => s.onclick = () => { if (dong.length > 1) { dong.splice(+s.dataset.i, 1); $('#dm-dong').innerHTML = veDong(); bind() } })
+
+  const capNhatTien = () => { box.querySelectorAll('.d-tt').forEach(c => { const i = +c.dataset.i; c.textContent = dong[i].vat_tu_id ? dmFmt(rowTT(i)) : '' }); const t = $('#dm-tam'); if (t) t.innerHTML = '<b>' + dmFmt(tamTinh()) + '</b>' }
+  const dongGoi = () => box.querySelectorAll('.dm-goi').forEach(g => g.innerHTML = '')
+  const chonVt = (i, v, focusSl = true) => {   // chọn vật tư → điền ĐVT + đơn giá gợi ý, không dựng lại bảng
+    dong[i].vat_tu_id = v.id
+    const inp = box.querySelector(`.d-vt[data-i="${i}"]`); if (inp) inp.value = `${v.ma} — ${v.ten}`
+    const dvtCell = box.querySelector(`.d-dvt[data-i="${i}"]`); if (dvtCell) dvtCell.textContent = v.dvt || ''
+    const g = gia[v.id]; if (g != null && (dong[i].don_gia === '' || dong[i].don_gia == null)) { dong[i].don_gia = g; const dg = box.querySelector(`.d-dg[data-i="${i}"]`); if (dg) dg.value = dmFmt(g) }
+    dongGoi(); capNhatTien()
+    // hint "chưa có giá" nếu không có gợi ý
+    const cell = box.querySelector(`.d-vt[data-i="${i}"]`)?.closest('.dm-vtcell')
+    if (cell) { cell.querySelector('.dm-hint')?.remove(); if (g == null && (dong[i].don_gia === '' || dong[i].don_gia == null || Number(dong[i].don_gia) === 0)) cell.insertAdjacentHTML('beforeend', '<div class="dm-hint">chưa có giá tham khảo</div>') }
+    if (focusSl) box.querySelector(`.d-sl[data-i="${i}"]`)?.focus()
   }
-  const sbGia = async (vid, i) => { const { data } = await sb.from('v_gia_tham_khao').select('gia_tham_khao').eq('vat_tu_id', vid).maybeSingle(); if (data && data.gia_tham_khao != null && !dong[i].don_gia) { dong[i].don_gia = data.gia_tham_khao; $('#dm-dong').innerHTML = veDong(); bind() } }
+  const themDong = () => { dong.push({ vat_tu_id: '', so_luong: '', don_gia: '' }); $('#dm-dong').innerHTML = veDong(); bind(); box.querySelector(`.d-vt[data-i="${dong.length - 1}"]`)?.focus() }
+
+  function bind() {
+    box.querySelectorAll('.d-vt').forEach(inp => {
+      const i = +inp.dataset.i, goi = box.querySelector(`.dm-goi[data-i="${i}"]`)
+      inp.oninput = () => {
+        dong[i].vat_tu_id = ''   // gõ lại = bỏ chọn cũ
+        const q = inp.value.trim().toLowerCase()
+        if (!q) { goi.innerHTML = ''; return }
+        const kq = vt.filter(v => v.ma.toLowerCase().includes(q) || v.ten.toLowerCase().includes(q)).slice(0, 8)
+        goi.innerHTML = kq.map(v => `<div class="dm-goi-item" data-vt="${v.id}">${v.ma} — ${v.ten} <span class="dm-goi-dvt">(${v.dvt || ''})</span></div>`).join('') || '<div class="dm-goi-none">không thấy vật tư</div>'
+        goi.querySelectorAll('.dm-goi-item').forEach(it => it.onmousedown = e => { e.preventDefault(); chonVt(i, vById(it.dataset.vt)) })
+      }
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const first = goi.querySelector('.dm-goi-item'); if (first) chonVt(i, vById(first.dataset.vt)) } }
+      inp.onblur = () => setTimeout(() => { goi.innerHTML = '' }, 150)
+    })
+    box.querySelectorAll('.d-sl').forEach(s => {
+      const i = +s.dataset.i
+      s.oninput = () => { dong[i].so_luong = s.value; capNhatTien() }
+      s.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); if (i === dong.length - 1) themDong(); else box.querySelector(`.d-vt[data-i="${i + 1}"]`)?.focus() } }
+    })
+    box.querySelectorAll('.d-dg').forEach(s => {
+      const i = +s.dataset.i
+      s.oninput = () => { const raw = s.value.replace(/\D/g, ''); dong[i].don_gia = raw === '' ? '' : Number(raw); s.value = raw === '' ? '' : dmFmt(raw); capNhatTien() }
+    })
+    box.querySelectorAll('.d-xoa').forEach(s => s.onclick = () => { const i = +s.dataset.i; if (dong.length > 1) dong.splice(i, 1); else dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }]; $('#dm-dong').innerHTML = veDong(); bind() })
+  }
   bind()
-  $('#dm-huy-form').onclick = veDonMua
-  $('#dm-them-dong').onclick = () => { dong.push({ vat_tu_id: '', so_luong: '', don_gia: '' }); $('#dm-dong').innerHTML = veDong(); bind() }
-  const goiDong = () => dong.filter(d => d.vat_tu_id).map(d => ({ vat_tu_id: d.vat_tu_id, so_luong: Number(d.so_luong) || 0, don_gia: d.don_gia === '' ? null : Number(d.don_gia) }))
+  box.querySelector('.d-vt[data-i="0"]')?.focus()   // con trỏ sẵn ở ô vật tư dòng 1
+  $('#dm-huy-form').onclick = () => veDonMua()
+  $('#dm-them-dong').onclick = themDong
+
+  const goiDong = () => dong.filter(d => d.vat_tu_id && (Number(d.so_luong) || 0) > 0).map(d => ({ vat_tu_id: d.vat_tu_id, so_luong: Number(d.so_luong), don_gia: d.don_gia === '' || d.don_gia == null ? null : Number(d.don_gia) }))
   const luu = async (gui) => {
     const err = $('#dm-form-err'); err.textContent = ''
     const ds = goiDong()
-    if (!ds.length) { err.textContent = 'Đơn phải có ít nhất một dòng vật tư.'; return }
+    if (!ds.length) { err.textContent = 'Cần ít nhất 1 dòng vật tư có số lượng.'; return }
     if (suaId) { const r = await sb.rpc('dm_sua_dong', { p_id: suaId, p_dong: ds }); if (r.error) { err.textContent = r.error.message; return } dmXem(suaId); return }
     const r = await sb.rpc('dm_tao', { p_ncc: $('#dm-f-ncc2').value, p_kho: $('#dm-f-kho').value, p_ngay_can: $('#dm-f-can').value, p_ghi_chu: $('#dm-f-gc').value || null, p_dong: ds, p_gui_ngay: !!gui })
     if (r.error) { err.textContent = r.error.message; return }
-    if (r.data.canh_bao_gia) alert(r.data.canh_bao_gia)
+    if (r.data.canh_bao_gia) { err.style.color = 'var(--am,#9A6412)'; err.textContent = r.data.canh_bao_gia; setTimeout(() => { err.style.color = '' }, 50) }
     dmXem(r.data.id)
   }
   if (suaId) $('#dm-luu-sua').onclick = () => luu(false)
