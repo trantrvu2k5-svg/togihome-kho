@@ -65,6 +65,15 @@ tbody tr.click:hover{background:var(--do-nhat)}
 .bar i{display:block;height:100%;background:var(--xanh)}
 tr.duoi .bar i{background:var(--do)}
 tr.duoi .mt .v{color:var(--do);font-weight:700}
+/* ── WP-32 · cột giữ chỗ tab Tồn kho (tiền tố tk-gc-) ── */
+.tk-gc-h{background:#F3F1EC}
+td.tk-gc-giu{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--amber);text-align:right}
+td.tk-gc-ve{font-family:var(--mono);font-variant-numeric:tabular-nums;color:#2A6DB0;text-align:right}
+td.tk-gc-kd{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.tk-gc-am{color:var(--do)!important;font-weight:700}
+.tk-gc-0{color:#B7B2A6}
+.tk-gc-badge{display:inline-block;font-size:10px;padding:0 6px;border-radius:100px;background:#FBF4E6;color:var(--amber);border:1px solid #E0CDA8;margin-left:5px}
+@media(max-width:819.98px){ #m-ton th.tk-gc-h, #m-ton td.tk-gc-giu, #m-ton td.tk-gc-ve, #m-ton td.tk-gc-kd{display:none} }
 
 .anh{width:50px;height:50px;border-radius:4px;border:1px solid var(--line);background:#F7F5F1;
  display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;flex:0 0 50px}
@@ -413,11 +422,11 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   <p class="lead">Bấm một dòng để mở <b>thẻ kho</b> — lịch sử nhập xuất của riêng mã đó.</p>
   <div class="tk">
     <div><b id="k-ma">0</b><span>mã vật tư</span></div>
-    <div class="c-do"><b id="k-duoi">0</b><span>dưới tối thiểu</span></div>
-    <div class="c-am"><b id="k-thieu">0</b><span>chưa có giá</span></div>
-    <div onclick="toggleTien()"><b id="k-tien">0</b><span>giá trị tồn (đ)</span></div>
+    <div class="c-do"><b id="k-duoi">0</b><span>khả dụng âm</span></div>
+    <div><b id="k-thieu">0</b><span>mã đang giữ chỗ</span></div>
+    <div><b id="k-tien">0</b><span>mã đang về</span></div>
   </div>
-  <div class="mb-hint">Chạm ô “giá trị tồn” để xem số đầy đủ · chạm một dòng để mở thẻ kho.</div>
+  <div class="mb-hint">Chạm một dòng để mở thẻ kho.</div>
   <div class="loc" style="margin-bottom:9px">
     <div class="seg">
       <button class="on" data-k="*">Tất cả <b id="s-all">0</b></button>
@@ -435,7 +444,9 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
     <th style="width:64px">Ảnh</th><th style="width:86px">Mã</th><th>Tên vật tư</th><th style="width:124px">Nhóm</th>
     <th class="r" style="width:126px">Tồn</th><th class="r" style="width:72px">Tối thiểu</th>
     <th style="width:52px">ĐVT</th><th class="r" style="width:92px">Giá BQ</th>
+    <th class="r tk-gc-h" style="width:76px">Giữ chỗ</th><th class="r tk-gc-h" style="width:76px">Đang về</th><th class="r tk-gc-h" style="width:96px">Khả dụng</th>
   </tr></thead><tbody id="bang"></tbody></table>
+  <div class="mb-hint">Khả dụng = Tồn − Giữ chỗ. Âm = thiếu, vẫn bàn giao (ERP 3.3.7).</div>
 </section>
 
 <section class="man" id="m-dat">

@@ -351,15 +351,18 @@ async function moMon(monId, maDon) {
   ])
   const d = (ct || [])[0]
   if (!d) { $('pDau').innerHTML = '<p>Không tải được món.</p>'; return }
-  vePanel(d, vet || [], tem || [], (fileRes && fileRes.data) || [])
+  // WP-32: giữ chỗ theo ĐƠN (giu_cho_ds cần don_hang_id — tra từ ma_don). Rỗng/lỗi → bảng ẩn (nhiệm C).
+  let gc = []
+  if (maDon) { try { const { data: dh } = await sb.from('don_hang').select('id').eq('ma_don', maDon).maybeSingle(); if (dh) { const { data: g } = await sb.rpc('giu_cho_ds', { p_don_hang_id: dh.id }); gc = (g || []).filter(x => x.trang_thai === 'mo') } } catch (_) { gc = [] } }
+  vePanel(d, vet || [], tem || [], (fileRes && fileRes.data) || [], gc)
 }
 const LOAI_FILE = { dxf: '▤ DXF', cutlist: '▦ Cutlist', anh_ban_ve: '🖼 Ảnh bản vẽ', khac: '📄 File' }
 async function taiFileXuong(path) {
   const { data } = await sb.storage.from('file-san-xuat').createSignedUrl(path, 3600, { download: true })
   if (data && data.signedUrl) window.open(data.signedUrl, '_blank'); else bao('Không tải được file', true)
 }
-function vePanel(d, vet, tem, files) {
-  files = files || []
+function vePanel(d, vet, tem, files, gc) {
+  files = files || []; gc = gc || []
   const ke = KE[d.trang_thai]
   PANEL.ke = ke; PANEL.nguoi = USER.vai_tro === 'tho' ? USER.id : (THO_LIST[0] && THO_LIST[0].id) || USER.id
   const conNgay = d.ngay_hen_khach ? Math.ceil((new Date(d.ngay_hen_khach) - new Date()) / 86400000) : null
@@ -398,6 +401,8 @@ function vePanel(d, vet, tem, files) {
     `<div class="muc"><h3>Tấm chi tiết${tem.length ? ' · ' + tem.length + ' tấm (cả đơn)' : ''}</h3>${Object.keys(tamGop).length ? Object.entries(tamGop).map(([k, n]) => { const [vt, kt] = k.split('|'); return `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${esc(vt.replace(/_/g, ' '))}</span><span class="kt">${esc(kt)}</span><span class="sl">×${n}</span></div>` }).join('') + (metNep ? `<p style="margin-top:10px;font-size:13px;color:var(--chu-nhat)">Nẹp dán cạnh: <b>${(metNep / 1000).toFixed(1)} m</b></p>` : '') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có tem — máy thiết kế chưa đẩy.</p>'}</div>` +
     `<div class="muc"><h3>File từ thiết kế${files.length ? ' · ' + files.length + ' file' : ''}</h3>${files.length ? files.map(f => `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${LOAI_FILE[f.loai_file] || f.loai_file}${f.ten_goc ? ' · ' + esc(f.ten_goc) : ''}</span><span class="kt">${f.co_byte ? Math.round(f.co_byte / 1024) + ' KB' : ''}</span><button class="nut-phu" data-taixuong="${esc(f.duong_dan)}" style="width:auto;padding:5px 12px">Tải về</button></div>`).join('') + '<p style="margin-top:9px;font-size:12.5px;color:var(--chu-mo)">Nguồn: <b>thiết kế tải lên</b>. Khối "Tấm chi tiết" ở trên đến <b>từ plugin</b>.</p>' : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có file thiết kế tải lên. Tem/tấm ở trên (nếu có) đến từ plugin.</p>'}</div>` +
     `<div class="muc"><h3>Phụ kiện</h3><div class="thieu"><b>Chưa có dữ liệu</b>Plugin tính được bản lề, ray, ben hơi nhưng hiện chỉ đẩy số tổng (12 driver), không đẩy chi tiết từng loại. Tổ Lắp ráp vẫn phải tra bản vẽ.</div></div>` +
+    // WP-32: giữ chỗ vật tư của đơn (ẩn nếu 0 dòng — nhiệm C)
+    (gc.length ? `<div class="muc"><h3>Giữ chỗ · ${gc.length} dòng</h3><table class="xg-gc-tbl"><thead><tr><th>Vật tư</th><th>Nguồn</th><th class="r">Giữ</th><th class="r">Đã xuất</th><th class="r">Còn giữ</th></tr></thead><tbody>${gc.map(g => `<tr><td><span class="xg-gc-ma">${esc(g.ma || '')}</span> ${esc(g.ten || '')}</td><td><span class="xg-gc-src">${esc(g.nguon || '—')}</span></td><td class="r xg-gc-n">${fmt(g.so_luong_giu)}</td><td class="r xg-gc-n">${fmt(g.so_luong_da_xuat)}</td><td class="r xg-gc-n">${fmt(Number(g.so_luong_giu) - Number(g.so_luong_da_xuat))}</td></tr>`).join('')}</tbody></table></div>` : '') +
     `<div class="muc"><h3>Đã qua tay ai</h3>${vet.length ? vet.map(v => `<div class="vet"><span class="luc">${dmyhm(v.luc)}</span><span class="noi">${v.nguoi_ten ? '<b>' + esc(v.nguoi_ten) + '</b> ' : ''}<span>${v.tu ? 'xong ' + esc(BUOC[v.tu] || v.tu).toLowerCase() + ' → ' : ''}${esc(BUOC[v.den] || v.den).toLowerCase()}</span></span></div>`).join('') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có vết đổi bước.</p>'}</div>`
   $('pThan').querySelectorAll('[data-taixuong]').forEach(b => b.onclick = () => taiFileXuong(b.dataset.taixuong))
 }
@@ -917,3 +922,6 @@ async function tlLuuDoi() {
 }
 
 function tlDong(id) { $(id).classList.remove('tl-mo') }
+
+// WP-32: phơi mở màn đơn cho robot/kiểm mắt (như __sb) — không đổi hành vi người dùng.
+window.moDon = moDon; window.moMon = moMon;

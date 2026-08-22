@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MẪU · Tồn kho + Giữ chỗ (WP-32) — v1</title>
+<style>
+  /* token LẤY TỪ web/index.html thật (app Kho) */
+  :root{
+    --paper:#EFEDE8; --surface:#FFFFFF; --ink:#23282E; --muted:#6E7681;
+    --line:#D9D5CC; --line2:#EDEAE3; --do:#C0392B; --do-dam:#A5301F; --do-nhat:#FBEEEC;
+    --xanh:#2E7D52; --amber:#B7791F;
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:0}
+  header{background:var(--do);color:#fff;padding:13px 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header b{font-size:16px}
+  header span{opacity:.85;font-size:13px}
+  .wrap{padding:20px 22px;max-width:1180px}
+  h2{font-size:17px;margin:0 0 3px}
+  .lead{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .tk{display:flex;gap:11px;flex-wrap:wrap;margin:0 0 16px}
+  .tk div{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 15px;min-width:130px}
+  .tk span{font-size:12px;color:var(--muted)}
+  .tk b{display:block;font-size:22px;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+  .tk .c-do b{color:var(--do)}
+  .chips{margin:0 0 12px}
+  .chip{border:1px solid var(--line);background:var(--surface);border-radius:100px;padding:4px 12px;font-size:13px;cursor:default}
+  .chip.on{background:var(--do);border-color:var(--do);color:#fff}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+  th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:8px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:8px 11px;border-bottom:1px solid var(--line2);font-size:14px;vertical-align:middle}
+  th.r,td.r{text-align:right}
+  tbody tr:hover{background:var(--do-nhat)}
+  .ma{font-family:var(--mono);font-size:12.5px;color:#5A6169}
+  .mt{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+  .mt .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px;min-width:44px;text-align:right}
+  .bar{width:54px;height:4px;background:#E4E0D7;border-radius:2px;overflow:hidden;flex:0 0 54px}
+  .bar i{display:block;height:100%;background:var(--xanh)}
+  /* ── CỘT MỚI WP-32 (tiền tố tk-gc-) ── */
+  .tk-gc-h{background:#F3F1EC}                                   /* nhóm 3 cột giữ chỗ */
+  .tk-gc-giu{font-family:var(--mono);color:var(--amber)}
+  .tk-gc-ve{font-family:var(--mono);color:#2A6DB0}
+  .tk-gc-kd{font-family:var(--mono);font-weight:600}
+  .tk-gc-am{color:var(--do);font-weight:700}                     /* khả dụng âm → đỏ */
+  .tk-gc-0{color:#B7B2A6}                                        /* 0 → mờ */
+  .note{font-size:12px;color:var(--muted);margin:8px 0 26px}
+  .note b{color:var(--do)}
+  .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:100px;background:#FBF4E6;color:var(--amber);border:1px solid #E0CDA8;margin-left:6px}
+  /* bảng nhỏ app Xưởng */
+  .xu{max-width:640px;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden;margin-top:6px}
+  .xu-dau{padding:10px 14px;border-bottom:1px solid var(--line);background:#F3F1EC;font-weight:600;font-size:13px}
+  .xu td,.xu th{font-size:13px}
+  .src{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:3px;background:#EEF1F5;color:#5A6478}
+</style>
+</head>
+<body>
+<header><b>Togihome — Kho xưởng</b><span>MẪU WP-32 · Tồn kho + Giữ chỗ · số THẬT từ v_ton_kha_dung (đơn DEMO bàn giao rồi xoá)</span></header>
+<div class="wrap">
+
+  <h2>Tồn kho</h2>
+  <p class="lead">Ba tháng đầu kho chỉ ghi, không chặn. <b>Mới (WP-32):</b> thêm 3 cột <b>Giữ chỗ · Đang về · Khả dụng</b>.
+    Khả dụng = Tồn − Giữ chỗ. Giữ chỗ MỀM sinh lúc bàn giao xưởng (không trừ tồn thật). Khả dụng âm = thiếu, tô đỏ (vẫn cho bàn giao — chờ hàng về).</p>
+
+  <div class="tk">
+    <div><span>Mã vật tư</span><b class="num">199</b></div>
+    <div class="c-do"><span>Khả dụng âm (thiếu)</span><b class="num">1</b></div>
+    <div><span>Đang giữ chỗ</span><b class="num">3</b></div>
+    <div><span>PO đang về</span><b class="num">1</b></div>
+  </div>
+
+  <div class="chips"><span class="chip on">Tất cả nhóm</span> <span class="chip">Bản lề</span> <span class="chip">Ván</span> <span class="chip">Phụ kiện</span></div>
+
+  <table>
+    <thead><tr>
+      <th style="width:86px">Mã</th><th>Tên vật tư</th><th style="width:120px">Nhóm</th>
+      <th class="r" style="width:120px">Tồn</th><th style="width:48px">ĐVT</th>
+      <th class="r tk-gc-h" style="width:82px">Giữ chỗ</th><th class="r tk-gc-h" style="width:82px">Đang về</th><th class="r tk-gc-h" style="width:96px">Khả dụng</th>
+    </tr></thead>
+    <tbody>
+      <!-- 3 dòng SỐ THẬT (đơn DEMO-MAU-GC bàn giao, giữ 8/5/3) -->
+      <tr><td class="ma">BL-01</td><td>Bản lề GC — Cong nửa</td><td>Bản lề</td>
+        <td class="r"><div class="mt"><span class="v">56</span><span class="bar"><i style="width:70%"></i></span></div></td><td>bộ</td>
+        <td class="r tk-gc-giu">8</td><td class="r tk-gc-ve tk-gc-0">0</td><td class="r tk-gc-kd">48</td></tr>
+      <tr><td class="ma">BL-08</td><td>Bản lề lá</td><td>Bản lề</td>
+        <td class="r"><div class="mt"><span class="v">69</span><span class="bar"><i style="width:80%"></i></span></div></td><td>hộp</td>
+        <td class="r tk-gc-giu">5</td><td class="r tk-gc-ve tk-gc-0">0</td><td class="r tk-gc-kd">64</td></tr>
+      <tr><td class="ma">BX-01</td><td>Bánh xe có khóa (cọc)</td><td>Phụ kiện</td>
+        <td class="r"><div class="mt"><span class="v">283</span><span class="bar"><i style="width:95%"></i></span></div></td><td>cái</td>
+        <td class="r tk-gc-giu">3</td><td class="r tk-gc-ve tk-gc-0">0</td><td class="r tk-gc-kd">280</td></tr>
+      <!-- dòng thường (chưa giữ) -->
+      <tr><td class="ma">AA-NAU-18</td><td>Gỗ cao su pu nâu AA 18mm</td><td>Ván</td>
+        <td class="r"><div class="mt"><span class="v">21</span><span class="bar"><i style="width:35%"></i></span></div></td><td>tấm</td>
+        <td class="r tk-gc-0">0</td><td class="r tk-gc-ve">40</td><td class="r tk-gc-kd">21</td></tr>
+      <!-- KHẢ DỤNG ÂM (minh hoạ trạng thái thiếu hàng — t6: tồn 0, giữ 5) -->
+      <tr><td class="ma">GHN-02</td><td>Giá để giày kéo <span class="badge">chờ hàng về</span></td><td>Phụ kiện</td>
+        <td class="r"><div class="mt"><span class="v">0</span><span class="bar"></span></div></td><td>bộ</td>
+        <td class="r tk-gc-giu">5</td><td class="r tk-gc-ve">6</td><td class="r tk-gc-kd tk-gc-am">−5</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Dòng <b>GHN-02</b>: khả dụng <b>−5</b> (tồn 0, đã giữ 5) → tô đỏ. PO đang về 6 → khả dụng-kể-cả-PO = +1.
+    Bàn giao VẪN chạy, đơn nhận cảnh báo <code>vat_tu_thieu</code> (ERP 3.3.7). <b>Chặn hay không là việc WP-42.</b></p>
+
+  <h2>Giữ chỗ theo đơn — app Xưởng ▸ màn đơn</h2>
+  <p class="lead">Bảng nhỏ trong màn đơn ở app Xưởng: mỗi dòng BOM chuẩn = một dòng giữ chỗ (số THẬT đơn DEMO-MAU-GC).</p>
+  <div class="xu">
+    <div class="xu-dau">Đơn DEMO-MAU-GC · Kệ hông mẫu · giữ chỗ 3/3 dòng</div>
+    <table>
+      <thead><tr><th>Vật tư</th><th style="width:70px">Nguồn</th><th class="r" style="width:80px">Giữ</th><th class="r" style="width:80px">Đã xuất</th><th class="r" style="width:80px">Còn giữ</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ma">BL-01</span> Bản lề GC</td><td><span class="src">cutlist</span></td><td class="r num">8</td><td class="r num tk-gc-0">0</td><td class="r num">8</td></tr>
+        <tr><td><span class="ma">BL-08</span> Bản lề lá</td><td><span class="src">go_tay</span></td><td class="r num">5</td><td class="r num tk-gc-0">0</td><td class="r num">5</td></tr>
+        <tr><td><span class="ma">BX-01</span> Bánh xe khóa</td><td><span class="src">uoc</span></td><td class="r num">3</td><td class="r num tk-gc-0">0</td><td class="r num">3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">3 nguồn <b>cutlist · go_tay · uoc</b> song song (bổ trợ, không thay thế — QD-15/50). Cột "Đã xuất" do WP-33 ghi khi quét trạm.</p>
+
+</div>
+</body>
+</html>

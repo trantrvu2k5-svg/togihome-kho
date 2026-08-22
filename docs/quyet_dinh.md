@@ -721,3 +721,19 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (`docConfig`, read-only) — không login, không cần `.env.robot`.
 - **Lý do:** 05 §D (robot = vòng hồi quy chuẩn). **Trạng thái:** ĐANG ÁP DỤNG (db/129 + .env.robot + dung_tk_robot.mjs).
 - **Chạy hồi quy:** `cd web && python3 ops/demo_phong_hop.py`
+
+## QD-52 (22/08) — GIỮ CHỖ MỀM lúc bàn giao: không trừ tồn, không gắn lô; thiếu hàng vẫn bàn giao và báo thiếu (WP-32, db/130)
+
+- **Bàn giao xưởng (QD-16 mốc chốt) tự kích hoạt GIỮ CHỖ.** `ban_giao_xuong` sau 3 chốt cũ (đóng băng số/phút/đơn giá, gắn
+  file cắt, chuyển `cho_cat`) làm thêm: (i) đóng băng BOM `du_kien→chuan` + `chot_luc`; (ii) sinh **`giu_cho`** MỀM một dòng mỗi
+  dòng BOM chuan (3 nguồn cutlist/go_tay/uoc như nhau — bổ trợ, không thay thế), kho = xưởng mặc định.
+- **MỀM (soft), KHÔNG hard:** ván không serial → giữ SỐ LƯỢNG, KHÔNG gắn lô. **KHÔNG trừ `ton`, KHÔNG INSERT `giao_dich`**
+  (WP-10: SX chưa chạm tồn — chỉ THÊM đường mới). Trừ tồn THẬT để **WP-33 back-flush theo quét**.
+- **Khả dụng (Q4 CEO chốt):** `v_ton_kha_dung.kha_dung = ton − giữ_chỗ`; `kha_dung_ke_ca_po = + PO đang về`
+  (Σ `don_mua_dong.so_luong − so_luong_da_nhan` của đơn mua `da_gui/xac_nhan`).
+- **Thiếu hàng VẪN bàn giao** (ERP 3.3.7: vật tư chưa có thì ghi nhận theo lệnh SX, giữ khi hàng về) → trả `vat_tu_thieu`
+  (khả dụng âm) + `mon_thieu_bom` (món chưa có BOM) trong kết quả RPC, **KHÔNG chặn**. Chặn là việc WP-42 quyết.
+- **Đơn → `huy`** ⇒ trigger `trg_huy_giu_cho` chuyển giữ chỗ `mo→huy`; `tam_ngung` giữ nguyên. Bàn giao lần 2 vô hại
+  (`UNIQUE(don_hang_mon_bom_id) WHERE mo` + guard `DA_VAO_CHUYEN`).
+- **Lý do:** ERP Sagegg & Alfnes §3.3.7 (giữ chỗ để on-hand khả dụng đúng; soft cho hàng không serial) + QD-16 + QD-44
+  (một bản sự thật tồn) + WP-10. **Kiểm chứng:** `web/ops/test_130.mjs` (10 ca). **Trạng thái:** ĐANG ÁP DỤNG (db/130).

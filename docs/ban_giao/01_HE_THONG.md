@@ -36,7 +36,7 @@
 - `moc_bao_gia` (db/036) — vào `bao_gia_thua` bắt buộc lý do thua; đóng/mở dấu ngày báo giá.
 - `chan_lui_san_xuat` (db/047) — cấm hạ đơn đang SX về nhóm trước-SX (sale/tk_ban_hang chặn tuyệt đối; ceo/xuong phải có lý do).
 - `dong_bo_trang_thai_don` (db/038, db/045) — đơn = bước CHẬM NHẤT của các món; mọi món xong_sx → đơn cho_giao.
-- **Cửa vào chuyền** (moi_len_don/xong_file → cho_cat): `dua_vao_chuyen` (ceo/xuong) · tem tự bắc cầu · `ban_giao_xuong` (thiet_ke, gác 3 chốt: file + khách duyệt + đủ số).
+- **Cửa vào chuyền** (moi_len_don/xong_file → cho_cat): `dua_vao_chuyen` (ceo/xuong) · tem tự bắc cầu · `ban_giao_xuong` (thiet_ke, gác 3 chốt: file + khách duyệt + đủ số) — **sau 3 chốt còn ĐÓNG BĂNG BOM `du_kien→chuan` + sinh GIỮ CHỖ mềm (WP-32/QD-52, db/130)**.
 
 **`buoc_thiet_ke` — 5 bước, TÁCH khỏi trang_thai đơn:**
 `cho_nhan` → `dang_dung` → `cho_duyet` → `sua_gop_y` → `xong_file`. (NULL = chưa vào luồng.) Đổi bởi RPC: `nhan_viec_thiet_ke`→dang_dung · `gui_ban_thiet_ke`→cho_duyet · `phan_hoi_ban`(chê)→sua_gop_y · `ban_giao_xuong`/đẩy tem→xong_file. Một đơn có thể ở trang_thai=`bao_gia` trong khi buoc_thiet_ke chạy dang_dung→cho_duyet…
@@ -64,7 +64,7 @@
 
 ## D. BẢN ĐỒ BẢNG (89 bảng — nhóm theo miền; NGUỒN = người/hệ nhập gốc, SUY = tính ra)
 
-**Đơn hàng & khách:** `don_hang`(NGUỒN, sale) · `don_hang_mon`(NGUỒN, sale) · `don_hang_mon_bom`(NGUỒN, thiết kế/plugin — BOM đơn cấp theo món, cutlist/go_tay/uoc × du_kien/chuan, db/128 QD-50) · `don_hang_gia_von`(NGUỒN, plugin/tài chính) · `don_hang_nhat_ky`·`don_hang_mon_nhat_ky`(SUY, trigger, bất biến) · `khach`(NGUỒN, sale) · `gio_don_da_tinh`(SUY, materialize giờ đơn).
+**Đơn hàng & khách:** `don_hang`(NGUỒN, sale) · `don_hang_mon`(NGUỒN, sale) · `don_hang_mon_bom`(NGUỒN, thiết kế/plugin — BOM đơn cấp theo món, cutlist/go_tay/uoc × du_kien/chuan, db/128 QD-50) · `don_hang_gia_von`(NGUỒN, plugin/tài chính) · `don_hang_nhat_ky`·`don_hang_mon_nhat_ky`(SUY, trigger, bất biến) · `khach`(NGUỒN, sale) · `gio_don_da_tinh`(SUY, materialize giờ đơn) · `giu_cho`(NGUỒN, `ban_giao_xuong` — giữ chỗ MỀM theo dòng BOM chuan, WP-32/QD-52 db/130) · view `v_ton_kha_dung`(SUY — tồn − giữ chỗ + PO đang về) · RPC `giu_cho_ds`(giữ chỗ theo đơn, app Xưởng).
 
 **Bản thiết kế:** `ban_thiet_ke`·`anh_ban_thiet_ke`(NGUỒN, thiết kế) · `link_ban_khach`(SUY, RPC) · `tem_ban_ve`·`tem_da_in`·`lan_in_tem`·`tien_do_tem`(NGUỒN/SUY, tem) · `file_san_xuat`(NGUỒN, thiết kế) · `dung_lai_ban`.
 

@@ -64,27 +64,32 @@ sb.auth.getSession().then(({ data }) => { if (data.session) vaoApp(data.session.
 async function taiDuLieu() {
   const res = await Promise.all([
     sb.from('nhom').select('id,ten'),
-    sb.from('vat_tu').select('ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,anh_file,ton_toi_thieu'),
+    sb.from('vat_tu').select('id,ma,ten,loai,nhom_id,dvt,so_moi_dvt,do_day_mm,vat_lieu,hoan_thien,ma_van_ncc,anh_ma,anh_file,ton_toi_thieu'),
     sb.from('ton').select('vat_tu_id,so_luong,vat_tu:vat_tu_id(ma)'),
     sb.from('v_ton_gia_von').select('vat_tu_id,gia_von_bq,vat_tu:vat_tu_id(ma)'),  // rỗng nếu là thợ
     sb.from('v_gia_tham_khao').select('ma,gia_tham_khao'),                          // rỗng nếu là thợ
     sb.from('nha_cung_cap').select('id,ten,dien_thoai,dia_chi'),
-    sb.from('to_san_xuat').select('ma_to,ten,so_nguoi')   // [037] tổ nhận cho phiếu xuất
+    sb.from('to_san_xuat').select('ma_to,ten,so_nguoi'),   // [037] tổ nhận cho phiếu xuất
+    sb.from('v_ton_kha_dung').select('vat_tu_id,giu_cho,dang_ve,kha_dung').limit(5000)   // WP-32: giữ chỗ + khả dụng (VIEW không embed FK → map qua vat_tu.id; 1 query, LIMIT trần QD-42)
   ])
   // Lỗi bất kỳ truy vấn -> KHÔNG dựng lại KHO (giữ nguyên, không clobber), trả lỗi cho nơi gọi hiện ra.
   const loi = res.find(r => r.error)
   if (loi) return { ok: false, loi: loi.error.message }
-  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }, { data: toList }] = res
+  const [{ data: nhom }, { data: vt }, { data: ton }, { data: gv }, { data: gtk }, { data: ncc }, { data: toList }, { data: kd }] = res
   TO = toList || []
   NHOM = nhom || []
   const tenNhom = Object.fromEntries(NHOM.map(x => [x.id, x.ten]))
   const tonMa = Object.fromEntries((ton || []).map(t => [t.vat_tu?.ma, t.so_luong]))
   const giaMa = Object.fromEntries((gv || []).map(g => [g.vat_tu?.ma, g.gia_von_bq]))
   const gtkMa = Object.fromEntries((gtk || []).map(g => [g.ma, g.gia_tham_khao]))
+  const idMa = Object.fromEntries((vt || []).map(v => [v.id, v.ma]))         // WP-32: vat_tu.id → mã
+  const kdMa = Object.fromEntries((kd || []).map(k => [idMa[k.vat_tu_id], k]))   // giữ chỗ theo mã
   KHO = (vt || []).map(v => ({
     ma: v.ma, ten: v.ten, kho: v.loai, nhom: tenNhom[v.nhom_id] || '—', nhom_id: v.nhom_id,
     dvt: v.dvt, sl: v.so_moi_dvt, min: v.ton_toi_thieu || 0, cktr: v.can_kiem_tra,
     ton: tonMa[v.ma] || 0, gia: giaMa[v.ma] || 0, gtk: gtkMa[v.ma] || 0,
+    giu_cho: Number(kdMa[v.ma]?.giu_cho || 0), dang_ve: Number(kdMa[v.ma]?.dang_ve || 0),
+    kha_dung: kdMa[v.ma] ? Number(kdMa[v.ma].kha_dung) : (tonMa[v.ma] || 0),   // không có dòng KD → = tồn
     vl: v.vat_lieu, day: v.do_day_mm, mv: v.ma_van_ncc, ht: v.hoan_thien, anh_ma: v.anh_ma, anh_file: v.anh_file
   }))
   // Nguồn ảnh theo THỨ TỰ: (1) anh_file -> bucket công khai · (2) anh_ma -> Drive dự phòng · (3) không có -> ô trống.
@@ -172,11 +177,11 @@ $$('nav button[data-m]').forEach(b => b.onclick = () => chuyenMan(b.dataset.m))
 async function lamMoiTon() {
   const bang = $('#bang'), btn = $('#btn-lammoi')
   if (btn) { btn.disabled = true; btn.textContent = 'Đang tải…' }
-  if (bang) bang.innerHTML = '<tr><td colspan="8" style="padding:22px;color:#6E7681">Đang tải…</td></tr>'
+  if (bang) bang.innerHTML = '<tr><td colspan="11" style="padding:22px;color:#6E7681">Đang tải…</td></tr>'
   const r = await taiDuLieu()
   if (btn) { btn.disabled = false; btn.textContent = 'Làm mới' }
   if (!r || !r.ok) {
-    if (bang) bang.innerHTML = `<tr><td colspan="8" style="padding:22px;color:var(--do)">Không tải được dữ liệu từ máy chủ${r && r.loi ? ': ' + r.loi : ''}. Bấm Làm mới để thử lại.</td></tr>`
+    if (bang) bang.innerHTML = `<tr><td colspan="11" style="padding:22px;color:var(--do)">Không tải được dữ liệu từ máy chủ${r && r.loi ? ': ' + r.loi : ''}. Bấm Làm mới để thử lại.</td></tr>`
     return
   }
   veChips(); veBang()
@@ -204,13 +209,16 @@ function veBang() {
       <td class="r"><div class="mt"><span class="v">${n(x.ton)}</span><span class="bar"><i style="width:${pct}%"></i></span></div></td>
       <td class="r num" style="color:#6E7681">${x.min ? n(x.min) : '—'}</td>
       <td style="color:#6E7681;font-size:13px">${x.dvt}</td>
-      <td class="r num">${x.gia ? n(x.gia) : (x.gtk ? `<span class="chua-gia" title="giá mua tham khảo — chưa có tồn/giá vốn thật">${n(x.gtk)} · tham khảo</span>` : '—')}</td></tr>`
-  }).join('') || `<tr><td colspan="8" style="padding:22px;color:#6E7681">Không có mã nào khớp.</td></tr>`
+      <td class="r num">${x.gia ? n(x.gia) : (x.gtk ? `<span class="chua-gia" title="giá mua tham khảo — chưa có tồn/giá vốn thật">${n(x.gtk)} · tham khảo</span>` : '—')}</td>
+      <td class="tk-gc-giu">${x.giu_cho ? n(x.giu_cho) : '<span class="tk-gc-0">0</span>'}</td>
+      <td class="tk-gc-ve">${x.dang_ve ? n(x.dang_ve) : '<span class="tk-gc-0">0</span>'}</td>
+      <td class="tk-gc-kd ${x.kha_dung < 0 ? 'tk-gc-am' : ''}">${x.kha_dung < 0 ? '−' + n(-x.kha_dung) : n(x.kha_dung)}${x.kha_dung < 0 && x.dang_ve > 0 ? '<span class="tk-gc-badge">chờ hàng về</span>' : ''}</td></tr>`
+  }).join('') || `<tr><td colspan="11" style="padding:22px;color:#6E7681">Không có mã nào khớp.</td></tr>`
   const kv = KHO.filter(x => locKho === '*' || x.kho === locKho)
   $('#k-ma').textContent = n(kv.length)
-  $('#k-duoi').textContent = n(kv.filter(x => x.min > 0 && x.ton < x.min).length)
-  $('#k-thieu').textContent = n(kv.filter(x => !x.gia).length)
-  veOTien(kv.reduce((s, x) => s + x.ton * x.gia, 0))
+  $('#k-duoi').textContent = n(kv.filter(x => x.kha_dung < 0).length)         // khả dụng âm
+  $('#k-thieu').textContent = n(kv.filter(x => x.giu_cho > 0).length)          // mã đang giữ chỗ
+  $('#k-tien').textContent = n(kv.filter(x => x.dang_ve > 0).length)           // mã đang về
   $('#s-all').textContent = KHO.length; $('#s-pk').textContent = KHO.filter(x => x.kho === 'pk').length; $('#s-van').textContent = KHO.filter(x => x.kho === 'van').length
 }
 
