@@ -1,0 +1,11 @@
+-- db/138 · WP-23 vá bug màn "Bảng giá NCC": cấp SELECT cột don_vi_co_so cho authenticated.
+--
+-- Gốc lỗi: db/131 (QD-53) thêm cột kho.vat_tu.don_vi_co_so và cấp INSERT nhưng
+-- QUÊN cấp SELECT (grant theo TỪNG CỘT, không phải cả bảng). Hệ quả: app Kho màn
+-- "Bảng giá NCC" chạy `select id,ma,ten,don_vi_co_so ... from vat_tu` → PostgREST
+-- báo "permission denied for table vat_tu" → data=null → NCC_VT rỗng (cache []) →
+-- autocomplete luôn "không thấy", dropdown Đơn vị trống, nút Lưu bị chặn.
+--
+-- Cột `dvt` (đơn vị hiển thị) ĐÃ có SELECT nên form Đơn mua (chọn dvt) KHÔNG dính.
+-- Chỉ cần bổ sung đúng 1 grant, không đổi dữ liệu.
+grant select(don_vi_co_so) on kho.vat_tu to authenticated;

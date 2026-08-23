@@ -315,7 +315,7 @@ async function themNcc() {
 }
 // ═══ WP-23 · TAB NHÀ CUNG CẤP: banner thiếu lead time + bảng NCC (hạn TT + số mã) + panel bảng giá ═══
 let NCC_VT = null, VTDV = null, NCC_SEL = null
-async function nccVatTu() { if (!NCC_VT) { const { data } = await sb.from('vat_tu').select('id,ma,ten,don_vi_co_so').eq('ngung_dung', false).order('ma'); NCC_VT = data || [] } return NCC_VT }
+async function nccVatTu() { if (!NCC_VT) { const { data, error } = await sb.from('vat_tu').select('id,ma,ten,don_vi_co_so').eq('ngung_dung', false).order('ma'); if (error) { console.error('nccVatTu:', error.message); return [] } NCC_VT = data || [] } return NCC_VT }
 async function nccVtdv() { if (!VTDV) { const { data } = await sb.from('vat_tu_don_vi').select('vat_tu_id,don_vi'); VTDV = {}; (data || []).forEach(r => (VTDV[r.vat_tu_id] = VTDV[r.vat_tu_id] || []).push(r.don_vi)) } return VTDV }
 async function nccDonViList(vat_tu_id) { const vt = (await nccVatTu()).find(v => v.id === vat_tu_id); const dv = await nccVtdv(); return vt ? [vt.don_vi_co_so, ...(dv[vat_tu_id] || [])] : [] }
 async function veNcc() {
@@ -377,7 +377,7 @@ async function nccGiaForm(ncc_id, sua) {
   await nccVatTu()
   const box = $('#ncc-gia-form')
   const vtSel = sua ? NCC_VT.find(v => v.id === sua.vat_tu_id) : null
-  const dvOpts = async vid => (await nccDonViList(vid)).map(d => `<option value="${d}"${sua && sua.don_vi === d ? ' selected' : ''}>${d}</option>`).join('')
+  const dvOpts = async vid => { const u = (await nccDonViList(vid)).filter(Boolean); return u.map((d, i) => `<option value="${d}"${(sua ? sua.don_vi === d : i === 0) ? ' selected' : ''}>${d}</option>`).join('') }   // '' khi vật tư chưa có đơn vị cơ sở
   box.innerHTML = `<div class="ncc-the" style="background:#f8fafc;margin-top:10px">
     <div class="ncc-hang-phai" style="align-items:flex-end;gap:10px">
       <div style="flex:1;min-width:200px"><label style="font-size:12px;color:#6b7280">Vật tư</label><br>
@@ -395,19 +395,31 @@ async function nccGiaForm(ncc_id, sua) {
       const q = inp.value.trim().toLowerCase(); if (!q) { goi.innerHTML = ''; return }
       const kq = NCC_VT.filter(v => v.ma.toLowerCase().includes(q) || v.ten.toLowerCase().includes(q)).slice(0, 8)
       goi.innerHTML = kq.map(v => `<div class="dm-goi-item" data-vt="${v.id}">${v.ma} — ${esc(v.ten)}</div>`).join('') || '<div class="dm-goi-none">không thấy</div>'
-      goi.querySelectorAll('.dm-goi-item').forEach(it => it.onmousedown = async e => { e.preventDefault(); const v = NCC_VT.find(x => x.id === it.dataset.vt); vtId = v.id; inp.value = `${v.ma} — ${v.ten}`; goi.innerHTML = ''; dvsel.innerHTML = await dvOpts(v.id); dvsel.disabled = false })
+      goi.querySelectorAll('.dm-goi-item').forEach(it => it.onmousedown = async e => {
+        e.preventDefault(); const v = NCC_VT.find(x => x.id === it.dataset.vt); vtId = v.id; inp.value = `${v.ma} — ${v.ten}`; goi.innerHTML = ''
+        const opts = await dvOpts(v.id), err = $('#ncc-gia-err')   // load đơn vị theo vat_tu_id (cơ sở + quy đổi), chọn sẵn cơ sở
+        if (opts) { dvsel.innerHTML = opts; dvsel.disabled = false; err.textContent = '' }
+        else { dvsel.innerHTML = '<option value="">—</option>'; dvsel.disabled = true; err.textContent = `Vật tư ${v.ma} chưa có đơn vị cơ sở — nhập ở tab "Đơn vị & hao hụt" trước.` }   // 2c: KHÔNG tự gán đơn vị cơ sở
+      })
     }
     inp.onblur = () => setTimeout(() => goi.innerHTML = '', 150)
   }
   $('#ncc-gia-huy').onclick = () => box.innerHTML = ''
   $('#ncc-gia-luu').onclick = async () => {
-    const err = $('#ncc-gia-err'); err.textContent = ''
-    if (!vtId) { err.textContent = 'Chọn vật tư.'; return }
-    const dv = $('#ncc-gia-dv').value, dg = Number(($('#ncc-gia-dg').value || '').replace(/\D/g, '')) || 0
-    const lt = $('#ncc-gia-lt').value.trim() === '' ? null : Number($('#ncc-gia-lt').value)
-    const r = await sb.rpc('gia_ncc_ghi', { p_ncc_id: ncc_id, p_vat_tu_id: vtId, p_don_vi: dv, p_don_gia: dg, p_lead_time_ngay: lt })
-    if (r.error) { err.textContent = r.error.message; return }
-    bao('Đã lưu giá NCC'); box.innerHTML = ''; veNcc()
+    const err = box.querySelector('#ncc-gia-err')
+    try {   // CẤM nuốt im lặng: mọi lỗi (JS lẫn RPC) hiện đỏ ngay dưới form
+      err.textContent = ''
+      if (!vtId) { err.textContent = 'Chọn vật tư (chọn từ gợi ý).'; return }
+      // dùng class scoped theo box: các ô Đơn giá/Lead time chỉ có class, KHÔNG có id (bug L-85: $('#…') → null.value)
+      const dv = box.querySelector('.ncc-gia-dv').value
+      const dg = Number((box.querySelector('.ncc-gia-dg').value || '').replace(/\D/g, '')) || 0
+      if (!dv) { err.textContent = 'Vật tư chưa có đơn vị cơ sở — nhập ở tab "Đơn vị & hao hụt" trước.'; return }
+      const ltRaw = box.querySelector('.ncc-gia-lt').value.trim()
+      const lt = ltRaw === '' ? null : Number(ltRaw)
+      const r = await sb.rpc('gia_ncc_ghi', { p_ncc_id: ncc_id, p_vat_tu_id: vtId, p_don_vi: dv, p_don_gia: dg, p_lead_time_ngay: lt })
+      if (r.error) { err.textContent = r.error.message; return }
+      bao('Đã lưu giá NCC'); box.innerHTML = ''; veNcc()
+    } catch (e) { if (err) err.textContent = 'Lỗi: ' + (e.message || e); else console.error('gia_ncc luu:', e) }
   }
 }
 async function nccLichSu(ncc_id) {
