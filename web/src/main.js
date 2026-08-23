@@ -7,6 +7,7 @@ const sb = createClient(URL, ANON, { db: { schema: 'kho' }, auth: { persistSessi
 
 // ── helpers (giữ từ bản nháp) ──
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)]
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const n = v => Math.round(v || 0).toLocaleString('vi-VN')
 const gio = d => d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const ngay = d => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -312,7 +313,112 @@ async function themNcc() {
   $('#ncc-ten').value = ''; $('#ncc-dt').value = ''; $('#ncc-mh').value = ''
   await taiDuLieu(); veNcc(); bao(`Đã thêm ${t}.`)
 }
-function veNcc() { $('#ncc-b').innerHTML = NCC.filter(c => c.id).map(c => `<tr><td class="ma">${c.id.slice ? c.id.slice(0, 4) : c.id}</td><td><b>${c.ten}</b></td><td class="num" style="font-size:13px">${c.dt || '—'}</td><td style="font-size:13.5px;color:#5A6169">${c.mh || '—'}</td><td style="font-size:13px;color:#8A8F96">${c.dc || '—'}</td><td class="r num">—</td></tr>`).join('') || '<tr><td colspan="6" class="rong">Chưa có nhà cung cấp.</td></tr>' }
+// ═══ WP-23 · TAB NHÀ CUNG CẤP: banner thiếu lead time + bảng NCC (hạn TT + số mã) + panel bảng giá ═══
+let NCC_VT = null, VTDV = null, NCC_SEL = null
+async function nccVatTu() { if (!NCC_VT) { const { data } = await sb.from('vat_tu').select('id,ma,ten,don_vi_co_so').eq('ngung_dung', false).order('ma'); NCC_VT = data || [] } return NCC_VT }
+async function nccVtdv() { if (!VTDV) { const { data } = await sb.from('vat_tu_don_vi').select('vat_tu_id,don_vi'); VTDV = {}; (data || []).forEach(r => (VTDV[r.vat_tu_id] = VTDV[r.vat_tu_id] || []).push(r.don_vi)) } return VTDV }
+async function nccDonViList(vat_tu_id) { const vt = (await nccVatTu()).find(v => v.id === vat_tu_id); const dv = await nccVtdv(); return vt ? [vt.don_vi_co_so, ...(dv[vat_tu_id] || [])] : [] }
+async function veNcc() {
+  // Banner: ván thiếu lead time
+  try {
+    const { data: tl } = await sb.rpc('vat_tu_thieu_lead_time')
+    const b = $('#ncc-banner')
+    if (b) b.innerHTML = (tl && tl.length)
+      ? `<div class="ncc-canhbao">⚠ <b>${tl.length} mã ván chưa có lead time</b> ở bất kỳ NCC nào — chưa tính được "đặt trước ngày nào" (WP-42).<ul>${tl.slice(0, 20).map(x => `<li>${x.ma} · ${esc(x.ten || '')}</li>`).join('')}${tl.length > 20 ? `<li>… +${tl.length - 20} mã</li>` : ''}</ul></div>` : ''
+  } catch (e) {}
+  const [{ data: nccs }, { data: gcnt }] = await Promise.all([
+    sb.from('nha_cung_cap').select('id,ten,dien_thoai,han_thanh_toan_ngay').order('ten'),
+    sb.from('gia_ncc').select('ncc_id')
+  ])
+  const cnt = {}; (gcnt || []).forEach(g => cnt[g.ncc_id] = (cnt[g.ncc_id] || 0) + 1)
+  $('#ncc-b').innerHTML = (nccs || []).length ? nccs.map(c => {
+    const han = c.han_thanh_toan_ngay ?? 30
+    return `<tr class="ncc-row ${c.id === NCC_SEL ? 'ncc-chon' : ''}" data-ncc="${c.id}"><td><b>${esc(c.ten)}</b></td><td style="color:#5A6169">${c.dien_thoai || '—'}</td>`
+      + `<td class="r num">${han}${han === 30 ? ' <span class="ncc-mo">(mặc định)</span>' : ''}</td><td class="r num">${cnt[c.id] || 0}</td>`
+      + `<td><span class="ncc-lichsu">${c.id === NCC_SEL ? 'đang mở ▼' : 'mở'}</span></td></tr>`
+  }).join('') : '<tr><td colspan="5" class="rong">Chưa có nhà cung cấp.</td></tr>'
+  $$('#ncc-b .ncc-row').forEach(r => r.onclick = () => { NCC_SEL = (NCC_SEL === r.dataset.ncc) ? null : r.dataset.ncc; veNcc(); if (NCC_SEL) nccPanel(NCC_SEL, nccs.find(x => x.id === NCC_SEL)) })
+  if (NCC_SEL) nccPanel(NCC_SEL, (nccs || []).find(x => x.id === NCC_SEL)); else $('#ncc-panel').innerHTML = ''
+}
+async function nccPanel(ncc_id, ncc) {
+  const box = $('#ncc-panel'); if (!box) return
+  box.innerHTML = '<div class="ncc-the"><div class="rong">Đang tải bảng giá…</div></div>'
+  const { data: rows, error } = await sb.rpc('gia_ncc_ds', { p_ncc_id: ncc_id })
+  if (error) { box.innerHTML = `<div class="ncc-the" style="color:var(--do)">Lỗi: ${esc(error.message)}</div>`; return }
+  const laQL = ['kho', 'ceo'].includes(ROLE)
+  const han = ncc?.han_thanh_toan_ngay ?? 30
+  const tbl = (rows || []).length ? `<div class="ncc-tbl-wrap"><table class="ncc-tbl"><thead><tr><th>Vật tư</th><th>Đơn vị</th><th class="r">Đơn giá (chưa VAT)</th><th class="r">Lead time (ngày)</th><th>Áp dụng từ</th><th></th></tr></thead><tbody>`
+    + rows.map(g => `<tr><td>${g.ma} · ${esc(g.ten || '')}</td><td>${g.don_vi}</td><td class="r num">${dmTien(g.don_gia)}</td>`
+      + `<td class="r num">${g.lead_time_ngay != null ? g.lead_time_ngay : '<span class="ncc-mo">—</span> <span class="ncc-nhan ncc-thieu">thiếu</span>'}</td>`
+      + `<td>${dmNgay(g.ap_dung_tu)}</td><td>${laQL ? `<span class="ncc-lichsu ncc-sua-gia" data-vt="${g.vat_tu_id}" data-dv="${g.don_vi}" data-gia="${g.don_gia}" data-lt="${g.lead_time_ngay ?? ''}">sửa</span>` : ''}</td></tr>`).join('')
+    + '</tbody></table></div>' : '<div class="ncc-mo" style="padding:8px 0">Chưa có mã nào trong bảng giá NCC này.</div>'
+  box.innerHTML = `<div class="ncc-the">
+    <div class="ncc-hang-phai" style="margin-bottom:10px">
+      <b>${esc(ncc?.ten || '')}</b>
+      <span>· Hạn thanh toán <input type="number" id="ncc-han" value="${han}" style="width:64px" ${laQL ? '' : 'disabled'}> ngày</span>
+      <span class="ncc-mo" style="font-size:12px">(HĐ mới của NCC này: hạn = ngày HĐ + <span id="ncc-han-x">${han}</span>; HĐ cũ không đổi)</span>
+      <span style="flex:1"></span>
+      <span class="ncc-lichsu" id="ncc-ls-btn">Lịch sử bảng giá</span>
+    </div>
+    ${tbl}
+    ${laQL ? '<div style="margin-top:10px" class="ncc-hang-phai"><button class="n chinh" id="ncc-them-gia">+ Thêm mã vào bảng giá</button><span class="ncc-mo" style="font-size:12px">Ô đơn vị = dropdown đơn vị hợp lệ của vật tư (cơ sở + quy đổi), không gõ tự do.</span></div>' : ''}
+    <div id="ncc-gia-form"></div><div id="ncc-ls"></div><div class="ncc-err" id="ncc-panel-err"></div></div>`
+  if (laQL) {
+    const hi = $('#ncc-han'); hi.onchange = async () => {
+      const v = Number(hi.value) || 30; const r = await sb.from('nha_cung_cap').update({ han_thanh_toan_ngay: v }).eq('id', ncc_id)
+      if (r.error) { $('#ncc-panel-err').textContent = r.error.message; return } $('#ncc-han-x').textContent = v; bao('Đã lưu hạn thanh toán ' + v + ' ngày'); if (ncc) ncc.han_thanh_toan_ngay = v
+    }
+    $('#ncc-them-gia').onclick = () => nccGiaForm(ncc_id, null)
+    box.querySelectorAll('.ncc-sua-gia').forEach(s => s.onclick = () => nccGiaForm(ncc_id, { vat_tu_id: s.dataset.vt, don_vi: s.dataset.dv, don_gia: s.dataset.gia, lead: s.dataset.lt }))
+  }
+  $('#ncc-ls-btn').onclick = () => nccLichSu(ncc_id)
+}
+async function nccGiaForm(ncc_id, sua) {
+  await nccVatTu()
+  const box = $('#ncc-gia-form')
+  const vtSel = sua ? NCC_VT.find(v => v.id === sua.vat_tu_id) : null
+  const dvOpts = async vid => (await nccDonViList(vid)).map(d => `<option value="${d}"${sua && sua.don_vi === d ? ' selected' : ''}>${d}</option>`).join('')
+  box.innerHTML = `<div class="ncc-the" style="background:#f8fafc;margin-top:10px">
+    <div class="ncc-hang-phai" style="align-items:flex-end;gap:10px">
+      <div style="flex:1;min-width:200px"><label style="font-size:12px;color:#6b7280">Vật tư</label><br>
+        ${sua ? `<b>${vtSel ? vtSel.ma + ' — ' + esc(vtSel.ten) : ''}</b>` : `<input class="ip ncc-gia-vt" placeholder="gõ mã / tên…" style="width:100%" autocomplete="off"><div class="ncc-goi" id="ncc-goi"></div>`}</div>
+      <div><label style="font-size:12px;color:#6b7280">Đơn vị</label><br><select class="ip ncc-gia-dv" id="ncc-gia-dv" style="width:90px" ${sua ? '' : 'disabled'}>${sua ? await dvOpts(sua.vat_tu_id) : '<option>—</option>'}</select></div>
+      <div><label style="font-size:12px;color:#6b7280">Đơn giá (chưa VAT)</label><br><input class="ip ncc-gia-dg" inputmode="numeric" style="width:110px;text-align:right" value="${sua ? dmFmt(sua.don_gia) : ''}"></div>
+      <div><label style="font-size:12px;color:#6b7280">Lead time (ngày)</label><br><input class="ip ncc-gia-lt" inputmode="numeric" style="width:90px" value="${sua && sua.lead ? sua.lead : ''}"></div>
+      <button class="n chinh" id="ncc-gia-luu">Lưu</button><button class="n" id="ncc-gia-huy">Huỷ</button>
+    </div><div class="ncc-err" id="ncc-gia-err"></div></div>`
+  let vtId = sua ? sua.vat_tu_id : null
+  if (!sua) {
+    const inp = box.querySelector('.ncc-gia-vt'), goi = $('#ncc-goi'), dvsel = $('#ncc-gia-dv')
+    inp.oninput = () => {
+      vtId = null; dvsel.disabled = true; dvsel.innerHTML = '<option>—</option>'
+      const q = inp.value.trim().toLowerCase(); if (!q) { goi.innerHTML = ''; return }
+      const kq = NCC_VT.filter(v => v.ma.toLowerCase().includes(q) || v.ten.toLowerCase().includes(q)).slice(0, 8)
+      goi.innerHTML = kq.map(v => `<div class="dm-goi-item" data-vt="${v.id}">${v.ma} — ${esc(v.ten)}</div>`).join('') || '<div class="dm-goi-none">không thấy</div>'
+      goi.querySelectorAll('.dm-goi-item').forEach(it => it.onmousedown = async e => { e.preventDefault(); const v = NCC_VT.find(x => x.id === it.dataset.vt); vtId = v.id; inp.value = `${v.ma} — ${v.ten}`; goi.innerHTML = ''; dvsel.innerHTML = await dvOpts(v.id); dvsel.disabled = false })
+    }
+    inp.onblur = () => setTimeout(() => goi.innerHTML = '', 150)
+  }
+  $('#ncc-gia-huy').onclick = () => box.innerHTML = ''
+  $('#ncc-gia-luu').onclick = async () => {
+    const err = $('#ncc-gia-err'); err.textContent = ''
+    if (!vtId) { err.textContent = 'Chọn vật tư.'; return }
+    const dv = $('#ncc-gia-dv').value, dg = Number(($('#ncc-gia-dg').value || '').replace(/\D/g, '')) || 0
+    const lt = $('#ncc-gia-lt').value.trim() === '' ? null : Number($('#ncc-gia-lt').value)
+    const r = await sb.rpc('gia_ncc_ghi', { p_ncc_id: ncc_id, p_vat_tu_id: vtId, p_don_vi: dv, p_don_gia: dg, p_lead_time_ngay: lt })
+    if (r.error) { err.textContent = r.error.message; return }
+    bao('Đã lưu giá NCC'); box.innerHTML = ''; veNcc()
+  }
+}
+async function nccLichSu(ncc_id) {
+  const box = $('#ncc-ls'); if (box.dataset.open === ncc_id) { box.innerHTML = ''; box.dataset.open = ''; return }
+  const { data } = await sb.from('gia_ncc_lich_su').select('truong,gia_tri_cu,gia_tri_moi,luc,vat_tu_id').eq('ncc_id', ncc_id).order('luc', { ascending: false }).limit(50)
+  const vts = await nccVatTu(); const maOf = id => (vts.find(v => v.id === id) || {}).ma || ''
+  box.dataset.open = ncc_id
+  box.innerHTML = `<div class="ncc-the" style="margin-top:10px"><b>Lịch sử bảng giá</b>` + ((data || []).length
+    ? `<table class="ncc-tbl" style="margin-top:6px"><thead><tr><th>Lúc</th><th>Mã</th><th>Trường</th><th>Cũ → Mới</th></tr></thead><tbody>${data.map(h => `<tr><td>${dmNgay(h.luc)}</td><td>${maOf(h.vat_tu_id)}</td><td>${h.truong}</td><td>${JSON.stringify(h.gia_tri_cu ?? '—')} → ${JSON.stringify(h.gia_tri_moi ?? '—')}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="ncc-mo" style="padding:6px 0">Chưa có thay đổi.</div>') + '</div>'
+}
 
 // ── phiếu nhập/xuất (nháp → ghi sổ) ──
 const P = { nhap: null, xuat: null }
@@ -926,23 +1032,32 @@ async function dmMoiForm(suaId) {
   const box = $('#dm-form'); box.style.display = ''
   const vt = await dmVatTu(), khoList = await dmKho(), gia = await dmGia()
   const dauCan = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
-  let dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }], ct = null
-  if (suaId) { const r = await sb.rpc('dm_chi_tiet', { p_id: suaId }); if (!r.error) { ct = r.data.dau_don; dong = r.data.dong.map(x => ({ vat_tu_id: x.vat_tu_id, so_luong: x.so_luong, don_gia: x.don_gia })) } }
+  const nDong = () => ({ vat_tu_id: '', so_luong: '', don_gia: '', don_vi: '', nguon: '', lead: null, hen: '' })
+  let dong = [nDong()], ct = null
+  if (suaId) { const r = await sb.rpc('dm_chi_tiet', { p_id: suaId }); if (!r.error) { ct = r.data.dau_don; dong = r.data.dong.map(x => ({ vat_tu_id: x.vat_tu_id, so_luong: x.so_luong, don_gia: x.don_gia, don_vi: x.dvt || '', nguon: '', lead: null, hen: '' })) } }
   const vById = id => vt.find(x => x.id === id)
   const rowTT = i => (Number(dong[i].so_luong) || 0) * (Number(dong[i].don_gia) || 0)
   const tamTinh = () => dong.reduce((s, d, i) => s + (d.vat_tu_id ? rowTT(i) : 0), 0)
 
-  const veDong = () => `<table class="dm-tbl"><thead><tr><th style="width:32px">#</th><th>Vật tư</th><th class="r" style="width:78px">SL</th><th style="width:64px">ĐVT</th><th class="r" style="width:120px">Đơn giá</th><th class="r" style="width:128px">Thành tiền</th><th style="width:32px"></th></tr></thead><tbody>${dong.map((d, i) => {
+  const nguonNhan = d => {
+    if (d.nguon === 'bang_gia_ncc') return `<span class="dmx-nhan dmx-banggia">Bảng giá NCC</span>${d.lead != null ? `<div class="dmx-goiy">lead ${d.lead} ngày</div>` : ''}`
+    if (d.nguon === 'tham_khao') return `<span class="dmx-nhan dmx-thamkhao">Tham khảo</span><div class="dmx-goiy">NCC chưa có giá mã này</div>`
+    if (d.nguon === 'tu_nhap') return `<span class="dmx-nhan dmx-tunhap">Tự nhập</span><div class="dmx-goiy">không có giá nào trong hệ</div>`
+    return ''
+  }
+  const henCell = d => d.lead != null ? `<span class="dmx-hengiao">gợi ý ${d.hen}</span><div class="dmx-goiy">(hôm nay + ${d.lead})</div>` : (d.vat_tu_id ? '<span class="dm-mo">—</span><div class="dmx-goiy">⚠ chưa có lead time</div>' : '')
+  const veDong = () => `<div class="dmx-tbl-wrap"><table class="dm-tbl dmx-tbl"><thead><tr><th style="width:28px">#</th><th>Vật tư</th><th style="width:74px">Đơn vị</th><th class="r" style="width:70px">SL</th><th class="r" style="width:110px">Đơn giá</th><th style="width:130px">Nguồn giá</th><th style="width:120px">Hẹn giao</th><th class="r" style="width:110px">Thành tiền</th><th style="width:28px"></th></tr></thead><tbody>${dong.map((d, i) => {
     const v = vById(d.vat_tu_id), lbl = v ? `${v.ma} — ${v.ten}` : ''
-    const nogia = v && (d.don_gia === '' || d.don_gia == null || Number(d.don_gia) === 0) && (gia[v.id] == null)
     return `<tr data-i="${i}"><td>${i + 1}</td>
-      <td class="dm-vtcell"><input class="ip d-vt" data-i="${i}" autocomplete="off" placeholder="gõ mã hoặc tên vật tư…" value="${lbl.replace(/"/g, '&quot;')}"><div class="dm-goi" data-i="${i}"></div>${nogia ? '<div class="dm-hint">chưa có giá tham khảo</div>' : ''}</td>
+      <td class="dm-vtcell"><input class="ip d-vt" data-i="${i}" autocomplete="off" placeholder="gõ mã hoặc tên vật tư…" value="${lbl.replace(/"/g, '&quot;')}"><div class="dm-goi" data-i="${i}"></div></td>
+      <td><select class="ip d-dv" data-i="${i}" style="width:70px"><option value="${d.don_vi || ''}">${d.don_vi || '—'}</option></select></td>
       <td class="r"><input class="ip d-sl" data-i="${i}" inputmode="decimal" placeholder="0" value="${d.so_luong}"></td>
-      <td class="d-dvt" data-i="${i}">${v ? v.dvt || '' : ''}</td>
       <td class="r"><input class="ip d-dg" data-i="${i}" inputmode="numeric" value="${dmFmt(d.don_gia)}"></td>
+      <td class="d-nguon" data-i="${i}">${nguonNhan(d)}</td>
+      <td class="d-hen" data-i="${i}">${henCell(d)}</td>
       <td class="r dm-mono d-tt" data-i="${i}">${d.vat_tu_id ? dmFmt(rowTT(i)) : ''}</td>
       <td><button class="n nho d-xoa" data-i="${i}" title="Xoá dòng">×</button></td></tr>`
-  }).join('')}<tr class="dm-tam-r"><td colspan="5" class="r"><b>Tạm tính (chưa VAT)</b></td><td class="r dm-mono" id="dm-tam"><b>${dmFmt(tamTinh())}</b></td><td></td></tr></tbody></table>`
+  }).join('')}<tr class="dm-tam-r"><td colspan="7" class="r"><b>Tạm tính (chưa VAT)</b></td><td class="r dm-mono" id="dm-tam"><b>${dmFmt(tamTinh())}</b></td><td></td></tr></tbody></table></div>`
 
   box.innerHTML = `<div class="dm-row"><button class="n" id="dm-huy-form">← Danh sách</button><h3 style="margin:0 0 0 6px">${suaId ? 'Sửa dòng · ' + ct.so_don : 'Đơn mua mới'}</h3></div>
     <div class="dm-sub">${suaId ? 'Sửa số lượng / đơn giá các dòng.' : 'Chọn nhà cung cấp, gõ mã vật tư, nhập số lượng → Lưu. Số đơn cấp tự động.'}</div>
@@ -957,18 +1072,38 @@ async function dmMoiForm(suaId) {
 
   const capNhatTien = () => { box.querySelectorAll('.d-tt').forEach(c => { const i = +c.dataset.i; c.textContent = dong[i].vat_tu_id ? dmFmt(rowTT(i)) : '' }); const t = $('#dm-tam'); if (t) t.innerHTML = '<b>' + dmFmt(tamTinh()) + '</b>' }
   const dongGoi = () => box.querySelectorAll('.dm-goi').forEach(g => g.innerHTML = '')
-  const chonVt = (i, v, focusSl = true) => {   // chọn vật tư → điền ĐVT + đơn giá gợi ý, không dựng lại bảng
-    dong[i].vat_tu_id = v.id
-    const inp = box.querySelector(`.d-vt[data-i="${i}"]`); if (inp) inp.value = `${v.ma} — ${v.ten}`
-    const dvtCell = box.querySelector(`.d-dvt[data-i="${i}"]`); if (dvtCell) dvtCell.textContent = v.dvt || ''
-    const g = gia[v.id]; if (g != null && (dong[i].don_gia === '' || dong[i].don_gia == null)) { dong[i].don_gia = g; const dg = box.querySelector(`.d-dg[data-i="${i}"]`); if (dg) dg.value = dmFmt(g) }
-    dongGoi(); capNhatTien()
-    // hint "chưa có giá" nếu không có gợi ý
-    const cell = box.querySelector(`.d-vt[data-i="${i}"]`)?.closest('.dm-vtcell')
-    if (cell) { cell.querySelector('.dm-hint')?.remove(); if (g == null && (dong[i].don_gia === '' || dong[i].don_gia == null || Number(dong[i].don_gia) === 0)) cell.insertAdjacentHTML('beforeend', '<div class="dm-hint">chưa có giá tham khảo</div>') }
-    if (focusSl) box.querySelector(`.d-sl[data-i="${i}"]`)?.focus()
+  const nccId = () => suaId ? (ct && ct.ncc_id) : $('#dm-f-ncc2')?.value
+  const dmyISO = n => { const d = new Date(Date.now() + (n || 0) * 864e5); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) }
+  let ngayCanTay = false   // WP-23: người dùng sửa tay "Ngày cần" → thôi tự gợi ý
+  const capNgayCan = () => {   // gợi ý = hôm nay + MAX lead các dòng có lead; không lead → giữ mặc định
+    if (ngayCanTay || suaId) return
+    const leads = dong.map(d => d.lead).filter(l => l != null)
+    if (!leads.length) return
+    const el = $('#dm-f-can'); if (el) el.value = new Date(Date.now() + Math.max(...leads) * 864e5).toISOString().slice(0, 10)
   }
-  const themDong = () => { dong.push({ vat_tu_id: '', so_luong: '', don_gia: '' }); $('#dm-dong').innerHTML = veDong(); bind(); box.querySelector(`.d-vt[data-i="${dong.length - 1}"]`)?.focus() }
+  async function suyGia(i) {   // WP-23: gọi goi_y_gia_dong_mua → điền giá/đơn vị/nguồn/hẹn
+    const v = vById(dong[i].vat_tu_id); if (!v) return
+    const units = await nccDonViList(v.id)   // đơn vị hợp lệ (cơ sở + quy đổi)
+    let g = { co: false }
+    const ncc = nccId(); if (ncc) { const r = await sb.rpc('goi_y_gia_dong_mua', { p_ncc_id: ncc, p_vat_tu_id: v.id }); if (!r.error) g = r.data }
+    if (g.co) { dong[i].don_gia = Number(g.don_gia); dong[i].don_vi = g.don_vi; dong[i].nguon = g.nguon; dong[i].lead = g.lead_time_ngay ?? null }
+    else { dong[i].nguon = 'tu_nhap'; dong[i].lead = null; if (!dong[i].don_vi) dong[i].don_vi = units[0] || v.dvt || '' }
+    dong[i].hen = dong[i].lead != null ? dmyISO(dong[i].lead) : ''
+    // đơn vị dropdown: các đơn vị hợp lệ, chọn theo gợi ý
+    const uni = [...new Set([dong[i].don_vi, ...units].filter(Boolean))]
+    const dvsel = box.querySelector(`.d-dv[data-i="${i}"]`); if (dvsel) { dvsel.innerHTML = uni.map(u => `<option value="${u}"${u === dong[i].don_vi ? ' selected' : ''}>${u}</option>`).join(''); }
+    const dg = box.querySelector(`.d-dg[data-i="${i}"]`); if (dg) dg.value = dong[i].don_gia === '' || dong[i].don_gia == null ? '' : dmFmt(dong[i].don_gia)
+    const nc = box.querySelector(`.d-nguon[data-i="${i}"]`); if (nc) nc.innerHTML = nguonNhan(dong[i])
+    const hc = box.querySelector(`.d-hen[data-i="${i}"]`); if (hc) hc.innerHTML = henCell(dong[i])
+    capNhatTien(); capNgayCan()
+  }
+  const chonVt = async (i, v) => {
+    dong[i].vat_tu_id = v.id; dong[i].don_gia = ''; dong[i].don_vi = ''
+    const inp = box.querySelector(`.d-vt[data-i="${i}"]`); if (inp) inp.value = `${v.ma} — ${v.ten}`
+    dongGoi(); await suyGia(i)
+    box.querySelector(`.d-sl[data-i="${i}"]`)?.focus()
+  }
+  const themDong = () => { dong.push(nDong()); $('#dm-dong').innerHTML = veDong(); bind(); box.querySelector(`.d-vt[data-i="${dong.length - 1}"]`)?.focus() }
 
   function bind() {
     box.querySelectorAll('.d-vt').forEach(inp => {
@@ -993,14 +1128,19 @@ async function dmMoiForm(suaId) {
       const i = +s.dataset.i
       s.oninput = () => { const raw = s.value.replace(/\D/g, ''); dong[i].don_gia = raw === '' ? '' : Number(raw); s.value = raw === '' ? '' : dmFmt(raw); capNhatTien() }
     })
-    box.querySelectorAll('.d-xoa').forEach(s => s.onclick = () => { const i = +s.dataset.i; if (dong.length > 1) dong.splice(i, 1); else dong = [{ vat_tu_id: '', so_luong: '', don_gia: '' }]; $('#dm-dong').innerHTML = veDong(); bind() })
+    box.querySelectorAll('.d-dv').forEach(s => { const i = +s.dataset.i; s.onchange = () => { dong[i].don_vi = s.value } })
+    box.querySelectorAll('.d-xoa').forEach(s => s.onclick = () => { const i = +s.dataset.i; if (dong.length > 1) dong.splice(i, 1); else dong = [nDong()]; $('#dm-dong').innerHTML = veDong(); bind() })
   }
   bind()
   box.querySelector('.d-vt[data-i="0"]')?.focus()   // con trỏ sẵn ở ô vật tư dòng 1
   $('#dm-huy-form').onclick = () => veDonMua()
   $('#dm-them-dong').onclick = themDong
+  // WP-23: đổi NCC đầu đơn → gợi ý lại giá/lead cho dòng đã chọn vật tư
+  if (!suaId) $('#dm-f-can')?.addEventListener('change', () => ngayCanTay = true)   // WP-23: sửa tay → thôi tự gợi ý
+  if (!suaId) $('#dm-f-ncc2')?.addEventListener('change', () => dong.forEach((d, i) => { if (d.vat_tu_id) suyGia(i) }))
+  else dong.forEach(async (d, i) => { if (d.vat_tu_id) { const u = [...new Set([d.don_vi, ...(await nccDonViList(d.vat_tu_id))].filter(Boolean))]; const s = box.querySelector(`.d-dv[data-i="${i}"]`); if (s) s.innerHTML = u.map(x => `<option value="${x}"${x === d.don_vi ? ' selected' : ''}>${x}</option>`).join('') } })
 
-  const goiDong = () => dong.filter(d => d.vat_tu_id && (Number(d.so_luong) || 0) > 0).map(d => ({ vat_tu_id: d.vat_tu_id, so_luong: Number(d.so_luong), don_gia: d.don_gia === '' || d.don_gia == null ? null : Number(d.don_gia) }))
+  const goiDong = () => dong.filter(d => d.vat_tu_id && (Number(d.so_luong) || 0) > 0).map(d => ({ vat_tu_id: d.vat_tu_id, so_luong: Number(d.so_luong), don_gia: d.don_gia === '' || d.don_gia == null ? null : Number(d.don_gia), don_vi: d.don_vi || null }))
   const luu = async (gui) => {
     const err = $('#dm-form-err'); err.textContent = ''
     const ds = goiDong()

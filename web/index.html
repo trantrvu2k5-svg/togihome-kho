@@ -272,17 +272,17 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   .ph-than td .ip,.ph-than td select{width:100%}
 
   /* CẦN ĐẶT HÀNG + NCC: bảng co vừa khung, ẩn cột phụ để KHÔNG cuộn ngang */
-  #m-dat table,#m-ncc table{table-layout:fixed;width:100%}
-  #m-dat th,#m-dat td,#m-ncc th,#m-ncc td{width:auto !important;font-size:12px;padding:6px 5px;
-   white-space:normal;word-break:break-word;overflow:hidden}
+  #m-dat table{table-layout:fixed;width:100%}
+  #m-dat th,#m-dat td{width:auto !important;font-size:12px;padding:6px 5px;white-space:normal;word-break:break-word;overflow:hidden}
   /* Cần đặt hàng: giữ Mã · Tên · Tồn · Cần mua; ẩn Ảnh, Tối thiểu, Ước tiền */
   #m-dat th:nth-child(1),#m-dat td:nth-child(1),
   #m-dat th:nth-child(5),#m-dat td:nth-child(5),
   #m-dat th:nth-child(7),#m-dat td:nth-child(7){display:none}
-  /* NCC: giữ Tên · Điện thoại · Mặt hàng; ẩn #, Địa chỉ, Đang mua */
-  #m-ncc th:nth-child(1),#m-ncc td:nth-child(1),
-  #m-ncc th:nth-child(5),#m-ncc td:nth-child(5),
-  #m-ncc th:nth-child(6),#m-ncc td:nth-child(6){display:none}
+  /* WP-23 · NCC list (di động): giữ Tên(1) · Hạn TT(3) · nút mở(5); ẩn ĐT(2) + Số mã(4). Bảng giá panel cuộn ngang trong khối. */
+  #m-ncc .ncc-list-tbl{table-layout:fixed;width:100%;min-width:0}
+  #m-ncc .ncc-list-tbl th,#m-ncc .ncc-list-tbl td{font-size:12px;padding:6px 5px;white-space:normal;word-break:break-word}
+  #m-ncc .ncc-list-tbl th:nth-child(2),#m-ncc .ncc-list-tbl td:nth-child(2),
+  #m-ncc .ncc-list-tbl th:nth-child(4),#m-ncc .ncc-list-tbl td:nth-child(4){display:none}
   .muc{grid-template-columns:1fr}
   .ncc-form{flex-direction:column;align-items:stretch}
   .ncc-form .ip{width:100% !important}
@@ -428,6 +428,31 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   #m-ghep .uv .u-ten{flex-basis:100%}
   #m-ghep .gm-chua-row .u-ten{flex-basis:100%}
 }
+/* ═══ WP-23 · Bảng giá NCC + dòng đơn mua ═══ */
+#m-ncc .ncc-tbl-wrap, #m-dm .dmx-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#m-ncc .ncc-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+#m-ncc .ncc-tbl th{text-align:left;color:var(--muted,#6E7681);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line,#D9D5CC);white-space:nowrap}
+#m-ncc .ncc-tbl td{padding:7px 8px;border-bottom:1px solid var(--line2,#EDEAE3);vertical-align:middle}
+#m-ncc .ncc-tbl td.r,#m-ncc .ncc-tbl th.r,#m-ncc .num{text-align:right;font-variant-numeric:tabular-nums}
+#m-ncc .ncc-row{cursor:pointer} #m-ncc .ncc-row:hover{background:var(--line2,#F7F6F2)} #m-ncc .ncc-chon{background:#E9F1EC}
+#m-ncc .ncc-mo{color:var(--muted,#8A8F96);font-size:12px}
+#m-ncc .ncc-lichsu{color:var(--do-dam,#A5301F);text-decoration:underline;cursor:pointer;font-size:12.5px;white-space:nowrap}
+#m-ncc .ncc-the{background:var(--surface,#fff);border:1px solid var(--line,#D9D5CC);border-radius:8px;padding:12px;margin-top:12px}
+#m-ncc .ncc-hang-phai{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#m-ncc .ncc-canhbao{background:#FBF1DC;border:1px solid #E5C97A;border-radius:8px;padding:10px 12px;margin:8px 0 4px;color:var(--amber,#A65F00)}
+#m-ncc .ncc-canhbao b{color:#8a4d00} #m-ncc .ncc-canhbao ul{margin:6px 0 0 18px;font-size:13px}
+#m-ncc .ncc-nhan{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
+#m-ncc .ncc-thieu{background:#FBF1DC;color:var(--amber,#A65F00)}
+#m-ncc .ncc-err{color:var(--do,#C0392B);font-size:13px;margin-top:6px}
+#m-ncc .ncc-goi{position:relative} #m-ncc .ncc-goi .dm-goi-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line2,#EDEAE3)} #m-ncc .ncc-goi .dm-goi-item:hover{background:#E9F1EC}
+#m-dm .dmx-tbl{min-width:760px}
+#m-dm .dmx-nhan{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600;white-space:nowrap}
+#m-dm .dmx-banggia{background:#E9F1EC;color:var(--xanh,#2D6A4A)}
+#m-dm .dmx-thamkhao{background:#EEF0F3;color:var(--muted,#6E7681)}
+#m-dm .dmx-tunhap{background:#FBF1DC;color:var(--amber,#A65F00)}
+#m-dm .dmx-goiy{font-size:11px;color:var(--muted,#6E7681);margin-top:2px}
+#m-dm .dmx-hengiao{font-size:12px;color:var(--xanh,#2D6A4A);font-weight:600}
+#m-dm .dm-mo{color:var(--muted,#6E7681)}
 </style></head><body>
 <header>
   <button class="mb-menu" onclick="moNav()" aria-label="Menu">☰</button>
@@ -654,9 +679,11 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
     <div><label>Mặt hàng</label><input class="ip" id="ncc-mh" style="width:200px" placeholder="Ván · ray · nẹp"></div>
     <button class="n chinh" onclick="themNcc()">Thêm nhà cung cấp</button>
   </div>
-  <table><thead><tr><th style="width:34px">#</th><th>Tên</th><th style="width:140px">Điện thoại</th>
-    <th>Mặt hàng</th><th style="width:120px">Địa chỉ</th><th class="r" style="width:120px">Đang mua</th></tr></thead>
-    <tbody id="ncc-b"></tbody></table>
+  <div id="ncc-banner"></div>
+  <div class="ncc-tbl-wrap"><table class="ncc-tbl ncc-list-tbl"><thead><tr><th>Nhà cung cấp</th><th style="width:140px">Điện thoại</th>
+    <th class="r" style="width:120px">Hạn TT (ngày)</th><th class="r" style="width:150px">Số mã bảng giá</th><th style="width:70px"></th></tr></thead>
+    <tbody id="ncc-b"></tbody></table></div>
+  <div id="ncc-panel"></div>
 </section>
 
 <section class="man" id="m-ghep">

@@ -51,15 +51,19 @@ def main(pw):
         goi = pg.locator(f'.dm-goi[data-i="{i}"] .dm-goi-item')
         goi.first.wait_for(timeout=6000)
         if shot_goi: shot(pg, "wp20_form_moi_v2.png")   # ĐANG GÕ TÌM, có gợi ý
-        goi.first.click(); time.sleep(0.6)              # onmousedown chọn → focus SL
+        goi.first.click()                               # onmousedown chọn → chonVt (async: goi_y_gia RPC)
+        try: pg.wait_for_function(f"() => {{const s=document.querySelector('.d-dv[data-i=\\\"{i}\\\"]'); return s && s.value && s.value!=='—';}}", timeout=12000)
+        except Exception: time.sleep(2)                 # WP-23: chờ đơn vị dropdown điền từ gợi ý
         pg.locator(f'.d-sl[data-i="{i}"]').fill(str(sl))
     set_dong(0, "gỗ", 10, shot_goi=True)
     pg.locator('#dm-them-dong').click(); time.sleep(0.5); set_dong(1, "bản", 5); time.sleep(1)
-    dvt0 = pg.locator('.d-dvt[data-i="0"]').inner_text()
+    dvt0 = pg.locator('.d-dv[data-i="0"]').input_value()          # WP-23: đơn vị = dropdown
     dg0 = pg.locator('.d-dg[data-i="0"]').input_value()
+    nguon0 = pg.locator('.d-nguon[data-i="0"]').inner_text()      # WP-23: nhãn nguồn giá
     tam = pg.locator('#dm-tam').inner_text()
-    ok("3 · ĐVT tự điền + đơn giá gợi ý", dvt0.strip() != "" and dg0.strip() != "", f"dvt='{dvt0}' dongia='{dg0}'")
-    print(f"  dòng1 ĐVT='{dvt0}' đơn giá gợi ý='{dg0}' · tạm tính='{tam}'")
+    ok("3 · đơn vị dropdown tự điền + đơn giá gợi ý", dvt0.strip() not in ("", "—") and dg0.strip() != "", f"dv='{dvt0}' dongia='{dg0}'")
+    ok("3b · nhãn nguồn giá hiện (Bảng giá NCC / Tham khảo / Tự nhập)", any(k in nguon0 for k in ("Bảng giá NCC", "Tham khảo", "Tự nhập")), f"nguon='{nguon0}'")
+    print(f"  dòng1 đơn vị='{dvt0}' đơn giá gợi ý='{dg0}' · nguồn='{nguon0.strip()[:40]}' · tạm tính='{tam}'")
     shot(pg, "wp20_form_dong.png")   # 2 dòng đã chọn: ĐVT + giá + tạm tính
 
     # 4 · lưu

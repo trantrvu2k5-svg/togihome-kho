@@ -62,7 +62,10 @@ try {
   { await as(U.ceo, `select kho.ghi_so_phieu('xuat_sx',null,'BF 2 tấm',null,$1::jsonb,null)`, [JSON.stringify([{ vat_tu_id: A, so_luong: 2 }])], true)
     const l1 = (await loLive(A))[0]
     ok('c xuất 2 tấm → lô còn 1,36', near(l1.con_lai, 1.36, 0.001), l1 && l1.con_lai)
-    await mkDonNhan(A, 10, 100000, 10)   // lô 2 (thêm 3,36)
+    // tx test dùng chung now() → 2 lô cùng tao_luc, FIFO tiebreak theo id (uuid) → nhấp nháy. Prod: 2 lần nhận khác tx → tao_luc khác.
+    // Lùi tao_luc lô1 cho GIÀ hơn → FIFO xác định (lô cũ trước), khớp hành vi prod.
+    await c.query(`update kho.lo_nhap set tao_luc = tao_luc - interval '1 day' where id=$1`, [l1.id])
+    await mkDonNhan(A, 10, 100000, 10)   // lô 2 (thêm 3,36), tao_luc mới hơn
     await as(U.ceo, `select kho.ghi_so_phieu('xuat_sx',null,'BF 2 tấm nữa',null,$1::jsonb,null)`, [JSON.stringify([{ vat_tu_id: A, so_luong: 2 }])], true)
     const ls = await loLive(A)
     ok('c FIFO: lô cũ về 0 trước, lô sau còn 2,72', near(ls[0].con_lai, 0, 0.001) && near(ls[1].con_lai, 2.72, 0.001), JSON.stringify(ls.map(x => x.con_lai))) }
@@ -81,10 +84,10 @@ try {
     const l = (await loLive(E))[0]
     ok('e con_lai = 5 · gia = 20.000 · he_so 1', near(l.con_lai, 5, 1e-6) && near(l.gia_von_lo, 20000, 1e-6) && near(l.he_so_ap_dung, 1, 1e-6), JSON.stringify(l)) }
 
-  console.log('\n── f · đơn vị lạ không hệ số → RAISE, không tạo lô ──')
+  console.log('\n── f · đơn vị lạ → RAISE NGAY ở dm_tao (db/137 trigger dvt, phát sinh L-80), không tạo đơn/lô ──')
   { const Ff = await mkVT('WP25-F', 'donvila', 'tam', 0)   // dvt lạ, không có trong don_vi/vat_tu_don_vi
-    const df = await mkDonNhan(Ff, 3, 1000, 3)
-    ok('f dm_nhan_hang RAISE (đơn vị lạ)', /WP35|quy đổi|đơn vị/.test(df.err || ''), df.err)
+    const r = await as(U.ceo, `select kho.dm_tao($1,$2,null,'wp25f',$3::jsonb,false) g`, [NCC, KHO, JSON.stringify([{ vat_tu_id: Ff, so_luong: 3, don_gia: 1000 }])])
+    ok('f dm_tao RAISE (đơn vị lạ) — chặn từ khâu tạo PO', /đơn vị|không hợp lệ|QD-53/.test(r.e || ''), r.e)
     ok('f không tạo lô', (await loLive(Ff)).length === 0) }
 
   console.log('\n── g · VẾ SAI: nếu lô còn theo m² (10) là SAI — phải KHÁC 10 (đã về cơ sở) ──')

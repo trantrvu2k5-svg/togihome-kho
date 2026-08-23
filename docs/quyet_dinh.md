@@ -820,3 +820,30 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Kiểm chứng:** `web/ops/test_hd_ncc.mjs` **23/0** (khớp/vượt/một phần/lệch giá→lô+bq/bảng kê/chi vượt/ứng âm/xoá hồi/đảo lô/dòng tiền/chặn sale) +
   perf @100k: `con_phai_tra` 627ms · `dong_tien_ky` 78ms · `hd_ncc_ghi` 98ms · `pc_ghi` 7ms + so_ba_nguon khớp + test_huy_phieu 21/0.
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/135, DB+test; UI WP-22b sau). Nợ: WP-23 lô về đơn vị cơ sở (rồi mới quy giá) · UI màn khớp HĐ.
+
+## QD-58 (23/08, WP-25, db/136) — Lô nhập QUY VỀ đơn vị cơ sở lúc nhận (nới QD-57) · DUYỆT
+
+> Backfill: commit `fca0069` đã trỏ QD-58 nhưng chưa ghi vào sổ — bổ sung ở đây cho đủ một bản sự thật.
+
+- **Nhận hàng quy về cơ sở:** `dm_nhan_hang` đổi `con_lai`/`gia_von_lo` của lô về **đơn vị cơ sở** qua `quy_ve_co_so`
+  (khoá đơn-vị chuẩn hoá: `coalesce((select ma from don_vi where ma=dvt or ten=dvt), dvt)`). Lô lưu thêm **snapshot**
+  `he_so_ap_dung` · `don_vi_nguon` · `so_luong_nguon` (đơn vị + lượng lúc NHẬP, trước quy đổi) để đảo/khớp về sau chính xác.
+- **HĐ NCC theo cơ sở:** `hd_ncc_ghi` tính `gia_von_lo = đơn giá HĐ (chưa VAT) ÷ he_so_ap_dung` (xoá HĐ đảo lại × hệ số).
+  Sửa nợ QD-57 (giá lô lúc đó gán thẳng `don_gia_hd` vì lô còn theo đơn vị dòng) — nay lô đã ở cơ sở nên chia hệ số.
+- **Migrate:** backfill 196 lô cũ `he_so_ap_dung=1` — **0 lô đổi số** trên prod (toàn PO đặt bằng đơn vị base). FIFO/xuất/back-flush trừ theo cơ sở.
+- **Lý do:** khép QD-53 (mỗi vật tư MỘT đơn vị cơ sở) tới tận LÔ + GIÁ VỐN — sổ giá vốn bình quân (`tinh_lai_gia_von_bq`) mới cùng đơn vị.
+- **Kiểm chứng:** `web/ops/test_136.mjs` **16/0** (m²→tấm 0,336 · giá/tấm · snapshot · FIFO cơ sở · huỷ đảo · base hệ số 1 · đơn vị lạ RAISE) + so_ba_nguon khớp + hồi quy 119/huy/127/132/135 xanh.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/136, DB+test).
+
+## QD-59 (23/08, WP-23, db/137) — Bảng giá NCC × vật tư: lead time + hạn thanh toán theo NCC + chuẩn hoá đơn vị dòng PO (ERP §4.3.4) · CHỐT
+
+- **Bảng giá `gia_ncc(ncc × vật tư)`:** đơn giá **CHƯA VAT** (khớp QD-57) + `lead_time_ngay` **theo (NCC × vật tư)** — mở rộng từ sách
+  (Sagegg&Alfnes §4.3.4 để lead ở item×facility) vì **mỗi NCC giao khác nhau**; lịch sử đổi giá append-only (`gia_ncc_lich_su`, hình db/134).
+- **Hạn thanh toán trên NCC** (`nha_cung_cap.han_thanh_toan_ngay`, mặc định **30 ngày**): HĐ NCC mới `han_thanh_toan = ngày HĐ + hạn NCC` (nới mặc định +30 phẳng của QD-57).
+- **Gợi ý giá dòng PO** (`goi_y_gia_dong_mua`): ưu tiên **bảng giá NCC** (`nguon='bang_gia_ncc'`) → rơi về **giá tham khảo vật tư** (`tham_khao`) → trống.
+  Điền sẵn **sửa được, v1 KHÔNG khoá** (giá thật vẫn do người mua chốt).
+- **Chuẩn hoá đơn vị dòng PO:** mỗi dòng đơn mua có `don_vi` (mặc định = `vat_tu.dvt`); **ép về danh mục đơn vị của vật tư** — đơn vị lạ **RAISE ngay ở `dm_tao`/`dm_sua_dong`**
+  (trigger `dmd_kiem_dvt`, chặn từ khâu tạo PO thay vì tới lúc nhận). Khép QD-53 tới dòng đặt mua.
+- **"Ngày cần" đầu đơn** gợi ý = **hôm nay + MAX lead** các dòng có lead (không dòng nào có lead → để mặc định); sửa tay thì thôi tự gợi ý.
+- **Kiểm chứng:** `web/ops/test_gia_ncc.mjs` **15/0** (gợi ý bảng giá/tham khảo/trống · đơn vị lạ RAISE · hạn TT +hạn NCC · `vat_tu_thieu_lead_time` · `dm_tao`/`dm_sua_dong` nhận `don_vi`) + robot `kiem_don_mua.py` xanh (dropdown đơn vị + nhãn nguồn giá).
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/137, DB+test+UI app Kho). Nợ: v2 tuỳ chọn khoá giá theo bảng · cảnh báo lệch giá HĐ so bảng.
