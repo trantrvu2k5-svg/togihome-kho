@@ -77,10 +77,12 @@ async function napApp() {
   // L-49: màn Dòng tiền — nút nhập liệu
   $('pt_luu').onclick = ptLuu; $('cg_luu').onclick = cgLuu; $('ch_luu').onclick = chLuu
   $('cs_luu').onclick = csLuu; $('vn_luu').onclick = vnLuu; $('qy_luu').onclick = qyLuu
+  if ($('pc_luu')) $('pc_luu').onclick = pcLuu   // WP-22 phiếu chi NCC
+  if ($('pc_ncc')) $('pc_ncc').onchange = pcNccDoi
   $('dt_no_truoc').onclick = () => { if (DT_TRANG > 1) { DT_TRANG--; taiConPhaiThu() } }
   $('dt_no_sau').onclick = () => { if (DT_TRANG < DT_SOTRANG) { DT_TRANG++; taiConPhaiThu() } }
   $('nx_ng_luu').onclick = nxNguongLuu   // L-50: lưu ngưỡng nhận xét
-  ;['pt_tien', 'cg_tien', 'vn_tien', 'qy_tien'].forEach(id => { const e = $(id); if (e) e.addEventListener('input', () => fmtMoneyEl(e)) })
+  ;['pt_tien', 'cg_tien', 'vn_tien', 'qy_tien', 'pc_tien'].forEach(id => { const e = $(id); if (e) e.addEventListener('input', () => fmtMoneyEl(e)) })
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
   document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
@@ -191,6 +193,37 @@ async function taiDieuHanh() {
     box.querySelectorAll('.dh-conno-kh').forEach(b => b.onclick = () => { const d = $('dh-conno-' + b.dataset.kh); d.style.display = d.style.display === 'none' ? 'block' : 'none' })
   }
   await veLapDayDH().catch(() => {})   // L-46: ô Lấp đầy xưởng vào khối Xưởng
+  await taiCongNoNCC().catch(() => {})  // WP-22: khối Công nợ phải trả NCC
+}
+// ── WP-22 · KHỐI Công nợ phải trả NCC (con_phai_tra) ──
+async function taiCongNoNCC() {
+  const box = $('dh_ncc'); if (!box) return
+  const { data: g, error } = await sb.rpc('con_phai_tra', { p_ky: KY })
+  if (error) { box.innerHTML = `<div class="dh-empty" style="color:#C8202E">Lỗi: ${escH(error.message)}</div>`; return }
+  const ds = g.ds || []
+  if (!ds.length) { box.innerHTML = '<div class="dh-empty">Chưa có công nợ phải trả NCC.</div>'; return }
+  box.innerHTML = `<table class="tc-cnt-tbl"><thead><tr><th class="l">Nhà cung cấp</th><th>Σ hoá đơn</th><th>Σ đã trả</th><th>Còn phải trả</th><th>Quá hạn</th><th class="l">HĐ gần nhất</th><th></th></tr></thead><tbody>`
+    + ds.map((x, i) => {
+      const con = Number(x.con_lai)
+      const conCell = con < 0 ? `<span class="tc-cnt-am">${fmt(con)}</span> <span class="tc-cnt-nhan luc">mình ứng trước</span>` : `<b>${fmt(con)}</b>`
+      const qh = Number(x.qua_han) > 0 ? `<span class="tc-cnt-qh">${fmt(x.qua_han)}</span> <span class="tc-cnt-nhan do">${x.so_ngay_qua_han} ngày</span>` : '0'
+      return `<tr><td class="l">${escH(x.ncc)}</td><td>${fmt(x.tong_hd)}</td><td>${fmt(x.da_tra)}</td><td>${conCell}</td><td>${qh}</td>`
+        + `<td class="l">${x.hd_gan_nhat ? dmy(x.hd_gan_nhat) : '<span style="color:var(--mut)">chưa có HĐ</span>'}</td>`
+        + `<td><button class="tc-cnt-ct" data-ncc="${x.ncc_id}" data-i="${i}">chi tiết</button></td></tr>`
+        + `<tr class="tc-cnt-hd" id="tc-cnt-hd-${i}" style="display:none"><td colspan="7" class="l">Đang tải…</td></tr>`
+    }).join('')
+    + `</tbody><tfoot><tr><td class="l">Tổng</td><td>${fmt(g.tong_hd)}</td><td>${fmt(g.tong_da_tra)}</td><td>${fmt(g.tong_con_lai)}</td><td colspan="3"></td></tr></tfoot></table>`
+  box.querySelectorAll('.tc-cnt-ct').forEach(b => b.onclick = () => cnttChiTiet(b.dataset.ncc, b.dataset.i))
+}
+async function cnttChiTiet(ncc, i) {
+  const row = $('tc-cnt-hd-' + i); if (!row) return
+  if (row.style.display !== 'none') { row.style.display = 'none'; return }
+  row.style.display = ''; row.firstElementChild.innerHTML = 'Đang tải…'
+  const { data, error } = await sb.rpc('hd_ncc_cua_ncc', { p_ncc_id: ncc })
+  const hds = error ? [] : (data || [])
+  row.firstElementChild.innerHTML = hds.length
+    ? hds.map(h => `${escH(h.so_hd)} · ${dmy(h.ngay_hd)} · hạn ${dmy(h.han_thanh_toan)} · tổng ${fmt(h.tong_gom_vat)} · còn <b>${fmt(h.con_lai)}</b>`).join('<br>')
+    : 'Không có hoá đơn còn nợ.'
 }
 function oStat(lbl, big, sub) { return `<div class="dh-o"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></div>` }
 function oClick(id, lbl, big, sub, cls) { return `<button class="dh-o click ${cls || ''}" id="${id}" data-n="${big}"><div class="lbl">${escH(lbl)}</div><div class="big">${big}</div><div class="sub">${escH(sub || '')}</div></button>` }
@@ -631,16 +664,18 @@ let DT_TRANG = 1, DT_SOTRANG = 1
 const DT_THU_L = [['coc', 'Cọc đơn mới chốt', 'tiền về trước khi sản xuất'], ['thu_khi_giao', 'Thu khi giao', 'phần còn lại lúc lắp xong'],
   ['doi_soat_cod', 'Đối soát COD về', 'nhà vận chuyển trả đợt trong kỳ'], ['thu_no', 'Thu nợ kỳ trước', 'đơn đã giao các kỳ trước']]
 const DT_CHI_L = [['chi_phi_ky', 'Chi phí kỳ', 'sổ chi_phi_ky: lương VP, thuê, điện nước…'], ['chi_ads', 'Chi quảng cáo', 'sổ chi_ads (số gồm VAT — tiền thật chi ra)'],
-  ['luong_to', 'Lương tổ sản xuất', 'sổ luong_to (lương + BH, chưa gồm overhead)']]
+  ['luong_to', 'Lương tổ sản xuất', 'sổ luong_to (lương + BH, chưa gồm overhead)'],
+  ['tra_ncc', 'Trả NCC vật tư', '']]   // WP-22 · phụ = số phiếu chi + còn nợ NCC (đặt động)
 const DT_VON_L = { vay_moi: 'Vay ngân hàng mới', tra_goc_vay: 'Trả gốc vay', mua_tai_san: 'Mua tài sản', ban_tai_san: 'Bán tài sản', gop_von: 'Góp vốn', rut_von: 'Rút vốn' }
 const dmy = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '—'
 async function taiDongTien() {
   // L-52: prefill ngày hôm nay cho các ô date còn trống (đỡ quên) — không đè ô người đã nhập
   const hnay = new Date().toISOString().slice(0, 10)
-  ;['pt_ngay', 'cg_ngay', 'ch_ngay', 'vn_ngay'].forEach(id => { const e = $(id); if (e && !e.value) e.value = hnay })
+  ;['pt_ngay', 'cg_ngay', 'ch_ngay', 'vn_ngay', 'pc_ngay'].forEach(id => { const e = $(id); if (e && !e.value) e.value = hnay })
   const { data: g, error } = await sb.rpc('dong_tien_ky', { p_ky: KY })
   if (error) { $('dt_thu_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
   const n = (x) => Number(x) || 0
+  await taiPcNcc(); await taiPhieuChi()   // WP-22: nạp select NCC (1 lần) + sổ phiếu chi + PC_CNT.n (dòng phụ CHI)
   // tóm tắt
   $('dt_thu').textContent = fmt(g.thu.tong); $('dt_chi').textContent = fmt(g.chi.tong)
   const rong = n(g.rong_kd); $('dt_rong').textContent = (rong >= 0 ? '+' : '') + fmt(rong); $('dt_rong').style.color = rong >= 0 ? 'var(--gn)' : 'var(--pri)'
@@ -656,7 +691,10 @@ async function taiDongTien() {
   $('dt_thu_cb').innerHTML = g.canh_bao.so_don > 0
     ? `<div class="dt-canhbao">⚠ ${g.canh_bao.so_don} đơn đã giao trong kỳ <b>chưa có phiếu thu nào</b> — quên ghi hay chưa đòi được?</div>` : ''
   // KHỐI 2 — chi
-  $('dt_chi_body').innerHTML = DT_CHI_L.map(([k, ten, phu]) => `<tr><td class="dt-l">${ten}<span class="dt-phu">${phu}</span></td><td>${fmt(g.chi.theo_so[k])}</td></tr>`).join('')
+  $('dt_chi_body').innerHTML = DT_CHI_L.map(([k, ten, phu]) => {
+    const phuTxt = k === 'tra_ncc' ? `${PC_CNT.n || 0} phiếu chi · còn nợ NCC ${fmt(g.con_no_ncc)} đ` : phu
+    return `<tr><td class="dt-l">${ten}<span class="dt-phu">${phuTxt}</span></td><td>${fmt(g.chi.theo_so[k])}</td></tr>`
+  }).join('')
   $('dt_chi_foot').innerHTML = `<tr><td class="dt-l">TỔNG CHI</td><td>${fmt(g.chi.tong)}</td></tr>`
   // KHỐI 3 — ở nhà VC
   $('dt_vc_tieude').textContent = `Tiền ở nhà vận chuyển — ${fmt(g.o_nha_vc.tong)} đ (${g.o_nha_vc.so_don} đơn đang giao)`
@@ -703,6 +741,59 @@ async function taiConPhaiThu() {
     + `<td${x.tuoi > 60 ? ' class="dt-do"' : ''}>${x.tuoi} ngày</td></tr>`).join('')
     : '<tr><td class="dt-l" style="color:var(--mut)">Không có khách nợ</td></tr>'
   $('dt_no_trang').textContent = `Trang ${g.trang}/${DT_SOTRANG}`
+}
+// ── WP-22 · SỔ PHIẾU CHI NCC (pc_ds/pc_ghi/pc_xoa) ──
+const PC_CNT = { n: 0 }; let PC_NCC = null
+const HT_TEN = { ck: 'CK', tm: 'TM' }
+async function taiPcNcc() {   // nạp select NCC 1 lần
+  if (PC_NCC) return
+  const { data } = await sb.from('nha_cung_cap').select('id,ten').order('ten')
+  PC_NCC = data || []
+  const sel = $('pc_ncc'); if (sel) sel.innerHTML = PC_NCC.map(n => `<option value="${n.id}">${escH(n.ten)}</option>`).join('')
+  await pcNccDoi()   // nạp HĐ của NCC đầu
+}
+async function pcNccDoi() {   // đổi NCC → nạp HĐ còn nợ vào select gắn HĐ
+  const ncc = $('pc_ncc') && $('pc_ncc').value; const sel = $('pc_hd'); if (!sel) return
+  sel.innerHTML = '<option value="">— trả trước / chưa có HĐ —</option>'
+  if (!ncc) return
+  const { data } = await sb.rpc('hd_ncc_cua_ncc', { p_ncc_id: ncc })
+  ;(data || []).filter(h => Number(h.con_lai) > 0).forEach(h => {
+    const o = document.createElement('option'); o.value = h.id
+    o.textContent = `${h.so_hd} · ${fmt(h.tong_gom_vat)} · còn ${fmt(h.con_lai)}`; sel.appendChild(o)
+  })
+}
+async function taiPhieuChi() {   // sổ pc_ds theo kỳ + đếm cho dòng phụ CHI
+  const { data: g, error } = await sb.rpc('pc_ds', { p_ky: KY })
+  const body = $('pc_body'); if (!body) return
+  if (error) { body.innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; PC_CNT.n = 0; return }
+  const ds = g.ds || []; PC_CNT.n = ds.length
+  body.innerHTML = ds.length ? ds.map(x => `<tr><td class="dt-l">${dmy(x.ngay_chi)}</td><td class="dt-l">${escH(x.ncc)}</td>`
+    + `<td class="dt-l">${x.so_hd ? escH(x.so_hd) : '<span style="color:var(--mut)">— trả trước —</span>'}</td>`
+    + `<td>${fmt(x.so_tien)}</td><td>${HT_TEN[x.hinh_thuc] || x.hinh_thuc}</td><td class="dt-l">${escH(x.ghi_chu || '')}</td>`
+    + `<td class="tc-pc-x"><button class="tc-pc-del" data-pc="${x.id}" title="Xoá phiếu chi">×</button></td></tr>`).join('')
+    : '<tr><td class="dt-l" style="color:var(--mut)">Chưa có phiếu chi NCC trong kỳ</td></tr>'
+  $('pc_foot').innerHTML = `<tr><td class="dt-l" colspan="3">TỔNG CHI NCC</td><td>${fmt(g.tong)}</td><td colspan="3"></td></tr>`
+  body.querySelectorAll('button[data-pc]').forEach(b => b.onclick = () => pcXoa(b.dataset.pc))
+}
+async function pcLuu() {
+  const ncc = $('pc_ncc').value; if (!ncc) { $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Chọn nhà cung cấp'; return }
+  $('pc_msg').style.color = 'var(--mut)'; $('pc_msg').textContent = 'Đang ghi…'
+  const { error } = await sb.rpc('pc_ghi', { p_ngay: $('pc_ngay').value || null, p_ncc_id: ncc,
+    p_hoa_don_ncc_id: $('pc_hd').value || null, p_so_tien: dtNum('pc_tien'), p_hinh_thuc: $('pc_ht').value, p_ghi_chu: $('pc_gc').value.trim() || null })
+  if (error) {
+    let m = error.message
+    if (/CHI_VUOT_HD/.test(m)) m = 'Số tiền chi vượt phần còn lại của hoá đơn — ' + m.replace(/^.*CHI_VUOT_HD: */, '')
+    $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Lỗi: ' + m; return
+  }
+  $('pc_msg').style.color = 'var(--gn)'; $('pc_msg').textContent = '✓ Đã ghi phiếu chi'
+  $('pc_tien').value = ''; $('pc_gc').value = ''
+  await taiDongTien(); await pcNccDoi()   // cập nhật khối Trả NCC + còn nợ + HĐ còn lại
+}
+async function pcXoa(id) {
+  if (!confirm('Xoá phiếu chi này? (xoá mềm, công nợ NCC hồi lại)')) return
+  const { error } = await sb.rpc('pc_xoa', { p_id: Number(id) })
+  if (error) { $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Lỗi: ' + error.message; return }
+  await taiDongTien(); await pcNccDoi()
 }
 const dtNum = id => String(Number(($(id).value || '').replace(/\D/g, '')) || 0)
 async function dtRpc(msgId, fn, args, reload = true) {

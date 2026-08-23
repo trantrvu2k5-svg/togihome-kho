@@ -588,6 +588,29 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
     #dm-ds > table{display:none}
     #dm-ds .dmn-list-cards{display:block}
   }
+  /* WP-22 · Khớp hoá đơn NCC */
+  .kho-hd-form{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px;margin:12px 0}
+  @media(max-width:720px){.kho-hd-form{grid-template-columns:1fr 1fr}}
+  .kho-hd-form label{display:block;font-size:12px;color:var(--muted,#6B7488);margin-bottom:3px}
+  .kho-hd-form input,.kho-hd-form select{width:100%;padding:6px 8px;border:1px solid var(--vien,#E3E6EC);border-radius:5px;font-size:14px}
+  .kho-hd-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .kho-hd-tbl th,.kho-hd-tbl td{padding:6px 8px;border-bottom:1px solid var(--vien,#E3E6EC);text-align:left;vertical-align:middle}
+  .kho-hd-tbl th{font-size:11px;color:var(--muted,#6B7488);font-weight:600}
+  .kho-hd-tbl td.so,.kho-hd-tbl th.so{text-align:right;font-variant-numeric:tabular-nums}
+  .kho-hd-tbl tr.kho-hd-done{background:var(--bg2,#F7F8FA);color:var(--muted,#6B7488)}
+  .kho-hd-tbl tr.kho-hd-tong td{font-weight:600;background:var(--bg2,#FAFBFC)}
+  .kho-hd-inp{width:96px;text-align:right;padding:5px 7px;border:1px solid var(--vien,#E3E6EC);border-radius:5px;font-variant-numeric:tabular-nums}
+  .kho-hd-inp:disabled{background:var(--bg2,#F7F8FA);color:var(--muted,#6B7488)}
+  .kho-hd-do{color:var(--do,#C0392B);font-weight:600} .kho-hd-luc{color:var(--xanh,#1E8449)}
+  .kho-hd-nhan{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;white-space:nowrap}
+  .kho-hd-nhan.luc{background:#E8F6EE;color:#1E8449} .kho-hd-nhan.vang{background:#FFF7E0;color:#B9770E}
+  .kho-hd-nhan.do{background:#FDECEA;color:#C0392B} .kho-hd-nhan.xam{background:#EEF0F3;color:#6B7488}
+  .kho-hd-cb{background:#FFF7E0;border:1px solid #F1D38A;padding:8px 10px;border-radius:5px;font-size:12.5px;margin:10px 0}
+  .kho-hd-err{color:var(--do,#C0392B);font-size:13px;margin-top:6px}
+  .kho-hd-mo{color:var(--muted,#6B7488);font-weight:400}
+  .kho-hd-ds{margin-top:18px;border-top:1px solid var(--vien,#E3E6EC);padding-top:12px}
+  .kho-hd-ds-h{font-size:14px;margin:0 0 8px}
+  @media(max-width:720px){.kho-hd-tbl{display:block;overflow-x:auto;white-space:nowrap}}
 </style>
 <section class="man" id="m-dm">
   <h2>Đơn mua</h2>

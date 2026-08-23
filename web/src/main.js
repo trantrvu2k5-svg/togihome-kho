@@ -866,13 +866,23 @@ async function dmXem(id) {
   const steps = DM_BUOC.map((b, i) => { const done = tt !== 'huy' && i <= idx; const l = lsBy[b[0]]; const auto = i >= 3 && !l; return `<div class="dm-step ${done ? 'done' : ''}">${b[1]}<div class="d">${l ? dmNgay(l.luc) + (l.boi ? ' · ' + l.boi : '') : (auto ? 'tự động · WP-21/22' : '')}</div></div>` }).join('')
   const lh = j.lien_he_ncc || {}
   const rows = (j.dong || []).map(x => `<tr><td class="r">${x.stt}</td><td class="dm-mono">${x.ma}</td><td>${x.ten}</td><td class="r dm-mono">${dmTien(x.so_luong)}</td><td>${x.dvt || ''}</td><td class="r dm-mono">${dmTien(x.don_gia)}</td><td class="r dm-mono">${dmTien(x.thanh_tien)}</td><td class="r dm-mono">${dmTien(x.so_luong_da_nhan)}</td></tr>`).join('')
+  // WP-22: danh sách hoá đơn NCC đã ghi của đơn này (hd_ncc_ds)
+  let hdSection = ''
+  if (['da_nhan', 'da_khop_hd'].includes(tt)) {
+    const hr = await sb.rpc('hd_ncc_ds', { p_don_mua_id: id })
+    const hds = hr.data || []
+    const canXoa = ['kho', 'ke_toan', 'ceo'].includes(ROLE)
+    hdSection = `<div class="kho-hd-ds"><h4 class="kho-hd-ds-h">Hoá đơn NCC đã ghi <span class="kho-hd-mo">(${hds.length})</span></h4>` + (hds.length
+      ? `<table class="kho-hd-tbl"><thead><tr><th>Số HĐ</th><th>Loại</th><th>Ngày</th><th>Hạn TT</th><th class="r">Tổng gồm VAT</th><th class="r">Đã trả</th><th class="r">Còn lại</th><th>Lệch giá</th><th></th></tr></thead><tbody>${hds.map(h => `<tr><td class="dm-mono"><b>${h.so_hd}</b></td><td>${h.loai === 'bang_ke' ? 'Bảng kê' : 'HĐ VAT ' + h.vat_pct + '%'}</td><td>${dmNgay(h.ngay_hd)}</td><td>${dmNgay(h.han_thanh_toan)}</td><td class="r dm-mono">${dmTien(h.tong_gom_vat)}</td><td class="r dm-mono">${dmTien(h.da_tra)}</td><td class="r dm-mono">${dmTien(h.con_lai)}</td><td>${h.lech_gia_so_dong > 0 ? `<span class="kho-hd-nhan vang">lệch ${h.lech_gia_so_dong} dòng</span>` : '<span class="kho-hd-nhan luc">khớp giá</span>'}</td><td>${canXoa ? `<button class="n nho kho-hd-xoa" data-hid="${h.id}" data-so="${h.so_hd}">Xoá</button>` : ''}</td></tr>`).join('')}</tbody></table>`
+      : '<div class="kho-hd-mo">Chưa ghi hoá đơn nào cho đơn này.</div>') + `<div class="kho-hd-err" id="kho-hd-err"></div></div>`
+  }
   // nút theo cổng (màn phản chiếu; DB là cổng thật)
   const B = []
   if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Sửa dòng', 'sua', true])
   if (tt === 'moi') B.push(['Gửi NCC', 'da_gui', true])
   if (tt === 'da_gui') B.push(['NCC xác nhận', 'xac_nhan', true])
   if (tt === 'xac_nhan') B.push(['Nhận hàng', 'nhan', laQuanLy()])
-  if (tt === 'da_nhan') B.push(['Khớp hoá đơn (tạm — WP-22)', 'da_khop_hd', ROLE === 'ceo'])
+  if (['da_nhan', 'da_khop_hd'].includes(tt)) B.push(['Khớp hoá đơn', 'khop', ['kho', 'ke_toan', 'ceo'].includes(ROLE)])
   if (['moi', 'da_gui', 'xac_nhan'].includes(tt)) B.push(['Huỷ đơn', 'huy', true])
   box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button><h3 class="dm-mono" style="margin:0 0 0 6px">${d.so_don}</h3><span class="dm-tt ${tt}" style="margin-left:8px">${DM_TT[tt]}</span></div>
     <div class="dm-steps">${steps}</div>
@@ -882,14 +892,23 @@ async function dmXem(id) {
     <table><thead><tr><th class="r">#</th><th>Mã</th><th>Tên</th><th class="r">SL đặt</th><th>ĐVT</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">Đã nhận</th></tr></thead><tbody>${rows}</tbody>
       <tfoot><tr><td colspan="6" class="r"><b>Tạm tính</b></td><td class="r dm-mono"><b>${dmTien(d.tam_tinh)}</b></td><td></td></tr></tfoot></table>
     <div class="dm-gate">${B.map(([l, a, en]) => `<button class="n ${en ? (a === 'huy' ? '' : 'chinh') : 'mo'}" ${en ? '' : 'disabled'} data-act="${a}">${l}</button>`).join('')}</div>
-    <div class="dm-err" id="dm-ct-err"></div><div class="dm-legend">Nút mờ = cổng DB chưa cho (vai/trạng thái). Mọi lỗi hiện nguyên văn.</div>`
+    <div class="dm-err" id="dm-ct-err"></div><div class="dm-legend">Nút mờ = cổng DB chưa cho (vai/trạng thái). Mọi lỗi hiện nguyên văn.</div>
+    ${hdSection}`
   box.querySelectorAll('[data-act]').forEach(b => b.onclick = () => dmNutCt(id, b.dataset.act, box.querySelector('#dm-ct-err')))
+  box.querySelectorAll('.kho-hd-xoa').forEach(b => b.onclick = async () => {
+    const err = box.querySelector('#kho-hd-err'); err.textContent = ''
+    if (!confirm(`Xoá hoá đơn ${b.dataset.so}? (đảo giá lô nếu còn sống; đơn có thể lùi về "đã nhận")`)) return
+    const r = await sb.rpc('hd_ncc_xoa', { p_id: b.dataset.hid })
+    if (r.error) { err.textContent = r.error.message.replace(/^.*HD_CO_PHIEU_CHI: */, 'Không xoá được: '); return }
+    bao('Đã xoá hoá đơn ' + b.dataset.so); dmXem(id)
+  })
 }
 
 async function dmNutCt(id, act, errEl) {
   errEl.textContent = ''
   if (act === 'sua') return dmMoiForm(id)
   if (act === 'nhan') return dmNhanForm(id)
+  if (act === 'khop') return dmKhopForm(id)
   let toi = act, ngay = null, lyDo = null
   if (act === 'xac_nhan') { const cur = DM.ds.find(x => x.id === id); const def = cur ? cur.ngay_can : ''; ngay = prompt('Ngày NCC hẹn giao (YYYY-MM-DD), mặc định = ngày cần:', def || ''); if (ngay === null) return; ngay = ngay.trim() || null }
   if (act === 'huy') { lyDo = prompt('Lý do huỷ (bắt buộc):', ''); if (lyDo === null) return; if (!lyDo.trim()) { errEl.textContent = 'Huỷ phải có lý do.'; return } }
@@ -1089,8 +1108,104 @@ function dmNhanXong(id, res, L) {
   $('#dmn-xemdon').onclick = () => dmXem(id)
   $('#dmn-xemphieu').onclick = () => { chuyenMan('nhap') }
 }
+// ═══════════════════ WP-22 · KHỚP HOÁ ĐƠN NCC (màn khớp, dùng chung ô #dm-nhan) ═══════════════════
+async function dmKhopForm(id) {
+  $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'; $('#dm-form').style.display = 'none'
+  const box = $('#dm-nhan'); box.style.display = ''; box.innerHTML = '<div class="rong">Đang tải…</div>'
+  const [rc, rd] = await Promise.all([sb.rpc('dm_chi_tiet', { p_id: id }), sb.rpc('hd_ncc_khop_dong', { p_don_mua_id: id })])
+  if (rc.error || rd.error) { box.innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${(rc.error || rd.error).message}</div>`; return }
+  const d = rc.data.dau_don
+  if (!['da_nhan', 'da_khop_hd'].includes(d.trang_thai)) { box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button></div><div class="rong">Đơn ${d.so_don} đang "${DM_TT[d.trang_thai]}" — chỉ khớp hoá đơn khi đã nhận.</div>`; return }
+  const iso = t => new Date(t).toISOString().slice(0, 10)
+  const H = { loai: 'hoa_don_vat', so_hd: '', ngay_hd: iso(Date.now()), han: iso(Date.now() + 30 * 864e5), vat: 10, ghi_chu: '' }
+  const L = (rd.data || []).map(x => { const rem = Number(x.so_luong_da_nhan) - Number(x.so_luong_da_hd); return { ...x, rem, sl_hd: rem > 0 ? rem : '', dg_hd: Number(x.don_gia) } })
+  const parseSL = v => v === '' ? '' : Math.max(0, Number(String(v).replace(/[^\d.]/g, '')) || 0)
+  const num = v => Number(v) || 0
+  const tt_hd = x => num(x.sl_hd) * num(x.dg_hd)
+  const vuot = x => x.rem > 0 && num(x.sl_hd) > x.rem
+  const kLabel = x => {
+    if (x.rem <= 0) return ['xam', 'đã khớp đủ']
+    const sl = num(x.sl_hd)
+    if (sl > x.rem) return ['do', `vượt đã nhận ${dmTien(sl - x.rem)}`]
+    if (sl <= 0) return ['xam', '—']
+    if (num(x.dg_hd) !== num(x.don_gia)) return ['vang', 'lệch giá']
+    if (sl < x.rem) return ['vang', 'HĐ < đã nhận']
+    if (num(x.so_luong_da_nhan) < num(x.so_luong)) return ['vang', `HĐ < đặt (chưa giao ${dmTien(num(x.so_luong) - num(x.so_luong_da_nhan))})`]
+    return ['luc', 'khớp']
+  }
+  const tong = () => { const chua = L.reduce((s, x) => s + tt_hd(x), 0); const vat = Math.round(chua * (H.loai === 'bang_ke' ? 0 : H.vat) / 100); return { chua, vat, gom: chua + vat } }
+  const cham = x => num(x.dg_hd) - num(x.don_gia)
+
+  const render = () => {
+    const T = tong()
+    const coVuot = L.some(vuot), coDong = L.some(x => num(x.sl_hd) > 0)
+    const chan = coVuot || !coDong || !H.so_hd.trim()
+    const rows = L.map((x, i) => {
+      const [c, lbl] = kLabel(x), ch = cham(x)
+      const dis = x.rem <= 0
+      return `<tr class="${dis ? 'kho-hd-done' : ''}"><td>${x.ma} — ${x.ten}</td>
+        <td class="so">${dmTien(x.so_luong)} ${x.dvt || ''}</td><td class="so">${dmTien(x.so_luong_da_nhan)}</td><td class="so">${dmTien(x.so_luong_da_hd)}</td>
+        <td class="so"><input class="kho-hd-inp k-sl" data-i="${i}" inputmode="decimal" ${dis ? 'disabled' : ''} value="${dis ? 0 : x.sl_hd}"></td>
+        <td class="so">${dmTien(x.don_gia)}</td>
+        <td class="so"><input class="kho-hd-inp k-dg" data-i="${i}" inputmode="numeric" ${dis ? 'disabled' : ''} value="${dmFmt(x.dg_hd)}"></td>
+        <td class="so ${ch !== 0 ? 'kho-hd-do' : 'kho-hd-luc'}">${ch === 0 ? '0' : (ch > 0 ? '+' : '') + dmTien(ch)}</td>
+        <td class="so dm-mono">${dmTien(tt_hd(x))}</td>
+        <td><span class="kho-hd-nhan ${c}">${lbl}</span></td></tr>`
+    }).join('')
+    box.innerHTML = `<div class="dm-row"><button class="n" id="kho-hd-back">← Danh sách</button><h3 class="dm-mono" style="margin:0 0 0 6px">Khớp hoá đơn · ${d.so_don}</h3><span class="dm-tt ${d.trang_thai}" style="margin-left:8px">${DM_TT[d.trang_thai]}</span></div>
+      <div class="kho-hd-form">
+        <div><label>Loại chứng từ</label><select id="k-loai"><option value="hoa_don_vat"${H.loai === 'hoa_don_vat' ? ' selected' : ''}>Hoá đơn VAT</option><option value="bang_ke"${H.loai === 'bang_ke' ? ' selected' : ''}>Bảng kê / không HĐ (VAT 0)</option></select></div>
+        <div><label>Số hoá đơn</label><input id="k-sohd" value="${H.so_hd.replace(/"/g, '&quot;')}" placeholder="vd: 0001234"></div>
+        <div><label>Ngày hoá đơn</label><input id="k-ngay" type="date" value="${H.ngay_hd}"></div>
+        <div><label>Hạn thanh toán <span class="kho-hd-mo">(mặc định +30 ngày)</span></label><input id="k-han" type="date" value="${H.han}"></div>
+        <div><label>VAT %</label><select id="k-vat" ${H.loai === 'bang_ke' ? 'disabled' : ''}>${[0, 5, 8, 10].map(v => `<option value="${v}"${(H.loai === 'bang_ke' ? 0 : H.vat) === v ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div><label>Ghi chú</label><input id="k-ghi" value="${H.ghi_chu.replace(/"/g, '&quot;')}" placeholder="vd: HĐ gộp 2 lần giao"></div>
+      </div>
+      <table class="kho-hd-tbl"><thead><tr><th>Vật tư</th><th class="so">SL đặt</th><th class="so">SL đã nhận</th><th class="so">Đã có HĐ</th><th class="so">SL trên HĐ</th><th class="so">Đơn giá đơn</th><th class="so">Đơn giá HĐ</th><th class="so">Chênh/đv</th><th class="so">Thành tiền</th><th>Khớp</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="kho-hd-tong"><td colspan="8" class="so">Cộng chưa VAT</td><td class="so dm-mono">${dmTien(T.chua)}</td><td></td></tr>
+          <tr class="kho-hd-tong"><td colspan="8" class="so">VAT ${H.loai === 'bang_ke' ? 0 : H.vat}%</td><td class="so dm-mono">${dmTien(T.vat)}</td><td></td></tr>
+          <tr class="kho-hd-tong"><td colspan="8" class="so">Tổng gồm VAT = <b>công nợ phải trả</b></td><td class="so dm-mono"><b>${dmTien(T.gom)}</b></td><td></td></tr></tfoot></table>
+      <div class="kho-hd-cb">⚠ Khớp 3 chiều (ERP 4.4): <b>SL trên HĐ ≤ SL đã nhận</b> (vượt → chặn). Giá HĐ ≠ giá đơn → <b>ghi lệch</b>, không chặn; giá lô còn sống của dòng đó đổi theo giá HĐ + bình quân tồn tính lại. Đơn sang <b>đã khớp HĐ</b> khi HĐ phủ hết SL đã nhận & mọi dòng giao đủ.</div>
+      <div class="dm-row" style="margin-top:10px"><button class="n chinh" id="k-ghi-btn" ${chan ? 'disabled' : ''}>Ghi hoá đơn & tạo công nợ${coDong ? '' : ''}</button><button class="n" id="k-huy">Huỷ</button></div>
+      ${coVuot ? '<div class="kho-hd-err">Sửa dòng đỏ (vượt số đã nhận) rồi mới ghi được.</div>' : ''}
+      <div class="kho-hd-err" id="k-err"></div>`
+    bind()
+  }
+  const focusBack = sel => { const el = box.querySelector(sel); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } }
+  function bind() {
+    $('#kho-hd-back').onclick = () => veDonMua(); $('#k-huy').onclick = () => dmXem(id)
+    $('#k-loai').onchange = e => { H.loai = e.target.value; if (H.loai === 'bang_ke') H.vat = 0; render() }
+    $('#k-sohd').oninput = e => { H.so_hd = e.target.value; const b = $('#k-ghi-btn'); if (b) b.disabled = !(H.so_hd.trim() && L.some(x => num(x.sl_hd) > 0) && !L.some(vuot)) }
+    $('#k-ngay').onchange = e => H.ngay_hd = e.target.value
+    $('#k-han').onchange = e => H.han = e.target.value
+    const kv = $('#k-vat'); if (kv) kv.onchange = e => { H.vat = Number(e.target.value); render() }
+    $('#k-ghi').oninput = e => H.ghi_chu = e.target.value
+    box.querySelectorAll('.k-sl').forEach(inp => inp.oninput = () => { const i = +inp.dataset.i; L[i].sl_hd = parseSL(inp.value); render(); focusBack(`.k-sl[data-i="${i}"]`) })
+    box.querySelectorAll('.k-dg').forEach(inp => inp.oninput = () => { const i = +inp.dataset.i; L[i].dg_hd = Number(inp.value.replace(/\D/g, '')) || 0; render(); focusBack(`.k-dg[data-i="${i}"]`) })
+    const g = $('#k-ghi-btn'); if (g) g.onclick = ghi
+  }
+  async function ghi() {
+    const err = $('#k-err'); err.textContent = ''
+    const dong = L.filter(x => x.rem > 0 && num(x.sl_hd) > 0 && !vuot(x)).map(x => ({ don_mua_dong_id: x.don_mua_dong_id, so_luong: num(x.sl_hd), don_gia_hd: num(x.dg_hd) }))
+    if (!dong.length) { err.textContent = 'Cần nhập SL trên HĐ cho ít nhất 1 dòng.'; return }
+    $('#k-ghi-btn').disabled = true
+    const r = await sb.rpc('hd_ncc_ghi', { p_don_mua_id: id, p_so_hd: H.so_hd.trim(), p_loai: H.loai, p_ngay_hd: H.ngay_hd, p_han: H.han, p_vat_pct: H.loai === 'bang_ke' ? 0 : H.vat, p_ghi_chu: H.ghi_chu || null, p_dong: dong })
+    if (r.error) {
+      let m = r.error.message
+      if (/HD_VUOT_NHAN/.test(m)) m = 'Số lượng trên hoá đơn vượt số đã nhận — ' + m.replace(/^.*HD_VUOT_NHAN: */, '')
+      else if (/HD_TRUNG/.test(m)) m = 'NCC này đã có hoá đơn cùng số. ' + m.replace(/^.*HD_TRUNG: */, '')
+      err.textContent = m; $('#k-ghi-btn').disabled = false; return
+    }
+    const g = r.data
+    bao(`Đã ghi HĐ ${g.so_hd} · công nợ ${dmTien(g.tong_gom_vat)}đ${g.lech_gia_so_dong ? ' · lệch giá ' + g.lech_gia_so_dong + ' dòng' : ''} · đơn ${DM_TT[g.trang_thai_don] || g.trang_thai_don}`)
+    dmXem(id)
+  }
+  render()
+}
 window.veDonMua = veDonMua
 window.dmNhanForm = dmNhanForm
+window.dmKhopForm = dmKhopForm
 
 // ═══════════════════ WP-36 · ĐƠN VỊ & HAO HỤT (màn tsvt) ═══════════════════
 const TSVT = { ds: [], sel: null, tim: '', chithieu: false }

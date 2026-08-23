@@ -167,6 +167,35 @@ def main(pw):
     ok("WP21 · tab Phiếu nhập có chip 'Đơn mua' nguồn", chip)
     shot21("wp21_phieu_nguon.png")
 
+    # 12 · WP-22 · KHỚP HOÁ ĐƠN trên đơn vừa nhận (da_nhan) → da_khop_hd + danh sách HĐ
+    pg.locator('nav button[data-m="dm"]').click(); time.sleep(2)
+    try:  # bỏ lọc trạng thái còn sót từ mục WP-21 (nếu có) để đơn da_nhan hiện lại
+        pg.evaluate("""()=>{const c=[...document.querySelectorAll('#dm-chips .dm-chip')].find(x=>!x.dataset.tt||x.dataset.tt==='null'||x.textContent.trim()==='Tất cả'); if(c)c.click(); const t=document.querySelector('#dm-f-tim'); if(t){t.value='';t.dispatchEvent(new Event('input'))}}""")
+    except Exception: pass
+    time.sleep(2)
+    opened = False
+    for _ in range(8):
+        opened = pg.evaluate("""(s)=>{const tr=[...document.querySelectorAll('#dm-ds tr[data-id]')].find(t=>t.querySelector('td b')?.textContent.trim()===s);
+            if(tr){tr.click();return true} const c=[...document.querySelectorAll('#dm-ds .dmn-po[data-id]')].find(x=>x.innerText.includes(s));
+            if(c){c.click();return true} return false}""", so)
+        if opened: break
+        time.sleep(1)
+    if not opened: print(f"⛔ [harness] không tìm thấy đơn {so} trong danh sách để mở khớp HĐ"); ctx.close(); sys.exit(0)
+    time.sleep(1.8)   # chờ dmXem
+    kbtn = pg.locator('.dm-gate button[data-act="khop"]')
+    ok("WP22 · đơn da_nhan có nút 'Khớp hoá đơn'", kbtn.count() >= 1 and not kbtn.first.is_disabled())
+    kbtn.first.click(); time.sleep(1.8)
+    pg.fill('#k-sohd', 'TEST-HD-' + (so or '')[-4:]); time.sleep(0.6)
+    ok("WP22 · form khớp có dòng + nút Ghi bật sau khi điền số HĐ", pg.locator('.kho-hd-tbl .k-sl').count() >= 1 and not pg.locator('#k-ghi-btn').is_disabled())
+    shot21("wp22_form_khop.png")
+    pg.locator('#k-ghi-btn').click(); time.sleep(3)
+    pg.wait_for_selector('#dm-ct .kho-hd-ds', timeout=8000)   # chờ dmXem tải lại chi tiết (có danh sách HĐ)
+    tt = pg.locator('#dm-ct .dm-tt').first.inner_text()
+    ok("WP22 · ghi HĐ → đơn 'Khớp HĐ'", 'Khớp' in tt, tt[:40])
+    ds_txt = pg.locator('.kho-hd-ds').inner_text() if pg.locator('.kho-hd-ds').count() else ''
+    ok("WP22 · danh sách HĐ hiện HĐ vừa ghi", 'TEST-HD' in ds_txt, ds_txt[:60])
+    shot21("wp22_khop_xong.png")
+
     print(f"\n⏱  robot: {R['pass']} pass / {R['fail']} fail · số đơn = {SO_DON['v']}")
     ctx.close()
 

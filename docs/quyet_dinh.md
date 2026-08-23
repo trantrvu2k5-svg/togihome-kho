@@ -796,3 +796,27 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Kiểm chứng:** `web/ops/test_134.mjs` **34/0** (khổ→m², 12 m²→5 tấm ceil, guard hệ số/hao/cơ sở, lịch sử append-only, quét thiếu→xuất bù,
   snapshot bất biến, nhãn tự tắt, view compat) + perf `tham_so_vat_tu_ds` @100k 325ms<500 · `quet_tem` @100k 28ms<300 + robot prod 4 ảnh.
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/134). Nợ: WP-34 đo hao thực · WP-91 gỡ view compat + trigger fill · WP-94 ván thừa (`so_du_lam_tron`).
+
+## QD-56 (22/08, treo từ WP-01) — Bảo hiểm 60tr/tháng phân bổ THEO LƯƠNG (Garrison ch.3) · DUYỆT
+
+- **60tr BHXH/tháng chia theo tỷ lệ lương:** 60/634 ≈ **9,5%**. ~**30,7tr** phân về **7 tổ sản xuất** theo lương tổ (vào `luong_to.bao_hiem`);
+  ~**29,3tr** là dòng **"Bảo hiểm sale + văn phòng"** thuộc phân khúc **CHUNG** (không gán tổ SX).
+- **Overhead phân bổ tổ = 0** (chủ ý): định phí (thuê xưởng, khấu hao, BH văn phòng…) nằm ở **Dòng chi**, P/L dùng **số dư đảm phí**
+  (contribution margin) — KHÔNG đẩy định phí vào giá vốn đơn. Nhập BH ở CẢ giá vốn tổ LẪN dòng chi = **đếm đôi** → cấm.
+- **Lý do:** Garrison *Managerial Accounting* ch.3 (phân bổ chi phí theo cơ sở hợp lý = lương) + ch.5 (CVP: định phí không vào đơn vị sp).
+- **Trạng thái:** ÁP DỤNG (số nhập tay ở app Tài chính; `luong_to.bao_hiem` + `chi_phi_ky`/`luong_to` đã feed `dong_tien_ky` KHỐI 2).
+
+## QD-57 (22/08, WP-22, db/135) — Hoá đơn NCC khớp 3 chiều + công nợ phải trả (ERP §4.4) · DUYỆT
+
+- **Khớp 3 chiều** (PO ↔ phiếu nhận ↔ hoá đơn): **SL HĐ ≤ SL đã nhận** (CHẶN `HD_VUOT_NHAN`) · **lệch giá GHI không chặn** (`lech_don_gia`) ·
+  **giá LÔ SỐNG đổi theo HĐ** (ERP §3.3.8: `gia_von_lo = don_gia_hd`, rồi `tinh_lai_gia_von_bq` — MỘT công thức, `gd_cap_nhat_ton` gọi lại) ·
+  **đơn → `da_khop_hd`** khi HĐ phủ hết SL đã nhận VÀ mọi dòng nhận đủ đặt (xoá HĐ → lùi `da_nhan` qua GUC hệ thống).
+- **Công nợ phải trả = Σ HĐ gồm VAT − Σ phiếu chi**, TÍNH bằng RPC `con_phai_tra` (KHÔNG bảng công nợ — cùng hình `con_phai_thu`).
+  Phiếu chi gắn HĐ tuỳ chọn (chặn `CHI_VUOT_HD`); trống = **ứng trước** (nợ âm). Hạn TT mặc định **+30 ngày [GIẢ ĐỊNH]**.
+- **VAT (QD-30):** đơn giá HĐ **chưa VAT** → giá vốn; tổng **gồm VAT** → công nợ + dòng tiền (KHỐI CHI `tra_ncc`). `bang_ke` ép VAT 0.
+- **1 HĐ ↔ 1 đơn mua [v1]** (nhiều HĐ/đơn OK). ⚠ Lô hiện lưu theo **đơn vị DÒNG** (WP-21 chưa quy cơ sở — nợ WP-23) nên
+  `gia_von_lo = don_gia_hd` trực tiếp, KHÔNG `quy_ve_co_so` (hàm đó quy SỐ LƯỢNG không quy GIÁ; quy giá về cơ sở sẽ lệch đơn vị lô).
+- **Lý do:** ERP Sagegg&Alfnes §4.4 + giữ MỘT đường sổ (QD-03/44), Dòng tiền khép vòng (QD-40). Xoá mềm (`da_xoa_luc`), UNIQUE(ncc,so_hd).
+- **Kiểm chứng:** `web/ops/test_hd_ncc.mjs` **23/0** (khớp/vượt/một phần/lệch giá→lô+bq/bảng kê/chi vượt/ứng âm/xoá hồi/đảo lô/dòng tiền/chặn sale) +
+  perf @100k: `con_phai_tra` 627ms · `dong_tien_ky` 78ms · `hd_ncc_ghi` 98ms · `pc_ghi` 7ms + so_ba_nguon khớp + test_huy_phieu 21/0.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/135, DB+test; UI WP-22b sau). Nợ: WP-23 lô về đơn vị cơ sở (rồi mới quy giá) · UI màn khớp HĐ.

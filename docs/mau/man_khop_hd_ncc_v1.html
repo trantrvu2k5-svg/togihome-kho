@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>MẪU WP-22 · Khớp hoá đơn NCC → Công nợ phải trả → Dòng tiền</title>
+<style>
+:root{--nen:#f5f6f8;--o:#fff;--vien:#d9dde3;--chu:#1f2937;--mo:#6b7280;--xanh:#1d6fb8;--do:#c0392b;--luc:#1e8449;--vang:#b9770e;--nenvang:#fff7e0}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--chu);background:var(--nen)}
+.hd-top{background:#111827;color:#fff;padding:8px 16px;font-size:13px}
+.hd-top b{color:#fbbf24}
+.hd-man{max-width:1060px;margin:22px auto;background:var(--o);border:1px solid var(--vien);border-radius:8px}
+.hd-man h2{margin:0;padding:10px 16px;border-bottom:1px solid var(--vien);font-size:15px;background:#f9fafb}
+.hd-man h2 small{color:var(--mo);font-weight:400;margin-left:8px}
+.hd-body{padding:14px 16px}
+.hd-nav{display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--vien);font-size:13px}
+.hd-nav span{padding:4px 10px;border-radius:4px;color:var(--mo)}.hd-nav .on{background:var(--xanh);color:#fff}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--vien);padding:6px 8px;text-align:left;vertical-align:top}th{background:#f3f4f6;font-weight:600;font-size:12.5px;color:#374151}
+td.so,th.so{text-align:right;font-variant-numeric:tabular-nums}
+.hd-form{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;margin-bottom:12px}
+.hd-form label{display:block;font-size:12px;color:var(--mo)}.hd-form input,.hd-form select{width:100%;padding:5px 7px;border:1px solid var(--vien);border-radius:4px;font-size:14px}
+.nut{display:inline-block;padding:6px 14px;border-radius:5px;border:1px solid var(--vien);background:#fff;font-size:13px;cursor:pointer;margin-right:6px}
+.nut.chinh{background:var(--xanh);color:#fff;border-color:var(--xanh)}.nut.xam{color:var(--mo)}
+.nhan{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11.5px}
+.nhan.luc{background:#e8f6ee;color:var(--luc)}.nhan.vang{background:var(--nenvang);color:var(--vang)}.nhan.do{background:#fdecea;color:var(--do)}.nhan.xam{background:#eef0f3;color:var(--mo)}
+.ghichu{font-size:12.5px;color:var(--mo);margin-top:8px}
+.canhbao{background:var(--nenvang);border:1px solid #f1d38a;padding:8px 10px;border-radius:5px;font-size:13px;margin:10px 0}
+.khoi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.khoi .o{border:1px solid var(--vien);border-radius:6px;padding:8px 10px}.khoi .o .ten{font-size:12px;color:var(--mo)}.khoi .o .gt{font-size:18px;font-weight:600;margin-top:2px}
+.khoi .o.moi{border-color:var(--xanh);background:#eef5fc}
+.tong td{font-weight:600;background:#fafafa}
+.lech-do{color:var(--do);font-weight:600}.lech-luc{color:var(--luc)}
+.chu-mo{color:var(--mo)}
+.chuthich{max-width:1060px;margin:0 auto 30px;font-size:12.5px;color:var(--mo)}
+</style></head><body>
+
+<div class="hd-top">MẪU DUYỆT MẮT · WP-22 · <b>số trong mẫu là SỐ MINH HOẠ</b> (chưa SELECT từ prod) — chỉ duyệt bố cục, cột, nút và luồng. 3 màn: ① Khớp hoá đơn (app Kho) · ② Phiếu chi NCC + khối Dòng tiền (app Tài chính) · ③ Công nợ phải trả theo NCC (app Tài chính)</div>
+
+<!-- ===================== MÀN ① ===================== -->
+<div class="hd-man">
+  <div class="hd-nav"><span>Tồn kho</span><span>Cần đặt hàng</span><span>Phiếu nhập</span><span>Phiếu xuất</span><span class="on">Đơn mua</span><span>Nhà cung cấp</span><span>Ghép mã</span><span>Đơn vị &amp; hao hụt</span></div>
+  <h2>① Khớp hoá đơn — DM-2026-0003 <small>NCC: Gỗ An Cường · kho nhận: Xưởng · trạng thái <span class="nhan luc">đã nhận</span> → sau khớp: <span class="nhan xam">đã khớp HĐ</span></small></h2>
+  <div class="hd-body">
+    <div class="hd-form">
+      <div><label>Loại chứng từ</label><select><option>Hoá đơn VAT</option><option>Bảng kê / không HĐ (VAT 0)</option></select></div>
+      <div><label>Số hoá đơn</label><input value="0001234"></div>
+      <div><label>Ngày hoá đơn</label><input value="20/08/2026"></div>
+      <div><label>Hạn thanh toán <span class="chu-mo">(mặc định +30 ngày)</span></label><input value="19/09/2026"></div>
+      <div><label>VAT %</label><select><option>8</option><option selected>10</option><option>0</option></select></div>
+      <div><label>Ghi chú</label><input placeholder="VD: HĐ gộp 2 lần giao"></div>
+    </div>
+    <table>
+      <tr><th>Vật tư</th><th class="so">SL đặt</th><th class="so">SL đã nhận</th><th class="so">SL trên HĐ</th><th class="so">Đơn giá đơn mua<br><span class="chu-mo">(chưa VAT)</span></th><th class="so">Đơn giá HĐ<br><span class="chu-mo">(chưa VAT)</span></th><th class="so">Chênh/đv</th><th class="so">Thành tiền HĐ</th><th>Khớp</th></tr>
+      <tr><td>MDF 17mm phủ melamine trắng 1220×2440</td><td class="so">100 tấm</td><td class="so">100</td><td class="so"><input style="width:70px;text-align:right" value="100"></td><td class="so">485.000</td><td class="so"><input style="width:90px;text-align:right" value="485.000"></td><td class="so lech-luc">0</td><td class="so">48.500.000</td><td><span class="nhan luc">khớp</span></td></tr>
+      <tr><td>Ván HDF 3mm 1220×2440</td><td class="so">40 tấm</td><td class="so">40</td><td class="so"><input style="width:70px;text-align:right" value="40"></td><td class="so">95.000</td><td class="so"><input style="width:90px;text-align:right" value="98.000"></td><td class="so lech-do">+3.000</td><td class="so">3.920.000</td><td><span class="nhan vang">lệch giá</span></td></tr>
+      <tr><td>Bản lề giảm chấn Hafele</td><td class="so">200 cái</td><td class="so">150</td><td class="so"><input style="width:70px;text-align:right" value="150"></td><td class="so">18.000</td><td class="so"><input style="width:90px;text-align:right" value="18.000"></td><td class="so lech-luc">0</td><td class="so">2.700.000</td><td><span class="nhan vang">HĐ &lt; đặt (chưa giao 50)</span></td></tr>
+      <tr class="tong"><td colspan="7">Cộng chưa VAT</td><td class="so">55.120.000</td><td></td></tr>
+      <tr class="tong"><td colspan="7">VAT 10%</td><td class="so">5.512.000</td><td></td></tr>
+      <tr class="tong"><td colspan="7">Tổng hoá đơn GỒM VAT = <b>công nợ phải trả</b></td><td class="so">60.632.000</td><td></td></tr>
+    </table>
+    <div class="canhbao">⚠ Luật khớp 3 chiều (ERP 4.4): <b>SL trên HĐ ≤ SL đã nhận</b> (vượt → chặn). Giá HĐ khác giá đơn mua → <b>ghi lệch</b>, không chặn; giá lô nhập của dòng đó đổi theo giá HĐ (lô còn sống) và bình quân tồn tính lại. Đơn mua chỉ sang <b>đã khớp HĐ</b> khi Σ SL HĐ = Σ SL đã nhận; còn 50 bản lề chưa giao → đơn vẫn <span class="nhan luc">đã nhận</span>, cho khớp HĐ thứ 2 sau.</div>
+    <span class="nut chinh">Ghi hoá đơn &amp; tạo công nợ</span><span class="nut xam">Huỷ</span>
+    <div class="ghichu">Lịch sử HĐ của đơn này: (chưa có) · Sau khi ghi: dòng lịch sử "khớp HĐ 0001234 · 60.632.000 · lệch giá 1 dòng +120.000" vào <code>don_mua_lich_su</code>.</div>
+  </div>
+</div>
+
+<!-- ===================== MÀN ② ===================== -->
+<div class="hd-man">
+  <div class="hd-nav"><span>Điều hành</span><span class="on">Dòng tiền</span><span>Chi phí kỳ</span><span>Kênh &amp; CAC</span><span>Giá vốn theo đơn</span><span>P/L</span><span>Lãi theo đơn</span><span>Nhận xét</span></div>
+  <h2>② Dòng tiền kỳ 2026-08 <small>thêm khối mới "Trả NCC" vào nhóm CHI kinh doanh · quỹ vẫn khép vòng</small></h2>
+  <div class="hd-body">
+    <div class="khoi">
+      <div class="o"><div class="ten">Quỹ đầu kỳ</div><div class="gt">1.200.000.000</div></div>
+      <div class="o"><div class="ten">THU: phiếu thu + COD đối soát</div><div class="gt">4.850.000.000</div></div>
+      <div class="o"><div class="ten">CHI: chi phí kỳ · ads · lương</div><div class="gt">2.430.000.000</div></div>
+      <div class="o moi"><div class="ten">CHI: <b>Trả NCC vật tư</b> <span class="nhan luc">MỚI</span></div><div class="gt">612.000.000</div><div class="chu-mo" style="font-size:12px">3 phiếu chi · còn nợ NCC 418.000.000</div></div>
+      <div class="o"><div class="ten">Ròng kinh doanh</div><div class="gt">1.808.000.000</div></div>
+      <div class="o"><div class="ten">Ròng ngoài KD (vốn)</div><div class="gt">−200.000.000</div></div>
+      <div class="o"><div class="ten">Quỹ cuối kỳ (tính)</div><div class="gt">2.808.000.000</div></div>
+      <div class="o"><div class="ten">Đối chiếu ngân hàng thật</div><div class="gt">2.808.000.000 <span class="nhan luc">khớp</span></div></div>
+    </div>
+
+    <h3 style="font-size:14px;margin:18px 0 6px">Sổ phiếu chi NCC <span class="chu-mo" style="font-weight:400">(cùng hình phiếu thu khách, QD-40)</span></h3>
+    <div class="hd-form">
+      <div><label>Ngày chi</label><input value="22/08/2026"></div>
+      <div><label>Nhà cung cấp</label><select><option>Gỗ An Cường</option><option>Hafele VN</option><option>Phụ kiện Minh Phát</option></select></div>
+      <div><label>Gắn hoá đơn <span class="chu-mo">(tuỳ chọn — để trống = trả trước/ứng)</span></label><select><option>HĐ 0001234 · 60.632.000 · còn 60.632.000</option><option>— trả trước, chưa có HĐ —</option></select></div>
+      <div><label>Số tiền (GỒM VAT, tiền thật ra khỏi quỹ)</label><input value="30.000.000"></div>
+      <div><label>Hình thức</label><select><option>Chuyển khoản</option><option>Tiền mặt</option></select></div>
+      <div><label>Ghi chú</label><input placeholder="VD: trả 50% đợt 1"></div>
+      <div style="align-self:end"><span class="nut chinh">Ghi phiếu chi</span></div>
+    </div>
+    <table>
+      <tr><th>Ngày</th><th>NCC</th><th>Hoá đơn</th><th class="so">Số tiền</th><th>Hình thức</th><th>Ghi chú</th><th></th></tr>
+      <tr><td>21/08</td><td>Gỗ An Cường</td><td>0001201</td><td class="so">350.000.000</td><td>CK</td><td>trả hết HĐ tháng 7</td><td><span class="nut xam" style="padding:2px 8px">xoá</span></td></tr>
+      <tr><td>18/08</td><td>Hafele VN</td><td class="chu-mo">— trả trước —</td><td class="so">62.000.000</td><td>CK</td><td>ứng 50% đơn DM-0005</td><td><span class="nut xam" style="padding:2px 8px">xoá</span></td></tr>
+      <tr><td>05/08</td><td>Phụ kiện Minh Phát</td><td>BK-0811</td><td class="so">200.000.000</td><td>TM</td><td>bảng kê, không HĐ</td><td><span class="nut xam" style="padding:2px 8px">xoá</span></td></tr>
+    </table>
+    <div class="ghichu">Xoá phiếu chi = xoá mềm giống <code>pt_xoa</code> (phiếu thu). Phiếu chi không đụng sổ kho; chỉ đụng công nợ + dòng tiền.</div>
+  </div>
+</div>
+
+<!-- ===================== MÀN ③ ===================== -->
+<div class="hd-man">
+  <div class="hd-nav"><span class="on">Điều hành</span><span>Dòng tiền</span><span>Chi phí kỳ</span><span>Kênh &amp; CAC</span><span>Giá vốn theo đơn</span><span>P/L</span><span>Lãi theo đơn</span><span>Nhận xét</span></div>
+  <h2>③ Công nợ phải trả NCC <small>khối mới trong tab Điều hành, cạnh "Công nợ khách" · tuổi nợ tính từ hạn thanh toán</small></h2>
+  <div class="hd-body">
+    <table>
+      <tr><th>Nhà cung cấp</th><th class="so">Σ hoá đơn đã ghi</th><th class="so">Σ đã trả</th><th class="so">Còn phải trả</th><th class="so">Quá hạn</th><th>HĐ gần nhất đến hạn</th><th></th></tr>
+      <tr><td>Gỗ An Cường</td><td class="so">760.632.000</td><td class="so">380.000.000</td><td class="so"><b>380.632.000</b></td><td class="so lech-do">120.000.000 <span class="nhan do">38 ngày</span></td><td>HĐ 0001234 · 19/09</td><td><span class="nut" style="padding:2px 8px">chi tiết</span></td></tr>
+      <tr><td>Phụ kiện Minh Phát</td><td class="so">237.000.000</td><td class="so">200.000.000</td><td class="so"><b>37.000.000</b></td><td class="so">0</td><td>BK-0815 · 30/08</td><td><span class="nut" style="padding:2px 8px">chi tiết</span></td></tr>
+      <tr><td>Hafele VN</td><td class="so">0</td><td class="so">62.000.000</td><td class="so lech-luc"><b>−62.000.000</b> <span class="nhan luc">mình ứng trước</span></td><td class="so">0</td><td class="chu-mo">chưa có HĐ</td><td><span class="nut" style="padding:2px 8px">chi tiết</span></td></tr>
+      <tr class="tong"><td>Tổng</td><td class="so">997.632.000</td><td class="so">642.000.000</td><td class="so">355.632.000</td><td class="so lech-do">120.000.000</td><td></td><td></td></tr>
+    </table>
+    <div class="ghichu">Công nợ NCC = Σ HĐ (gồm VAT) − Σ phiếu chi, theo từng NCC — cùng hình với "Công nợ khách" (`con_phai_thu`). Số âm = NCC đang giữ tiền mình. Quá hạn đỏ khi qua hạn thanh toán trên HĐ.</div>
+  </div>
+</div>
+
+<div class="chuthich">Sách: ERP ch.4.4 — hoá đơn khớp với đơn mua + phiếu nhận (3 chiều), khớp OK mới vào công nợ phải trả; trả tiền ở phân hệ phải trả. ERP 3.3.8 — giá trị tồn gắn với giá mua thật. Garrison ch.14 / QD-40 — dòng tiền ghi gộp không bù trừ, quỹ khép vòng.</div>
+</body></html>
