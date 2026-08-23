@@ -18,3 +18,9 @@ web/.wrangler/
 ket_noi_kho.json
 data/ket_noi_kho.json
 .env.test
+
+# WP-96: bản dump/backup DB chứa dữ liệu khách thật — CẤM lọt vào git (đích thật ở ~/togihome_backup, ngoài repo)
+*.dump
+*.sql.gz
+*.backup
+/backup/

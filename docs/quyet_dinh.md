@@ -865,3 +865,14 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Kiểm chứng:** `test_139` **13/0** · `test_140` **17/0** (100k < 500ms) · `test_141` **17/0** · `test_142` **6/0** (100k 119ms);
   robot app Kho tab "Cần đặt hàng" xanh (3 nhóm 0/30/54 số thật). Đơn vị mức theo `don_vi_co_so` (QD-53/58).
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/139–142, DB+test+UI). Nợ: cảnh báo `theo_don`/`theo_nhu_cau` (MRP theo đơn) để lô sau.
+
+## QD-61 (23/08, WP-96) — Không có backup thì không migrate (MES §7.2.5) · CHỐT
+
+- **`run_sql.mjs` tự `pg_dump -Fc` prod ra `~/togihome_backup/`** (NGOÀI repo) **TRƯỚC khi gửi SQL**. Backup fail = **CHẶN migrate**.
+- **Chặn khi:** dump fail · thiếu `pg_dump` · client **lệch major** với server · đĩa **< 2 GiB**. In nguyên văn lỗi, exit ≠ 0, KHÔNG chạy SQL.
+- **Giữ 20 bản xoay vòng**, chỉ xoá đúng mẫu `pre_*.dump` (không đụng file lạ). In đường dẫn · MB · giây trước khi chạy SQL.
+- **Cửa hậu `BO_QUA_BACKUP=1`** (chỉ cho file scratch) — bắt buộc in **cảnh báo ĐỎ**.
+- **Lý do:** dev = prod cùng MỘT Supabase project (01 §D) — migrate là áp thẳng prod; 142 migration **không có sổ, không bọc transaction**. MES §7.2.5 xếp "execution and **checking** of complete data security" là bảo trì DB bắt buộc: **backup chưa restore thử thì chưa tính là backup**.
+- **Kiểm khôi phục (L-93):** restore vào Postgres.app 17 local, **cắn hai vế 5/5** — `giao_dich` 235 · `don_mua_dong` 18 · `su_kien_quet` 181 · **107 bảng** · **329 function** đều khớp prod. Phạm vi đã kiểm: schema `kho`. **CHƯA kiểm:** auth/storage/realtime.
+- **Ngoài phạm vi:** tách dev/prod = WP riêng (đắt hơn nhiều bậc); `run_sql.mjs` bọc transaction + sổ migration = WP riêng; VACUUM DB phình 643MB do rác test = WP riêng.
+- **Trạng thái:** ĐÃ ÁP DỤNG (sửa `web/ops/run_sql.mjs`; `.gitignore` chặn `*.dump`). Client dump = Postgres.app PG17 (server PG 17.6).
