@@ -295,14 +295,80 @@ const _idCache = {}
 async function maToId(ma) { if (_idCache[ma]) return _idCache[ma]; const { data } = await sb.from('vat_tu').select('id').eq('ma', ma).single(); _idCache[ma] = data?.id; return data?.id }
 
 // ── cần đặt hàng ──
-function veDat() {
-  $$('.muc button').forEach(b => b.onclick = () => { const l = +b.dataset.l; if (l > 1) { bao(l === 2 ? 'Mức 2 cần đơn đã chốt + BOM từ plugin — chưa nối.' : 'Mức 3 cần lịch sử xuất + thời gian giao hàng — chưa có.'); return } $$('.muc button').forEach(x => x.classList.remove('on')); b.classList.add('on'); veDat() })
-  const ds = KHO.filter(x => x.min > 0 && x.ton < x.min)
-  if (!ds.length) { $('#dat-ds').innerHTML = '<div class="rong">Không mã nào dưới mức tối thiểu.</div>'; return }
-  const ct = ds.reduce((s, x) => s + Math.ceil(x.min - x.ton) * x.gia, 0)
-  $('#dat-ds').innerHTML = `<div style="display:flex;align-items:baseline;gap:12px;margin:20px 0 8px"><h3 style="font-size:14px;margin:0">Chưa gán nhà cung cấp</h3><span style="font-size:12.5px;color:var(--muted)">${ds.length} mã · ước ${n(ct)} đ</span></div>
-    <table><thead><tr><th style="width:64px">Ảnh</th><th style="width:86px">Mã</th><th>Tên</th><th class="r" style="width:70px">Tồn</th><th class="r" style="width:78px">Tối thiểu</th><th class="r" style="width:96px">Cần mua</th><th class="r" style="width:120px">Ước tiền</th></tr></thead>
-    <tbody>${ds.map(x => { const c = Math.ceil(x.min - x.ton); return `<tr class="click" onclick="moThe('${x.ma}')"><td>${oAnh(x)}</td><td class="ma">${x.ma}</td><td>${x.ten}</td><td class="r num" style="color:var(--do);font-weight:700">${n(x.ton)}</td><td class="r num" style="color:#6E7681">${n(x.min)}</td><td class="r num"><b>${n(c)}</b> <span style="color:#6E7681;font-size:12px">${x.dvt}</span></td><td class="r num">${x.gia ? n(c * x.gia) : '<span style="color:var(--amber)">chưa có giá</span>'}</td></tr>` }).join('')}</tbody></table>`
+// ═══ WP-42 · CẦN ĐẶT HÀNG (Mức 2/3) — dữ liệu từ kho.canh_bao_dat_hang() ═══
+const nd = v => (Math.round(Number(v || 0) * 100) / 100).toLocaleString('vi-VN')   // số lượng: giữ tới 2 lẻ (ván quy m²)
+const nd1 = v => (Math.round(Number(v || 0) * 10) / 10).toLocaleString('vi-VN')     // tốc độ xuất/ngày: 1 lẻ
+async function veDat() {
+  const box = $('#cdh'); if (!box) return
+  box.innerHTML = '<div class="cdh-note">Đang tính…</div>'
+  const { data, error } = await sb.rpc('canh_bao_dat_hang')
+  if (error) { box.innerHTML = `<div class="cdh-err" style="padding:14px">Lỗi: ${esc(error.message)}</div>`; return }
+  const rows = data || [], g1 = rows.filter(r => r.nhom === 'canh_bao'), g2 = rows.filter(r => r.nhom === 'thieu_lead'), g3 = rows.filter(r => r.nhom === 'chua_co_muc')
+  const gio = new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const dngay = iso => iso ? Math.round((new Date(iso + 'T00:00:00') - today) / 864e5) : null
+  const fmtN = iso => iso ? iso.split('-').reverse().join('/') : '—'
+
+  const h1 = !g1.length ? '<div class="cdh-rong">✓ Không mã nào tụt dưới mức tối thiểu</div>'
+    : `<div class="cdh-wrap"><table class="cdh-tbl"><thead><tr><th></th><th>Mã · Tên</th><th class="r">Tồn</th><th class="r">Giữ chỗ</th><th class="r">PO đang về</th><th class="r">Khả dụng</th><th>Min / Max</th><th class="r">Đặt</th><th>Trước ngày</th><th>NCC gợi ý</th></tr></thead><tbody>
+      ${g1.map((r, i) => { const dd = dngay(r.ngay_dat), gap = dd != null && dd <= 2
+        return `<tr><td><input type="checkbox" class="cdh-ck" data-i="${i}"></td>
+          <td class="cdh-mt"><b>${esc(r.ma)}</b><span>${esc(r.ten)}</span></td>
+          <td class="r">${nd(r.ton)}</td><td class="r">${nd(r.giu_cho)}</td><td class="r">${nd(r.po_dang_ve)}</td>
+          <td class="r cdh-do">${nd(r.kha_dung)}</td>
+          <td>${nd(r.ton_toi_thieu)} / ${r.muc_dat_len_toi != null ? nd(r.muc_dat_len_toi) : '—'}${r.thieu_muc_max ? '<span class="cdh-co" title="đặt = min − khả dụng">chưa có mức max</span>' : ''}</td>
+          <td class="r cdh-dat">${nd(r.so_dat)} <span class="cdh-ghi">${esc(r.don_vi_co_so)}</span></td>
+          <td><span class="${gap ? 'cdh-do' : ''}">${fmtN(r.ngay_dat)}</span>${dd != null ? `<div class="cdh-ghi" style="color:${gap ? '#B42318' : '#6B7488'}">(còn ${dd} ngày)</div>` : ''}</td>
+          <td class="cdh-ncc">${r.ncc_ten ? `${esc(r.ncc_ten)} · ${n(r.don_gia)}đ · lead ${r.lead_time}` : '—'}</td></tr>` }).join('')}
+      </tbody></table></div><div class="cdh-foot"><button class="n chinh" id="cdh-tao" disabled>Tạo đơn mua</button><span class="cdh-msg" id="cdh-msg"></span></div>`
+
+  const h2 = !g2.length ? '<div class="cdh-rong" style="color:#4A5462;background:#F4F5F7">✓ Không mã nào thiếu lead time</div>'
+    : `<div class="cdh-wrap"><table class="cdh-tbl"><thead><tr><th>Mã · Tên</th><th class="r">Khả dụng</th><th class="r">Min</th><th class="r">Thiếu</th><th></th></tr></thead><tbody>
+      ${g2.map(r => `<tr><td class="cdh-mt"><b>${esc(r.ma)}</b><span>${esc(r.ten)}</span></td>
+        <td class="r">${nd(r.kha_dung)} <span class="cdh-ghi">${esc(r.don_vi_co_so)}</span></td>
+        <td class="r">${nd(r.ton_toi_thieu)}</td><td class="r cdh-dat">${nd(r.so_dat)}</td>
+        <td><button class="n cdh-bs" data-ma="${esc(r.ma)}">Bổ sung giá NCC</button></td></tr>`).join('')}
+      </tbody></table></div><div class="cdh-note">Nhập giá + lead time ở tab Nhà cung cấp rồi bấm ↻ Tính lại — dòng tự lên nhóm "Cần đặt".</div>`
+
+  const h3 = !g3.length ? '<div class="cdh-rong" style="color:#4A5462;background:#F4F5F7">✓ Mọi mã đều đã có mức</div>'
+    : `<div class="cdh-wrap"><table class="cdh-tbl"><thead><tr><th>Mã · Tên</th><th class="r">Tồn</th><th class="r">Xuất bq/ngày (30n)</th><th class="r">Min</th><th class="r">Max</th><th></th></tr></thead><tbody>
+      ${g3.map(r => `<tr data-vt="${r.vat_tu_id}"><td class="cdh-mt"><b>${esc(r.ma)}</b><span>${esc(r.ten)}</span></td>
+        <td class="r">${nd(r.ton)}</td><td class="r">${nd1(r.toc_do)}</td>
+        <td class="r"><input class="ip cdh-min" inputmode="decimal" placeholder="min"></td>
+        <td class="r"><input class="ip cdh-max" inputmode="decimal" placeholder="—"></td>
+        <td><button class="n cdh-luu">Lưu</button><div class="cdh-err"></div></td></tr>`).join('')}
+      </tbody></table></div>`
+
+  box.innerHTML = `<div class="cdh-dau"><div>Tính lúc ${gio} · <span class="cdh-ct">khả dụng = tồn − giữ chỗ + PO đang về</span></div><button class="n" id="cdh-tinh">↻ Tính lại</button></div>
+    <div class="cdh-khoi"><div class="cdh-dau-khoi cdh-k1">Cần đặt <span class="cdh-dem">${g1.length}</span></div>${h1}</div>
+    <div class="cdh-khoi"><div class="cdh-dau-khoi cdh-k2">Thiếu lead time <span class="cdh-dem">${g2.length}</span> <span class="cdh-ghi">— chưa tính được ngày đặt</span></div>${h2}</div>
+    <div class="cdh-khoi"><div class="cdh-dau-khoi cdh-k3">Chưa có mức <span class="cdh-dem">${g3.length}</span> <span class="cdh-ghi">— gõ min/max để bật cảnh báo</span></div>${h3}</div>`
+
+  $('#cdh-tinh').onclick = () => veDat()
+  if (g1.length) {
+    const tao = $('#cdh-tao')
+    const capNhat = () => { const ck = [...box.querySelectorAll('.cdh-ck:checked')].map(c => g1[+c.dataset.i]); const nccs = new Set(ck.map(r => r.ncc_id).filter(Boolean))
+      tao.disabled = ck.length === 0; tao.textContent = ck.length ? `Tạo đơn mua (${ck.length} dòng · ${nccs.size} NCC → ${nccs.size} PO)` : 'Tạo đơn mua'; tao._dong = ck }
+    box.querySelectorAll('.cdh-ck').forEach(c => c.onchange = capNhat); capNhat()
+    tao.onclick = async () => { const ck = tao._dong || []; if (!ck.length) return
+      const dong = ck.map(r => ({ vat_tu_id: r.vat_tu_id, so_luong: Number(r.so_dat), ncc_id: r.ncc_id, don_gia: Number(r.don_gia) }))
+      tao.disabled = true
+      const { data, error } = await sb.rpc('tao_po_tu_canh_bao', { p_dong: dong })
+      if (error) { $('#cdh-msg').innerHTML = `<span class="cdh-err">${esc(error.message)}</span>`; tao.disabled = false; return }
+      $('#cdh-msg').textContent = `Đã tạo ${data.so_po} PO nháp — sửa/gửi ở tab Đơn mua.` }
+  }
+  box.querySelectorAll('.cdh-bs').forEach(b => b.onclick = () => { bao(`Thêm mã ${b.dataset.ma} vào bảng giá 1 NCC (kèm lead time) rồi ↻ Tính lại.`); chuyenMan('ncc') })
+  box.querySelectorAll('.cdh-luu').forEach(b => b.onclick = () => luuMuc(b))
+  box.querySelectorAll('.cdh-min,.cdh-max').forEach(inp => inp.onkeydown = e => { if (e.key === 'Enter') luuMuc(e.target.closest('tr').querySelector('.cdh-luu')) })
+}
+async function luuMuc(btn) {
+  const tr = btn.closest('tr'), err = tr.querySelector('.cdh-err'); err.textContent = ''
+  const minV = tr.querySelector('.cdh-min').value.trim(), maxV = tr.querySelector('.cdh-max').value.trim()
+  if (minV === '') { err.textContent = 'Nhập mức tối thiểu (gõ 0 nếu không cần dự trữ).'; return }
+  const p_min = Number(minV.replace(/[^\d.]/g, '')), p_max = maxV === '' ? null : Number(maxV.replace(/[^\d.]/g, ''))
+  const { error } = await sb.rpc('dat_muc_ton', { p_vat_tu_id: tr.dataset.vt, p_min, p_max })
+  if (error) { err.textContent = error.message; return }
+  tr.style.opacity = .5; btn.textContent = '✓ đã lưu'; btn.disabled = true
 }
 
 // ── nhà cung cấp ──

@@ -271,13 +271,9 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
   .ph-than td:last-child::before{display:none}
   .ph-than td .ip,.ph-than td select{width:100%}
 
-  /* CẦN ĐẶT HÀNG + NCC: bảng co vừa khung, ẩn cột phụ để KHÔNG cuộn ngang */
-  #m-dat table{table-layout:fixed;width:100%}
-  #m-dat th,#m-dat td{width:auto !important;font-size:12px;padding:6px 5px;white-space:normal;word-break:break-word;overflow:hidden}
-  /* Cần đặt hàng: giữ Mã · Tên · Tồn · Cần mua; ẩn Ảnh, Tối thiểu, Ước tiền */
-  #m-dat th:nth-child(1),#m-dat td:nth-child(1),
-  #m-dat th:nth-child(5),#m-dat td:nth-child(5),
-  #m-dat th:nth-child(7),#m-dat td:nth-child(7){display:none}
+  /* CẦN ĐẶT HÀNG (WP-42): bảng CUỘN NGANG trong thẻ (không vỡ); Mã·Tên và NCC cho xuống dòng */
+  #m-dat .cdh-tbl{font-size:12px}
+  #m-dat .cdh-tbl th,#m-dat .cdh-tbl td{padding:6px 6px}
   /* WP-23 · NCC list (di động): giữ Tên(1) · Hạn TT(3) · nút mở(5); ẩn ĐT(2) + Số mã(4). Bảng giá panel cuộn ngang trong khối. */
   #m-ncc .ncc-list-tbl{table-layout:fixed;width:100%;min-width:0}
   #m-ncc .ncc-list-tbl th,#m-ncc .ncc-list-tbl td{font-size:12px;padding:6px 5px;white-space:normal;word-break:break-word}
@@ -512,20 +508,38 @@ label{display:block;font-size:12px;color:#5A6169;margin:0 0 4px;font-weight:600}
 
 <section class="man" id="m-dat">
   <h2>Cần đặt hàng</h2>
-  <p class="lead">Chọn cách tính gợi ý. Logic thật nằm ở tầng dưới — đây chỉ là chỗ nó hiện ra.</p>
-  <div class="muc">
-    <button class="on" data-l="1"><b>Mức 1 — Ngưỡng tay</b>
-      <span>Tồn dưới mức tối thiểu do người khai. Dùng được ngay.</span>
-      <i class="san">đang chạy</i></button>
-    <button data-l="2"><b>Mức 2 — Theo đơn đã chốt</b>
-      <span>Cộng BOM các đơn đang sản xuất, trừ tồn và hàng đã đặt. Đúng nhất cho hàng đặt theo yêu cầu.</span>
-      <i class="thieu-dl">cần: danh sách đơn + BOM</i></button>
-    <button data-l="3"><b>Mức 3 — Theo mức tiêu thụ</b>
-      <span>Tiêu thụ trong thời gian chờ hàng + tồn an toàn. Cho vật tư dùng đều: vít, keo, nhám.</span>
-      <i class="thieu-dl">cần: lịch sử xuất + thời gian giao hàng</i></button>
-  </div>
-  <div id="dat-ds"></div>
+  <div id="cdh"></div>
 </section>
+<style>
+  /* WP-42 · CẦN ĐẶT HÀNG — class tiền tố cdh- (luật 00), tái dùng biến màu app */
+  #cdh .cdh-dau{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 16px;font-size:13px;color:var(--muted,#6B7488)}
+  #cdh .cdh-ct{font-size:12.5px}
+  #cdh .cdh-khoi{margin:0 0 20px;border:1px solid var(--vien,#E3E6EC);border-radius:12px;overflow:hidden;background:#fff}
+  #cdh .cdh-dau-khoi{display:flex;align-items:center;gap:9px;padding:11px 14px;font-weight:700;font-size:14px}
+  #cdh .cdh-k1{background:#FEF2F2;color:#B42318;border-bottom:1px solid #FBD5D5}
+  #cdh .cdh-k2{background:#FFFAEB;color:#B54708;border-bottom:1px solid #FDE9C8}
+  #cdh .cdh-k3{background:#F4F5F7;color:#4A5462;border-bottom:1px solid #E3E6EC}
+  #cdh .cdh-dem{font-weight:800;font-variant-numeric:tabular-nums}
+  #cdh .cdh-ghi{font-weight:400;font-size:12px;opacity:.85}
+  #cdh .cdh-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #cdh .cdh-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+  #cdh .cdh-tbl th{text-align:left;color:var(--muted,#6E7681);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--vien,#E3E6EC);white-space:nowrap;background:#FbFBFC}
+  #cdh .cdh-tbl td{padding:9px 10px;border-bottom:1px solid #F0F1F3;vertical-align:middle;white-space:nowrap}
+  #cdh .cdh-tbl td.r,#cdh .cdh-tbl th.r{text-align:right;font-variant-numeric:tabular-nums}
+  #cdh .cdh-tbl tr:last-child td{border-bottom:none}
+  #cdh .cdh-mt{white-space:normal;word-break:break-word;min-width:150px}
+  #cdh .cdh-mt b{display:block}#cdh .cdh-mt span{color:var(--muted,#6B7488);font-size:12px}
+  #cdh .cdh-ncc{white-space:normal;word-break:break-word;min-width:150px;font-size:12.5px}
+  #cdh .cdh-do{color:#B42318;font-weight:700}
+  #cdh .cdh-dat{font-weight:800}
+  #cdh .cdh-rong{padding:14px;color:#067647;background:#ECFDF3;font-weight:600}
+  #cdh .cdh-co{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:#FEF0C7;color:#B54708;margin-left:6px}
+  #cdh .cdh-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 14px;background:#FbFBFC;border-top:1px solid var(--vien,#E3E6EC)}
+  #cdh .cdh-min,#cdh .cdh-max{width:66px;text-align:right}
+  #cdh .cdh-err{color:#B42318;font-size:12px;margin-top:4px}
+  #cdh .cdh-note{padding:9px 14px;font-size:12px;color:var(--muted,#6B7488);background:#FbFBFC;border-top:1px solid #F0F1F3}
+  #cdh .cdh-msg{font-size:13px;font-weight:600;color:#067647}
+</style>
 
 <style>
   /* WP-20 Đơn mua — class tiền tố dm- (luật 00), tái dùng biến màu app */

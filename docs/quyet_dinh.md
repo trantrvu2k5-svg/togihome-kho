@@ -847,3 +847,21 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **"Ngày cần" đầu đơn** gợi ý = **hôm nay + MAX lead** các dòng có lead (không dòng nào có lead → để mặc định); sửa tay thì thôi tự gợi ý.
 - **Kiểm chứng:** `web/ops/test_gia_ncc.mjs` **15/0** (gợi ý bảng giá/tham khảo/trống · đơn vị lạ RAISE · hạn TT +hạn NCC · `vat_tu_thieu_lead_time` · `dm_tao`/`dm_sua_dong` nhận `don_vi`) + robot `kiem_don_mua.py` xanh (dropdown đơn vị + nhãn nguồn giá).
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/137, DB+test+UI app Kho). Nợ: v2 tuỳ chọn khoá giá theo bảng · cảnh báo lệch giá HĐ so bảng.
+
+## QD-60 (23/08, WP-41+WP-42, db/139–142) — Planning method + mức tồn min/max (ERP §8.3 · §7.3.2 · §7.3.7) · CHỐT
+
+- **Cột `pp_ke_hoach` phân loại phương pháp cung ứng (ERP §8.3):**
+  - **Vật tư = `ton_toi_thieu`** (min/max, §7.3.2/§7.3.7): **khả dụng = tồn − giữ chỗ + PO đang về**; dưới `ton_toi_thieu`
+    → **đặt lên `muc_dat_len_toi`** (so_dat = max − khả dụng; thiếu max → min − khả dụng + cờ `thieu_muc_max`);
+    **trước ngày = ngày hết − lead** của **NCC giá tốt nhất còn hiệu lực** (ngày hết = hôm nay + khả dụng ÷ tốc độ xuất 30n).
+  - **Món tự do / thiết kế cả căn = `theo_don`**: **1 đơn : 1 lệnh SX** (giữ QD-13), **KHÔNG MRP** — không đẻ cột ở đơn hàng.
+  - **Hàng niêm yết = `theo_nhu_cau`**: nhãn trước, gom lô làm sau.
+  - **Trưng bày chưa phân loại** (niem_yet không có cờ trưng bày → backfill toàn bộ `theo_nhu_cau`).
+  - **Floor stock (QD-50) NẰM NGOÀI cảnh báo.**
+- **Tái dùng cột `ton_toi_thieu` (db/001):** GIỮ **148 mức thật** ai đó đã đặt; **54 giá trị 0-do-default → NULL** trong db/139.
+  Từ nay **NULL = chưa đặt mức**, **0 = tường minh không cần dự trữ**; **mã tạo mới default NULL** (bỏ default 0). CEO quyết 23/08.
+- **3 nhóm cảnh báo** (`kho.canh_bao_dat_hang`, SecDef kho/ceo): `canh_bao` (dưới min, có lead) · `thieu_lead` (dưới min, NCC chưa có lead)
+  · `chua_co_muc` (min NULL). Đường ghi: `dat_muc_ton` (đặt mức) · `tao_po_tu_canh_bao` (gom theo NCC, đối chiếu gia_ncc, bọc `dm_tao`).
+- **Kiểm chứng:** `test_139` **13/0** · `test_140` **17/0** (100k < 500ms) · `test_141` **17/0** · `test_142` **6/0** (100k 119ms);
+  robot app Kho tab "Cần đặt hàng" xanh (3 nhóm 0/30/54 số thật). Đơn vị mức theo `don_vi_co_so` (QD-53/58).
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/139–142, DB+test+UI). Nợ: cảnh báo `theo_don`/`theo_nhu_cau` (MRP theo đơn) để lô sau.
