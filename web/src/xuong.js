@@ -354,14 +354,34 @@ async function moMon(monId, maDon) {
   // WP-32: giữ chỗ theo ĐƠN (giu_cho_ds cần don_hang_id — tra từ ma_don). Rỗng/lỗi → bảng ẩn (nhiệm C).
   let gc = []
   if (maDon) { try { const { data: dh } = await sb.from('don_hang').select('id').eq('ma_don', maDon).maybeSingle(); if (dh) { const { data: g } = await sb.rpc('giu_cho_ds', { p_don_hang_id: dh.id }); gc = (g || []).filter(x => x.trang_thai === 'mo') } } catch (_) { gc = [] } }
-  vePanel(d, vet || [], tem || [], (fileRes && fileRes.data) || [], gc)
+  // [WP-31 · L-111] phụ kiện CỦA MÓN từ BOM plugin. HYBRID theo vai (vat_tu RLS = ceo/kho/tho; don_hang RLS = KHÔNG tho):
+  //   xuong/ceo/kho → bom_don_ds(don_id) [SECURITY DEFINER trả ma/tên dù xuong KHÔNG đọc vat_tu] lọc theo mon_id;
+  //   tho (không lấy được don_id nhưng đọc THẲNG don_hang_mon_bom + vat_tu được) → đọc thẳng.
+  let pk = { rows: [], loi: null }
+  try {
+    let donId = null
+    try { const { data: dh } = await sb.from('don_hang').select('id').eq('ma_don', maDon).maybeSingle(); donId = dh && dh.id } catch (_) { donId = null }
+    if (donId) {
+      const { data, error } = await sb.rpc('bom_don_ds', { p_don_id: donId, p_moc: 'du_kien' })
+      if (error) throw error
+      pk.rows = (data || []).filter(r => r.mon_id === monId && r.co_bom && r.don_vi !== 'tam')
+        .map(r => ({ ma: r.ma, ten: r.ten, so_luong: r.so_luong, don_vi: r.don_vi, so_luong_co_so: r.so_luong_co_so, ghi_chu: null }))
+    } else {
+      const { data, error } = await sb.from('don_hang_mon_bom')
+        .select('so_luong,don_vi,so_luong_co_so,ghi_chu,vat_tu:vat_tu_id(ma,ten)')
+        .eq('mon_id', monId).eq('moc', 'du_kien').neq('don_vi', 'tam')
+      if (error) throw error
+      pk.rows = (data || []).map(r => ({ ma: (r.vat_tu || {}).ma, ten: (r.vat_tu || {}).ten, so_luong: r.so_luong, don_vi: r.don_vi, so_luong_co_so: r.so_luong_co_so, ghi_chu: r.ghi_chu }))
+    }
+  } catch (e) { pk.loi = e.message || String(e) }   // luật 00 — không nuốt, hiện đỏ ở panel
+  vePanel(d, vet || [], tem || [], (fileRes && fileRes.data) || [], gc, pk)
 }
 const LOAI_FILE = { dxf: '▤ DXF', cutlist: '▦ Cutlist', anh_ban_ve: '🖼 Ảnh bản vẽ', khac: '📄 File' }
 async function taiFileXuong(path) {
   const { data } = await sb.storage.from('file-san-xuat').createSignedUrl(path, 3600, { download: true })
   if (data && data.signedUrl) window.open(data.signedUrl, '_blank'); else bao('Không tải được file', true)
 }
-function vePanel(d, vet, tem, files, gc) {
+function vePanel(d, vet, tem, files, gc, pk) {
   files = files || []; gc = gc || []
   const ke = KE[d.trang_thai]
   PANEL.ke = ke; PANEL.nguoi = USER.vai_tro === 'tho' ? USER.id : (THO_LIST[0] && THO_LIST[0].id) || USER.id
@@ -400,11 +420,31 @@ function vePanel(d, vet, tem, files, gc) {
     `<div class="muc"><h3>Ảnh · bản vẽ</h3><div class="anh">${anhArr.length ? esc(anhArr.length + ' ảnh') : 'Chưa có ảnh'}${d.file_tk ? ' · file dựng hình ' + esc(d.file_tk) : ' · chưa gắn file dựng hình'}</div></div>` +
     `<div class="muc"><h3>Tấm chi tiết${tem.length ? ' · ' + tem.length + ' tấm (cả đơn)' : ''}</h3>${Object.keys(tamGop).length ? Object.entries(tamGop).map(([k, n]) => { const [vt, kt] = k.split('|'); return `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${esc(vt.replace(/_/g, ' '))}</span><span class="kt">${esc(kt)}</span><span class="sl">×${n}</span></div>` }).join('') + (metNep ? `<p style="margin-top:10px;font-size:13px;color:var(--chu-nhat)">Nẹp dán cạnh: <b>${(metNep / 1000).toFixed(1)} m</b></p>` : '') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có tem — máy thiết kế chưa đẩy.</p>'}</div>` +
     `<div class="muc"><h3>File từ thiết kế${files.length ? ' · ' + files.length + ' file' : ''}</h3>${files.length ? files.map(f => `<div class="tam" style="padding-left:0;padding-right:0"><span class="vt">${LOAI_FILE[f.loai_file] || f.loai_file}${f.ten_goc ? ' · ' + esc(f.ten_goc) : ''}</span><span class="kt">${f.co_byte ? Math.round(f.co_byte / 1024) + ' KB' : ''}</span><button class="nut-phu" data-taixuong="${esc(f.duong_dan)}" style="width:auto;padding:5px 12px">Tải về</button></div>`).join('') + '<p style="margin-top:9px;font-size:12.5px;color:var(--chu-mo)">Nguồn: <b>thiết kế tải lên</b>. Khối "Tấm chi tiết" ở trên đến <b>từ plugin</b>.</p>' : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có file thiết kế tải lên. Tem/tấm ở trên (nếu có) đến từ plugin.</p>'}</div>` +
-    `<div class="muc"><h3>Phụ kiện</h3><div class="thieu"><b>Chưa có dữ liệu</b>Plugin tính được bản lề, ray, ben hơi nhưng hiện chỉ đẩy số tổng (12 driver), không đẩy chi tiết từng loại. Tổ Lắp ráp vẫn phải tra bản vẽ.</div></div>` +
+    xuPkHtml(pk) +
     // WP-32: giữ chỗ vật tư của đơn (ẩn nếu 0 dòng — nhiệm C)
     (gc.length ? `<div class="muc"><h3>Giữ chỗ · ${gc.length} dòng</h3><table class="xg-gc-tbl"><thead><tr><th>Vật tư</th><th>Nguồn</th><th class="r">Giữ</th><th class="r">Đã xuất</th><th class="r">Còn giữ</th></tr></thead><tbody>${gc.map(g => `<tr><td><span class="xg-gc-ma">${esc(g.ma || '')}</span> ${esc(g.ten || '')}</td><td><span class="xg-gc-src">${esc(g.nguon || '—')}</span></td><td class="r xg-gc-n">${fmt(g.so_luong_giu)}</td><td class="r xg-gc-n">${fmt(g.so_luong_da_xuat)}</td><td class="r xg-gc-n">${fmt(Number(g.so_luong_giu) - Number(g.so_luong_da_xuat))}</td></tr>`).join('')}</tbody></table></div>` : '') +
     `<div class="muc"><h3>Đã qua tay ai</h3>${vet.length ? vet.map(v => `<div class="vet"><span class="luc">${dmyhm(v.luc)}</span><span class="noi">${v.nguoi_ten ? '<b>' + esc(v.nguoi_ten) + '</b> ' : ''}<span>${v.tu ? 'xong ' + esc(BUOC[v.tu] || v.tu).toLowerCase() + ' → ' : ''}${esc(BUOC[v.den] || v.den).toLowerCase()}</span></span></div>`).join('') : '<p style="color:var(--chu-mo);font-size:13.5px">Chưa có vết đổi bước.</p>'}</div>`
   $('pThan').querySelectorAll('[data-taixuong]').forEach(b => b.onclick = () => taiFileXuong(b.dataset.taixuong))
+}
+// ── [WP-31 · L-111] Phụ kiện CỦA MÓN (từ BOM plugin, chỉ đọc) — thay câu tĩnh "12 driver" ──
+function xuNhan(r) { return r.so_luong_co_so == null ? '<span class="xu-pk-nhan hs">⧗ chờ hệ số</span>' : '<span class="xu-pk-nhan chac">chắc</span>' }
+function xuPkHtml(pk) {
+  xuPkCss()
+  pk = pk || { rows: [], loi: null }
+  if (pk.loi) return `<div class="muc"><h3>Phụ kiện</h3><div class="xu-pk-loi">Lỗi đọc phụ kiện: ${esc(pk.loi)}</div></div>`
+  const rows = pk.rows || []
+  if (!rows.length) return `<div class="muc"><h3>Phụ kiện</h3><p class="xu-pk-trong">Chưa thấy phụ kiện từ bản plugin cho món này — máy thiết kế chưa đẩy BOM (hoặc đơn chưa có bản đẩy từ SketchUp).</p></div>`
+  const tr = rows.map(r =>
+    `<tr><td><b class="mono">${esc(r.ma || '—')}</b></td><td>${esc(r.ten || '')}</td><td class="r">${fmt(r.so_luong)}</td><td>${esc(r.don_vi || '')}</td><td>${esc(r.ghi_chu || '')}</td><td>${xuNhan(r)}</td></tr>`).join('')
+  return `<div class="muc"><h3>Phụ kiện · ${rows.length} loại <span class="xu-pk-ng">từ plugin</span></h3>` +
+    `<table class="xu-pk-tbl"><thead><tr><th>Mã kho</th><th>Tên</th><th class="r">SL</th><th>ĐV</th><th>Ghi chú</th><th>Trạng thái</th></tr></thead><tbody>${tr}</tbody></table>` +
+    `<p class="xu-pk-ct"><span class="xu-pk-nhan chac">chắc</span> mã kho đã chốt · <span class="xu-pk-nhan hs">⧗ chờ hệ số</span> thiếu quy đổi đơn vị. Nguồn: <b>plugin SketchUp</b> (per món).</p></div>`
+}
+function xuPkCss() {
+  if (document.getElementById('xu-pk-css')) return
+  const s = document.createElement('style'); s.id = 'xu-pk-css'
+  s.textContent = '.xu-pk-tbl{width:100%;border-collapse:collapse;font-size:13px}.xu-pk-tbl th{text-align:left;font-weight:600;color:var(--chu-nhat);border-bottom:1px solid var(--vien);padding:5px 8px}.xu-pk-tbl td{border-bottom:1px solid var(--vien);padding:5px 8px;vertical-align:top}.xu-pk-tbl .r{text-align:right;white-space:nowrap}.xu-pk-trong{color:var(--chu-mo);font-size:13.5px}.xu-pk-loi{background:#FDECEA;border:1px solid #F3C9C4;color:#B2312A;border-radius:7px;padding:9px 12px;font-size:13px}.xu-pk-ng{font-size:11px;font-weight:600;color:var(--chu-mo);text-transform:uppercase;letter-spacing:.04em;margin-left:4px}.xu-pk-ct{margin-top:9px;font-size:12px;color:var(--chu-nhat);display:flex;gap:10px;flex-wrap:wrap;align-items:center}.xu-pk-nhan{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11.5px;font-weight:600}.xu-pk-nhan.chac{background:#E7EFEA;color:#15805F}.xu-pk-nhan.hs{background:#FDECEA;color:#B2312A}'
+  document.head.appendChild(s)
 }
 async function xongBuoc() {
   if (!PANEL.ke) return

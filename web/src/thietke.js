@@ -1022,8 +1022,69 @@ async function renderNsPhai() {
   $('nsPhai').innerHTML = h + nsNhacCuoi()
   // bind
   $('nsQt').onchange = nsGanQt
-  $('nsPlugin').onclick = () => bao('Chưa nối plugin — nhập tay hoặc chọn Ước', true)
+  $('nsPlugin').onclick = nsLayPlugin
   ct.buoc.filter(b => b.loai_buoc !== 'tu_chay').forEach(b => nsBindDong(b))
+}
+
+// ══════════ [WP-31 · L-111] BOM từ plugin — CHỈ ĐỌC (nạp lại bản plugin đã đẩy, không đẩy đi đâu) ══════════
+async function nsLayPlugin() {
+  try {
+    tkBomCss()
+    // don_id từ ma_don (thiet_ke đọc don_hang được — RLS dh_doc). RPC bom_don_ds/bom_cho_ghep_ds nhận UUID.
+    const { data: dh, error: eDon } = await sb.from('don_hang').select('id').eq('ma_don', NS.ma_don).maybeSingle()
+    if (eDon) throw eDon
+    if (!dh) { moModal('BOM từ plugin', '<p class="tk-bom-trong">chưa thấy bản đẩy nào từ SketchUp cho đơn này</p>', tkBomNut()); return }
+    const [r1, r2] = await Promise.all([
+      sb.rpc('bom_don_ds', { p_don_id: dh.id, p_moc: 'du_kien' }),
+      sb.rpc('bom_cho_ghep_ds', { p_don_id: dh.id })
+    ])
+    if (r1.error) throw r1.error
+    if (r2.error) throw r2.error
+    moModal('BOM đã đẩy từ SketchUp · ' + esc(NS.ma_don), tkBomHtml(r1.data || [], r2.data || []), tkBomNut())
+  } catch (e) {
+    bao('Lỗi lấy BOM từ plugin: ' + (e.message || e), true)   // luật 00 — hiện đỏ nguyên văn, không nuốt
+  }
+}
+function tkBomNut() { return '<button class="nut" onclick="dongModal()">Đóng</button>' }
+function tkLoaiVan(ten) { const m = String(ten || '').match(/(\d+)\s*mm/); return m ? m[1] + 'mm' : 'ván' }
+function tkSl(x) { return g1(Number(x)).replace(',0', '') }
+function tkNhanPk(r) {
+  if (r.so_luong_co_so == null) return '<span class="tk-bom-nhan hs">⧗ chờ hệ số</span>'
+  return '<span class="tk-bom-nhan chac">chắc</span>'
+}
+function tkBomHtml(rows, cho) {
+  const co = rows.filter(r => r.co_bom && r.vat_tu_id)   // chỉ dòng THẬT đã đẩy
+  cho = cho || []
+  if (!co.length && !cho.length) return '<p class="tk-bom-trong">chưa thấy bản đẩy nào từ SketchUp cho đơn này</p>'
+  const soMon = new Set(rows.map(r => r.mon_id)).size
+  const van = co.filter(r => r.don_vi === 'tam')
+  const pk = co.filter(r => r.don_vi !== 'tam')
+  // VÁN gom theo mã kho (vat_tu_id) — Σ tấm đơn + chia về món (theo diện tích, plugin đã gán)
+  const vg = {}
+  van.forEach(r => { const v = (vg[r.vat_tu_id] = vg[r.vat_tu_id] || { ma: r.ma, ten: r.ten, tong: 0, mon: [] }); v.tong += Number(r.so_luong); v.mon.push({ ten: r.ten_mon, sl: Number(r.so_luong) }) })
+  const vanRows = Object.values(vg).map(v =>
+    '<tr><td>' + esc(tkLoaiVan(v.ten)) + '</td><td><b class="mono">' + esc(v.ma) + '</b> · ' + esc(v.ten) + '</td><td class="r">' + tkSl(v.tong) + '</td><td>' + v.mon.map(m => esc(m.ten) + ' <b>' + tkSl(m.sl) + '</b>').join(' · ') + '</td></tr>').join('')
+  const tongTam = van.reduce((s, r) => s + Number(r.so_luong), 0)
+  let h = '<div class="tk-bom-tomtat">' + soMon + ' món · nest CHUNG cả đơn · ' + tkSl(tongTam) + ' tấm</div>'
+  if (vanRows) h += '<h4 class="tk-bom-h">Ván — mã kho (màu) chọn ở SketchUp · chỉ đọc</h4>' +
+    '<table class="tk-bom-tbl"><thead><tr><th>Loại ván</th><th>Mã kho (màu)</th><th class="r">Σ tấm đơn</th><th>Về món nào</th></tr></thead><tbody>' + vanRows + '</tbody></table>'
+  // PHỤ KIỆN — per dòng; đơn nhiều món thì thêm cột "về món nào"
+  const pkRows = pk.map(r =>
+    '<tr><td><b class="mono">' + esc(r.ma) + '</b></td><td>' + esc(r.ten) + '</td>' + (soMon > 1 ? '<td>' + esc(r.ten_mon) + '</td>' : '') + '<td class="r">' + tkSl(r.so_luong) + '</td><td>' + esc(r.don_vi) + '</td><td>' + tkNhanPk(r) + '</td></tr>').join('')
+  if (pkRows) h += '<h4 class="tk-bom-h">Phụ kiện</h4>' +
+    '<table class="tk-bom-tbl"><thead><tr><th>Mã kho</th><th>Tên</th>' + (soMon > 1 ? '<th>Về món nào</th>' : '') + '<th class="r">SL</th><th>ĐV</th><th>Trạng thái</th></tr></thead><tbody>' + pkRows + '</tbody></table>'
+  // CHỜ GHÉP (phụ kiện chưa có mã kho)
+  if (cho.length) h += '<h4 class="tk-bom-h">Chờ ghép mã</h4>' +
+    '<table class="tk-bom-tbl"><thead><tr><th>Mã plugin</th><th>Mô tả</th><th class="r">SL</th><th>ĐV</th><th>Trạng thái</th></tr></thead><tbody>' +
+    cho.map(c => '<tr><td><b class="mono">' + esc(c.ma_plugin) + '</b></td><td>' + esc(c.mo_ta || '') + '</td><td class="r">' + tkSl(c.so_luong) + '</td><td>' + esc(c.don_vi_plugin || '') + '</td><td>' + (c.vat_tu_id ? '<span class="tk-bom-nhan ngo">MÃ NGỜ</span>' : '<span class="tk-bom-nhan cho">⧗ chờ ghép mã</span>') + '</td></tr>').join('') + '</tbody></table>'
+  h += '<p class="tk-bom-ct"><span class="tk-bom-nhan chac">chắc</span> mã đã chốt · <span class="tk-bom-nhan ngo">MÃ NGỜ</span> gợi ý chưa duyệt · <span class="tk-bom-nhan hs">⧗ chờ hệ số</span> thiếu quy đổi · <span class="tk-bom-nhan cho">⧗ chờ ghép mã</span> chưa có mã kho</p>'
+  return h
+}
+function tkBomCss() {
+  if (document.getElementById('tk-bom-css')) return
+  const s = document.createElement('style'); s.id = 'tk-bom-css'
+  s.textContent = '.tk-bom-tomtat{font-size:13px;color:var(--chu-nhat);margin-bottom:10px}.tk-bom-h{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--chu-mo);margin:16px 0 6px}.tk-bom-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px}.tk-bom-tbl th{text-align:left;font-weight:600;color:var(--chu-nhat);border-bottom:1px solid var(--vien);padding:6px 8px}.tk-bom-tbl td{border-bottom:1px solid var(--vien);padding:6px 8px;vertical-align:top}.tk-bom-tbl .r{text-align:right;white-space:nowrap}.tk-bom-trong{color:var(--chu-mo);font-size:13.5px;padding:14px 0}.tk-bom-ct{margin-top:12px;font-size:12px;color:var(--chu-nhat);display:flex;gap:10px;flex-wrap:wrap;align-items:center}.tk-bom-nhan{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11.5px;font-weight:600}.tk-bom-nhan.chac{background:#E7EFEA;color:#15805F}.tk-bom-nhan.ngo{background:#FDF3E3;color:#B4740F}.tk-bom-nhan.hs{background:#FDECEA;color:#B2312A}.tk-bom-nhan.cho{background:#FDECEA;color:#B2312A}'
+  document.head.appendChild(s)
 }
 function nsDongNhap(b, co) {
   const val = co ? esc(b.bieu_thuc != null ? b.bieu_thuc : String(b.so_don_vi)) : ''

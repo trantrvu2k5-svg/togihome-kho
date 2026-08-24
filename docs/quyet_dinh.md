@@ -876,3 +876,14 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Kiểm khôi phục (L-93):** restore vào Postgres.app 17 local, **cắn hai vế 5/5** — `giao_dich` 235 · `don_mua_dong` 18 · `su_kien_quet` 181 · **107 bảng** · **329 function** đều khớp prod. Phạm vi đã kiểm: schema `kho`. **CHƯA kiểm:** auth/storage/realtime.
 - **Ngoài phạm vi:** tách dev/prod = WP riêng (đắt hơn nhiều bậc); `run_sql.mjs` bọc transaction + sổ migration = WP riêng; VACUUM DB phình 643MB do rác test = WP riêng.
 - **Trạng thái:** ĐÃ ÁP DỤNG (sửa `web/ops/run_sql.mjs`; `.gitignore` chặn `*.dump`). Client dump = Postgres.app PG17 (server PG 17.6).
+
+## QD-62 (24/08, WP-31 tầng ①, db/143) — Nhận BOM chi tiết từ plugin: hao theo DÒNG · ván giữ chỗ ngay · sổ chờ ghép mã · CHỐT
+
+- **Hao hụt THEO DÒNG BOM thắng hao theo MÃ vật tư** (ERP §6.5.3 cho khai scrap trên từng dòng BOM). `_bf_tinh` đổi sang `coalesce(b.hao_hut_pct, v.hao_hut_pct, ván?10:0)`.
+  **Lý do:** số tấm ván từ **nesting đã gồm phần cắt bỏ THẬT** — cộng thêm 10% (QD-54) là **tính hao HAI LẦN**. Dòng ván plugin mang `hao_hut_pct=0` → xuất đúng số tấm; dòng nhập tay/ước để NULL → vẫn ×(1+10%) rồi CEIL như QD-54 (GIỮ nguyên).
+- **Ván đẩy đúng ĐƠN VỊ CƠ SỞ ('tam') giữ chỗ NGAY** — `ghi_bom_mon`/`_bom_ghi_dong`: `don_vi = don_vi_co_so → so_luong_co_so = so_luong, he_so=1` (không thành dòng chờ). ⇒ `ban_giao_xuong` sinh giữ chỗ > 0, WP-42 cảnh báo đúng.
+- **Dòng chưa ghép mã kho** (vat_tu_id NULL + ma_plugin, vd PK-BL02) → **sổ `bom_cho_ghep`** (không nhét vào BOM vì BOM bắt buộc vat_tu_id; không bỏ đi để khỏi mất dấu). **KHÔNG raise, KHÔNG chặn dòng khác, KHÔNG chặn thợ** (QD-55). Ghép sau qua `ghep_dong_cho` (đi ĐÚNG đường `_bom_ghi_dong`, không INSERT tắt).
+- **Lệch đơn vị** (plugin 'cai' vs kho 'tui', ốc cam/chốt gỗ): cutlist không có hệ số → `so_luong_co_so=NULL` dòng chờ hệ số (QD-55), **không đoán hệ số** — kho khai ở tab Đơn vị & hao hụt (WP-36).
+- **Chữ ký `ghi_bom_mon(p_mon_id,p_nguon,p_dong)` GIỮ NGUYÊN** (thêm khoá tuỳ chọn `hao_hut_pct`+`ma_plugin` mỗi phần tử — không đẻ overload). Đẩy lại = DELETE-rồi-GHI cho CẢ BOM lẫn `bom_cho_ghep` (không cộng dồn). Món `moc='chuan'` → chặn `BOM_DA_CHOT` (QD-16).
+- **Kiểm chứng:** `web/ops/test_bom_plugin.mjs` **21/0** (hao 0 vs NULL · ván giữ chỗ sau bàn giao · lệch đơn vị chờ hệ số · sổ chờ ghép · đẩy lại ghi đè · ghép · chặn chốt · vai NULL). RLS `bom_cho_ghep` đọc 5 vai, ghi chỉ qua RPC.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/143, DB+test). Chưa UI (tầng ②③④).
