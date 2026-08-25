@@ -636,6 +636,9 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (tham số `p_gom_demo`). Lý do: **sổ append-only QD-44 THẮNG** (không xoá cứng sổ). `ton` vẫn khớp `so_ba_nguon` sau xoá.
 - **Căn cứ:** MES Meyer §9.4 (pilot test) + §9.1.2 (triển khai từng quy trình). Kiểm chứng: `web/ops/test_120.mjs`.
 - **Trạng thái:** đang áp dụng (db/120). Bàn giao chưa nối lịch (WP-43) → demo gọi `luu_xep_lich` tay (G3).
+- **[sửa 25/08 theo chỉ đạo CEO]** Demo được nhận diện bằng **CỜ `la_demo`**. Tiền tố mã `DEMO-` chỉ là **MỘT cách bật cờ, không
+  phải điều kiện**. Đơn do app tự cấp mã (`T8-*`) vẫn là demo hợp lệ nếu `la_demo=true`; `xoa_demo()` lọc theo **cờ**, không theo tiền tố.
+  (Căn cứ WP-37/L-123: robot tạo đơn báo giá `T8-001` qua UI Sale — mã hệ cấp, không có ô nhập — vẫn `la_demo=true`, `xoa_demo('T8-001')` xoá được.)
 
 ## QD-47 (21/08) — Trạng thái đơn chỉ đổi qua CỔNG NGHIỆP VỤ của nó (WP-03, db/123)
 
@@ -887,3 +890,14 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Chữ ký `ghi_bom_mon(p_mon_id,p_nguon,p_dong)` GIỮ NGUYÊN** (thêm khoá tuỳ chọn `hao_hut_pct`+`ma_plugin` mỗi phần tử — không đẻ overload). Đẩy lại = DELETE-rồi-GHI cho CẢ BOM lẫn `bom_cho_ghep` (không cộng dồn). Món `moc='chuan'` → chặn `BOM_DA_CHOT` (QD-16).
 - **Kiểm chứng:** `web/ops/test_bom_plugin.mjs` **21/0** (hao 0 vs NULL · ván giữ chỗ sau bàn giao · lệch đơn vị chờ hệ số · sổ chờ ghép · đẩy lại ghi đè · ghép · chặn chốt · vai NULL). RLS `bom_cho_ghep` đọc 5 vai, ghi chỉ qua RPC.
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/143, DB+test). Chưa UI (tầng ②③④).
+
+## QD-63 (24/08, WP-37 tầng 1, db/146) — Plugin vào được từ luồng BÁO GIÁ · CHỐT
+
+- **Đơn ở `bao_gia` / `bao_gia_treo` HIỆN trong danh sách đơn của plugin** (`don_cho_thiet_ke` nới danh sách trạng thái + trả thêm cột `trang_thai`) **và nhận được đẩy BOM + giá vốn ở mốc `du_kien`**. Vai **`tk_ban_hang`** (thiết kế bán hàng — người dựng hình lúc báo giá) được đẩy (`don_cho_thiet_ke` · `ghi_bom_mon` · `ghi_gia_von_don` thêm `tk_ban_hang` vào guard vai).
+- **Đẩy ở báo giá KHÔNG sinh giữ chỗ · KHÔNG đổi trạng thái đơn · KHÔNG phát tem.** Cửa vào chuyền vẫn CHỈ là `ban_giao_xuong` (QD-47/QD-52/QD-14 giữ nguyên). `bao_gia_thua` **KHÔNG mở** (đơn thua = bỏ, không dựng).
+- **GÁC MỚI** (chỗ dễ lọt): trigger `chan_bom_chuan_bao_gia` chặn `don_hang_mon_bom.moc='chuan'` khi đơn còn ở `bao_gia*` → BOM lúc báo giá **chỉ** `du_kien` (RAISE nếu ép 'chuan'). An toàn với `ban_giao_xuong` vì nó đặt `trang_thai='cho_cat'` (db/140:162) TRƯỚC khi promote BOM→chuan (db/140:181).
+- **Giá vốn giữ MỘT dòng ghi đè — KHÔNG thêm cột `moc`.** Mốc `du_kien`/`chuan` đo ở **BOM + số đơn vị** (đã có cột `moc`+`chot_luc`+promote qua `ban_giao_xuong`). **Lý do không thêm mốc cho giá vốn:** 3 RPC tài chính đã LOẠI `bao_gia*` tại nguồn (`pl_ky`/`cm_don_ky` chỉ `trang_thai='da_giao'`; `gia_von_don_ds` db/120:13,25 `not in ('bao_gia','bao_gia_thua','bao_gia_treo','huy')`) → số giá vốn báo giá KHÔNG lọt tài chính trước khi chốt; thêm cột phải đổi PK `ma_don`→(`ma_don`,`moc`) + đụng ~25 hàm, lợi ích 0.
+- **Số đơn vị 12-driver plugin đẩy (`ghi_san_luong_don` → `san_luong_don`) là SỐ LÀM VIỆC, KHÔNG có cột `moc` — bị GHI ĐÈ khi đẩy lại lúc thiết kế** (on conflict `ma_don` do update). **KHÔNG thêm cột `moc`.** Chỉ **BOM** (`don_hang_mon_bom`) giữ 2 mốc `du_kien`/`chuan` (promote ở `ban_giao_xuong`). Lý do: QD-15 cần 2 mốc để đo **chênh báo giá** — mà chênh đó đo ở BOM (vật tư/tấm ván) là đủ; số đơn vị per-hoạt-động (`so_don_vi_mon`) đã được **QD-16 chốt cứng tại `ban_giao_xuong`** (đóng băng số+phút+đơn giá), không cần mốc thứ hai cho bảng driver-tổng. (db/147 · WP-37 tầng 1b)
+- **Cơ sở:** ERP 5.5.1 (báo giá = đơn chưa xác nhận, dùng chung chứng từ) · ERP ch.6 tr.131 (hàm "estimate" tính pre-calculation cost ở trạng thái *created*, TRƯỚC *release* — tính trước ≠ phát lệnh) · QD-15 (chênh `du_kien→chuan` = rủi ro báo giá, chỉ đo được nếu số sinh TỪ lúc báo giá). `luu_so_don_vi` KHÔNG nới vai (plugin không gọi — chỉ app Thiết kế web dùng).
+- **Kiểm chứng:** `web/ops/test_146.mjs` (11 ca hai vế + đường dài promote). Dữ liệu DEMO-, xoá sạch.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/146, DB+test). Chưa UI (plugin nới trạng thái hiển thị — tầng sau).
