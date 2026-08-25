@@ -43,7 +43,7 @@ try{
   await asK(U.tk_ban_hang,`select kho.nhan_viec_thiet_ke('W-BG')`)   // TKB cầm W-BG (KEEP)
   await c.query(`insert into kho.ban_thiet_ke(ma_don,phien_ban,ma_ns_gui,trang_thai,luc_phan_hoi) values('W-BG',1,$1,'khach_duyet', now())`,[TKB])
   // chuyển thành đơn hàng: bao_gia -> moi_len_don (trigger bàn giao)
-  const trans = await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='W-BG'`)
+  const trans = await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='W-BG'), null, null)`)
   const after = await q1(`select ma_ns_thiet_ke, ma_ns_tk_ban_hang, buoc_thiet_ke, trang_thai from kho.don_hang where ma_don='W-BG'`)
   ok('bàn giao: XOÁ người cầm + GIỮ vết ma_ns_tk_ban_hang',
      trans.e===null && after.ma_ns_thiet_ke===null && after.ma_ns_tk_ban_hang===TKB && after.buoc_thiet_ke===null,

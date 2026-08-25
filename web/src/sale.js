@@ -211,8 +211,31 @@ async function _set(k, jsonStr) {
     //   Lỗ cũ: upsert CẢ danh sách -> đơn cho_cat/cho_giao bị ghi về moi_len_don khi sale lưu đơn bất kỳ.
     const snap = mem['__donSnap'] || {}
     const doiOrMoi = (v || []).filter(d => snap[d.ma] !== JSON.stringify(d))
+    // ═══ [WP-06 L-06c] TRẠNG THÁI ĐI QUA CỔNG (RPC), KHÔNG upsert cột trang_thai ═══
+    //   Đơn ĐANG CÓ mà ĐỔI trạng thái -> gọi chot_don / doi_trang_thai_don (db/148·149). Đây là điều kiện
+    //   để L-06d revoke quyền UPDATE cột trang_thai mà lưu đơn KHÔNG hỏng 403. Lỗi RPC (món giá=0, thiếu
+    //   nguồn khách, chưa ở cho_giao…) NÉM NGUYÊN VĂN lên UI — không nuốt (luật 00). Đơn MỚI vẫn INSERT kèm
+    //   trang_thai ban đầu (trigger kiem_chuyen_trang_thai gác). cho_cat/cho_giao/nhan_thiet_ke: Sale không
+    //   chào ở thanh nút (quyenTT), nếu lọt vẫn bị doi_trang_thai_don CHẶN ở DB.
+    for (const d of doiOrMoi) {
+      const old = snap[d.ma] ? JSON.parse(snap[d.ma]) : null
+      if (!old) continue                                   // đơn MỚI -> để upsert INSERT (kèm trang_thai)
+      const tuDB = toDB(old.tt), denDB = toDB(d.tt)
+      if (tuDB === denDB) continue                          // không đổi trạng thái
+      const { data: dd, error: eLook } = await sb.from('don_hang').select('id').eq('ma_don', d.ma).single()
+      if (eLook) throw eLook
+      if (denDB === 'moi_len_don') {                        // "Chốt giá / lên đơn"
+        const { error } = await sb.rpc('chot_don', { p_don_id: dd.id, p_nguon_khach: d.nguonKhach || null, p_thuong_hieu: d.brand || null })
+        if (error) throw new Error(error.message)
+      } else {                                              // da_giao · bao_gia* · tam_ngung · huy (đích khác -> DB gác)
+        const { error } = await sb.rpc('doi_trang_thai_don', { p_don_id: dd.id, p_trang_thai_moi: denDB, p_ly_do: d.lyDo || null })
+        if (error) throw new Error(error.message)
+      }
+    }
     const rows = doiOrMoi.map(d => { const r = donToRow(d, { [d.khachId]: khByAppId[d.khachId] || khMap[d.khachId] || {} })
-      r.chiet_khau = boVat(r.chiet_khau, vat); r.gia_cong_thuc = boVat(r.gia_cong_thuc, vat); r.gia_chot = boVat(r.gia_chot, vat); return r })
+      r.chiet_khau = boVat(r.chiet_khau, vat); r.gia_cong_thuc = boVat(r.gia_cong_thuc, vat); r.gia_chot = boVat(r.gia_chot, vat)
+      if (snap[d.ma]) delete r.trang_thai   // [WP-06] đơn CŨ: trạng thái đã đi RPC -> KHÔNG ghi cột trang_thai (revoke-safe)
+      return r })
     if (rows.length) { const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error }
     mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.ma, JSON.stringify(d)]))   // cập nhật snapshot
     // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB

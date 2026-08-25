@@ -11,16 +11,16 @@ async function asK(uid,s,a=[]){await c.query('savepoint k');await c.query('set l
 try{
   await c.query('begin')
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach) values('T90-A','bao_gia','le','KH A'),('T90-B','bao_gia','le','KH B'),('T90-C','bao_gia','le','KH C')`)
-  // 1. huỷ CÓ lý do → CHẠY
-  const r1=await asK(CEO,`update kho.don_hang set trang_thai='huy', ly_do_huy='khách đổi ý' where ma_don='T90-A'`)
+  // 1. huỷ CÓ lý do → CHẠY  [WP-06: client hết quyền UPDATE trang_thai → đi qua cổng doi_trang_thai_don]
+  const r1=await asK(CEO,`select kho.doi_trang_thai_don((select id from kho.don_hang where ma_don='T90-A'), 'huy', 'khách đổi ý')`)
   const tt1=(await q(`select trang_thai t from kho.don_hang where ma_don='T90-A'`))[0].t
   const nk1=(await q(`select ly_do from kho.don_hang_nhat_ky nk join kho.don_hang d on d.id=nk.don_id where d.ma_don='T90-A' and nk.den='huy'`))[0]
   ok('#1 huỷ CÓ lý do → CHẠY + nhật ký chép đúng lý do', r1.e===null && tt1==='huy' && nk1 && nk1.ly_do==='khách đổi ý', r1.e||JSON.stringify(nk1))
-  // 2. huỷ KHÔNG lý do → CHẶN (tầng don_hang check)
-  const r2=await asK(CEO,`update kho.don_hang set trang_thai='huy' where ma_don='T90-B'`)
+  // 2. huỷ KHÔNG lý do → CHẶN (doi_trang_thai_don bắt p_ly_do)
+  const r2=await asK(CEO,`select kho.doi_trang_thai_don((select id from kho.don_hang where ma_don='T90-B'), 'huy', null)`)
   ok('#2 huỷ KHÔNG lý do → CHẶN', r2.e!==null, r2.e||'(lọt!)')
   // 3. tam_ngung CÓ lý do → CHẠY (cùng bệnh, cùng vá)
-  const r3=await asK(CEO,`update kho.don_hang set trang_thai='tam_ngung', ly_do_huy='chờ khách xác nhận' where ma_don='T90-C'`)
+  const r3=await asK(CEO,`select kho.doi_trang_thai_don((select id from kho.don_hang where ma_don='T90-C'), 'tam_ngung', 'chờ khách xác nhận')`)
   const nk3=(await q(`select ly_do from kho.don_hang_nhat_ky nk join kho.don_hang d on d.id=nk.don_id where d.ma_don='T90-C' and nk.den='tam_ngung'`))[0]
   ok('#3 tạm ngưng CÓ lý do → CHẠY + nhật ký có lý do', r3.e===null && nk3 && nk3.ly_do==='chờ khách xác nhận', r3.e||JSON.stringify(nk3))
   await c.query('rollback')

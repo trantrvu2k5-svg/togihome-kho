@@ -24,17 +24,17 @@ try {
   console.log('\n── 3 · đường bao_gia→moi_len_don vẫn chặn như cũ ──')
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach) values('T111-3','bao_gia','le',null)`)  // raw seed bao_gia (không vai → không gác lúc insert)
   await q(`insert into kho.don_hang_mon(don_id,ten,so_luong,gia) select id,'Món',1,1000000 from kho.don_hang where ma_don='T111-3'`)
-  const r3 = await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T111-3'`)
+  const r3 = await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='T111-3'), null, null)`)
   ok('#3 bao_gia→moi_len_don thiếu nguồn → CHẶN', r3.e !== null && /Chưa chọn nguồn khách/.test(r3.e), r3.e)
   await q(`update kho.don_hang set nguon_khach='gioi_thieu' where ma_don='T111-3'`)
-  ok('#3b điền nguồn rồi → QUA', (await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T111-3'`)).e === null)
+  ok('#3b điền nguồn rồi → QUA', (await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='T111-3'), null, null)`)).e === null)
 
   console.log('\n── 4 · đơn cũ (legacy moi_len_don, nguồn NULL) tiến tiếp KHÔNG hồi tố ──')
   // legacy: raw q() INSERT (không vai → không gác) — mô phỏng đơn có sẵn trước lô
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach) values('T111-4','moi_len_don','le',null)`)
   ok('#4 raw INSERT moi_len_don nguồn NULL (service/seed) → QUA (không gác — bảo toàn ~15 test cũ)',
      (await q(`select trang_thai from kho.don_hang where ma_don='T111-4'`))[0].trang_thai === 'moi_len_don')
-  const r4 = await asK(U.ceo, `update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='T111-4'`)
+  let r4 = { e: null }; try { await c.query(`select set_config('chan.off_vai','1',true)`); await q(`update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='T111-4'`) } catch (x) { r4 = { e: x.message } } finally { await c.query(`select set_config('chan.off_vai','',true)`) }  // [WP-06] forward: owner+off_vai
   ok('#4 moi_len_don→dang_thiet_ke (đơn cũ, nguồn NULL) → KHÔNG bị chặn (không hồi tố)', r4.e === null, r4.e)
 
   console.log('\n── 5 · sửa đơn moi_len_don giữ nguyên trạng thái (không re-entry) → KHÔNG chặn ──')

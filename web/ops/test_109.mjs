@@ -17,16 +17,16 @@ try {
   console.log('── 1 · vai NULL chốt đơn (bao_gia→moi_len_don) → CHẶN (cổng vai/RLS) ──')
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach,sdt_khach,ten_khach) values('T109-1','bao_gia','le','gioi_thieu','0900111','A')`)
   await q(`insert into kho.don_hang_mon(don_id,ten,so_luong,gia) select id,'Món',1,1000000 from kho.don_hang where ma_don='T109-1'`)
-  await asK(U.NULLVAI, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T109-1'`)
+  await asK(U.NULLVAI, `select kho.chot_don((select id from kho.don_hang where ma_don='T109-1'), null, null)`)
   ok('#1 NULLVAI KHÔNG chuyển được (đơn vẫn bao_gia)', (await q(`select trang_thai from kho.don_hang where ma_don='T109-1'`))[0].trang_thai === 'bao_gia')
 
   console.log('\n── 2 · chốt đơn THIẾU nguon_khach → CHẶN đúng thông báo; điền rồi → QUA ──')
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach,sdt_khach,ten_khach) values('T109-2','bao_gia','le',null,'0900222','B')`)
   await q(`insert into kho.don_hang_mon(don_id,ten,so_luong,gia) select id,'Món',1,1000000 from kho.don_hang where ma_don='T109-2'`)
-  const r2 = await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T109-2'`)
+  const r2 = await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='T109-2'), null, null)`)
   ok('#2 thiếu nguon_khach → CHẶN "Chưa chọn nguồn khách"', r2.e !== null && /Chưa chọn nguồn khách/.test(r2.e), r2.e)
   await q(`update kho.don_hang set nguon_khach='quang_cao' where ma_don='T109-2'`)
-  const r2b = await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T109-2'`)
+  const r2b = await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='T109-2'), null, null)`)
   ok('#2b điền nguon_khach rồi → QUA', r2b.e === null, r2b.e)
 
   console.log('\n── 3 · hai đơn cùng sdt: đơn1 da_giao → mới=true + set ngay_mua_dau; đơn2 → mới=false ──')
@@ -48,7 +48,7 @@ try {
 
   console.log('\n── 7 · đơn cũ (nguon_khach NULL, ĐÃ ở moi_len_don) tiến tiếp KHÔNG bị vỡ (không hồi tố) ──')
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach) values('T109-7','moi_len_don','le',null)`)   // INSERT thẳng, nguon NULL
-  const r7 = await asK(U.ceo, `update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='T109-7'`)
+  let r7 = { e: null }; try { await c.query(`select set_config('chan.off_vai','1',true)`); await q(`update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='T109-7'`) } catch (x) { r7 = { e: x.message } } finally { await c.query(`select set_config('chan.off_vai','',true)`) }  // [WP-06] forward moi→dang_thiet_ke: client hết quyền UPDATE trang_thai → owner+off_vai (giữ kiem_chuyen)
   ok('#7 moi_len_don→dang_thiet_ke KHÔNG dính gác nguon_khach (không hồi tố)', r7.e === null, r7.e)
 
   console.log('\n── 5+6 · phần DROP cột ──')

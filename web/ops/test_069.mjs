@@ -67,7 +67,7 @@ try {
   console.log(`   SAU khi sale lưu T-LOIA-1: T-LOIA-2=${A2} · T-LOIA-3=${A3}  (lưu: ${luu1.e ? '❌ ' + luu1.e : 'ok'})`)
   ok('LỖI A: lưu 1 đơn KHÔNG đổi trạng thái 2 đơn kia (🟥 đổi = lỗi còn)', A2 === 'cho_cat' && A3 === 'cho_giao', `A2=${A2} A3=${A3}`)
   // Lưới cuối (db/047): kể cả app lỡ gửi hạ SX→moi_len_don, DB CHẶN.
-  const ha = await as(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T-LOIA-2'`)
+  const ha = await as(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='T-LOIA-2'), null, null)`)
   ok('LỖI A (lưới cuối): sale hạ đơn cho_cat → moi_len_don bị TRIGGER chặn', ha.e != null && /đang sản xuất|Không được hạ/.test(ha.e), ha.e || '(LỌT — corruption có thể xảy ra!)')
 
   // ═══════════ VIỆC 2 · LỖI B — đơn có kẹt ở moi_len_don, không vào xưởng? ═══════════
@@ -77,7 +77,7 @@ try {
   await c.query(`insert into kho.don_hang_mon(don_id,ten,gia,so_luong,trang_thai) values($1,'Món test',1500000,1,'cho_cat')`, [didB])
   console.log(`   TRƯỚC: T-LOIB=${await tt1('T-LOIB')}`)
   // (1) Lên đơn — đường sale dùng: bao_gia → moi_len_don
-  const len = await asK(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='T-LOIB'`)
+  const len = await asK(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='T-LOIB'), null, null)`)
   const bTT1 = await tt1('T-LOIB')
   console.log(`   (1) lên đơn (sale): ${len.e ? '❌ ' + len.e : 'ok'} → ${bTT1}`)
   ok('LỖI B(1): sale lên đơn bao_gia → moi_len_don ĐƯỢC', bTT1 === 'moi_len_don', len.e || '')

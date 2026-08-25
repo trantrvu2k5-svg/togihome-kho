@@ -21,11 +21,11 @@ try {
   await mk('CL-cho_cat','cho_cat'); await mk('CL-cho_giao','cho_giao'); await mk('CL-moi','moi_len_don'); await mk('CL-fwd','moi_len_don')
 
   console.log('── Hạ đơn SX -> moi_len_don ──')
-  ok('sale hạ cho_cat->moi_len_don → CHẶN', /chỉ ceo\/xuong|đang sản xuất/i.test((await as(U.sale,`update kho.don_hang set trang_thai='moi_len_don' where ma_don='CL-cho_cat'`)).e||''))
-  ok('ceo hạ KHÔNG lý do → CHẶN (phải có lý do)', /CÓ LÝ DO/i.test((await as(U.ceo,`update kho.don_hang set trang_thai='moi_len_don' where ma_don='CL-cho_cat'`)).e||''))
-  const r=await as(U.ceo,`select set_config('moc.ly_do_lui','khách đổi ý',true); update kho.don_hang set trang_thai='moi_len_don' where ma_don='CL-cho_cat'`)
+  ok('sale hạ cho_cat->moi_len_don → CHẶN', /chỉ ceo\/xuong|đang sản xuất/i.test((await as(U.sale,`select kho.chot_don((select id from kho.don_hang where ma_don='CL-cho_cat'), null, null)`)).e||''))
+  ok('ceo hạ KHÔNG lý do → CHẶN (phải có lý do)', /CÓ LÝ DO/i.test((await as(U.ceo,`select kho.chot_don((select id from kho.don_hang where ma_don='CL-cho_cat'), null, null)`)).e||''))
+  const r=await as(U.ceo,`select set_config('moc.ly_do_lui','khách đổi ý',true); select kho.chot_don((select id from kho.don_hang where ma_don='CL-cho_cat'), null, null)`)
   ok('ceo hạ CÓ lý do (moc.ly_do_lui) → OK', r.e===null, r.e||'')
-  ok('sale hạ cho_giao->moi_len_don → CHẶN', /chỉ ceo\/xuong|đang sản xuất/i.test((await as(U.sale,`update kho.don_hang set trang_thai='moi_len_don' where ma_don='CL-cho_giao'`)).e||''))
+  ok('sale hạ cho_giao->moi_len_don → CHẶN', /chỉ ceo\/xuong|đang sản xuất/i.test((await as(U.sale,`select kho.chot_don((select id from kho.don_hang where ma_don='CL-cho_giao'), null, null)`)).e||''))
 
   console.log('\n── KHÔNG chặn nhầm ──')
   ok('moi_len_don->cho_cat (đi TỚI) KHÔNG chặn', (await as(U.ceo,`update kho.don_hang set trang_thai='cho_cat' where ma_don='CL-fwd'`)).e===null)
@@ -39,7 +39,7 @@ try {
 
   console.log('\n── [CẮN] tắt trg (off_lui) -> sale hạ LỌT (ĐỎ) ──')
   await c.query('savepoint off'); await c.query(`select set_config('chan.off_lui','1',false)`); await c.query(`select set_config('chan.off_vai','1',false)`)
-  let e_off=null; try{ await c.query(`update kho.don_hang set trang_thai='moi_len_don' where ma_don='CL-cho_cat'`) }catch(x){e_off=x.message}
+  let e_off=null; try{ await c.query(`select kho.chot_don((select id from kho.don_hang where ma_don='CL-cho_cat'), null, null)`) }catch(x){e_off=x.message}
   await c.query(`select set_config('chan.off_lui','',false)`); await c.query(`select set_config('chan.off_vai','',false)`); await c.query('rollback to savepoint off')
   ok('[CẮN] off_lui=1 → hạ SX->moi_len_don LỌT (ĐỎ khi có bug)', e_off===null)
 

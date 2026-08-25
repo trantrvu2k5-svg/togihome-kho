@@ -901,3 +901,64 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Cơ sở:** ERP 5.5.1 (báo giá = đơn chưa xác nhận, dùng chung chứng từ) · ERP ch.6 tr.131 (hàm "estimate" tính pre-calculation cost ở trạng thái *created*, TRƯỚC *release* — tính trước ≠ phát lệnh) · QD-15 (chênh `du_kien→chuan` = rủi ro báo giá, chỉ đo được nếu số sinh TỪ lúc báo giá). `luu_so_don_vi` KHÔNG nới vai (plugin không gọi — chỉ app Thiết kế web dùng).
 - **Kiểm chứng:** `web/ops/test_146.mjs` (11 ca hai vế + đường dài promote). Dữ liệu DEMO-, xoá sạch.
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/146, DB+test). Chưa UI (plugin nới trạng thái hiển thị — tầng sau).
+
+## QD-64 (25/08, WP-06 tầng 1, db/148) — MỘT đường ghi trạng thái đơn: 2 RPC là CỬA, 3 trigger là KHOÁ · CHỐT
+
+- **Vấn đề (L-06a):** client Sale UPDATE THẲNG `don_hang.trang_thai` qua PostgREST — grant-theo-cột (db/131) gồm cột
+  `trang_thai` + RLS `dh_sua` cho **7 vai** (ceo/kho/sale/thiet_ke/xuong/ke_toan/tk_ban_hang). CHỈ app Sale ghi thẳng
+  (`from('don_hang').upsert`, payload LUÔN kèm `trang_thai:toDB(d.tt)`); các app khác đổi qua RPC. Đường TRẦN — lỗ db/047 từng vá tay.
+- **Quyết:** MỌI lần ghi trạng thái của Sale qua **HAI RPC, không hơn** (db/148):
+  - `chot_don(p_don_id, p_nguon_khach, p_thuong_hieu)`: **bao_gia|bao_gia_treo → moi_len_don**.
+  - `doi_trang_thai_don(p_don_id, p_trang_thai_moi, p_ly_do)`: whitelist **{bao_gia, bao_gia_thua, bao_gia_treo, tam_ngung, huy}**
+    (lấy đúng tập từ menu Sale — `src/sale.js` + `public/togihome_sale.html`).
+  - Cả hai **CHẶN CỨNG cho_cat + mọi trạng thái SX** (da_cat/dang_lam/xong_sx/cho_giao/da_giao) — vào SX chỉ qua
+    `ban_giao_xuong` (QD-47); moi_len_don chỉ qua chot_don.
+- **RPC là CỬA, trigger là KHOÁ:** KHÔNG viết lại / tắt / bypass GUC 3 trigger (`trg_chan_chuyen_vai` gác VAI · `trg_kiem_chuyen_trang_thai`
+  ép nguồn+thương hiệu+món-giá · `trg_chan_lui_sx` db/047). RPC chỉ trả lỗi trigger **NGUYÊN VĂN** lên UI, không chép lại luật.
+  `p_ly_do` bắt buộc khi đích tam_ngung/huy; đặt `moc.ly_do_lui` (đúng cách db/047) khi là đường lùi — KHÔNG set `chan.off_vai`/`chan.tu_mon`.
+- **Cơ sở:** ERP 3.4.1 (một đường ghi trạng thái, kiểm quyền tập trung) · QD-03 (RPC curated thay ghi thẳng bảng) · QD-47 (trạng thái đổi qua cổng nghiệp vụ).
+- **4 tầng:** L-06b DB (đây) → L-06c UI Sale bỏ `trang_thai` khỏi payload + deploy → **L-06d REVOKE** quyền UPDATE cột client + test hai vế → L-06e robot live.
+  **REVOKE Ở L-06d, KHÔNG ở đây:** PostgREST kiểm quyền theo CỘT CÓ TRONG PAYLOAD (không theo giá trị có đổi) → revoke trước khi UI bỏ field = mọi lưu đơn Sale prod hỏng **403**.
+- **Kiểm chứng:** `web/ops/test_148.mjs` (13 ca hai vế + dọn). Dữ liệu DEMO-, rollback sạch, KHÔNG chạm T8-001.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/148, DB+test). Chưa UI/REVOKE (tầng L-06c/d).
+
+## QD-65 (25/08, WP-06 tầng 2a, db/149) — "Đã giao" do Sale bấm QUA CỔNG, chỉ từ cho_giao · CHỐT
+
+- **Nền (L-06c bước 1):** rà 4 trạng thái db/148 chặn — `cho_cat`/`cho_giao`/`nhan_thiet_ke` đều có đường khác
+  (ban_giao_xuong · auto-sync khi mọi món xong_sx · nhan_viec_thiet_ke). Riêng **`da_giao` là đường DUY NHẤT qua
+  Sale** — không RPC/trigger/app nào khác SET được (`update don_hang set trang_thai='da_giao'` = KHÔNG có trong DB;
+  cm_don_ky/pl_ky/lap_day_ky chỉ `WHERE trang_thai='da_giao'`). "Ai đánh dấu đã giao" là quyết nghiệp vụ.
+- **CEO uỷ quyền tôi quyết (25/08) → hướng A:** giữ Sale bấm "Đã giao", nhưng **đi qua `doi_trang_thai_don`** (không
+  upsert thẳng trang_thai nữa — L-06c). db/149 nới `doi_trang_thai_don` nhận `da_giao`: vai **sale/ke_toan/ceo**,
+  **CHỈ từ `cho_giao`** (mọi nguồn khác → lỗi rõ). **da_giao là MỐC CHỐT DOANH THU → cấm nhảy tắt** (bao_gia/cho_cat → da_giao chặn).
+  KHÔNG đòi p_ly_do (việc thường ngày). 3 trạng thái db/148 còn lại (cho_cat/cho_giao/nhan_thiet_ke) **GIỮ NGUYÊN chặn**.
+- **Dấu vết:** KHÔNG dựng bảng audit mới — dùng trigger có sẵn `trg_ghi_nk_don` (AFTER UPDATE OF trang_thai) tự ghi
+  `don_hang_nhat_ky(don_id, tu, den, nguoi_id, luc)`. SELECT "ai bấm, lúc nào":
+  `select nk.den, nd.ho_ten, nk.luc from kho.don_hang_nhat_ky nk join kho.don_hang d on d.id=nk.don_id left join kho.nguoi_dung nd on nd.id=nk.nguoi_id where d.ma_don=$1 and nk.den='da_giao' order by nk.luc desc limit 1`.
+- **Cơ sở:** QD-47 (trạng thái qua cổng) · QD-64 (một đường ghi) · ERP 5.6 (giao hàng = mốc ghi nhận doanh thu, kiểm soát chặt).
+- **PHÁT SINH (WP riêng):** hướng dài hạn là **đội giao hàng tự đánh dấu** (app/vai giao hàng gọi RPC riêng), không để Sale.
+  Đảo hướng = thêm 1 RPC `danh_dau_da_giao` cho vai giao hàng + bỏ 1 nút "Đã giao" ở Sale — nhỏ, làm khi có app giao hàng.
+- **Kiểm chứng:** `web/ops/test_149.mjs` (8 ca hai vế + dọn). DEMO-, rollback sạch, KHÔNG chạm T8-001.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/149, DB+test). Chưa UI (L-06c) / REVOKE (L-06d).
+
+## QD-66 (25/08, WP-06 tầng 4, db/150) — ĐÓNG đường ghi trang_thai từ client · CHỐT
+
+- **Vấn đề đo được (L-06c3):** với JWT sale, `PATCH /don_hang {"trang_thai":"da_giao"}` trả **HTTP 200** — client
+  đổi thẳng trạng thái, nhảy tắt bỏ cổng. Nguyên nhân: quyền UPDATE là **TABLE-LEVEL** (`relacl authenticated=arw`),
+  trùm mọi cột (không phải column-grant như L-06a tưởng).
+- **Quyết (db/150):** **REVOKE UPDATE table-level** rồi **GRANT UPDATE lại trên 69 cột = mọi cột TRỪ `trang_thai`**
+  (sinh động từ information_schema). Giữ INSERT (đơn mới vẫn tạo kèm trang_thai — trigger kiem_chuyen gác). KHÔNG đụng
+  RLS / trigger / db/148·149. RPC SECURITY DEFINER chạy bằng owner → không ảnh hưởng.
+- **MỌI chuyển trạng thái nay đi qua CỬA:** `chot_don` (→moi_len_don) · `doi_trang_thai_don` (bao_gia\*/tam_ngung/huy/da_giao) ·
+  `ban_giao_xuong` (→cho_cat) · `nhan_viec_thiet_ke` (→nhan_thiet_ke) · trigger auto-sync `dong_bo_trang_thai_don` (→cho_giao khi món xong_sx).
+- **BẰNG CHỨNG trước/sau (JWT test_sale, cùng đơn):**
+  | phép | TRƯỚC (L-06c3) | SAU (L-06d) |
+  |---|---|---|
+  | `chot_don` (RPC) | 200 | **200** (cổng vẫn chạy) |
+  | `PATCH trang_thai=da_giao` | **200** (lỗ) | **403** `permission denied 42501` (ĐÓNG) |
+  | `PATCH ghi_chu` (cột thường) | 200 | **204** (app không hỏng) |
+- **Cơ sở:** QD-64 (một đường ghi) · QD-47 (cổng nghiệp vụ) · nguyên tắc least-privilege (client chỉ ghi cột dữ liệu, không ghi trạng thái).
+- **HOÀN TÁC:** `GRANT UPDATE ON kho.don_hang TO authenticated;` (khôi phục table-level UPDATE).
+- **Test đổi theo (KHÔNG nới quyền):** test dùng `as(vai) update trang_thai` nay 403 → chuyển sang gọi RPC (chốt/huỷ) hoặc owner+`chan.off_vai`
+  (setup forward). Đã vá test_090, test_115 (đỏ-thật do revoke) + gỡ 403 test_035/047/056/109/111/123. test_069 (test upsert-clobber cũ) cần rework riêng.
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/150, prod). UI đã deploy (edf983b0) bỏ trang_thai khỏi upsert nên revoke an toàn thứ tự.

@@ -47,12 +47,12 @@ try {
 
   // ── CA 3: còn bao_gia, món CHƯA có giá -> chuyển moi_len_don CHẶN, nói rõ món ──
   await c.query(`insert into kho.don_hang_mon(don_id,ten,gia) values($1,'Tủ áo 3 buồng',null),($1,'Kệ tivi',null)`,[id1])
-  const e3 = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-1'`)
+  const e3 = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-1'), null, null)`)
   ok('3 chưa đủ giá món → chuyển bị CHẶN + nêu tên món', e3!=null && /thiếu giá/.test(e3) && /Tủ áo 3 buồng/.test(e3), e3||'')
 
   // ── CA 4: nhập ĐỦ giá món -> chuyển ĐƯỢC (đã có giá vốn từ CA2) ──
   await c.query(`update kho.don_hang_mon set gia=4000000 where don_id=$1`,[id1])
-  const e4 = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-1'`)
+  const e4 = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-1'), null, null)`)
   const tt4 = (await q(`select trang_thai from kho.don_hang where ma_don='BG-1'`))[0].trang_thai
   ok('4 đủ giá món + có giá vốn → chuyển ĐƯỢC (moi_len_don)', e4===null && tt4==='moi_len_don', e4||('tt='+tt4))
 
@@ -65,7 +65,7 @@ try {
   await updAs(U.sale, `insert into kho.don_hang(ma_don,dong,trang_thai) values('BG-2','du_an','bao_gia')`)
   const id2 = (await q(`select id from kho.don_hang where ma_don='BG-2'`))[0].id
   await c.query(`insert into kho.don_hang_mon(don_id,ten,gia) values($1,'Tủ bếp',5000000)`,[id2])
-  const e6 = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-2'`)
+  const e6 = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-2'), null, null)`)
   ok('6 du_an chưa giá vốn → chuyển bị CHẶN', e6!=null && /chưa có giá vốn/.test(e6), e6||'')
 
   // ── CA 7: bao_gia KHÔNG vào tinh_he_so_m — bản chưa loại phải ĐỎ (in cả hai) ──
@@ -108,19 +108,19 @@ try {
   console.log('\n── CA 8: bỏ từng chốt → phải LỌT (ĐỎ) ──')
   // 8a off_mon_gia: món thiếu giá vẫn chuyển được
   await c.query('savepoint g1'); await c.query(`select set_config('chan.off_mon_gia','1',true)`)
-  const l8a = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-2'`)  // BG-2 món đủ giá nhưng chưa giá vốn
+  const l8a = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-2'), null, null)`)  // BG-2 món đủ giá nhưng chưa giá vốn
   // đưa món BG-2 về thiếu giá để bắt đúng cổng món:
   await c.query('rollback to savepoint g1')
   await c.query('savepoint g1b'); await c.query(`update kho.don_hang_mon set gia=null where don_id=$1`,[id2]); await c.query(`select set_config('chan.off_mon_gia','1',true)`)
   // vẫn còn cổng giá vốn (du_an) -> để cô lập cổng món, tắt luôn von_chuyen
   await c.query(`select set_config('chan.off_von_chuyen','1',true)`)
-  const l8a2 = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-2'`)
+  const l8a2 = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-2'), null, null)`)
   await c.query(`select set_config('chan.off_mon_gia','',true)`); await c.query(`select set_config('chan.off_von_chuyen','',true)`); await c.query('rollback to savepoint g1b')
   ok('8a [CẮN] bỏ off_mon_gia → món thiếu giá VẪN chuyển (ĐỎ)', l8a2===null, l8a2||'')
 
   // 8b off_von_chuyen: du_an chưa giá vốn vẫn chuyển (món đủ giá)
   await c.query('savepoint g2'); await c.query(`select set_config('chan.off_von_chuyen','1',true)`)
-  const l8b = await updAs(U.sale, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='BG-2'`)  // BG-2 món đủ giá, chưa giá vốn
+  const l8b = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-2'), null, null)`)  // BG-2 món đủ giá, chưa giá vốn
   await c.query(`select set_config('chan.off_von_chuyen','',true)`); await c.query('rollback to savepoint g2')
   ok('8b [CẮN] bỏ off_von_chuyen → du_an chưa giá vốn VẪN chuyển (ĐỎ)', l8b===null, l8b||'')
 

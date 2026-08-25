@@ -91,12 +91,18 @@ try {
   await c.query(`select set_config('chan.off_thuonghieu','',true)`)   // tắt bypass (đã bật toàn tx cho seed) để test gác thật
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach,thuong_hieu) values('G1','bao_gia','le','quang_cao',null)`)
   await q(`insert into kho.don_hang_mon(don_id,ten,so_luong,gia) select id,'M',1,1000000 from kho.don_hang where ma_don='G1'`)
-  const r8 = await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='G1'`)
+  // [WP-06] client hết quyền UPDATE trang_thai → chốt đi qua cổng chot_don (kiem_chuyen vẫn gác thương hiệu)
+  const r8 = await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='G1'), null, null)`)
   ok('#8 chốt thiếu thương hiệu → CHẶN "Chưa chọn thương hiệu"', r8.e !== null && /Chưa chọn thương hiệu/.test(r8.e), r8.e)
   await q(`update kho.don_hang set thuong_hieu='togihome' where ma_don='G1'`)
-  ok('#8b có thương hiệu → QUA', (await asK(U.ceo, `update kho.don_hang set trang_thai='moi_len_don' where ma_don='G1'`)).e === null)
+  ok('#8b có thương hiệu → QUA', (await asK(U.ceo, `select kho.chot_don((select id from kho.don_hang where ma_don='G1'), null, null)`)).e === null)
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,nguon_khach,thuong_hieu) values('G2','moi_len_don','le','quang_cao',null)`)  // đơn cũ INSERT thẳng (raw, không vai) — không hồi tố
-  ok('#8c đơn cũ moi_len_don thiếu brand (raw seed) → tiến tiếp KHÔNG dính', (await asK(U.ceo, `update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='G2'`)).e === null)
+  // #8c tiến moi_len_don→dang_thiet_ke: kiem_chuyen chỉ gác ENTRY moi_len_don, không gác forward. Client hết quyền
+  //   UPDATE trang_thai → dựng bằng owner + chan.off_vai (bỏ CHECK VAI, GIỮ kiem_chuyen để phép còn ý nghĩa).
+  let e8c = null
+  try { await c.query(`select set_config('chan.off_vai','1',true)`); await q(`update kho.don_hang set trang_thai='dang_thiet_ke' where ma_don='G2'`) }
+  catch (x) { e8c = x.message } finally { await c.query(`select set_config('chan.off_vai','',true)`) }
+  ok('#8c đơn cũ moi_len_don thiếu brand (raw seed) → tiến tiếp KHÔNG dính', e8c === null, e8c)
 
   console.log('\n── 9 · TỐC ĐỘ 100.000 đơn ──')
   await c.query('rollback'); await c.query('begin'); await c.query(`set local statement_timeout=0`)
