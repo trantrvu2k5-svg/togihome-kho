@@ -468,6 +468,43 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .xg-gc-ma{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--chu-nhat)}
 .xg-gc-n{font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace}
 .xg-gc-src{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:3px;background:var(--nen);color:var(--chu-nhat)}
+/* ═════ WP-47 · Năng lực tổ (prefix nl-) ═════ */
+.nl-khoi{background:var(--the);border:1px solid var(--vien);border-radius:var(--bo);padding:16px 18px;margin-bottom:14px}
+.nl-khoi-dau h2{font-size:16px;margin:0 0 2px}.nl-khoi-dau p{font-size:12.5px;color:var(--chu-nhat);margin:0 0 12px}
+.nl-cuon{overflow-x:auto}
+.nl-bang{width:100%;border-collapse:collapse;font-size:13.5px}
+.nl-bang th,.nl-bang td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--vien);white-space:nowrap}
+.nl-bang th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--chu-mo);font-weight:600}
+.nl-bang td.num,.nl-bang th.num{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.nl-bang input{width:66px;padding:5px 7px;border:1px solid #BBD9F5;border-radius:6px;background:#EAF4FF;text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px}
+.nl-bang input:focus{outline:2px solid var(--mau);border-color:var(--mau)}
+.nl-o-doc{background:#F4EEE4;border:1px solid #E4D6BE;border-radius:6px;padding:5px 10px;display:inline-block;font-family:'JetBrains Mono',monospace;color:#6B4A1B;font-weight:600}
+.nl-tong td{font-weight:700;border-top:2px solid var(--chu);border-bottom:none}
+.nl-chip{display:inline-block;margin-left:7px;font-size:11px;background:#FDF3E3;color:#8A5A05;border:1px solid #F0D9A8;border-radius:20px;padding:1px 8px;font-weight:600;vertical-align:middle}
+.nl-xn{font-size:11px;background:#E7EFEA;color:var(--xong);border:1px solid #BFE0CE;border-radius:20px;padding:2px 10px;font-weight:600;cursor:pointer;vertical-align:middle;margin-left:4px}
+.nl-xn:hover{background:#D6E8DC}
+.nl-note{font-size:12px;color:var(--chu-nhat);margin-top:9px;line-height:1.5}.nl-note b{color:var(--chu)}
+.nl-luu-hang{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+.nl-fld{display:flex;flex-direction:column;gap:4px}.nl-fld label{font-size:12px;color:var(--chu-nhat)}.nl-fld label b{color:var(--do)}
+.nl-fld>input{padding:7px 9px;border:1px solid var(--vien);border-radius:7px;font-size:13.5px}
+.nl-fld-ly{flex:1;min-width:210px}.nl-fld-ly input{width:100%}
+.nl-fld-nut{display:flex;gap:8px;margin-left:auto}
+.nl-nut{background:var(--do);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer}
+.nl-nut:disabled{opacity:.45;cursor:not-allowed}
+.nl-nut-phu{background:var(--nen);color:var(--chu);border:1px solid var(--vien);border-radius:8px;padding:9px 14px;font-size:13.5px;cursor:pointer}
+.nl-loi{padding:9px 12px;background:var(--do-nhat);border:1px solid #F0C4C0;border-radius:8px;color:var(--do);font-size:13px;margin-top:10px}
+.nl-vung-so{display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.nl-so-o{display:flex;align-items:center;gap:6px}.nl-so-o input{width:62px;padding:7px;border:1px solid #BBD9F5;background:#EAF4FF;border-radius:7px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:15px}
+.nl-so-o span{font-size:12.5px;color:var(--chu-nhat)}
+.nl-vung-chi{font-size:14px;padding:6px 0}.nl-vung-chi b{font-family:'JetBrains Mono',monospace;font-size:17px}
+.nl-dai{display:flex;gap:6px}
+.nl-dai-o{flex:1;text-align:center;padding:9px 4px;border-radius:7px;font-size:11px;font-weight:600;line-height:1.35}
+.nl-dai-do{background:var(--do-nhat);color:var(--do)}.nl-dai-vang{background:#FDF3E3;color:#8A5A05}.nl-dai-xanh{background:#E7EFEA;color:var(--xong)}
+.nl-canhbao{border-radius:9px;padding:11px 15px;font-size:13.5px;margin-bottom:14px}
+.nl-do{background:var(--do-nhat);border:1px solid #F0C4C0;color:var(--do)}
+.nl-vang{background:#FDF3E3;border:1px solid #F0D9A8;color:#8A5A05}
+.nl-vang a{color:#8A5A05;font-weight:600;text-decoration:underline;cursor:pointer}
+.nl-lichsu td{font-size:13px}
 </style>
 </head>
 <body>
@@ -484,6 +521,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
       <button class="thanh-muc" id="n-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
       <button class="thanh-muc" id="n-qd" data-man="qd"><i>📋</i>Quản đốc</button>
       <button class="thanh-muc" id="n-tl" data-man="tl"><i>📅</i>Tải &amp; lịch</button>
+      <button class="thanh-muc" id="n-nlt" data-man="nlt"><i>🏭</i>Năng lực tổ</button>
       <button class="thanh-muc" id="n-nl" data-man="nl"><i>🔎</i>Nhìn lại</button>
       <div class="thanh-duoi"><p id="hdTen"></p><small id="hdVai"></small><br><button id="btOut">Thoát</button></div>
     </nav>
@@ -648,10 +686,43 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
           <div class="xnl-wrap" id="xnl-tac"></div></div>
       </section>
 
+      <!-- ═════════ NĂNG LỰC TỔ (WP-47 · class nl-) ═════════ -->
+      <section id="s-nlt" style="display:none">
+        <div class="dau"><div><h1>Năng lực tổ</h1><p>Sức làm mỗi tuần của từng tổ — người nhập, máy tính lịch dựa vào đây.</p></div></div>
+
+        <div class="nl-khoi">
+          <div class="nl-khoi-dau"><h2>Sức làm mỗi tuần</h2><p>Sửa 4 ô giữa (nền xanh). Cột <b>Giờ/tuần</b> tự tính = người × giờ × ngày × hệ số.</p></div>
+          <div class="nl-cuon"><table class="nl-bang" id="nl-bang"></table></div>
+          <div class="nl-note"><b>"Số này đúng"</b> = đồng ý số đang có, không đổi gì, không cần lý do. &nbsp;·&nbsp; <b>Sửa số + Lý do + "Lưu năng lực mới"</b> = số thật ở xưởng đã đổi, mở khoảng hiệu lực mới.</div>
+          <div class="nl-luu-hang">
+            <div class="nl-fld"><label>Áp dụng từ</label><input type="date" id="nl-tu-ngay"></div>
+            <div class="nl-fld nl-fld-ly"><label>Lý do <b>*</b></label><input type="text" id="nl-ly-do" placeholder="vì sao đổi (≥5 ký tự)"></div>
+            <div class="nl-fld-nut"><button class="nl-nut-phu" id="nl-bo">Bỏ thay đổi</button><button class="nl-nut" id="nl-luu" disabled>Lưu năng lực mới</button></div>
+          </div>
+          <div id="nl-loi-luu" class="nl-loi" style="display:none"></div>
+        </div>
+
+        <div class="nl-khoi">
+          <div class="nl-khoi-dau"><h2>Vùng khoá lịch</h2><p>Bao nhiêu tuần tới KHÔNG cho máy tự xếp lại.</p></div>
+          <div class="nl-vung-so" id="nl-vung-so"></div>
+          <div class="nl-dai" id="nl-dai"></div>
+          <div class="nl-loi" id="nl-vung-loi" style="display:none;margin-top:12px"></div>
+        </div>
+
+        <div class="nl-canhbao nl-do"><b>Màn này không sửa lịch.</b> Lịch xếp việc là số máy suy ra từ đơn đã bàn giao + năng lực ở trên. Muốn đổi: <b>Tải &amp; lịch → Xếp lại đơn</b>.</div>
+
+        <div class="nl-khoi">
+          <div class="nl-khoi-dau"><h2>Đã đổi những gì</h2><p>10 lần khai gần nhất — khoảng ngày chính là lịch sử.</p></div>
+          <div class="nl-cuon"><table class="nl-bang nl-lichsu" id="nl-lichsu"></table></div>
+        </div>
+      </section>
+
       <!-- ═════════ TẢI & LỊCH ═════════ -->
       <section id="s-tl" style="display:none">
         <div class="dau"><div><h1>Tải và lịch</h1><p>Bấm một ô để xem việc trong tuần đó. Mặc định chỉ hiện chỗ cần xử.</p></div>
           <div class="quy-mo" style="text-align:right;font-size:13px;color:var(--chu-nhat)"><b id="tl-so-don" style="font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--chu);display:block">—</b>đơn dở dang có vấn đề</div></div>
+
+        <div id="tl-nl-canhbao" class="nl-canhbao nl-vang" style="display:none"></div>
 
         <div class="tl-bang-xu" id="tl-bang"></div>
 
@@ -693,6 +764,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
     <button id="d-loi" data-man="loi"><i>⚠️</i>Ghi lỗi</button>
     <button id="d-qd" data-man="qd"><i>📋</i>Quản đốc</button>
     <button id="d-tl" data-man="tl"><i>📅</i>Tải & lịch</button>
+    <button id="d-nlt" data-man="nlt"><i>🏭</i>Năng lực</button>
     <button id="d-nl" data-man="nl"><i>🔎</i>Nhìn lại</button>
     <button id="btOutM"><i>🚪</i>Thoát</button>
   </nav>

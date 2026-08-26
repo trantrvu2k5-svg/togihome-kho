@@ -985,3 +985,34 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   nguoi_tao server · c) chot=true thiếu nguồn→RAISE + rollback sạch (0 đơn cụt) · d) vai xuong→CHẶN.
 - **Cơ sở:** ERP 5.5.1/5.3.3 + WP-06 một cổng (QD-64). **HOÀN TÁC:** `drop function kho.tao_don(jsonb, boolean);`
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/151, DB+test). Chưa UI (L-133) / REVOKE INSERT (L-134).
+
+## QD-68 (26/08, WP-47 tầng DB, db/154) — LỊCH: NGUỒN/SUY · CHỐT
+- **`nang_luc_to` + `moc_lich` = bảng NGUỒN** người nhập qua RPC (`nl_ghi` quản-đốc(xuong)/ceo · `moc_lich_ghi`
+  ceo). **`xep_lich` = bảng SUY** — client KHÔNG ghi được (RLS chỉ policy SELECT; ghi chỉ qua `luu_xep_lich`/
+  `tl_doi_viec` SECURITY DEFINER).
+- **Sửa năng lực = MỞ KHOẢNG hiệu lực mới, không đè:** `nl_ghi` đóng khoảng đang mở (`den_ngay = p_tu_ngay−1`)
+  rồi mở khoảng mới (`den_ngay` NULL, `xac_nhan=true`). Khoảng ngày CHÍNH LÀ lịch sử — số cũ giữ nguyên cho lịch
+  cũ đã tính. `p_tu_ngay < CURRENT_DATE` → RAISE (cấm sửa ngược quá khứ). EXCLUDE gist chặn chồng khoảng.
+- **Nghỉ lễ/Tết = khoảng có `ngay_moi_tuan = 0`** (hợp lệ), không phải bảng ngày-lễ riêng. `moc_lich` = BỀ RỘNG
+  (số tuần) vùng đóng-băng cuộn theo tuần hiện tại (QD trước: chỉ `vung_cua_tuan` đọc), KHÔNG phải ngày lễ.
+- **FORCE RLS — KHÔNG force:** hàm ghi/đọc là DEFINER owner=postgres → chủ bỏ qua RLS khi không force → client
+  chỉ SELECT. (Ghi chú: owner `postgres` có `BYPASSRLS`=true nên thực tế bỏ qua RLS *kể cả* force — bẫy "FORCE
+  giết luu_xep_lich" KHÔNG xảy ra ở DB này; ta vẫn chọn KHÔNG force = belt-and-suspenders, không phụ thuộc
+  BYPASSRLS. chứng minh: test_wp47 4.7 owner ghi được khi RLS bật.)
+- **Vai nhập năng lực = `xuong` (quản đốc) + ceo** (không có role 'quan_doc' trong CHECK vai_tro; quản đốc là
+  vai `xuong` theo db/043 — đầu bài viết "quan_doc" = `xuong`).
+- **Không FORCE RLS** — owner (postgres) có `BYPASSRLS` nên RLS ở đây **là tường chắn phía CLIENT** (authenticated
+  chỉ SELECT), không phải tường chắn phía hàm DEFINER (chúng chạy bằng owner, luôn ghi được).
+- **Cơ sở sách:** ERP 7.2 (capacity calendar = master data) · ERP 7.3.3 (time fence do doanh nghiệp đặt, trong
+  fence máy không tự xếp lại) · MES 5.4.4 ("shift models are entered manually, the algorithm determines the
+  rest") · QTSX ch.6 vd 6.4 (năng lực = số cho trước, tải = số tính ra).
+- **Nghỉ lễ CHẠY sẵn (test 4.8):** khoảng `ngay_moi_tuan=0` → `nang_luc_to_tuan` trả `gio_nen=0` cho tuần đó
+  (không phải null/thiếu). `_sched` thấy cap=0 → đẩy việc sang tuần kế (available≤0 → `w:=w+7`). Không cần sửa
+  `_sched`, không nợ — khai nghỉ bằng khoảng ngay_moi_tuan=0 là đủ để máy né tuần nghỉ.
+- **XÁC NHẬN năng lực đi bằng `nl_xac_nhan(p_ma_to)` (db/155), KHÔNG tách khoảng** — chỉ set `xac_nhan=true`
+  trên khoảng ĐANG MỞ (xoá chip "chưa xác nhận"), không đóng/mở khoảng, không đụng số, không đẻ dòng lịch sử
+  giả. Bấm hai lần vô hại. `nl_ghi` (tách khoảng, mở khoảng mới) **chỉ dùng khi SỐ THẬT ở xưởng đổi** — xác nhận
+  ≠ sự kiện đổi năng lực. (Vá lỗ L-04 A1: nút "Lưu năng lực mới" đòi có tổ đổi số nên không xác-nhận-không-đổi
+  được.) Vai xuong/ceo; test_wp47 5.1-5.4.
+- **HOÀN TÁC:** xem đầu db/154 + `drop function kho.nl_xac_nhan(text)` (db/155). **Trạng thái:** ĐÃ ÁP DỤNG
+  (db/154+155, DB+test). UI Năng lực tổ đã dựng (L-03, app Xưởng); **nút xác nhận (nl_xac_nhan) chưa nối vào UI**.

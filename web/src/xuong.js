@@ -56,7 +56,7 @@ async function capApp() {
   $('btOut').onclick = thoat
   if ($('btOutM')) $('btOutM').onclick = thoat   // nút Thoát ở thanh dưới (mobile — sidebar ẩn ≤819px)
   document.querySelectorAll('.thanh-muc, .thanh-day button').forEach(b => { if (b.dataset.man) b.onclick = () => di(b.dataset.man) })   // bỏ nút không có data-man (vd Thoát)
-  if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none'; $('n-tl').style.display = 'none'; $('d-tl').style.display = 'none'; $('n-nl').style.display = 'none'; $('d-nl').style.display = 'none' }   // tho KHÔNG thấy quản đốc / tải & lịch / nhìn lại (L-74)
+  if (USER.vai_tro === 'tho') { $('n-qd').style.display = 'none'; $('d-qd').style.display = 'none'; $('n-tl').style.display = 'none'; $('d-tl').style.display = 'none'; $('n-nlt').style.display = 'none'; $('d-nlt').style.display = 'none'; $('n-nl').style.display = 'none'; $('d-nl').style.display = 'none' }   // tho KHÔNG thấy quản đốc / tải & lịch / năng lực tổ / nhìn lại (L-74, WP-47)
   setupTL()
   document.querySelectorAll('.tab button').forEach(b => b.onclick = () => tab(b.dataset.qd))
   document.querySelectorAll('#s-tem .loc button[data-kho]').forEach(b => b.onclick = () => datKho(b.dataset.kho))
@@ -74,13 +74,14 @@ async function capApp() {
   await taiTo(); await taiDon(); await taiViec()
 }
 function di(m) {
-  if ((m === 'qd' || m === 'tl' || m === 'nl') && USER.vai_tro === 'tho') return
-  ;['viec', 'tram', 'tem', 'dem', 'loi', 'qd', 'tl', 'nl'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
+  if ((m === 'qd' || m === 'tl' || m === 'nlt' || m === 'nl') && USER.vai_tro === 'tho') return
+  ;['viec', 'tram', 'tem', 'dem', 'loi', 'qd', 'tl', 'nlt', 'nl'].forEach(k => { $('s-' + k).style.display = (k === m) ? 'block' : 'none'
     $('n-' + k).classList.toggle('chon', k === m); if ($('d-' + k)) $('d-' + k).classList.toggle('chon', k === m) })
   window.scrollTo(0, 0)
   if (m === 'qd') taiQuanDoc()
   if (m === 'tram') taiTram()
   if (m === 'tl') taiTaiLich()
+  if (m === 'nlt') taiNangLuc()
   if (m === 'nl') taiNhinLai()
 }
 // ── L-74: NHÌN LẠI (Quản đốc, chỉ đọc) — 3 khối từ xuong_nhin_lai. Class xnl-. KHÔNG tiền, chỉ giờ. ──
@@ -712,6 +713,110 @@ function setupTL() {
   if (!tlLaCeo()) { const a = $('tl-cb-ngoaile').closest('.tl-ongoaile'), b = $('tl-cb-ngoaile2').closest('.tl-ongoaile'); if (a) a.style.display = 'none'; if (b) b.style.display = 'none' }
 }
 
+// ══════════ NĂNG LỰC TỔ (WP-47 · class nl-) — nav n-nlt/d-nlt/s-nlt (n-nl = "Nhìn lại" đã có) ══════════
+const NL = { rows: [], goc: {}, ml: { dong_bang: 0, vung_chac: 0 } }
+const nlLaCeo = () => USER.vai_tro === 'ceo'
+const nlGioTuan = r => Math.round(r.so_nguoi * r.gio_moi_ngay * r.ngay_moi_tuan * r.he_so * 10) / 10
+const nlDoi = () => NL.rows.filter(r => { const g = NL.goc[r.ma_to]; return g && (r.so_nguoi !== g.so_nguoi || r.gio_moi_ngay !== g.gio_moi_ngay || r.ngay_moi_tuan !== g.ngay_moi_tuan || r.he_so !== g.he_so) })
+function nlCapNhatLuu() { const ly = ($('nl-ly-do').value || '').trim(); $('nl-luu').disabled = !(nlDoi().length > 0 && ly.length >= 5) }
+
+async function taiNangLuc() {
+  if (USER.vai_tro === 'tho') return
+  const { data: ds, error } = await sb.rpc('nl_ds')
+  if (error) { $('nl-bang').innerHTML = '<tr><td class="nl-loi">Lỗi tải năng lực: ' + esc(error.message) + '</td></tr>'; return }
+  NL.rows = (ds || []).map(r => ({ ma_to: r.ma_to, ten: r.ten, so_nguoi: +r.so_nguoi || 0, gio_moi_ngay: +r.gio_moi_ngay || 0, ngay_moi_tuan: +r.ngay_moi_tuan || 0, he_so: +r.he_so_huu_ich || 0, xac_nhan: r.xac_nhan }))
+  NL.goc = {}; NL.rows.forEach(r => { NL.goc[r.ma_to] = { so_nguoi: r.so_nguoi, gio_moi_ngay: r.gio_moi_ngay, ngay_moi_tuan: r.ngay_moi_tuan, he_so: r.he_so } })
+  veNLBang()
+  const mai = isoCong(isoHomNay(), 1)
+  $('nl-tu-ngay').value = mai; $('nl-tu-ngay').min = mai; $('nl-ly-do').value = ''; $('nl-loi-luu').style.display = 'none'
+  $('nl-ly-do').oninput = nlCapNhatLuu; $('nl-luu').onclick = nlLuu; $('nl-bo').onclick = nlBo
+  nlCapNhatLuu()
+  const { data: ml } = await sb.from('moc_lich').select('ma,so_tuan')
+  NL.ml.dong_bang = (ml || []).find(x => x.ma === 'dong_bang')?.so_tuan ?? 0
+  NL.ml.vung_chac = (ml || []).find(x => x.ma === 'vung_chac')?.so_tuan ?? 0
+  veNLVung(); await veNLLichSu()
+}
+function veNLBang() {
+  const th = '<tr><th>Tổ</th><th class="num">Số người</th><th class="num">Giờ/ngày</th><th class="num">Ngày/tuần</th><th class="num">Hệ số hữu ích</th><th class="num">= Giờ/tuần</th></tr>'
+  let tP = 0, tG = 0
+  const body = NL.rows.map((r, i) => {
+    const gt = nlGioTuan(r); tP += r.so_nguoi; tG += gt
+    const inp = (f, step, mx) => `<input type="number" min="0"${mx ? ' max="' + mx + '"' : ''} step="${step}" data-i="${i}" data-f="${f}" value="${r[f]}">`
+    // chip "chưa xác nhận" + nút "Số này đúng" (nl_xac_nhan) — chỉ hiện khi CHƯA xác nhận.
+    const chip = r.xac_nhan ? '' : '<span class="nl-chip">chưa xác nhận</span> <button class="nl-xn" data-mt="' + esc(r.ma_to) + '">Số này đúng</button>'
+    return `<tr><td>${esc(r.ten)}${chip}</td><td class="num">${inp('so_nguoi', 1)}</td><td class="num">${inp('gio_moi_ngay', 0.5)}</td><td class="num">${inp('ngay_moi_tuan', 1, 7)}</td><td class="num">${inp('he_so', 0.01, 1)}</td><td class="num"><span class="nl-o-doc" id="nl-gt-${i}">${gt}</span></td></tr>`
+  }).join('')
+  // dòng Tổng: giờ/tuần cộng SỐ THÔ rồi làm tròn (KHÔNG cộng 7 số đã làm tròn) — sửa 2217,5 → 2217,6.
+  const tongGtTho = () => Math.round(NL.rows.reduce((s, r) => s + r.so_nguoi * r.gio_moi_ngay * r.ngay_moi_tuan * r.he_so, 0) * 10) / 10
+  $('nl-bang').innerHTML = th + body + `<tr class="nl-tong"><td>Tổng</td><td class="num" id="nl-tong-ng">${tP}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num" id="nl-tong-gt">${tongGtTho()}</td></tr>`
+  $('nl-bang').querySelectorAll('input').forEach(inp => inp.oninput = () => {
+    const i = +inp.dataset.i, f = inp.dataset.f; NL.rows[i][f] = +inp.value || 0
+    $('nl-gt-' + i).textContent = nlGioTuan(NL.rows[i])
+    let tp = 0; NL.rows.forEach(r => { tp += r.so_nguoi })
+    $('nl-tong-ng').textContent = tp; $('nl-tong-gt').textContent = tongGtTho()
+    nlCapNhatLuu()
+  })
+  $('nl-bang').querySelectorAll('.nl-xn').forEach(b => b.onclick = () => nlXacNhan(b.dataset.mt))
+}
+// "Số này đúng" — đồng ý số đang có (nl_xac_nhan, KHÔNG tách khoảng). Reload → chip+nút dòng đó biến mất.
+async function nlXacNhan(ma_to) {
+  $('nl-loi-luu').style.display = 'none'
+  const { error } = await sb.rpc('nl_xac_nhan', { p_ma_to: ma_to })
+  if (error) { $('nl-loi-luu').style.display = ''; $('nl-loi-luu').textContent = 'Xác nhận ' + ma_to + ': ' + error.message; return }
+  bao('Đã xác nhận số của tổ'); await taiNangLuc()
+}
+function nlBo() { NL.rows.forEach(r => { const g = NL.goc[r.ma_to]; if (g) Object.assign(r, g) }); veNLBang(); $('nl-ly-do').value = ''; $('nl-loi-luu').style.display = 'none'; nlCapNhatLuu() }
+async function nlLuu() {
+  const doi = nlDoi(), tu = $('nl-tu-ngay').value, ly = ($('nl-ly-do').value || '').trim()
+  if (!doi.length || ly.length < 5 || !tu) return
+  $('nl-luu').disabled = true; $('nl-loi-luu').style.display = 'none'
+  for (const r of doi) {
+    const { error } = await sb.rpc('nl_ghi', { p_ma_to: r.ma_to, p_so_nguoi: r.so_nguoi, p_gio_moi_ngay: r.gio_moi_ngay, p_ngay_moi_tuan: r.ngay_moi_tuan, p_he_so: r.he_so, p_tu_ngay: tu, p_ly_do: ly })
+    if (error) { $('nl-loi-luu').style.display = ''; $('nl-loi-luu').textContent = 'Tổ ' + r.ma_to + ': ' + error.message; nlCapNhatLuu(); return }
+  }
+  bao('Đã lưu năng lực mới cho ' + doi.length + ' tổ'); await taiNangLuc()
+}
+function veNLVung() {
+  const db = NL.ml.dong_bang, vc = NL.ml.vung_chac
+  if (nlLaCeo()) {
+    $('nl-vung-so').innerHTML = '<div class="nl-fld"><label>Đóng băng</label><div class="nl-so-o"><input type="number" min="0" max="8" id="nl-db" value="' + db + '"><span>tuần</span></div></div>' +
+      '<div class="nl-fld"><label>Vùng chắc</label><div class="nl-so-o"><input type="number" min="0" max="8" id="nl-vc" value="' + vc + '"><span>tuần</span></div></div>' +
+      '<button class="nl-nut" id="nl-vung-luu">Lưu vùng khoá</button>'
+    const live = () => veNLDai(+$('nl-db').value || 0, +$('nl-vc').value || 0)
+    $('nl-db').oninput = live; $('nl-vc').oninput = live; $('nl-vung-luu').onclick = nlLuuVung
+  } else {
+    $('nl-vung-so').innerHTML = '<div class="nl-fld"><label>Đóng băng</label><div class="nl-vung-chi"><b>' + db + '</b> tuần</div></div>' +
+      '<div class="nl-fld"><label>Vùng chắc</label><div class="nl-vung-chi"><b>' + vc + '</b> tuần</div></div>'
+  }
+  veNLDai(db, vc)
+}
+function veNLDai(db, vc) {
+  let h = ''
+  for (let i = 0; i < 6; i++) {
+    const cls = i < db ? 'nl-dai-do' : (i < db + vc ? 'nl-dai-vang' : 'nl-dai-xanh')
+    const lb = i < db ? 'đóng băng' : (i < db + vc ? 'cần lý do' : 'thoải mái')
+    h += '<div class="nl-dai-o ' + cls + '">Tuần ' + (i + 1) + '<br>' + lb + '</div>'
+  }
+  $('nl-dai').innerHTML = h
+}
+async function nlLuuVung() {
+  $('nl-vung-loi').style.display = 'none'
+  const { error } = await sb.rpc('moc_lich_ghi', { p_dong_bang: +$('nl-db').value || 0, p_vung_chac: +$('nl-vc').value || 0 })
+  if (error) { $('nl-vung-loi').style.display = ''; $('nl-vung-loi').textContent = error.message; return }
+  bao('Đã lưu vùng khoá lịch'); await taiNangLuc()
+}
+async function veNLLichSu() {
+  const { data, error } = await sb.from('nang_luc_to').select('ma_to,tu_ngay,den_ngay,so_nguoi,sua_boi,ly_do').order('tu_ngay', { ascending: false }).limit(10)
+  if (error) { $('nl-lichsu').innerHTML = '<tr><td class="nl-loi">' + esc(error.message) + '</td></tr>'; return }
+  const ids = [...new Set((data || []).map(r => r.sua_boi).filter(Boolean))]
+  let ten = {}
+  if (ids.length) { const { data: nd } = await sb.from('nguoi_dung').select('id,ho_ten').in('id', ids); (nd || []).forEach(u => { ten[u.id] = u.ho_ten }) }
+  const tenTo = Object.fromEntries(TL_TO)
+  const th = '<tr><th>Khoảng ngày</th><th>Tổ</th><th class="num">Số người</th><th>Người sửa</th><th>Lý do</th></tr>'
+  const body = (data || []).map(r => `<tr><td>${r.tu_ngay}${r.den_ngay ? ' → ' + r.den_ngay : ' → nay'}</td><td>${esc(tenTo[r.ma_to] || r.ma_to)}</td><td class="num">${r.so_nguoi}</td><td>${esc(ten[r.sua_boi] || (r.sua_boi ? r.sua_boi.slice(0, 8) + '…' : '— seed'))}</td><td>${esc(r.ly_do || '—')}</td></tr>`).join('')
+  $('nl-lichsu').innerHTML = th + body
+}
+
 async function taiTaiLich() {
   const ky = +$('tl-ky').value
   const tu = isoHomNay(), den = isoCong(tu, ky * 7)
@@ -726,6 +831,15 @@ async function taiTaiLich() {
   if ($('tl-loc-to').options.length <= 1) $('tl-loc-to').innerHTML = '<option value="">Mọi tổ</option>' + TL_TO.map(t => `<option value="${t[0]}">${esc(t[1])}</option>`).join('')
   await veDonTL(1)
   veLuoiTL(); veBangTL(); $('tl-bung').innerHTML = ''; TL.oMo = null
+  // [WP-47] dải vàng: còn tổ nào chưa xác nhận năng lực → ngày giao đang tính bằng số đặt tạm
+  const cb = $('tl-nl-canhbao'); if (cb) {
+    const { data: nlds } = await sb.rpc('nl_ds')
+    const chua = (nlds || []).filter(t => t && t.xac_nhan === false).length
+    if (chua > 0) {
+      cb.style.display = ''; cb.innerHTML = '⚠ <b>Năng lực tổ chưa ai xác nhận</b> (' + chua + ' tổ) — ngày giao đang tính bằng số đặt tạm. <a id="tl-nl-link">Sang màn Năng lực tổ →</a>'
+      const lk = $('tl-nl-link'); if (lk) lk.onclick = () => di('nlt')
+    } else cb.style.display = 'none'
+  }
 }
 
 function veBangTL() {
