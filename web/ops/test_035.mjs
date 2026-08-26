@@ -33,7 +33,7 @@ try {
   await c.query('begin'); await c.query(sql035)
 
   // ── CA 1: sale tạo đơn du_an KHÔNG giá -> LƯU ĐƯỢC ở bao_gia ──
-  const e1 = await updAs(U.sale, `insert into kho.don_hang(ma_don,dong,trang_thai) values('BG-1','du_an','bao_gia')`)
+  const e1 = await updAs(U.sale, `select * from kho.tao_don('{"ma_don":"BG-1","dong":"du_an"}'::jsonb, false)`)   // WP-07: tạo qua RPC (server ép bao_gia), không INSERT thẳng trang_thai
   ok('1 sale tạo đơn du_an không giá → LƯU ở bao_gia', e1===null, e1||'')
   const id1 = (await q(`select id from kho.don_hang where ma_don='BG-1'`))[0]?.id
 
@@ -62,7 +62,7 @@ try {
   ok('5 giảm 6% không người duyệt → CHẶN (vượt trần)', e5!=null && /vượt trần|người duyệt/.test(e5), e5||'')
 
   // ── CA 6: đơn du_an CHƯA đẩy giá vốn, món đủ giá -> chuyển moi_len_don CHẶN ──
-  await updAs(U.sale, `insert into kho.don_hang(ma_don,dong,trang_thai) values('BG-2','du_an','bao_gia')`)
+  await updAs(U.sale, `select * from kho.tao_don('{"ma_don":"BG-2","dong":"du_an"}'::jsonb, false)`)   // WP-07: tạo qua RPC (server ép bao_gia)
   const id2 = (await q(`select id from kho.don_hang where ma_don='BG-2'`))[0].id
   await c.query(`insert into kho.don_hang_mon(don_id,ten,gia) values($1,'Tủ bếp',5000000)`,[id2])
   const e6 = await updAs(U.sale, `select kho.chot_don((select id from kho.don_hang where ma_don='BG-2'), null, null)`)

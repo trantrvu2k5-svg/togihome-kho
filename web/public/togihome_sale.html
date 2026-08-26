@@ -2385,13 +2385,14 @@ function App() {
       ...p,
       [k]: v
     }));
-    window.storage.set("c2:" + k, JSON.stringify(v)).then(() => setLoiLuu("")).catch(() => {
+    window.storage.set("c2:" + k, JSON.stringify(v)).then(() => setLoiLuu(pr => (pr && pr.k !== k) ? pr : "")).catch((e) => {
       /* ghi hỏng -> KHÔNG để màn hình "trông như đã lưu": trả state local về trước đó */
       setDb(p => ({
         ...p,
         [k]: prev
       }));
-      setLoiLuu(k);
+      /* [WP-07 L-136] GIỮ NGUYÊN VĂN message server/RPC — không nuốt, không đổi thành "bộ nhớ đầy" chung chung. */
+      setLoiLuu({ k: k, msg: (e && e.message) ? e.message : String(e) });
     });
   };
   const user = (db?.users || []).find(u => u.id === uid2 && u.on) || null;
@@ -2555,7 +2556,7 @@ function App() {
     style: {
       margin: "12px 22px 0"
     }
-  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được bảng “", loiLuu, "”"), /*#__PURE__*/React.createElement("span", null, "Nhiều khả năng bộ nhớ trình duyệt đã đầy vì ảnh sản phẩm. Xoá bớt ảnh, hoặc vào Thiết lập nạp lại dữ liệu mẫu. Thay đổi vừa rồi vẫn hiện trên màn hình nhưng ", /*#__PURE__*/React.createElement("b", null, "sẽ mất khi tải lại trang"), ".")), /*#__PURE__*/React.createElement(SoDon, P), okTab === "bg" && /*#__PURE__*/React.createElement(BaoGiaMan, {
+  }, /*#__PURE__*/React.createElement("b", null, "Không lưu được — "), /*#__PURE__*/React.createElement("span", null, loiLuu.msg), /*#__PURE__*/React.createElement("span", { style: { opacity: .7 } }, " Thay đổi vẫn hiện trên màn nhưng ", /*#__PURE__*/React.createElement("b", null, "chưa được lưu"), " — sửa theo nhắc trên rồi lưu lại.")), /*#__PURE__*/React.createElement(SoDon, P), okTab === "bg" && /*#__PURE__*/React.createElement(BaoGiaMan, {
     data: bgK,
     initFilter: bgBanMoi > 0 ? "ban_moi" : "can",
     // L-57: mọi thao tác báo giá mở modal TẠI CHỖ (SoDon luôn mount) — KHÔNG nhảy tab. Ngoại lệ DUY NHẤT:

@@ -17,9 +17,10 @@ try {
   const CEO_NS = (await q(`select id from kho.nguoi_dung where auth_uid=$1`, [U.ceo]))[0].id
 
   console.log('── 1 · TỰ GÁN khi tạo đơn = người đăng nhập (trigger BEFORE INSERT) ──')
-  await asK(U.sale, `insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,ngay_tao_bao_gia) values('L101X','bao_gia','le','KX',now())`)
+  // WP-07: tạo qua tao_don (server ép bao_gia); trigger gan_sale_phu_trach vẫn TỰ gán theo người đăng nhập.
+  await asK(U.sale, `select * from kho.tao_don(jsonb_build_object('ma_don','L101X','dong','le','ten_khach','KX'), false)`)
   ok('#1 đơn sale tạo → sale_phu_trach = sale', (await q(`select sale_phu_trach from kho.don_hang where ma_don='L101X'`))[0].sale_phu_trach === SALE_NS)
-  await asK(U.ceo, `insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,ngay_tao_bao_gia) values('L101Y','bao_gia','le','KY',now())`)
+  await asK(U.ceo, `select * from kho.tao_don(jsonb_build_object('ma_don','L101Y','dong','le','ten_khach','KY'), false)`)
   ok('#1 đơn ceo tạo → sale_phu_trach = ceo', (await q(`select sale_phu_trach from kho.don_hang where ma_don='L101Y'`))[0].sale_phu_trach === CEO_NS)
   await q(`insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,la_demo) values('L101SEED','bao_gia','le','KS',true)`)
   ok('#1 seed KHÔNG JWT → NULL (demo không réo chuông)', (await q(`select sale_phu_trach from kho.don_hang where ma_don='L101SEED'`))[0].sale_phu_trach === null)

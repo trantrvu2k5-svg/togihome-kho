@@ -24,12 +24,13 @@ try {
   // ═══ 2 · SALE ghi báo giá qua ĐÚNG đường (upsert don_hang, RLS dh_them) — 3 trường mới vào đủ ═══
   console.log('\n── 2 · sale ghi được, đọc lại đúng ──')
   const brand = (await q(`select ma from kho.thuong_hieu limit 1`))[0].ma
-  const ins = await asK(U.sale, `insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,sdt_khach,thuong_hieu,loai,
-      phong_cach,ngan_sach_trieu,tu_dung,ghi_chu,link)
-    values('KIEM092','bao_gia','le','KH kiểm','0900000092',$1,'le_sang','tân cổ điển',30,true,'yêu cầu riêng X','http://vd')
-    returning phong_cach,ngan_sach_trieu,tu_dung,ghi_chu,link,ngay_tao_bao_gia`, [brand])
-  ok('#2 sale INSERT được đơn báo giá (RLS dh_them cho sale)', ins.e === null, ins.e || '')
-  const r = ins.r && ins.r[0] || {}
+  // WP-07: tạo báo giá qua RPC tao_don (server ép bao_gia; client không gửi trang_thai). Đọc lại bằng owner q.
+  const ins = await asK(U.sale, `select * from kho.tao_don(jsonb_build_object(
+      'ma_don','KIEM092','dong','le','ten_khach','KH kiểm','sdt_khach','0900000092','thuong_hieu',$1::text,'loai','le_sang',
+      'phong_cach','tân cổ điển','ngan_sach_trieu',30,'tu_dung',true,'ghi_chu','yêu cầu riêng X','link','http://vd'), false)`, [brand])
+  ok('#2 sale tạo đơn báo giá qua tao_don (WP-07)', ins.e === null, ins.e || '')
+  const r = (await q(`select phong_cach,ngan_sach_trieu,tu_dung,ghi_chu,link,ngay_tao_bao_gia,trang_thai from kho.don_hang where ma_don='KIEM092'`))[0] || {}
+  ok('#2 tao_don ép trang_thai=bao_gia', r.trang_thai === 'bao_gia', r.trang_thai)
   ok('#2 phong_cach/ngan_sach/tu_dung/ghi_chu/link lưu đúng',
     r.phong_cach === 'tân cổ điển' && Number(r.ngan_sach_trieu) === 30 && r.tu_dung === true && r.ghi_chu === 'yêu cầu riêng X' && r.link === 'http://vd', JSON.stringify(r))
   ok('#2 ngay_tao_bao_gia TỰ set (trigger moc_bao_gia) — "ngày hỏi giá" không cần app ghi', r.ngay_tao_bao_gia != null)
@@ -43,9 +44,10 @@ try {
 
   // ═══ 4 · ngân sách âm bị CHECK chặn ═══
   console.log('\n── 4 · ràng buộc số ──')
-  const am = await asK(U.sale, `insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach,ngan_sach_trieu) values('KIEM092A','bao_gia','le','x',-5)`)
+  const am = await asK(U.sale, `select * from kho.tao_don(jsonb_build_object('ma_don','KIEM092A','dong','le','ten_khach','x','ngan_sach_trieu',-5), false)`)
   ok('#4 ngan_sach_trieu = -5 → CHECK chặn', am.e !== null && /ngan_sach|check/i.test(am.e), am.e || '(không lỗi)')
-  const kd = await asK(U.sale, `insert into kho.don_hang(ma_don,trang_thai,dong,ten_khach) values('KIEM092B','bao_gia','le','x') returning tu_dung`)
+  const kdIns = await asK(U.sale, `select * from kho.tao_don(jsonb_build_object('ma_don','KIEM092B','dong','le','ten_khach','x'), false)`)
+  const kd = kdIns.e ? { r: null } : { r: await q(`select tu_dung from kho.don_hang where ma_don='KIEM092B'`) }
   ok('#4 không truyền tu_dung → mặc định false', kd.r && kd.r[0].tu_dung === false)
 
   // ═══ 5 · SĐT trùng gắn khách cũ, KHÔNG tạo khách trùng (PK sdt) ═══

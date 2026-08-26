@@ -268,6 +268,12 @@ def main(pw):
         raise StopRun(f"BƯỚC 1 hỏng ({type(e).__name__}: {str(e)[:90]}) — DỪNG, KHÔNG chạy bước 2–10 với mã giả.")
     D = MA["don"]
 
+    # [WP-07 L-136] DEN_BUOC=1: chỉ chạy đoạn tạo→chốt (Sale lên đơn → moi_len_don), DỪNG.
+    if os.environ.get("DEN_BUOC") == "1":
+        print(f"\n── DEN_BUOC=1 · DỪNG sau TẠO→CHỐT (không chạy bước 2–10) ──")
+        print(f"  đơn {D} · bước 1 = {RESULT.get(1, '?')} · trang_thai = {tt_of(pg, D)}")
+        return
+
     # ── 2 · THIẾT KẾ: nhận việc + gửi bản ────────────────────────
     login(pg, "thietke")
     print(f"\n── BƯỚC 2 · Thiết kế: nhận việc + gửi bản 3D ({D}) ──")
@@ -390,6 +396,12 @@ def main(pw):
         RESULT[4] = 'KET'; ket(pg, 4, str(e)[:140])
     except Exception as e:
         RESULT[4] = 'KET'; ket(pg, 4, f"{type(e).__name__}: {str(e)[:120]}")
+
+    # [WP-07 L-134] DEN_BUOC=4: chỉ chạy đoạn liên quan tạo đơn → chốt → bàn giao, DỪNG (không chạy 5–10).
+    if os.environ.get("DEN_BUOC") == "4":
+        print(f"\n── DEN_BUOC=4 · DỪNG sau BÀN GIAO (không chạy bước 5–10) ──")
+        print(f"  đơn {MA['don']} · bước 1–4: " + " · ".join(f"{k}:{RESULT.get(k,'?')}" for k in (1, 2, 3, 4)))
+        return
 
     # ── 5 · TEM: day_tem_ban_ve (RPC) — CẤM chạy nếu BÀN GIAO (4) chưa OK (đã nhảy cóc 2 lần) ──
     print(f"\n── BƯỚC 5 · Tem: day_tem_ban_ve (RPC) ──")

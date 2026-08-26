@@ -962,3 +962,26 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Test đổi theo (KHÔNG nới quyền):** test dùng `as(vai) update trang_thai` nay 403 → chuyển sang gọi RPC (chốt/huỷ) hoặc owner+`chan.off_vai`
   (setup forward). Đã vá test_090, test_115 (đỏ-thật do revoke) + gỡ 403 test_035/047/056/109/111/123. test_069 (test upsert-clobber cũ) cần rework riêng.
 - **Trạng thái:** ĐÃ ÁP DỤNG (db/150, prod). UI đã deploy (edf983b0) bỏ trang_thai khỏi upsert nên revoke an toàn thứ tự.
+
+## QD-67 (26/08, WP-07 tầng 1, db/151) — MỘT cửa TẠO đơn: `tao_don` ép khởi tạo `bao_gia` · CHỐT
+- **Vấn đề:** sau WP-06 đóng đường ĐỔI trạng thái (QD-64/65/66), đường TẠO đơn vẫn hở — client `sale.js`
+  INSERT `don_hang` KÈM `trang_thai` (`bao_gia` hoặc thẳng `moi_len_don`), tự chọn trạng thái khởi tạo.
+- **Cơ sở sách (ERP Sagegg & Alfnes):** 5.5.1 báo giá = đơn CHƯA validate; khách nhận → CHUYỂN thành order,
+  KHÔNG tạo mới ở trạng thái order · 5.3.3 trạng thái là thứ HỆ ghi theo mức đã đi trong quy trình bán, không
+  phải thứ người nhập tự chọn. → **mọi đơn khởi tạo ở `bao_gia`; client KHÔNG gửi `trang_thai`.**
+- **Quyết (db/151):** RPC `kho.tao_don(p_don jsonb, p_chot boolean)` SECURITY DEFINER, GRANT sale/ceo (theo
+  `current_vai_tro()`→auth_uid). Thân: INSERT `don_hang` với `trang_thai := 'bao_gia'` HARD-CODE; nhận đúng
+  bộ trường `donToRow` TRỪ `trang_thai`; `nguoi_tao` server gán `current_ns()`. Gác `ma_don` thiếu/trùng, lỗi
+  rõ chữ. Nếu `p_chot=true` → gọi tiếp CỔNG `chot_don` (db/148) **cùng transaction** → `moi_len_don`; chot_don
+  RAISE thì exception nổi ra, INSERT rollback theo (không đơn cụt). Hàm **CẤM UPDATE trang_thai** (không đẻ
+  đường ghi thứ hai).
+- **"+ Lên đơn" nay = `tao_don(p_chot=true)`** — đường vào `moi_len_don` vẫn CHỈ một cổng (QD-47/QD-64), vẫn bị
+  `trg_kiem_chuyen_trang_thai` ép `nguon_khach` + `thuong_hieu`. Đơn 0 món qua được cổng món-giá (vacuous: không
+  món giá≤0), món thêm sau như luồng client hiện tại.
+- **Chữ ký:** `kho.tao_don(p_don jsonb, p_chot boolean default false) → table(id uuid, ma_don text, trang_thai text)`.
+- **Thứ tự (như WP-06 L-06c→d):** UI chuyển sang gọi `tao_don` ở **L-133**; **REVOKE INSERT cột `trang_thai`** ở
+  **L-134** (sau UI). Lệnh này CHỈ DB+test, KHÔNG sửa sale.js, KHÔNG revoke, KHÔNG deploy.
+- **Test:** `web/ops/test_wp07.mjs` 6/0 — a) chot=false→bao_gia · b) chot=true→moi_len_don + nhật ký người chốt +
+  nguoi_tao server · c) chot=true thiếu nguồn→RAISE + rollback sạch (0 đơn cụt) · d) vai xuong→CHẶN.
+- **Cơ sở:** ERP 5.5.1/5.3.3 + WP-06 một cổng (QD-64). **HOÀN TÁC:** `drop function kho.tao_don(jsonb, boolean);`
+- **Trạng thái:** ĐÃ ÁP DỤNG (db/151, DB+test). Chưa UI (L-133) / REVOKE INSERT (L-134).
