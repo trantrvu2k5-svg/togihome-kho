@@ -708,7 +708,13 @@ function setupTL() {
   $('tl-doi-luu').onclick = tlLuuDoi
   $('tl-cb-ngoaile2').onchange = tlVeChonTuan
   $('tl-hop-doi').addEventListener('click', e => { if (e.target === $('tl-hop-doi')) tlDong('tl-hop-doi') })
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { tlDong('tl-hop-xep'); tlDong('tl-hop-doi') } })
+  // [WP-43] hộp xếp lại đơn chưa vào được lịch (từ dải đỏ)
+  $('tl-ket-x').onclick = $('tl-ket-huy').onclick = () => tlDong('tl-hop-ket')
+  $('tl-ket-xep').onclick = tlKetXep
+  $('tl-ket-ep').onclick = tlKetEp
+  $('tl-ket-lydo').oninput = () => { $('tl-ket-ep').disabled = $('tl-ket-lydo').value.trim().length < 5 }
+  $('tl-hop-ket').addEventListener('click', e => { if (e.target === $('tl-hop-ket')) tlDong('tl-hop-ket') })
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { tlDong('tl-hop-xep'); tlDong('tl-hop-doi'); tlDong('tl-hop-ket') } })
   // ngoại lệ chỉ ceo
   if (!tlLaCeo()) { const a = $('tl-cb-ngoaile').closest('.tl-ongoaile'), b = $('tl-cb-ngoaile2').closest('.tl-ongoaile'); if (a) a.style.display = 'none'; if (b) b.style.display = 'none' }
 }
@@ -839,6 +845,22 @@ async function taiTaiLich() {
       cb.style.display = ''; cb.innerHTML = '⚠ <b>Năng lực tổ chưa ai xác nhận</b> (' + chua + ' tổ) — ngày giao đang tính bằng số đặt tạm. <a id="tl-nl-link">Sang màn Năng lực tổ →</a>'
       const lk = $('tl-nl-link'); if (lk) lk.onclick = () => di('nlt')
     } else cb.style.display = 'none'
+  }
+  // [WP-43] dải ĐỎ (trên dải vàng): đơn đã bàn giao nhưng máy chưa xếp được vào lịch
+  const db = $('tl-don-canhbao'); if (db) {
+    const { data: dcx } = await sb.rpc('tl_don_chua_xep')
+    const ds = dcx || []
+    if (ds.length) {
+      db.style.display = ''
+      db.innerHTML = '⚠ <b>' + ds.length + ' đơn đã bàn giao nhưng chưa vào được lịch</b>'
+        + '<div class="tl-dcx-ds">' + ds.map(d =>
+          '<div class="tl-dcx-h"><div class="tl-dcx-t"><b>' + esc(d.ma_don) + '</b>'
+          + (d.ten_khach ? ' <span>· ' + esc(d.ten_khach) + '</span>' : '')
+          + '<small>' + esc(d.ly_do || 'chưa rõ lý do') + '</small></div>'
+          + '<button class="tl-nut-vien" data-ketxep="' + esc(d.ma_don) + '" data-ketmota="' + esc(d.ma_don + (d.ten_khach ? ' · ' + d.ten_khach : '')) + '" data-kethen="' + esc(d.ngay_hen_khach || '') + '">Xếp lại đơn</button></div>').join('')
+        + '</div>'
+      db.querySelectorAll('[data-ketxep]').forEach(b => b.onclick = () => moKetXep(b.dataset.ketxep, b.dataset.ketmota, b.dataset.kethen))
+    } else db.style.display = 'none'
   }
 }
 
@@ -1044,6 +1066,58 @@ async function tlLuuXep() {
   tlDong('tl-hop-xep'); $('tl-xep-lydo').value = ''
   await taiTaiLich()
   bao('✓ Đã xếp lại ' + ma + ' · ' + (r.so_dong || 0) + ' bước')
+}
+
+// ══════════ XẾP LẠI ĐƠN CHƯA VÀO ĐƯỢC LỊCH (WP-43 · từ dải đỏ) ══════════
+function moKetXep(maDon, mota, hen) {
+  TL.ketDon = maDon; TL.ketHen = hen || null   // có hẹn → kiểu 'nguoc' · không hẹn → 'xuoi' (giống ban_giao_xuong)
+  $('tl-ket-mota').textContent = mota || maDon
+  $('tl-ket-canh').innerHTML = ''
+  $('tl-ket-ceo').style.display = 'none'
+  $('tl-ket-canceo').style.display = 'none'
+  $('tl-ket-lydo').value = ''
+  $('tl-ket-ep').style.display = 'none'; $('tl-ket-ep').disabled = true
+  const xep = $('tl-ket-xep'); xep.style.display = ''; xep.disabled = false
+  $('tl-hop-ket').classList.add('tl-mo')
+}
+// MỘT lần gọi. Kiểu chọn theo DỮ LIỆU (giống ban_giao_xuong): có hẹn → 'nguoc' · không hẹn → 'xuoi'.
+//   RPC từ chối (đóng băng…) thì trả nguyên văn — KHÔNG thử lại kiểu khác (đổi kiểu im lặng = giấu tin).
+async function tlKetGoi(ngoaiLe, lyDo) {
+  const kieu = TL.ketHen ? 'nguoc' : 'xuoi'
+  return await sb.rpc('luu_xep_lich', { p_ma_don: TL.ketDon, p_kieu: kieu, p_ngoai_le: ngoaiLe, p_ly_do: lyDo || null })
+}
+async function tlKetXong(r) {
+  const ma = TL.ketDon
+  tlDong('tl-hop-ket')
+  await taiTaiLich()
+  bao('✓ Đã xếp lại ' + ma + ' · ' + ((r && r.so_dong) || 0) + ' bước')
+}
+// hiện NGUYÊN VĂN lý do RPC (chỉ bỏ tiền tố tên hàm). Đóng băng → ceo: mở ô lý do + nút Ép; xuong: chỉ báo "cần CEO".
+function tlKetLoi(msg) {
+  const ly = String(msg || '').replace(/^luu_xep_lich:\s*/, '')
+  $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Chưa xếp được</b>' + esc(ly) + '</div>'
+  $('tl-ket-xep').style.display = 'none'
+  if (/đóng băng/i.test(ly)) {
+    if (tlLaCeo()) { $('tl-ket-ceo').style.display = ''; $('tl-ket-ep').style.display = ''; $('tl-ket-ep').disabled = true; $('tl-ket-lydo').focus() }
+    else $('tl-ket-canceo').style.display = ''
+  }
+}
+async function tlKetXep() {
+  $('tl-ket-xep').disabled = true
+  const { data: r, error } = await tlKetGoi(false, null)
+  if (error) return tlKetLoi(error.message)
+  if (r && r.ok) return tlKetXong(r)
+  tlKetLoi((r && r.loi) || 'máy không xếp nổi')
+}
+async function tlKetEp() {
+  const ly = $('tl-ket-lydo').value.trim()
+  if (ly.length < 5) return
+  $('tl-ket-ep').disabled = true
+  const { data: r, error } = await tlKetGoi(true, ly)
+  if (error) { $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Không ép được</b>' + esc(String(error.message).replace(/^luu_xep_lich:\s*/, '')) + '</div>'; $('tl-ket-ep').disabled = false; return }
+  if (r && r.ok) return tlKetXong(r)
+  $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Không ép được</b>' + esc((r && r.loi) || 'máy không xếp nổi') + '</div>'
+  $('tl-ket-ep').disabled = false
 }
 
 // ══════════ HỘP DỜI TAY (đường phụ) ══════════

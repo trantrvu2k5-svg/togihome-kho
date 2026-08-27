@@ -502,6 +502,11 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .nl-dai-do{background:var(--do-nhat);color:var(--do)}.nl-dai-vang{background:#FDF3E3;color:#8A5A05}.nl-dai-xanh{background:#E7EFEA;color:var(--xong)}
 .nl-canhbao{border-radius:9px;padding:11px 15px;font-size:13.5px;margin-bottom:14px}
 .nl-do{background:var(--do-nhat);border:1px solid #F0C4C0;color:var(--do)}
+.tl-dcx-ds{margin-top:9px;display:flex;flex-direction:column;gap:7px}
+.tl-dcx-h{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #F0C4C0;border-radius:7px;padding:8px 12px}
+.tl-dcx-t{min-width:0} .tl-dcx-t b{font-weight:600} .tl-dcx-t span{color:var(--chu-nhat);font-weight:400}
+.tl-dcx-t small{display:block;color:#8A5040;margin-top:2px;font-size:12px;line-height:1.4}
+.tl-dcx-h .tl-nut-vien{flex:none;white-space:nowrap}
 .nl-vang{background:#FDF3E3;border:1px solid #F0D9A8;color:#8A5A05}
 .nl-vang a{color:#8A5A05;font-weight:600;text-decoration:underline;cursor:pointer}
 .nl-lichsu td{font-size:13px}
@@ -722,6 +727,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         <div class="dau"><div><h1>Tải và lịch</h1><p>Bấm một ô để xem việc trong tuần đó. Mặc định chỉ hiện chỗ cần xử.</p></div>
           <div class="quy-mo" style="text-align:right;font-size:13px;color:var(--chu-nhat)"><b id="tl-so-don" style="font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--chu);display:block">—</b>đơn dở dang có vấn đề</div></div>
 
+        <div id="tl-don-canhbao" class="nl-canhbao nl-do" style="display:none"></div>
         <div id="tl-nl-canhbao" class="nl-canhbao nl-vang" style="display:none"></div>
 
         <div class="tl-bang-xu" id="tl-bang"></div>
@@ -788,6 +794,23 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
         <textarea rows="2" id="tl-xep-lydo" placeholder="khách xin lùi · ưu tiên đơn khác · tổ hỏng máy…"></textarea>
       </div>
       <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-xep-huy">Huỷ</button><button class="tl-n-ok" id="tl-xep-luu">Xếp lại và lưu</button></div>
+    </div>
+  </div>
+
+  <!-- HỘP XẾP LẠI ĐƠN CHƯA VÀO ĐƯỢC LỊCH (từ dải cảnh báo đỏ · WP-43) -->
+  <div class="tl-phu" id="tl-hop-ket">
+    <div class="tl-hop">
+      <div class="tl-hop-dau"><div><h3>Xếp lại đơn</h3><p id="tl-ket-mota"></p></div><button class="tl-hop-dong" id="tl-ket-x">×</button></div>
+      <div class="tl-hop-than">
+        <p style="font-size:13px;color:var(--chu-nhat);margin-bottom:12px">Đơn đã bàn giao xưởng nhưng máy chưa xếp được vào lịch. Bấm để máy xếp lại.</p>
+        <div id="tl-ket-canh"></div>
+        <div id="tl-ket-ceo" style="display:none">
+          <label>Vì sao ép vào tuần đóng băng (bắt buộc)</label>
+          <textarea rows="2" id="tl-ket-lydo" placeholder="khách xin gấp · ưu tiên đơn này · đã hứa khách…"></textarea>
+        </div>
+        <div class="tl-canh" id="tl-ket-canceo" style="display:none"><b>Cần CEO mở ngoại lệ</b>Tuần đóng băng đã cắt tấm, đặt vật tư. Chỉ CEO mới ép xếp việc vào đó được.</div>
+      </div>
+      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-ket-huy">Đóng</button><button class="tl-n-ok" id="tl-ket-xep">Xếp lại đơn</button><button class="tl-n-ok" id="tl-ket-ep" style="display:none" disabled>Ép xếp (ngoại lệ)</button></div>
     </div>
   </div>
 

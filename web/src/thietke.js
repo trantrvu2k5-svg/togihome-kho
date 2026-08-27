@@ -34,7 +34,7 @@ const loaiCap = c => LOAI_CAP[c] || (c ? c.replace(/_/g, ' ') : '—')
 const laNhanEr = () => USER && (USER.coTK || USER.coBH)          // có năng lực nhận việc (base + phụ)
 const laTruong = () => USER && ['ceo', 'truong_nhom_thiet_ke'].includes(USER.vai_tro)
 const laBaoGia = tt => ['bao_gia', 'bao_gia_treo'].includes(tt)  // đơn báo giá = việc BÁN HÀNG
-function bao(t, loi) { const el = $('bao'); el.textContent = t; el.classList.toggle('loi', !!loi); el.classList.add('hien'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('hien'), 2800) }
+function bao(t, loi, canh) { const el = $('bao'); el.textContent = t; el.classList.toggle('loi', !!loi); el.classList.toggle('canh', !!canh); el.classList.add('hien'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('hien'), canh ? 5200 : 2800) }
 const homNay = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
 const treKhong = ngay => ngay && new Date(ngay) < homNay()
 const gioLuc = s => { if (!s) return ''; const d = new Date(s); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}` }
@@ -1155,9 +1155,12 @@ async function nsBanGiao() {
       if (up.error) throw new Error(up.error.message)
       ds.push({ loai_file: f.loai, duong_dan: path, ten_goc: f.ten, co_byte: f.byte })
     }
-    const { error } = await sb.rpc('ban_giao_xuong', { p_ma_don: NS.ma_don, p_danh_sach: ds, p_ghi_chu: null })
+    const { data: rbg, error } = await sb.rpc('ban_giao_xuong', { p_ma_don: NS.ma_don, p_danh_sach: ds, p_ghi_chu: null })
     if (error) { bao(error.message.replace(/^.*(THIEU_FILE_CAT|CHUA_KHACH_DUYET|THIEU_SO_DON_VI|CHUA_GAN_QUY_TRINH|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT):\s*/, ''), true); btn.disabled = false; btn.textContent = cu; return }
-    bao('Đã gửi file + số cho xưởng — đơn vào chờ cắt ✓'); NS.files = []; await taiNhapSo()
+    // [WP-43] bàn giao ĐÃ xong (không chặn) — báo thêm việc tự xếp lịch có vào được hay không
+    if (rbg && rbg.da_xep) bao('Đã gửi xưởng · đã vào lịch, ' + (rbg.so_dong_xep_lich || 0) + ' dòng ✓')
+    else bao('Đã gửi xưởng · CHƯA vào được lịch: ' + ((rbg && rbg.ly_do_khong_xep) || 'không rõ') + '. Xưởng sẽ xếp tay.', false, true)
+    NS.files = []; await taiNhapSo()
   } catch (e) { bao('Gửi lỗi: ' + e.message, true); btn.disabled = false }
 }
 function nsNhacCuoi() {
