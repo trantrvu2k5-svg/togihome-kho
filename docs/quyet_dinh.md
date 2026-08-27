@@ -1016,3 +1016,20 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   được.) Vai xuong/ceo; test_wp47 5.1-5.4.
 - **HOÀN TÁC:** xem đầu db/154 + `drop function kho.nl_xac_nhan(text)` (db/155). **Trạng thái:** ĐÃ ÁP DỤNG
   (db/154+155, DB+test). UI Năng lực tổ đã dựng (L-03, app Xưởng); **nút xác nhận (nl_xac_nhan) chưa nối vào UI**.
+
+## QD-69 (27/08, WP-43) — VIỆC THẬT THẮNG SỐ SUY · CHỐT
+
+- **Nguyên tắc:** Bàn giao, quét, và mọi **sự kiện có thật ngoài đời** KHÔNG BAO GIỜ bị lịch — hay bất kỳ **số suy**
+  nào — chặn. Số suy hỏng thì **gắn cờ + dải cảnh báo KHÔNG nút tắt**, KHÔNG nuốt im, KHÔNG chặn việc thật.
+- **Họ QD-55** (thiếu hệ số không chặn thợ — cấu hình thiếu ghi nợ, xử sau, không dừng sản xuất). Cùng tinh thần:
+  dữ liệu/số suy khuyết → nợ hiện mặt, việc thật đi tiếp.
+- **Chạy thật ở WP-43 đường 1:** việc 6 trong `ban_giao_xuong` (tự gọi `_sched` ghi `xep_lich`) bọc
+  `BEGIN…EXCEPTION WHEN OTHERS` → xếp lịch hỏng thì NUỐT lỗi, **5 việc trước VẪN LƯU**, đơn vẫn vào `cho_cat`.
+  Xếp không được → cột `chua_xep_duoc` + `ly_do_chua_xep` (lý do thật) + **dải ĐỎ ở màn Tải & lịch không có nút
+  tắt** (`tl_don_chua_xep`). "Nuốt lỗi" ở đây = không chặn việc thật, KHÔNG PHẢI giấu — cờ + dải đỏ phơi ra.
+- **Phân biệt với QD-68:** QD-68 nói `xep_lich` là bảng SUY (client không ghi). QD-69 nói THÊM: khi số suy đó
+  tính hỏng, nó không được phép kéo việc thật (bàn giao) hỏng theo.
+- **Cơ sở sách:** MES 5.4.4 (thao tác thật do người/máy trạm quyết, thuật toán chỉ lấp phần còn lại) · ERP 7.3
+  (fence/lịch là số kế hoạch, không phủ quyết sự kiện thực thi).
+- **Trạng thái:** ĐÃ CHẠY (db/156-159, v-kho-128; `test_wp43` 6.2/7.3 chứng minh bàn giao thành công khi xếp
+  hỏng, cờ bật, lịch để trống).
