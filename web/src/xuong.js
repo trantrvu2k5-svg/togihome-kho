@@ -661,6 +661,26 @@ async function taiGiu() {
 }
 const giuLau = h => { const g = Number(h) || 0; return g < 1 ? Math.round(g * 60) + ' phút' : (g < 10 ? g.toFixed(1).replace('.', ',') : Math.round(g)) + ' giờ' }
 
+// WP-46 (L-38): hiện ĐỦ nhánh sẵn sàng sau quét. Không chọn hộ; cả hai nhánh đi được thì nói cả hai.
+function veTiep(g) {
+  if (g.xong_mon) return `<div class="tq-xongmon"><b>XONG MÓN</b><span>Tấm này đã qua hết các bước.</span></div>`
+  const ds = Array.isArray(g.buoc_ke_ds) ? g.buoc_ke_ds : []
+  if (!ds.length) return ''                                  // đang làm dở, chưa mở bước mới
+  const dotTo = x => x.to ? esc(x.to) : (x.tram ? esc(x.tram) : '')   // to=null → hiện TRẠM, không đoán tổ
+  const phu = x => [x.to ? esc(x.to) : null, x.tram ? esc(x.tram) : null].filter(Boolean).join(' · ')
+  if (ds.length === 1) {
+    const x = ds[0]
+    return `<div class="tq-tiep-1"><p>TIẾP THEO</p><b>${esc(x.ten_buoc)}</b>${dotTo(x) ? `<span>${dotTo(x)}</span>` : ''}</div>`
+  }
+  const chinh = ds.find(x => x.cua_tram_nay)                 // bước của trạm đang quét (có thể không có)
+  const primary = chinh || null
+  const con = primary ? ds.filter(x => x !== primary) : ds
+  const head = primary
+    ? `<div class="tq-tiep-tram"><p>VIỆC Ở TRẠM NÀY</p><b>${esc(primary.ten_buoc)}</b>${dotTo(primary) ? `<span>${dotTo(primary)}</span>` : ''}</div>`
+    : `<div class="tq-tiep-caca"><p>${ds.length} NHÁNH ĐANG MỞ</p><span>Làm nhánh nào cũng được.</span></div>`
+  const items = con.map(x => `<div class="tq-nhanh-hang"><b>${esc(x.ten_buoc)}</b><span>${phu(x)}</span></div>`).join('')
+  return `<div class="tq-tiep-nhieu">${head}<div class="tq-nhanh"><p class="nhan">${primary ? 'Nhánh khác đang mở' : 'Các nhánh sẵn sàng'}</p>${items}</div></div>`
+}
 function veKq(g) {
   const box = $('tqKq')
   const monLine = (g.mon ? esc(g.mon) + ' ' : '') + '<span>' + [g.tam, g.don ? 'đơn ' + g.don : ''].filter(Boolean).map(esc).join(' · ') + '</span>'
@@ -670,9 +690,10 @@ function veKq(g) {
       <div class="tq-kq-hang">
         <div><p>Vừa ${g.loai === 'ra' ? 'ra' : 'vào'}</p><b>${esc(g.hoat_dong_ten || '')}</b></div>
         ${g.mat_phut != null ? `<div><p>Mất</p><b>${g.mat_phut} phút</b></div>` : ''}
-        ${g.buoc_ke ? `<div><p>Tiếp theo</p><b>${esc(g.buoc_ke)}</b></div>` : ''}
         ${g.xong != null && g.tong_buoc != null ? `<div><p>Tấm này</p><b>${g.xong}/${g.tong_buoc} bước</b></div>` : ''}
-      </div></div></div>`
+      </div>
+      ${veTiep(g)}
+      </div></div>`
     veBfToast(g)
   } else {
     box.innerHTML = `<div class="tq-kq chan"><div class="tq-kq-dau"><div class="bieu">✕</div><b>Chặn</b></div>
