@@ -1056,3 +1056,30 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   quyết) · QD-01 (đồ thị buoc_truoc).
 - **Trạng thái:** ĐÃ CHẠY prod (db/165, backup pre-migrate; `test_wp46a` 9/0; hồi quy wp43·44·45·47 = 26·15·11·28,
   TỔNG 89/0). CHƯA commit, CHƯA tag, CHƯA deploy UI.
+
+## QD-71 (28/08, WP-08, db/169→173) — ĐỒ THỊ QUY TRÌNH CÓ PHIÊN BẢN; MÓN NEO PHIÊN BẢN LÚC BÀN GIAO · CHỐT
+
+Đồ thị quy trình có phiên bản; món neo phiên bản lúc bàn giao.
+
+- `quy_trinh_buoc` thêm `phien_ban`, khoá `(ma_quy_trinh, phien_ban, thu_tu)`; bảng `quy_trinh_phien_ban` vừa là
+  bản phát hành vừa là lịch sử; mỗi mẫu đúng một bản `hien_hanh`.
+- `don_hang_mon.quy_trinh_phien_ban` = điểm neo, `ban_giao_xuong` ghi bản `hien_hanh` lúc chốt (cùng mốc chốt BOM
+  du_kien→chuan của QD-16). Món chưa bàn giao đọc bản `hien_hanh`.
+- Mọi hàm chạy theo món đọc bước qua `buoc_cua_mon(mon_id)`; cấm hàm theo-món tự SELECT `quy_trinh_buoc` (một
+  nguồn suy).
+- Sửa mẫu ĐANG có món neo = phát hành bản mới (copy-on-write, giữ nguyên `thu_tu` vì `buoc_truoc[]` trỏ `thu_tu`),
+  bản cũ chuyển `'cu'` và còn đọc được; mẫu chưa ai chạy thì sửa tại chỗ. Lý do sửa bắt buộc khi có món neo.
+- Kéo đơn đang chạy sang bản mới chỉ qua `qt_doi_phien_ban_mon`, bắt buộc lý do, chặn món đã giao, ghi sổ
+  append-only `mon_doi_phien_ban`.
+- `quy_trinh_buoc` + `quy_trinh_phien_ban`: `authenticated` chỉ SELECT, chỉ RPC DEFINER ghi.
+
+**LÝ DO:** MES 4.2.5 buộc lưu trữ mọi phiên bản cũ và giữ chúng đọc được (truy vết, và sản xuất lại theo bản cũ).
+ERP (Sagegg & Alfnes) 6.5.5: thay đổi kỹ thuật mặc định áp cho đơn MỚI, đơn đang chạy giữ bản cũ; kéo đơn đang
+chạy sang bản mới là hành động tường minh có lý do, không phải tác dụng phụ. Trước WP-08, sửa mẫu đổi ngay đường đi
+của mọi đơn đang chạy kể cả đã bàn giao — thợ đang làm giữa chừng thì bước nhảy dưới chân.
+
+- **Trạng thái:** ĐÃ CHẠY prod (db/169-173, backup pre-migrate; `test_wp08` 24/0; hồi quy bảy bộ + WP-46 = 126/2,
+  2 đỏ là ô nhiễm chéo nhóm sale khi chạy tuần tự — 5 file đó pass đơn lẻ 89/0, không đụng WP-08). UI tab Quy trình
+  app sanpham đã deploy + CEO kiểm mắt 4 ảnh + bấm nút thật (TU-BEP sửa tại chỗ, phiên bản không tăng; đổi tên;
+  hoàn nguyên). PHÁT SINH: (a) nút kéo đơn sang bản mới chưa lên UI; (b) `quy_trinh_cua_mon` còn lưới
+  `min(phien_ban)` — gỡ khi chắc mọi mẫu đều có dòng `hien_hanh`.

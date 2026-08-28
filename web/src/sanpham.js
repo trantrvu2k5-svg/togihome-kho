@@ -379,10 +379,13 @@ function renderQtPhai() {
   $('qtPhai').innerHTML = `
     <div class="the">
       <div class="the-dau">
-        <div><h2>${esc(c.ten)}</h2><p><span class="mono" style="font-size:12.5px">${esc(c.ma_quy_trinh)}</span> · ${c.so_buoc} bước · ${c.so_mon_dung} món đang dùng</p></div>
+        <div><h2>${esc(c.ten)} <span class="qt08-chip">Bản ${c.phien_ban_hien_hanh} · hiện hành</span> <button class="qt08-but" id="qt08SuaTen" title="Sửa tên mẫu">✎ tên</button></h2>
+          <p><span class="mono" style="font-size:12.5px">${esc(c.ma_quy_trinh)}</span> · ${c.so_buoc} bước · ${c.so_mon_dung} món đang dùng${(c.cac_phien_ban || []).some(v => v.trang_thai === 'cu') ? ` · <a href="#" id="qt08XemCu" class="qt08-link">xem bản cũ</a>` : ''}</p></div>
         <div class="the-nut"><button class="nut-vien" id="qtChep">Chép thành quy trình mới</button><button class="nut-vien" id="qtXemMon">Xem ${c.so_mon_dung} món</button></div>
       </div>
-      ${c.so_mon_dung > 0 ? `<div class="canh"><b>${c.so_mon_dung} món đang dùng quy trình này</b>Sửa sẽ đổi giờ và giá vốn của các món CHƯA bàn giao xuống xưởng. Món ĐÃ bàn giao giữ nguyên số, giờ và giá vốn tại lúc bàn giao.</div>` : ''}
+      ${QT.okMsg ? `<div class="qt08-xanh">${esc(QT.okMsg)}</div>` : ''}
+      ${c.so_mon_dang_chay > 0 ? `<div class="qt08-dai-vang"><p><b>${c.so_mon_dang_chay} món đang chạy theo bản ${c.phien_ban_hien_hanh}.</b> Sửa mẫu sẽ phát hành bản ${c.phien_ban_hien_hanh + 1} — món đang chạy giữ nguyên bản cũ.</p>
+        <div class="qt08-lydo"><label for="qt08LyDo">Lý do sửa</label><input id="qt08LyDo" placeholder="vd: khách đổi kích thước, thêm bước chà lót…" autocomplete="off"><span class="qt08-loi" id="qt08Loi"></span></div></div>` : ''}
       <div class="so-do"><h3>Đường đi — nhìn hình trước, chi tiết sau</h3><div class="chuoi">${chip}</div></div>
       <div class="b-dau"><div>Thứ tự</div><div>Hoạt động</div><div>Chạy sau bước</div><div>Phút mỗi đơn vị</div><div>Nhánh</div><div>Đơn giá</div><div></div></div>
       ${rows || '<p style="padding:16px;color:var(--chu-mo)">Chưa có bước nào.</p>'}
@@ -400,13 +403,47 @@ function renderQtPhai() {
         <div class="s nhat">${h.dung_o ? h.dung_o + ' QT' : '<span class="chua-qt">chưa vào quy trình nào</span>'}</div></div>`).join('')}
       <div class="nhac"><b>Số giờ còn TẠM — chưa có số đo thật</b>Khi máy quét chạy, giờ thật sẽ tự thay vào và dấu TẠM mất dần.</div>
     </div>`
+  QT.okMsg = null   // dải xanh chỉ hiện MỘT lần
   // bind
   $('qtChep').onclick = () => moChep(c.ma_quy_trinh)
   $('qtXemMon').onclick = xemMon
   $('qtThem').onclick = moThemBuoc
+  if ($('qt08SuaTen')) $('qt08SuaTen').onclick = () => moSuaTen(c)
+  if ($('qt08XemCu')) $('qt08XemCu').onclick = e => { e.preventDefault(); xemBanCu(c) }
   $('qtPhai').querySelectorAll('[data-phut]').forEach(inp => inp.onchange = () => xacNhanRoiLuu(() => luuBuoc(Number(inp.closest('[data-b]').dataset.b))))
   $('qtPhai').querySelectorAll('[data-btmo]').forEach(btn => btn.onclick = () => moChonTruoc(Number(btn.dataset.btmo)))
   $('qtPhai').querySelectorAll('[data-xoa]').forEach(b => b.onclick = () => xoaBuoc(Number(b.dataset.xoa)))
+}
+// WP-08: sửa TÊN mẫu (qt_doi_ten)
+function moSuaTen(c) {
+  moModal('Sửa tên quy trình',
+    `<label style="display:block;font-size:12.5px;color:var(--chu-nhat);margin-bottom:5px">Tên đọc được (mã <span class="mono">${esc(c.ma_quy_trinh)}</span> không đổi)</label>
+     <input id="stTen" value="${esc(c.ten)}" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:9px">`,
+    `<button class="nut-vien" id="stHuy">Huỷ</button><button class="nut-chinh" id="stOk">Lưu tên</button>`)
+  $('stHuy').onclick = dongSua
+  $('stOk').onclick = async () => {
+    const ten = $('stTen').value.trim()
+    if (!ten) { bao('Tên không được rỗng', true); return }
+    dongSua()
+    const { error } = await sb.rpc('qt_doi_ten', { p_ma: c.ma_quy_trinh, p_ten: ten })
+    if (error) { bao(error.message, true); return }
+    bao('Đã đổi tên'); await veQuyTrinh()
+  }
+}
+// WP-08: XEM BẢN CŨ chỉ đọc (không nút sửa/xoá)
+async function xemBanCu(c) {
+  const cu = (c.cac_phien_ban || []).filter(v => v.trang_thai === 'cu').map(v => v.phien_ban).sort((a, b) => b - a)
+  const pb = cu[0]; if (pb == null) return
+  const { data, error } = await sb.rpc('qt_chi_tiet', { p_qt: c.ma_quy_trinh, p_phien_ban: pb })
+  if (error) { bao(error.message, true); return }
+  const rows = (data.buoc || []).map(b => `<div style="display:grid;grid-template-columns:40px 1fr 90px 70px;gap:8px;padding:7px 0;border-bottom:1px solid var(--vien);font-size:13.5px">
+    <span class="mono">${b.thu_tu}</span><b>${esc(b.ten_hoat_dong || b.hoat_dong)}</b>
+    <span style="color:var(--chu-nhat)">${b.phut != null ? b.phut + ' phút' : 'tự chạy'}</span>
+    <span class="nhanh n-${b.nhanh === 'thùng' ? 'thung' : b.nhanh === 'cánh' ? 'canh' : 'chung'}">${esc(b.nhanh || 'chung')}</span></div>`).join('')
+  moModal(`Bản ${pb} (cũ) — CHỈ ĐỌC · ${esc(c.ten)}`,
+    `<p style="font-size:12.5px;color:var(--chu-nhat);margin-bottom:8px">Bản cũ giữ nguyên cho món đang chạy — không sửa được ở đây.</p>${rows || '<p style="color:var(--chu-mo)">Không có bước.</p>'}`,
+    `<button class="nut-chinh" id="bcOk">Đóng</button>`)
+  $('bcOk').onclick = dongSua
 }
 // hộp chọn "chạy sau bước" (chọn nhiều), không có chính nó
 function moChonTruoc(thu_tu) {
@@ -427,20 +464,25 @@ function moChonTruoc(thu_tu) {
 }
 async function luuBuocTruoc(thu_tu, bt) {
   const b = QT.ct.buoc.find(x => x.thu_tu === thu_tu); if (!b) return
-  const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: b.phut || 0 })
-  if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
-  bao('Đã đổi bước chạy trước'); await veQuyTrinh()
+  const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: b.phut || 0, p_ly_do: qtLyDo() })
+  if (qtSave(r) === 'inline') return
+  await veQuyTrinh()
 }
-// hộp xác nhận khi quy trình đang có món dùng — tách hai con số (đếm thật)
-function xacNhanRoiLuu(fn) {
-  const c = QT.ct
-  if (!c || c.so_mon_dung === 0) return fn()
-  moModal('Xác nhận sửa quy trình',
-    `<div class="canh" style="border-radius:8px;border-width:1px"><b>${c.so_mon_dung} món đang dùng quy trình này.</b>Sửa sẽ đổi giờ và giá vốn của các món CHƯA bàn giao xuống xưởng. Món ĐÃ bàn giao giữ nguyên số, giờ và giá vốn tại lúc bàn giao.</div>
-     <p style="margin-top:12px;font-size:14.5px;line-height:1.7"><b class="mono">${c.mon_chua_ban_giao}</b> món chưa bàn giao — <b style="color:var(--do)">sẽ đổi</b>.<br><b class="mono">${c.mon_da_ban_giao}</b> món đã bàn giao — <b style="color:var(--xong)">giữ nguyên</b>.</p>`,
-    `<button class="nut-vien" id="xnHuy">Huỷ</button><button class="nut-chinh" id="xnOk">Đồng ý, lưu</button>`)
-  $('xnHuy').onclick = () => { dongSua(); veQuyTrinh() }
-  $('xnOk').onclick = () => { dongSua(); fn() }
+// WP-08: dải vàng + ô lý do INLINE thay hộp xác nhận cũ (siết ở server, ô lý do hiện khi so_mon_dang_chay>0)
+function xacNhanRoiLuu(fn) { return fn() }   // giữ tên gọi cũ; dải/ô lý do lo phần "xác nhận"
+const qtLyDo = () => { const i = $('qt08LyDo'); return i ? i.value.trim() : '' }
+// xử kết quả RPC sửa mẫu: 'ok' | 'inline' (thiếu lý do, giữ ô) | 'loi' (khác, toast + tải lại số cũ)
+function qtSave(r) {
+  const loiEl = $('qt08Loi')
+  if (r.error) {
+    if (/nhập lý do sửa/.test(r.error.message)) { if (loiEl) loiEl.textContent = r.error.message; return 'inline' }
+    bao(qtLoiText(r.error.message), true); return 'loi'
+  }
+  const d = r.data || {}
+  QT.okMsg = d.che_do === 'da_phat_hanh_phien_ban'
+    ? `Đã phát hành bản ${d.phien_ban_moi}. Đơn mới đi theo bản mới; ${d.so_mon_dang_chay} món đang chạy vẫn theo bản cũ.`
+    : 'Đã lưu.'
+  return 'ok'
 }
 async function luuBuoc(thu_tu) {
   const row = $('qtPhai').querySelector(`[data-b="${thu_tu}"]`); if (!row) return
@@ -450,15 +492,15 @@ async function luuBuoc(thu_tu) {
   if (inp && (!isFinite(phut) || phut < 0)) { bao('Phút phải là số ≥ 0', true); veQuyTrinh(); return }
   const sel = row.querySelector('[data-bt]')
   const bt = sel ? [...sel.selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n)) : (b.buoc_truoc || [])
-  const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: phut })
-  if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }   // fail-đóng: tải lại số cũ
-  bao('Đã lưu bước ' + thu_tu); await veQuyTrinh()
+  const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: phut, p_ly_do: qtLyDo() })
+  if (qtSave(r) === 'inline') return   // thiếu lý do → giữ ô, KHÔNG tải lại
+  await veQuyTrinh()                    // ok: dải xanh · loi: tải lại số cũ (fail-đóng)
 }
 function xoaBuoc(thu_tu) {
   xacNhanRoiLuu(async () => {
-    const { error } = await sb.rpc('qt_xoa_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu })
-    if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
-    bao('Đã xoá bước ' + thu_tu); await veQuyTrinh()
+    const r = await sb.rpc('qt_xoa_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_ly_do: qtLyDo() })
+    if (qtSave(r) === 'inline') return
+    await veQuyTrinh()
   })
 }
 function moThemBuoc() {
@@ -482,9 +524,9 @@ function moThemBuoc() {
     if (!isFinite(phut) || phut < 0) { bao('Phút phải là số ≥ 0', true); return }
     const bt = [...$('tbTruoc').selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n))
     dongSua()
-    const { error } = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: maxTt + 100, p_hoat_dong: $('tbHd').value, p_buoc_truoc: bt, p_nhanh: $('tbNhanh').value, p_phut: phut })
-    if (error) { bao(qtLoiText(error.message), true); await veQuyTrinh(); return }
-    bao('Đã thêm bước'); await veQuyTrinh()
+    const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: maxTt + 100, p_hoat_dong: $('tbHd').value, p_buoc_truoc: bt, p_nhanh: $('tbNhanh').value, p_phut: phut, p_ly_do: qtLyDo() })
+    if (qtSave(r) === 'inline') return
+    await veQuyTrinh()
   })
 }
 function moChep(nguon) {
