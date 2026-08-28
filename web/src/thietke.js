@@ -441,10 +441,19 @@ async function capNhatNgay() {
   }
   el.innerHTML = '<span class="don-phu">Đang tính ngày…</span>'
   try {
-    const { data, error } = await sb.rpc('atp', { p_ma_don: SOUOC.ma_don, p_moc: 'du_kien' })
+    // [WP-44] ngày giao dự kiến từ ngay_giao_hua (CTP: tải + thiếu vật tư + lead) — KHÔNG còn atp thẳng
+    const { data, error } = await sb.rpc('ngay_giao_hua', { p_ma_don: SOUOC.ma_don })
     if (error) throw new Error(error.message)
-    if (data.ok && data.ngay_hua_duoc) {
-      el.innerHTML = `<div style="color:var(--xong);font-weight:600">Với số này, xưởng làm nổi khoảng ${dmy(data.ngay_hua_duoc)}${data.da_dung_moc_khac ? ' (theo số chuẩn)' : ' (ước)'}.</div>`
+    if (data.ok && data.ngay_hua) {
+      const uoc = data.do_tin === 'uoc'
+      const leadN = ((data.cac_gia_dinh || []).find(s => /lead mặc định/.test(s)) || '').match(/(\d+)\s*ngày/)
+      let h = `<div style="font-weight:600;font-size:15px">Ngày giao dự kiến: ${dmy(data.ngay_hua)}</div>`
+      h += `<div style="font-size:12.5px;margin-top:2px;color:${uoc ? '#8A5A05' : 'var(--xong)'}">${uoc ? 'Ước tính — chưa phải số chắc' : 'Theo số chuẩn'}</div>`
+      h += (data.can_cu || []).map(s => `<div class="don-phu" style="margin-top:3px;line-height:1.5">• ${esc(s)}</div>`).join('')
+      if (data.vat_tu_dang_doan && data.vat_tu_dang_doan.length) h += `<div style="margin-top:8px;padding:9px 12px;border-radius:9px;background:#FDF3E3;border:1px solid #F0D9A8;color:#8A5A05;font-size:12.5px;line-height:1.5"><b>Chưa có lead time NCC cho:</b> ${esc(data.vat_tu_dang_doan.join(', '))}. Đang tạm tính ${leadN ? leadN[1] : 'mặc định'} ngày — hỏi mua hàng trước khi hứa ngày với khách.</div>`
+      if (data.cac_gia_dinh && data.cac_gia_dinh.length) h += `<div class="don-phu" style="margin-top:6px;line-height:1.5">Giả định đã dùng: ${esc(data.cac_gia_dinh.join(' · '))}</div>`
+      if (data.cach_tinh && data.cach_tinh.length) h += `<div class="don-phu" style="margin-top:4px;font-style:italic;line-height:1.5">${esc(data.cach_tinh.join(' · '))}</div>`
+      el.innerHTML = h
     } else {
       el.innerHTML = `<div class="don-phu" style="color:var(--cho)">Chưa tính được ngày (${esc(data.loi || 'thiếu số')}).</div>`
     }

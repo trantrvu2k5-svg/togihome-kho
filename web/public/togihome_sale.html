@@ -2145,7 +2145,7 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const xongLine = b => {
     const a = atpMap[b.ma_don];
     if (a === undefined) return el("div", { className: "bg-xong bg-xong-cho" }, "đang tính…");
-    if (a.ok && a.ngay_hua_duoc) return el("div", { className: "bg-xong bg-xong-ok" }, "xong xưởng (dự kiến) ", el("b", null, dmy(a.ngay_hua_duoc)), el("span", { className: "bg-xong-tam" }, " [TẠM]"));
+    if (a.ok && a.ngay_hua_duoc) return el("div", { className: "bg-xong bg-xong-ok", style: a.do_tin === "uoc" ? { color: "#8A5A05" } : null }, "xong xưởng ", el("b", null, dmy(a.ngay_hua_duoc)), a.do_tin === "uoc" ? el("span", { className: "bg-xong-tam" }, " (ước)") : null);
     if (a.loi === "THIEU_SO_DON_VI") return el("div", { className: "bg-xong bg-xong-cho" }, "chờ thiết kế nhập số ước");
     if (a.loi === "KHONG_XEP_DUOC_TRONG_12_TUAN") return el("div", { className: "bg-xong bg-xong-tran" }, "ngoài tầm 12 tuần, cần xếp tay");
     return el("div", { className: "bg-xong bg-xong-cho" }, "chưa tính được");
@@ -5360,18 +5360,32 @@ function XemDon({
   const chuaChot = d.tt === "bao_gia";   // đơn báo giá: chưa qua chốt giá → món "chưa chốt", KHÔNG phải "Chờ cắt"
   const dmX = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "";
   const fmtQuet = s => { if (!s) return ""; const t = String(s); return t.slice(8, 10) + "/" + t.slice(5, 7) + " " + t.slice(11, 16); };
-  const xongBgTxt = () => {   // QD-20: ngày XONG XƯỞNG [TẠM], sale tự cộng vận chuyển
+  const xongBgTxt = () => {   // [WP-44] ngày XONG XƯỞNG (dự kiến) từ ngay_giao_hua, sale tự cộng vận chuyển
     const a = xongBg;
     if (a === undefined) return "đang tính…";
-    if (a && a.ok && a.ngay_hua_duoc) return "xong xưởng " + dmX(a.ngay_hua_duoc) + " [TẠM]";
+    if (a && a.ok && a.ngay_hua_duoc) return "xong xưởng " + dmX(a.ngay_hua_duoc) + (a.do_tin === "uoc" ? " (ước tính)" : " (theo số chuẩn)");
     if (a && a.loi === "THIEU_SO_DON_VI") return "chờ thiết kế nhập số ước";
     if (a && a.loi === "KHONG_XEP_DUOC_TRONG_12_TUAN") return "ngoài tầm 12 tuần, cần xếp tay";
     return "chưa tính được";
+  };
+  // [WP-44] KHỐI VÌ SAO: căn cứ + dải amber vật tư chưa có lead (đủ TÊN) + giả định
+  const xongKhoi = () => {
+    const a = xongBg;
+    if (!a || !a.ok) return null;
+    const leadN = ((a.cac_gia_dinh || []).find(s => /lead mặc định/.test(s)) || "").match(/(\d+)\s*ngày/);
+    return eC("div", { style: { marginTop: 2 } },
+      eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", margin: "8px 0 5px" } }, "VÌ SAO NGÀY NÀY"),
+      (a.can_cu || []).map((s, i) => eC("div", { key: i, style: { fontSize: 12.5, padding: "2px 0", lineHeight: 1.5 } }, "• " + s)),
+      (a.vat_tu_dang_doan && a.vat_tu_dang_doan.length) ? eC("div", { style: { marginTop: 8, padding: "9px 12px", borderRadius: 9, background: "#FDF3E3", border: "1px solid #F0D9A8", color: "#8A5A05", fontSize: 12.5, lineHeight: 1.5 } },
+        eC("b", null, "Chưa có lead time NCC cho: "), a.vat_tu_dang_doan.join(", "), ". Đang tạm tính " + (leadN ? leadN[1] : "mặc định") + " ngày — hỏi mua hàng trước khi hứa ngày với khách.") : null,
+      (a.cac_gia_dinh && a.cac_gia_dinh.length) ? eC("div", { style: { marginTop: 6, fontSize: 11.5, color: "var(--mut)", lineHeight: 1.5 } }, "Giả định đã dùng: " + a.cac_gia_dinh.join(" · ")) : null,
+      (a.cach_tinh && a.cach_tinh.length) ? eC("div", { style: { marginTop: 4, fontSize: 11.5, color: "var(--mut)", fontStyle: "italic", lineHeight: 1.5 } }, a.cach_tinh.join(" · ")) : null);
   };
   const bdgTT = st => eC("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 9px", borderRadius: 11, whiteSpace: "nowrap", background: chuaChot ? "#F3EEF6" : (st === "xong_sx" ? "#E7EFEA" : "#EEF1F5"), color: chuaChot ? "#7A4A9E" : (st === "xong_sx" ? "#15805F" : "#5b6472") } }, chuaChot ? "chưa chốt" : (TT_MON[st] || st));
   const tienDo = eC("div", { style: { border: "1px solid var(--bd)", borderRadius: 10, padding: "12px 14px", marginBottom: 14, background: "var(--raise)" } },
     eC("div", { style: { display: "flex", gap: 16, marginBottom: 12 } },
       oNgay("Hẹn khách BAN ĐẦU", d.ngayHenKhachBanDau), oNgay("Hẹn khách HIỆN TẠI", d.ngayHenKhach), oNgay("Dự kiến xong (xưởng)", chuaChot ? xongBgTxt() : d.ngayDuKien)),
+    chuaChot ? xongKhoi() : null,
     eC("div", { style: { fontSize: 11.5, fontWeight: 700, color: "var(--mut)", letterSpacing: ".03em", margin: "2px 0 4px" } }, "TRẠNG THÁI TỪNG MÓN"),
     monTT === null ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Đang tải…")
       : monTT.length === 0 ? eC("div", { style: { fontSize: 12.5, color: "var(--mut)", padding: "4px 0" } }, "Chưa có món trong đơn.")
