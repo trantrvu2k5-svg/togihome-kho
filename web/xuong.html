@@ -252,6 +252,40 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .tq-oquet input:disabled{background:#F4F5F8;color:#B6BBC5}
 .tq-nuthong{border:2px solid var(--vien);background:var(--the);padding:19px 24px;border-radius:9px;font-size:17px;font-weight:600;white-space:nowrap}
 .tq-nuthong.bat{background:var(--do);border-color:var(--do);color:#fff}
+/* HAI NÚT (WP-46a): Nhận việc / Làm xong — chữ to, khác màu, armed = đang chọn */
+.tq-hainut{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.tq-hainut button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:20px 12px;border-radius:12px;border:3px solid;background:var(--the);cursor:pointer;transition:.12s}
+.tq-hainut button b{font-size:26px;font-weight:800;letter-spacing:.01em}
+.tq-hainut button span{font-size:14px;color:var(--chu-nhat);font-weight:500}
+.tq-nut-nhan{border-color:var(--xong);color:var(--xong)}
+.tq-nut-xong{border-color:#2563EB;color:#2563EB}
+.tq-nut-nhan.armed{background:var(--xong);color:#fff}
+.tq-nut-xong.armed{background:#2563EB;color:#fff}
+.tq-hainut button.armed span{color:rgba(255,255,255,.9)}
+.tq-hainut button.armed b::after{content:" ✓"}
+/* VIỆC BẠN ĐANG GIỮ */
+.tq-giu{background:#FFF8EC;border:1px solid var(--gap);border-radius:14px;padding:16px 20px;margin-bottom:14px}
+.tq-giu-dau h2{font-size:16px;color:var(--thieu);margin-bottom:9px}
+.tq-giu-hang{display:flex;align-items:baseline;gap:12px;padding:7px 0;border-top:1px solid #F0E4CC}
+.tq-giu-hang:first-of-type{border-top:0}
+.tq-giu-hang .gtem{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px}
+.tq-giu-hang .gmon{flex:1;color:var(--chu-nhat)}
+.tq-giu-hang .glau{font-weight:700;color:var(--thieu);white-space:nowrap}
+/* QUẢN ĐỐC: việc đang giữ toàn xưởng */
+.giu-box .tq-giu-hang .gnguoi{color:var(--chu);font-weight:600}
+/* AI ĐANG LÀM (phiên thợ) */
+.tq-phien{margin-bottom:14px}
+.tq-phien-co{display:flex;align-items:center;gap:14px;background:#EAF6F0;border:2px solid var(--xong);border-radius:12px;padding:14px 20px}
+.tq-phien-co .nhan{font-size:14px;color:var(--xong);font-weight:600}
+.tq-phien-co b{font-size:26px;font-weight:800;color:var(--chu);flex:1}
+.tq-phien-co .doi{border:1px solid var(--vien);background:var(--the);border-radius:8px;padding:9px 15px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+.tq-phien-chon{background:#FFF8EC;border:2px solid var(--gap);border-radius:12px;padding:16px 20px}
+.tq-phien-chon>p{font-size:16px;font-weight:700;color:var(--thieu);margin-bottom:11px}
+.tq-phien-ds{display:flex;flex-wrap:wrap;gap:10px}
+.tq-phien-ds button{border:2px solid var(--vien);background:var(--the);border-radius:9px;padding:13px 20px;font-size:18px;font-weight:700;cursor:pointer}
+.tq-phien-ds button:hover{border-color:var(--xong);color:var(--xong)}
+.tq-phien-nhuong{margin-top:10px;font-size:14px;color:var(--chu-nhat)}
+.tq-phien-nhuong b{color:var(--chu)}
 /* ĐANG CHỜ (thêm so mẫu — MES 6.1.3 khung 1) */
 .tq-cho{background:var(--the);border:1px solid var(--vien);border-radius:14px;overflow:hidden;margin-bottom:14px}
 .tq-cho-dau{padding:13px 20px;border-bottom:1px solid var(--vien);display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -578,13 +612,24 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
                 <button class="tq-nuttt" id="tqDoiTt">Đổi trạng thái</button>
               </div>
             </div>
+            <!-- AI ĐANG LÀM Ở TRẠM NÀY (WP-46a phiên thợ) — chưa phiên: chọn thợ; có phiên: tên chữ to -->
+            <div class="tq-phien" id="tqPhien"></div>
             <div class="tq-quet">
-              <p class="tq-quet-nhac">Quét tem trên tấm. Máy quét tự điền, không cần bấm gì.</p>
+              <p class="tq-quet-nhac">Chọn <b>NHẬN VIỆC</b> hay <b>LÀM XONG</b>, rồi quét tem. Máy quét tự điền tem.</p>
+              <div class="tq-hainut">
+                <button class="tq-nut-nhan" id="tqNhan"><b>NHẬN VIỆC</b><span>bắt đầu làm tấm này</span></button>
+                <button class="tq-nut-xong" id="tqXong"><b>LÀM XONG</b><span>báo tấm này đã xong</span></button>
+              </div>
               <div class="tq-oquet">
-                <input id="tqO" placeholder="đang chờ quét…" autocomplete="off" spellcheck="false">
+                <input id="tqO" placeholder="chọn việc rồi quét…" autocomplete="off" spellcheck="false">
                 <button class="tq-nuthong" id="tqHong">Tấm sau bị hỏng</button>
               </div>
               <button class="tq-ghibu-nut" id="tqGhibu" style="display:none">Ghi bù cho tấm đã lỡ quét…</button>
+            </div>
+            <!-- VIỆC BẠN ĐANG GIỮ (WP-46a) — tấm đã Nhận chưa Làm xong. Rỗng thì ẩn. -->
+            <div class="tq-giu" id="tqGiuWrap" style="display:none">
+              <div class="tq-giu-dau"><h2>Việc bạn đang giữ</h2></div>
+              <div id="tqGiuDs"></div>
             </div>
             <!-- KẾT QUẢ QUÉT — NGAY DƯỚI ô quét (thợ quét xong thấy ngay, không cuộn). Trống khi chưa quét. -->
             <div id="tqKq"></div>
@@ -658,6 +703,11 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
             <div class="the-dau"><h2>Đơn chờ vào chuyền</h2><em id="qdChoDem"></em></div>
             <p class="cho-phu">Đơn đã lên nhưng chưa xuống xưởng. Bấm để đưa vào chuyền (bắt đầu cắt).</p>
             <div id="qdChoList"></div>
+          </div>
+          <div class="the giu-box" id="qdGiuBox" style="display:none">
+            <div class="the-dau"><h2>Việc đang giữ toàn xưởng</h2><em id="qdGiuDem"></em></div>
+            <p class="cho-phu">Tấm đã "Nhận việc" nhưng chưa "Làm xong". Giữ lâu nhất lên trên. Không tự đóng — người xử.</p>
+            <div id="qdGiuList"></div>
           </div>
           <div class="hai-cot">
             <div>

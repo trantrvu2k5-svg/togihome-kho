@@ -24,7 +24,8 @@ async function asK(uid, s, a = []) {
   try { r = (await c.query(s, a)).rows; await c.query('release savepoint k') } catch (x) { e = x.message; try { await c.query('rollback to savepoint k') } catch (_) {} }
   await c.query('reset role'); await c.query("select set_config('request.jwt.claims','',true)"); return { r, e }
 }
-const quet = (tram, tem = 'T-QS') => asK(AU.ceo, `select kho.quet_tem($1,$2) g`, [tem, tram]).then(x => x.r ? x.r[0].g : { ok: null, e: x.e })
+// WP-46a: loai do NGƯỜI khai (hai nút) — helper thêm tham số loai (mặc định 'vao'). KHÔNG nới kỳ vọng, chỉ nói đúng API mới.
+const quet = (tram, loai = 'vao', tem = 'T-QS') => asK(AU.ceo, `select kho.quet_tem($1,$2,0,0,$3) g`, [tem, tram, loai]).then(x => x.r ? x.r[0].g : { ok: null, e: x.e })
 
 try {
   await c.query('begin')
@@ -40,7 +41,7 @@ try {
   await c.query(`insert into kho.tem_ban_ve(ma_don,phien_ban,ma_tam,mon_id) values('T74',1,'T-QS',$1)`, [mon])
   // ca: mỗi trạm một người trực
   const TRAM = { cat: 'TRAM-CAT-01', thung: 'TRAM-THUNG-01', lot: 'TRAM-LOT-01', ray: 'TRAM-RAY-01', pu: 'TRAM-PU-01', goi: 'TRAM-GOI-01' }
-  let i = 0; for (const t of Object.values(TRAM)) await c.query(`insert into kho.ca_lam(nguoi_id,ma_tram) values($1,$2)`, [NS[i++], t])
+  let i = 0; for (const t of Object.values(TRAM)) await c.query(`insert into kho.phien_tram(nguoi_id,ma_tram,nguon) values($1,$2,'chon')`, [NS[i++], t])
 
   // ═══ 1 · NHẢY BƯỚC ═══
   console.log('\n── 1 · quét nhảy bước (chưa qua bước trước) ──')
@@ -51,8 +52,8 @@ try {
 
   // ═══ 2 · NHÁNH SONG SONG KHÔNG BỊ CHẶN OAN (quan trọng nhất) ═══
   console.log('\n── 2 · nhánh cánh qua chà lót → quét sơn PU được, dù nhánh thùng còn ở sau ──')
-  await quet(TRAM.cat); await quet(TRAM.cat)   // cat vào + ra
-  await quet(TRAM.lot); await quet(TRAM.lot)   // lot (cánh) vào + ra — thùng CHƯA làm gì
+  await quet(TRAM.cat,'vao'); await quet(TRAM.cat,'ra')   // cat vào + ra
+  await quet(TRAM.lot,'vao'); await quet(TRAM.lot,'ra')   // lot (cánh) vào + ra — thùng CHƯA làm gì
   const r2 = await quet(TRAM.pu)               // pu chờ lot (đã xong) → PHẢI CHO QUA
   console.log(`   thùng nhánh chưa động · cánh nhánh: cat✓ lot✓ → quét PU: ${r2.e ? '❌ CHẶN OAN ' + r2.e.slice(0, 40) : '✅ nhan (loai=' + r2.loai + ')'}`)
   ok('#2 nhánh song song KHÔNG chặn oan (🟥 suy thu_tu-1 chặn = ĐỎ)', !r2.e && r2.ket_qua === 'nhan')
@@ -67,18 +68,18 @@ try {
   // ═══ 4 · QUÉT BỊ CHẶN VẪN GHI SỔ (3 tình huống) ═══
   console.log('\n── 4 · ba tình huống chặn → sổ có 3 dòng chan khác lý do ──')
   await c.query('savepoint s4')
-  await quet('TRAM-CAT-01', 'TEM-LA-XXX')       // (a) tem lạ
-  await quet('TRAM-SONCANH-01', 'T-QS')          // (b) chưa ai mở ca ở son_canh
-  await quet('TRAM-RAY-01', 'T-QS')              // (c) nhảy bước (ray chờ thung, thung chưa làm)
+  await quet('TRAM-CAT-01','vao','TEM-LA-XXX')       // (a) tem lạ
+  await quet('TRAM-SONCANH-01','vao','T-QS')          // (b) chưa ai mở ca ở son_canh
+  await quet('TRAM-RAY-01', 'vao')              // (c) nhảy bước (ray chờ thung, thung chưa làm)
   const lydo = (await c.query(`select distinct ly_do_chan from kho.su_kien_quet where ket_qua='chan' and ly_do_chan is not null`)).rows.map(r => r.ly_do_chan)
   console.log(`   lý do chan phân biệt (${lydo.length}): ${JSON.stringify(lydo.map(l => l.slice(0, 20)))}`)
   ok('#4 mỗi tình huống chặn GHI SỔ, lý do KHÁC nhau (🟥 không ghi = ĐỎ)', lydo.length >= 3)
   await c.query('rollback to savepoint s4')
 
-  // ═══ 5 · CHƯA MỞ CA → CHẶN ═══
-  console.log('\n── 5 · trạm không ai trực → chặn ──')
-  const r5 = await quet('TRAM-CAM-01')   // cam chưa mở ca
-  ok('#5 chưa mở ca → CHẶN (CHUA_CO_CA)', r5.ok === false && r5.loi === 'CHUA_CO_CA', JSON.stringify(r5))
+  // ═══ 5 · CHƯA CÓ PHIÊN → RAISE (WP-46a L-34: không phiên là lỗi cứng, KHÔNG ghi chan-row — CEO chốt giữ RAISE) ═══
+  console.log('\n── 5 · trạm chưa có phiên thợ → RAISE ──')
+  const r5 = await quet('TRAM-CAM-01')   // cam chưa có phiên
+  ok('#5 chưa có phiên → RAISE "chưa có thợ nhận trạm" (không còn chan CHUA_CO_CA)', !!r5.e && /chưa có thợ nhận trạm/.test(r5.e), JSON.stringify(r5))
 
   // ═══ 6 · TRẠM HỎNG → CHẶN · CHẠY LẠI → ĐƯỢC ═══
   console.log('\n── 6 · trạm hỏng chặn, chạy lại được ──')

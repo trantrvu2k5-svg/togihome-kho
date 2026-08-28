@@ -1033,3 +1033,26 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
   (fence/lịch là số kế hoạch, không phủ quyết sự kiện thực thi).
 - **Trạng thái:** ĐÃ CHẠY (db/156-159, v-kho-128; `test_wp43` 6.2/7.3 chứng minh bàn giao thành công khi xếp
   hỏng, cờ bật, lịch để trống).
+
+## QD-70 (28/08, WP-46a tiền đề WP-46, db/165) — HAI NÚT: loai do NGƯỜI khai, bỏ đoán chẵn/lẻ · CHỐT
+
+- **Phát sinh từ L-31.** Đo luồng quét thật cho thấy `sq_ghi` tự đoán vào/ra bằng `case (số vao − số ra) > 0
+  then 'ra'`: cú **quét thứ 2 cùng trạm ÂM THẦM thành 'ra'** — thợ tưởng nhận lại, máy lại đánh dấu XONG. Máy
+  đoán hộ ý người → sai không thấy được.
+- **CEO chốt HAI NÚT.** loai (`vao`|`ra`) do **người khai**, không do máy đếm. `sq_ghi` bỏ hẳn nhánh đoán; thiếu/lạ
+  loai → **RAISE** (lỗi lập trình phải nổ, không default). Hai luật: (a) 'vao' khi đang giữ 'vao' chưa đóng ở CHÍNH
+  trạm → RAISE "đang giữ việc này rồi"; (b) 'ra' khi chưa 'vao' → RAISE "chưa nhận việc". Cổng tiền đề `buoc_truoc`
+  (QD-01) GIỮ NGUYÊN. Giữ việc dở ở trạm khác rồi 'vao' trạm mới → **CHO PHÉP + cảnh báo trong jsonb** (QD-69, việc
+  thật thắng — thợ có thể làm 2 món cùng lúc thật).
+- **KHÔNG tự đóng việc treo.** `viec_dang_giu(p_ma_ns)` chỉ **HIỆN** việc đang giữ (tem·món·bước·trạm·người·giữ bao
+  lâu), không truyền = cả xưởng (quản đốc), có = riêng người (trạm quét). Tự đóng sau X giờ = quay lại đúng bệnh
+  chẵn/lẻ, chỉ tinh vi hơn — CẤM. Người xử, không phải máy.
+- **Giờ thật thu NGAY.** Ghi 'ra' → lưu `su_kien_quet.so_phut` (phút cặp vào-ra). Chỉ LƯU, chưa dùng chỉnh gì. Lý
+  do: không thu lúc nó xảy ra thì sau không dựng lại được (MES 5.4.2 để việc sau).
+- **Hệ quả UI (CHƯA deploy):** `tram_quet`/`quet_tem` thêm tham số `p_loai` (mặc định `'vao'` = nút "Nhận việc") để
+  chữ ký RPC vẫn khớp lời gọi web 4 tham số hiện tại. Nút "Xong việc" (`'ra'`) chờ UI WP-46. Nghĩa là sau db/165,
+  nút quét đơn hiện CHỈ ghi 'vao'; quét lần 2 cùng trạm → "đang giữ việc này rồi" (đúng ý, hết âm thầm 'ra').
+- **Cơ sở sách:** MES 5.4.2 (thu dữ liệu thực thi tại nguồn, đúng lúc) · MES 5.4.4 + QD-69 (thao tác thật do người
+  quyết) · QD-01 (đồ thị buoc_truoc).
+- **Trạng thái:** ĐÃ CHẠY prod (db/165, backup pre-migrate; `test_wp46a` 9/0; hồi quy wp43·44·45·47 = 26·15·11·28,
+  TỔNG 89/0). CHƯA commit, CHƯA tag, CHƯA deploy UI.

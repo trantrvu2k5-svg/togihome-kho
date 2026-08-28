@@ -34,7 +34,7 @@ try {
     await c.query(`insert into kho.su_kien_quet(tem_ma,ma_tram,nguoi_id,loai,ket_qua,luc) values($1,'TRAM-CAT-01',$2,'ra','nhan',now()-interval '20 min')`, [t, NS[0]])
   }
   // ca ở DAN để quét được
-  await c.query(`insert into kho.ca_lam(nguoi_id,ma_tram) values($1,'TRAM-DAN-01')`, [NS[1]])
+  await c.query(`insert into kho.phien_tram(nguoi_id,ma_tram,nguon) values($1,'TRAM-DAN-01','chon')`, [NS[1]])
   // sổ chèn thẳng (không qua quet_tem) → dựng lại tien_do_tem để tram_dang_cho thấy (L-27: tram_dang_cho đọc tien_do_tem)
   await asK(AU.ceo, `select kho.dung_lai_tien_do()`)
 
@@ -65,12 +65,12 @@ try {
   console.log(`   T77-B so_hong=${hongB} · T77-C so_hong=${hongC}`)
   ok('#4 so_hong=1 ghi hỏng cho tấm đó, tấm sau KHÔNG hỏng (🟥 ghi cả hai = ĐỎ)', hongB === 1 && hongC === 0)
 
-  // ═══ 5 · chưa mở ca → không quét được (server chặn) ═══
-  console.log('\n── 5 · trạm CAM chưa ai trực → tram_quet chặn CHUA_CO_CA ──')
+  // ═══ 5 · chưa có phiên → RAISE (WP-46a L-34: no-phien lỗi cứng, CEO chốt giữ RAISE) ═══
+  console.log('\n── 5 · trạm CAM chưa có phiên → tram_quet RAISE ──')
   await c.query(`insert into kho.tem_ban_ve(ma_don,phien_ban,ma_tam,vai_tro,mon_id) values('T77',1,'T77-NOCA','hong',$1)`, [mon])
   const r5 = await g1(AU.ceo, `select kho.tram_quet('T77-NOCA','TRAM-CAM-01') g`)
-  console.log(`   ok=${r5.ok} loi=${r5.loi}`)
-  ok('#5 chưa mở ca → CHẶN (CHUA_CO_CA)', r5.ok === false && r5.loi === 'CHUA_CO_CA')
+  console.log(`   ${r5._e ? 'RAISE: ' + r5._e.slice(0, 45) : 'ok=' + r5.ok + ' loi=' + r5.loi}`)
+  ok('#5 chưa có phiên → RAISE "chưa có thợ nhận trạm"', !!r5._e && /chưa có thợ nhận trạm/.test(r5._e))
 
   // ═══ 7 · CỔNG VAI ═══
   console.log('\n── 7 · cổng vai: tho/xuong/ceo VÀO · sale/thiet_ke/ke_toan/NULL CHẶN ──')

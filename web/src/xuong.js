@@ -265,8 +265,19 @@ async function taiChoVaoChuyen() {
 // Phân trang viec_uu_tien: TRƯỚC/SAU (thay trang) — danh sách xếp hạng làm từ trên xuống,
 // trang rời khớp cách quản đốc xử theo lô 50 việc. Số thứ tự nối tiếp qua các trang.
 let QD_TRANG = 0, QD_TONG = 0
+// việc đang giữ TOÀN XƯỞNG (WP-46a) — thay cho tự-động-đóng; giữ lâu nhất lên trên (RPC order vao_luc)
+async function taiGiuXuong() {
+  const box = $('qdGiuBox'); if (!box) return
+  const { data, error } = await sb.rpc('viec_dang_giu', { p_ma_ns: null })
+  const ds = (error || !data) ? [] : data
+  if (!ds.length) { box.style.display = 'none'; return }
+  box.style.display = 'block'
+  $('qdGiuDem').textContent = ds.length + ' việc'
+  $('qdGiuList').innerHTML = ds.map(v => `<div class="tq-giu-hang"><span class="gtem">${esc(v.tem)}</span><span class="gmon">${esc(v.mon || '')}${v.tram_ten ? ' · ' + esc(v.tram_ten) : ''}</span><span class="gnguoi">${esc(v.nguoi_ten || '')}</span><span class="glau">giữ ${giuLau(v.giu_gio)}</span></div>`).join('')
+}
 async function taiQuanDoc(trang) {
   taiChoVaoChuyen()
+  taiGiuXuong()
   QD_TRANG = trang || 0
   const { data: red } = await sb.rpc('can_ceo_quyet')
   $('qdCeo').innerHTML = (red && red.length)
@@ -459,7 +470,8 @@ const dmy = s => { const d = new Date(s); return String(d.getDate()).padStart(2,
 const dmyhm = s => { const d = new Date(s); return dmy(s) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
 
 // ══════════ TRẠM QUÉT ══════════
-let TRAM = null, TRAM_INFO = null, HONG = false, DANG_QUET = false
+let TRAM = null, TRAM_INFO = null, HONG = false, DANG_QUET = false, LOAI = null   // LOAI: 'vao'|'ra' — thợ chọn, KHÔNG đoán (WP-46a)
+let PHIEN = null   // {nguoi_id, ho_ten} — thợ đang cầm trạm (nguồn "ai làm", WP-46a L-35)
 const TT_TEN = { chay: 'Đang chạy', nghi: 'Nghỉ', hong: 'Máy hỏng', cho_vat_tu: 'Chờ vật tư', ve_sinh: 'Vệ sinh' }
 let TT_CHON = 'chay'
 const focusO = () => { const o = $('tqO'); if (o && !o.disabled && $('s-tram').style.display === 'block' && !moNaoDangMo()) o.focus() }
@@ -470,6 +482,9 @@ function setupTram() {
   // giữ con trỏ: blur ô quét mà không có modal → tự về ô
   $('tqO').addEventListener('blur', () => setTimeout(focusO, 40))
   $('tqO').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); quetGui($('tqO').value.trim()) } })
+  // HAI NÚT (WP-46a): chọn việc → sáng nút + đặt LOAI; nếu ô đã có tem thì quét luôn
+  $('tqNhan').onclick = () => chonViec('vao')
+  $('tqXong').onclick = () => chonViec('ra')
   // nút hỏng: bật/tắt (một lần bật một lần dùng)
   $('tqHong').onclick = () => { HONG = !HONG; $('tqHong').classList.toggle('bat', HONG); $('tqHong').textContent = HONG ? 'TẤM SAU: GHI HỎNG' : 'Tấm sau bị hỏng'; focusO() }
   // đổi trạng thái
@@ -495,7 +510,7 @@ async function taiTram() {
   const { data, error } = await sb.rpc('tram_man', { p_tram: TRAM })
   if (error || !data || data.khong_co) { localStorage.removeItem('tq_tram'); TRAM = null; return veChonTram(error ? error.message : 'Trạm không có trong hệ') }
   TRAM_INFO = data
-  if (!data.co_ca) return veMoca()
+  // WP-46a L-35: "ai làm" nay là PHIÊN thợ (không mở-ca). Vào thẳng màn chính; khối phiên xử người.
   veChinh()
 }
 
@@ -527,12 +542,42 @@ function veChinh() {
   const t = TRAM_INFO
   $('tqTen').textContent = t.ten || t.ma_tram
   $('tqHd').textContent = (t.hd_ten || '') + (t.ma_tram ? ' · ' + t.ma_tram : '')
-  $('tqNguoi').textContent = t.nguoi_truc || '—'
+  PHIEN = t.co_phien ? { nguoi_id: t.phien_nguoi_id, ho_ten: t.phien_ho_ten } : null
+  $('tqNguoi').textContent = (PHIEN && PHIEN.ho_ten) || '—'
   veDen(t.trang_thai || 'chay')
   $('tqGhibu').style.display = (USER.vai_tro === 'xuong' || USER.vai_tro === 'ceo') ? '' : 'none'
   $('tqKq').innerHTML = ''
-  taiCho(); taiCa(); taiLuot()
-  focusO()
+  // reset chọn việc mỗi lần vào màn (WP-46a) — không nhớ lượt cũ
+  LOAI = null; $('tqNhan').classList.remove('armed'); $('tqXong').classList.remove('armed'); $('tqO').placeholder = 'chọn việc rồi quét…'
+  vePhien(); taiCho(); taiCa(); taiLuot(); taiGiu()
+  if (PHIEN) focusO()
+}
+
+// AI ĐANG LÀM — có phiên: tên chữ to + "Không phải tôi"; chưa phiên: danh sách chọn thợ (WP-46a L-35)
+function vePhien(nhuongText) {
+  const box = $('tqPhien')
+  if (PHIEN) {
+    box.innerHTML = `<div class="tq-phien-co"><span class="nhan">Đang làm ở trạm này</span><b>${esc(PHIEN.ho_ten || '')}</b>
+      <button class="doi" id="tqDoiPhien">Không phải tôi</button></div>${nhuongText ? `<p class="tq-phien-nhuong">${nhuongText}</p>` : ''}`
+    $('tqDoiPhien').onclick = () => vePhienChon()
+  } else {
+    vePhienChon(nhuongText)
+  }
+}
+async function vePhienChon(nhuongText) {
+  const box = $('tqPhien')
+  box.innerHTML = `<div class="tq-phien-chon"><p>Ai nhận trạm này? Bấm tên để bắt đầu.</p><div class="tq-phien-ds" id="tqPhienDs">Đang tải…</div>${nhuongText ? `<p class="tq-phien-nhuong">${nhuongText}</p>` : ''}</div>`
+  const { data } = await sb.rpc('tram_ds_nguoi')   // PHÁT SINH: chưa có bảng người↔tổ → liệt kê toàn bộ tho/xuong/ceo
+  $('tqPhienDs').innerHTML = (data || []).map(n => `<button data-n="${esc(n.id)}">${esc(n.ho_ten)}</button>`).join('') || '<span>Không có thợ nào.</span>'
+  document.querySelectorAll('#tqPhienDs button').forEach(b => b.onclick = () => moPhienChon(b.dataset.n))
+}
+async function moPhienChon(nguoiId) {
+  const { data, error } = await sb.rpc('mo_phien', { p_nguoi: nguoiId, p_tram: TRAM })
+  if (error) { bao(error.message, true); return }
+  PHIEN = { nguoi_id: data.nguoi_nhan_id, ho_ten: data.nguoi_nhan }
+  $('tqNguoi').textContent = PHIEN.ho_ten || '—'
+  const nhuong = data.nguoi_nhuong ? `Đã chuyển trạm từ <b>${esc(data.nguoi_nhuong)}</b> sang <b>${esc(data.nguoi_nhan)}</b>.` : ''
+  vePhien(nhuong); taiGiu(); focusO()
 }
 function veDen(tt) {
   const el = $('tqDen'); const chay = tt === 'chay'
@@ -565,25 +610,56 @@ async function taiLuot() {
 // QUÉT — FAIL-ĐÓNG: luôn gọi server; mất mạng KHÔNG hiện xanh
 async function quetGui(ma) {
   if (!ma || DANG_QUET) { focusO(); return }
+  if (!LOAI) { bao('Chọn "Nhận việc" hoặc "Làm xong" trước khi quét.', true); focusO(); return }   // KHÔNG đoán hộ (WP-46a)
   DANG_QUET = true
   const hongLan = HONG
-  let res, netErr = false
+  let res, netErr = false, rpcLoi = null
   try {
-    const { data, error } = await sb.rpc('tram_quet', { p_tem: ma, p_tram: TRAM, p_so_hong: hongLan ? 1 : 0, p_so_lam_lai: 0 })
-    if (error) throw error
-    res = data
+    const { data, error } = await sb.rpc('tram_quet', { p_tem: ma, p_tram: TRAM, p_so_hong: hongLan ? 1 : 0, p_so_lam_lai: 0, p_loai: LOAI })
+    if (error) {
+      // RAISE của DB ("đang giữ việc này rồi" / "chưa nhận việc" / …) trả về error CÓ nội dung → hiện NGUYÊN VĂN.
+      // Chỉ mất-mạng thật (fetch hỏng) mới coi là mất mạng — KHÔNG nuốt RAISE thành "mất mạng".
+      if (/fetch|network|Failed to fetch|timeout|ERR_|offline/i.test(error.message || '')) netErr = true
+      else rpcLoi = error.message || 'Không quét được'
+    } else res = data
   } catch (e) { netErr = true }
   $('tqO').value = ''
   DANG_QUET = false
+  const tatHong = () => { if (hongLan) { HONG = false; $('tqHong').classList.remove('bat'); $('tqHong').textContent = 'Tấm sau bị hỏng' } }
   if (netErr) { veKqMang(ma); focusO(); return }   // KHÔNG hiện xanh, KHÔNG xếp hàng ngầm
-  // quét có ghi (nhận/chặn) → tắt nút hỏng (một lần dùng), làm mới các khối
-  if (hongLan) { HONG = false; $('tqHong').classList.remove('bat'); $('tqHong').textContent = 'Tấm sau bị hỏng' }
+  if (rpcLoi) {   // RAISE — chữ to, nguyên văn
+    tatHong(); veKqLoi(ma, rpcLoi)
+    if (/chưa có thợ nhận trạm/.test(rpcLoi)) { PHIEN = null; vePhienChon() }   // đẩy về chọn thợ, đừng quét lặp vô ích (■1c)
+    else taiGiu()
+    focusO(); return
+  }
+  tatHong()
   if (res) res.tem_ma = ma
   veKq(res)
-  taiCho(); taiCa(); taiLuot()
+  taiCho(); taiCa(); taiLuot(); taiGiu()
   if (res && res.trang_thai) veDen(res.trang_thai)
   focusO()
 }
+// chọn việc: sáng nút + đặt LOAI; ô đã có tem thì quét luôn (WP-46a)
+function chonViec(l) {
+  LOAI = l
+  $('tqNhan').classList.toggle('armed', l === 'vao')
+  $('tqXong').classList.toggle('armed', l === 'ra')
+  $('tqO').placeholder = l === 'vao' ? 'ĐANG NHẬN VIỆC — quét tem…' : 'ĐANG LÀM XONG — quét tem…'
+  const v = $('tqO').value.trim()
+  if (v) quetGui(v); else focusO()
+}
+// việc đang giữ — trạm quét: của NGƯỜI-CỦA-PHIÊN (không phải tài khoản đăng nhập) — WP-46a L-35 ■2
+async function taiGiu() {
+  const wrap = $('tqGiuWrap'); if (!wrap) return
+  if (!PHIEN) { wrap.style.display = 'none'; $('tqGiuDs').innerHTML = ''; return }
+  const { data, error } = await sb.rpc('viec_dang_giu', { p_ma_ns: PHIEN.nguoi_id })
+  const ds = (error || !data) ? [] : data
+  if (!ds.length) { wrap.style.display = 'none'; $('tqGiuDs').innerHTML = ''; return }
+  wrap.style.display = ''
+  $('tqGiuDs').innerHTML = ds.map(v => `<div class="tq-giu-hang"><span class="gtem">${esc(v.tem)}</span><span class="gmon">${esc(v.mon || '')}${v.tram_ten ? ' · ' + esc(v.tram_ten) : ''}</span><span class="glau">giữ ${giuLau(v.giu_gio)}</span></div>`).join('')
+}
+const giuLau = h => { const g = Number(h) || 0; return g < 1 ? Math.round(g * 60) + ' phút' : (g < 10 ? g.toFixed(1).replace('.', ',') : Math.round(g)) + ' giờ' }
 
 function veKq(g) {
   const box = $('tqKq')
@@ -633,6 +709,12 @@ function veKqMang(ma) {
   $('tqKq').innerHTML = `<div class="tq-kq mang"><div class="tq-kq-dau"><div class="bieu">⚠</div><b>Mất mạng</b></div>
     <div class="tq-kq-than"><div class="tem">${esc(ma)}</div>
     <p class="tq-kq-loi">MẤT MẠNG — chưa ghi được<span>Tấm này CHƯA được ghi. Quét lại khi có mạng, hoặc nhờ tổ trưởng ghi bù. Đừng bỏ qua.</span></p></div></div>`
+}
+// RAISE từ DB (hai nút): hiện NGUYÊN VĂN, chữ to, không nuốt (WP-46a)
+function veKqLoi(ma, loi) {
+  $('tqKq').innerHTML = `<div class="tq-kq chan"><div class="tq-kq-dau"><div class="bieu">✕</div><b>Chưa ghi được</b></div>
+    <div class="tq-kq-than"><div class="tem">${esc(ma)}</div>
+    <p class="tq-kq-loi">${esc(loi)}<span>Đọc kỹ câu trên rồi bấm đúng nút. Cần thì báo tổ trưởng.</span></p></div></div>`
 }
 
 // ĐỔI TRẠNG THÁI
