@@ -688,6 +688,7 @@ const tlLabel = hd => TL_HD[hd] || hd
 const isoHomNay = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
 const isoCong = (iso, days) => { const x = new Date(new Date(iso + 'T00:00:00').getTime() + days * 86400000); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0') }
 const tlLaCeo = () => USER && USER.vai_tro === 'ceo'
+const xepDuoc = () => USER && ['ceo', 'xuong'].includes(USER.vai_tro)   // [WP-45] tho không thấy nút xếp lại
 
 function setupTL() {
   if (setupTL._done) return; setupTL._done = true
@@ -697,26 +698,18 @@ function setupTL() {
   $('tl-loc-van').onchange = () => veDonTL(1)
   $('tl-loc-to').onchange = () => veDonTL(1)
   $('tl-tim').oninput = () => veDonTL(1)
-  // hộp xếp lại
-  $('tl-xep-x').onclick = $('tl-xep-huy').onclick = () => tlDong('tl-hop-xep')
-  $('tl-xep-luu').onclick = tlLuuXep
-  document.querySelectorAll('#tl-hop-xep .tl-kieu button').forEach(b => b.onclick = () => { TL.kieuXep = b.dataset.kieu; tlVeKieu(); tlChayThu() })
-  $('tl-cb-ngoaile').onchange = () => { tlVeTuanGiao(); tlChayThu() }
-  $('tl-hop-xep').addEventListener('click', e => { if (e.target === $('tl-hop-xep')) tlDong('tl-hop-xep') })
-  // hộp dời tay
-  $('tl-doi-x').onclick = $('tl-doi-huy').onclick = () => tlDong('tl-hop-doi')
-  $('tl-doi-luu').onclick = tlLuuDoi
-  $('tl-cb-ngoaile2').onchange = tlVeChonTuan
-  $('tl-hop-doi').addEventListener('click', e => { if (e.target === $('tl-hop-doi')) tlDong('tl-hop-doi') })
+  // [WP-45] hộp xếp lại cả đơn (thay dời tay một bước)
+  $('tl-xl-x').onclick = $('tl-xl-huy').onclick = () => tlDong('tl-hop-xl')
+  $('tl-xl-xep').onclick = tlXlXep
+  $('tl-xl-lydo').oninput = tlXlDoiNut
+  $('tl-hop-xl').addEventListener('click', e => { if (e.target === $('tl-hop-xl')) tlDong('tl-hop-xl') })
   // [WP-43] hộp xếp lại đơn chưa vào được lịch (từ dải đỏ)
   $('tl-ket-x').onclick = $('tl-ket-huy').onclick = () => tlDong('tl-hop-ket')
   $('tl-ket-xep').onclick = tlKetXep
   $('tl-ket-ep').onclick = tlKetEp
   $('tl-ket-lydo').oninput = () => { $('tl-ket-ep').disabled = $('tl-ket-lydo').value.trim().length < 5 }
   $('tl-hop-ket').addEventListener('click', e => { if (e.target === $('tl-hop-ket')) tlDong('tl-hop-ket') })
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { tlDong('tl-hop-xep'); tlDong('tl-hop-doi'); tlDong('tl-hop-ket') } })
-  // ngoại lệ chỉ ceo
-  if (!tlLaCeo()) { const a = $('tl-cb-ngoaile').closest('.tl-ongoaile'), b = $('tl-cb-ngoaile2').closest('.tl-ongoaile'); if (a) a.style.display = 'none'; if (b) b.style.display = 'none' }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { tlDong('tl-hop-xl'); tlDong('tl-hop-ket') } })
 }
 
 // ══════════ NĂNG LỰC TỔ (WP-47 · class nl-) — nav n-nlt/d-nlt/s-nlt (n-nl = "Nhìn lại" đã có) ══════════
@@ -921,13 +914,13 @@ function veLuoiTL() {
     if (!ds.length) h += '<div class="tl-l-hang" style="grid-template-columns:1fr"><div style="padding:22px;text-align:center;color:var(--chu-nhat)">Không đơn nào có vấn đề. Xoá bộ lọc để xem lại.</div></div>'
     ds.forEach(d => {
       h += '<div class="tl-l-hang" style="grid-template-columns:1fr auto"><div class="tl-l-ten"><b>' + esc(d.ma_don) + '</b><small>' + esc(d.ten_khach || '(không tên)') + ' · hẹn ' + (d.ngay_hen_khach ? dmy(d.ngay_hen_khach) : '—') + '</small></div>'
-        + '<div class="tl-l-o" style="display:flex;align-items:center;padding:8px 14px"><button class="tl-nut-vien" data-xep="' + esc(d.ma_don) + '">Xếp lại đơn</button></div></div>'
+        + '<div class="tl-l-o" style="display:flex;align-items:center;padding:8px 14px">' + (xepDuoc() ? '<button class="tl-nut-vien" data-xep="' + esc(d.ma_don) + '">Xếp lại cả đơn</button>' : '') + '</div></div>'
     })
     if (TL.tongDon > 15) h += '<div class="tl-l-hang" style="grid-template-columns:1fr"><div style="padding:12px 18px;font-size:13px;color:var(--chu-nhat)">Hiện 15 đơn đầu trong ' + TL.tongDon + '. Dùng bộ lọc bên dưới để thu hẹp.</div></div>'
   }
   $('tl-luoi').innerHTML = h
   $('tl-luoi').querySelectorAll('.tl-o-gop').forEach(b => b.onclick = () => moOTL(b.dataset.to, b.dataset.tuan))
-  $('tl-luoi').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepTL(b.dataset.xep))
+  $('tl-luoi').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepCaDon(b.dataset.xep))
   $('tl-nhac').innerHTML = TL.quaTai
     ? '<div class="tl-nhac"><b>' + TL.quaTai + ' ô quá tải</b>Bấm ô đỏ để xem việc bên trong. Đơn khách → "Xếp lại đơn" (máy tính cả chuỗi). Hàng làm sẵn → "Dời" tay.</div>'
     : '<div class="tl-nhac tl-xanh"><b>Không ô nào quá tải</b>Mọi tổ còn chỗ trong kỳ này.</div>'
@@ -953,20 +946,18 @@ async function veBungTL() {
   rows.forEach(v => {
     const lms = v.la_hang_lam_san
     h += '<div class="tl-bv' + (lms ? ' tl-mts' : '') + (v.don_sap_tre ? ' tl-tre' : '') + '">'
-      + '<div class="tl-ma">' + (lms ? 'làm sẵn' : esc(v.ma_don)) + '</div>'
+      + '<div class="tl-ma">' + (lms ? 'làm sẵn' : esc(v.ma_don))
+        + (v.khoa_lich_luc ? ' <span class="tl-khoa" title="Đơn đã bàn giao xưởng, lịch đã chốt">🔒 đã bàn giao · lịch đã chốt · ' + dmy(v.khoa_lich_luc) + '</span>' : '') + '</div>'
       + '<div class="tl-ten">' + esc(lms ? v.ten_san_pham : (v.ten_khach || '(không tên)') + ' · ' + v.ten_san_pham) + '</div>'
       + '<div class="tl-b"><span class="tl-stt">' + v.buoc_thu_tu + '</span>' + esc(tlLabel(v.ten_buoc)) + '</div>'
       + '<div class="tl-g">' + Number(v.gio).toFixed(1) + 'g</div>'
-      + '<div class="tl-n">' + (lms
-        ? '<button data-doi="' + v.viec_id + '">Dời</button>'
-        : '<button data-xep="' + esc(v.ma_don) + '">Xếp lại đơn</button>') + '</div>'
+      + '<div class="tl-n">' + (xepDuoc() ? '<button data-xep="' + esc(v.ma_don) + '">Xếp lại cả đơn</button>' : '') + '</div>'
       + '</div>'
   })
   if (tong > rows.length) h += '<div class="tl-bung-them"><button id="tl-them">Xem thêm ' + Math.min(20, tong - rows.length) + ' việc (còn ' + (tong - rows.length) + ')</button></div>'
   h += '</div>'
   $('tl-bung').innerHTML = h
-  $('tl-bung').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepTL(b.dataset.xep))
-  $('tl-bung').querySelectorAll('[data-doi]').forEach(b => b.onclick = () => moDoiTL(+b.dataset.doi))
+  $('tl-bung').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepCaDon(b.dataset.xep))
   if ($('tl-them')) $('tl-them').onclick = () => { TL.oMo.n += 20; veBungTL() }
 }
 
@@ -992,10 +983,10 @@ async function veDonTL(tr) {
       + '<div class="tl-kh">' + esc(d.ten_khach || '(không tên)') + '</div>'
       + '<div class="tl-han">' + (d.ngay_hen_khach ? dmy(d.ngay_hen_khach) : '—') + '</div>'
       + '<div>' + van + '</div><div class="tl-chi">' + esc(d.chi_tiet || '') + '</div>'
-      + '<div class="tl-n"><button data-xep="' + esc(d.ma_don) + '">Xếp lại đơn</button></div></div>'
+      + '<div class="tl-n">' + (xepDuoc() ? '<button data-xep="' + esc(d.ma_don) + '">Xếp lại cả đơn</button>' : '') + '</div></div>'
   })
   $('tl-ds-don').innerHTML = h
-  $('tl-ds-don').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepTL(b.dataset.xep))
+  $('tl-ds-don').querySelectorAll('[data-xep]').forEach(b => b.onclick = () => moXepCaDon(b.dataset.xep))
   $('tl-mota-don').textContent = 'Chỉ hiện đơn có vấn đề. ' + (TL.dem.dem_tat || 0) + ' đơn cần nhìn.'
   const soTr = Math.max(1, Math.ceil(TL.tongDon / TL_MOI))
   let t = ''
@@ -1009,64 +1000,8 @@ async function veDonTL(tr) {
   if (TL.tuan.length) veBangTL()
 }
 
-// ══════════ HỘP XẾP LẠI ĐƠN (đường chính) ══════════
-async function moXepTL(maDon) {
-  const d = TL.don.find(x => x.ma_don === maDon) || {}
-  TL.donXep = maDon; TL.kieuXep = 'nguoc'; TL.tuanGiao = null
-  $('tl-cb-ngoaile').checked = false
-  $('tl-xep-mota').textContent = maDon + (d.ten_khach ? ' · ' + d.ten_khach : '') + (d.ngay_hen_khach ? ' · hẹn ' + dmy(d.ngay_hen_khach) : '')
-  tlVeKieu(); tlVeTuanGiao()
-  $('tl-hop-xep').classList.add('tl-mo')
-  await tlChayThu()
-}
-function tlVeKieu() { $('tl-xk-nguoc').classList.toggle('tl-chon', TL.kieuXep === 'nguoc'); $('tl-xk-xuoi').classList.toggle('tl-chon', TL.kieuXep === 'xuoi') }
-function tlVeTuanGiao() {
-  const ngoaiLe = $('tl-cb-ngoaile').checked
-  let h = ''
-  TL.tuan.forEach(t => {
-    const db = (TL.vung[t] === 'dong_bang') && !ngoaiLe
-    const chon = TL.tuanGiao === t
-    h += `<button class="${chon ? 'tl-chon' : (db ? 'tl-bang' : '')}" data-tg="${t}"${db ? ' disabled' : ''}>${dmy(t)}${TL.vung[t] === 'dong_bang' ? ' 🔒' : ''}</button>`
-  })
-  $('tl-xep-tuan').innerHTML = h
-  $('tl-xep-tuan').querySelectorAll('[data-tg]').forEach(b => b.onclick = () => { TL.tuanGiao = b.dataset.tg; tlVeTuanGiao(); tlChayThu() })
-}
-async function tlChayThu() {
-  const ngoaiLe = $('tl-cb-ngoaile').checked && tlLaCeo()
-  const { data: r, error } = await sb.rpc('tl_xep_thu', { p_ma_don: TL.donXep, p_tuan_giao: TL.tuanGiao, p_kieu: TL.kieuXep, p_ngoai_le: ngoaiLe })
-  if (error) { $('tl-xep-canh').innerHTML = '<div class="tl-canh"><b>Lỗi</b>' + esc(error.message) + '</div>'; $('tl-xep-luu').disabled = true; return }
-  TL.xepKq = r
-  if (!r.ok) {
-    $('tl-xep-lich').innerHTML = ''; $('tl-xep-tai').innerHTML = ''
-    $('tl-xep-canh').innerHTML = '<div class="tl-canh"><b>Máy không xếp nổi</b>' + esc(r.loi || '') + ' — nới kỳ 12 tuần, hoặc tăng ca, hoặc dời đơn khác.</div>'
-    $('tl-xep-luu').disabled = true; return
-  }
-  // lịch từng bước
-  $('tl-xep-lich').innerHTML = (r.lich || []).map(v =>
-    '<div class="tl-ah-d"><span class="tl-n"><b style="font-weight:600">' + v.thu_tu + '</b> ' + esc(tlLabel(v.hoat_dong)) + ' · ' + esc(v.ten_to || '—') + '</span>'
-    + '<span class="tl-v">' + (v.tuan_cu ? dmy(v.tuan_cu) : 'chưa xếp') + (v.doi ? ' → ' + dmy(v.tuan_moi) : ' · giữ') + '</span></div>').join('')
-  // tải đổi
-  $('tl-xep-tai').innerHTML = (r.tai_doi || []).length
-    ? r.tai_doi.map(o => '<div class="tl-ah-d"><span class="tl-n">' + esc(o.ten_to) + ' tuần ' + dmy(o.tuan) + '</span><span class="tl-v ' + (o.vuot ? 'tl-xau' : 'tl-tot') + '">' + Math.round(o.truoc) + ' → ' + Math.round(o.sau) + '/' + (o.nang_luc != null ? Math.round(o.nang_luc) : '—') + ' giờ' + (o.vuot ? ' · VƯỢT' : '') + '</span></div>').join('')
-    : '<div class="tl-ah-d"><span class="tl-n">Không tổ nào đổi tải</span><span class="tl-v">—</span></div>'
-  // cảnh báo
-  let c = ''
-  if ((r.khong_xep_noi || []).length) c += '<div class="tl-canh"><b>Không xếp nổi ' + r.khong_xep_noi.length + ' bước</b>' + r.khong_xep_noi.map(k => esc(tlLabel(k.hoat_dong)) + ' (' + esc(k.ly_do) + ')').join(' · ') + '</div>'
-  if (r.xong_sau_hen_ngay > 0) c += '<div class="tl-canh"><b>Xong sau hẹn khách ' + (r.xong_sau_hen_ngay) + ' ngày</b>Gọi báo khách trước khi chốt.</div>'
-  else if (!(r.khong_xep_noi || []).length) c += '<div class="tl-canh tl-xanh"><b>Xếp được, kịp hẹn</b>Mọi bước đúng thứ tự, không tổ nào vượt năng lực.</div>'
-  $('tl-xep-canh').innerHTML = c
-  $('tl-xep-luu').disabled = (r.khong_xep_noi || []).length > 0
-}
-async function tlLuuXep() {
-  if (!TL.xepKq || !TL.xepKq.ok || (TL.xepKq.khong_xep_noi || []).length) return
-  const ngoaiLe = $('tl-cb-ngoaile').checked && tlLaCeo()
-  const { data: r, error } = await sb.rpc('luu_xep_lich', { p_ma_don: TL.donXep, p_kieu: TL.kieuXep, p_ngoai_le: ngoaiLe, p_ly_do: $('tl-xep-lydo').value || null })
-  if (error) return bao('Không lưu được: ' + error.message, true)
-  const ma = TL.donXep
-  tlDong('tl-hop-xep'); $('tl-xep-lydo').value = ''
-  await taiTaiLich()
-  bao('✓ Đã xếp lại ' + ma + ' · ' + (r.so_dong || 0) + ' bước')
-}
+// [WP-45 L-20] Đã gỡ moXepTL + hộp xem-trước #tl-hop-xep (thay bằng moXepCaDon).
+//   RPC tl_xep_thu (xem trước lịch) GIỮ trong DB — xem PHÁT SINH: "xem trước lịch đã mất đường vào UI".
 
 // ══════════ XẾP LẠI ĐƠN CHƯA VÀO ĐƯỢC LỊCH (WP-43 · từ dải đỏ) ══════════
 function moKetXep(maDon, mota, hen) {
@@ -1120,59 +1055,75 @@ async function tlKetEp() {
   $('tl-ket-ep').disabled = false
 }
 
-// ══════════ HỘP DỜI TAY (đường phụ) ══════════
-async function moDoiTL(viecId) {
-  TL.vD = viecId; $('tl-cb-ngoaile2').checked = false; $('tl-doi-lydo').value = ''
-  $('tl-doi-luu').disabled = true
-  $('tl-doi-cu').textContent = '…'; $('tl-doi-moi').textContent = '— chọn tuần —'; $('tl-doi-moi-mo').textContent = ''
-  $('tl-ah-list').innerHTML = ''; $('tl-doi-canh').innerHTML = ''
-  $('tl-hop-doi').classList.add('tl-mo')
-  await tlVeChonTuan()
+// ══════════ XẾP LẠI CẢ ĐƠN (WP-45 · thay dời-lẻ) — kiểu theo dữ liệu + hai hàng rào ══════════
+//   Bỏ dời lẻ một bước: lịch xếp theo CẢ CHUỖI bước, dời lẻ làm các bước sau đứng sai thứ tự.
+async function moXepCaDon(maDon) {
+  TL.xlDon = maDon; TL.xlHen = null; TL.xlSX = false; TL.xlXem = null; TL.xlXemOk = false
+  $('tl-xl-mota').textContent = maDon
+  $('tl-xl-canh').innerHTML = ''; $('tl-xl-lydo').value = ''
+  $('tl-xl-xemtruoc').innerHTML = '<div class="tl-xl-dang">Đang xem trước lịch…</div>'
+  $('tl-xl-lybox').style.display = 'none'; $('tl-xl-xep').disabled = true
+  $('tl-hop-xl').classList.add('tl-mo')
+  const { data: m, error } = await sb.rpc('don_lich_meta', { p_ma_don: maDon })
+  if (error || !m || m.loi) { $('tl-xl-xemtruoc').innerHTML = ''; $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Lỗi</b>' + esc((error && error.message) || (m && m.loi) || '') + '</div>'; return }
+  TL.xlHen = m.ngay_hen_khach || null           // có hẹn → nguoc · không hẹn → xuoi (cùng luật luu_xep_lich)
+  TL.xlSX = !!m.da_san_xuat                      // từ cho_cat trở đi → planning fence: bắt buộc lý do
+  if (TL.xlSX) $('tl-xl-lybox').style.display = ''
+  await tlXlXemTruoc()
 }
-async function tlVeChonTuan() {
-  const ngoaiLe = $('tl-cb-ngoaile2').checked && tlLaCeo()
-  const { data, error } = await sb.rpc('tl_tuan_doi_duoc', { p_viec_id: TL.vD, p_ngoai_le: ngoaiLe, p_so_tuan: TL.tuan.length || 12 })
-  if (error) { $('tl-chon-tuan').innerHTML = '<span style="color:var(--tre)">' + esc(error.message) + '</span>'; return }
-  TL.doiTuan = data || []
-  // hiện "đang ở" từ tuần đầu không đổi được? Lấy từ dữ liệu: tuần hiện tại của việc không có trong list (đã bỏ)
-  let h = ''
-  TL.doiTuan.forEach(t => {
-    const kin = t.co_the_doi && t.se_vuot
-    const cls = !t.co_the_doi ? (t.vung === 'dong_bang' ? 'tl-bang' : 'tl-cam') : (kin ? 'tl-kin' : '')
-    const dau = !t.co_the_doi ? (t.vung === 'dong_bang' ? ' 🔒' : ' ⛔') : (kin ? ' ✕' : '')
-    h += `<button class="${cls}" data-dt="${t.tuan_bat_dau}"${t.co_the_doi ? '' : ' disabled title="' + esc(t.ly_do_khong || '') + '"'}>${dmy(t.tuan_bat_dau)}${dau}</button>`
-  })
-  $('tl-chon-tuan').innerHTML = h
-  $('tl-lb-chon').innerHTML = 'Chọn tuần dời sang <span style="color:var(--chu-mo)">· ⛔ sai thứ tự · 🔒 đóng băng · ✕ tổ đã kín</span>'
-  $('tl-chon-tuan').querySelectorAll('[data-dt]:not([disabled])').forEach(b => b.onclick = () => tlChonTuan(b.dataset.dt))
+// Bước 1 — XEM TRƯỚC (tl_xep_thu). Hỏng → nguyên văn, Lưu KHÔNG sáng. Không đoán hộ, không thử kiểu khác.
+async function tlXlXemTruoc() {
+  const kieu = TL.xlHen ? 'nguoc' : 'xuoi'
+  TL.xlXem = null; TL.xlXemOk = false
+  const { data: r, error } = await sb.rpc('tl_xep_thu', { p_ma_don: TL.xlDon, p_tuan_giao: null, p_kieu: kieu, p_ngoai_le: false })
+  if (error) { $('tl-xl-xemtruoc').innerHTML = '<div class="tl-canh"><b>Chưa xem trước được</b>' + esc(String(error.message).replace(/^.*tl_xep_thu:\s*/, '')) + '</div>'; tlXlDoiNut(); return }
+  if (!r || r.ok === false) { $('tl-xl-xemtruoc').innerHTML = '<div class="tl-canh"><b>Máy không xếp nổi</b>' + esc((r && r.loi) || '') + '</div>'; tlXlDoiNut(); return }
+  const lich = r.lich || []
+  const batdau = lich.map(x => x.tuan_moi).filter(Boolean).sort()[0]
+  const dongbang = (r.khong_xep_noi || []).filter(k => /đóng băng/i.test(k.ly_do || ''))
+  TL.xlXem = { batdau, ketthuc: r.xong_tuan, soBuoc: lich.length, kieu }
+  TL.xlXemOk = dongbang.length === 0
+  let h = '<div class="tl-xl-xt">'
+    + '<div class="tl-xl-r"><span>Số bước</span><b>' + lich.length + ' bước</b></div>'
+    + '<div class="tl-xl-r"><span>Tuần bắt đầu → kết thúc</span><b>' + (batdau ? dmy(batdau) : '—') + ' → ' + (r.xong_tuan ? dmy(r.xong_tuan) : '—') + '</b></div>'
+  if (TL.xlHen) { const tre = r.xong_sau_hen_ngay; h += '<div class="tl-xl-r"><span>So với hẹn khách</span><b class="' + (tre > 0 ? 'tl-xau' : 'tl-tot') + '">' + (tre > 0 ? 'TRỄ ' + tre + ' ngày' : 'kịp hẹn') + '</b></div>' }
+  h += '</div>'
+  h += dongbang.length
+    ? '<div class="tl-canh"><b>' + dongbang.length + ' bước rơi tuần ĐÓNG BĂNG</b>' + dongbang.map(k => esc(tlLabel(k.hoat_dong))).join(' · ') + ' — cần CEO mở ngoại lệ, không lưu thẳng được.</div>'
+    : '<div class="tl-canh tl-xanh"><b>Xếp được</b>Mọi bước đúng thứ tự, không tổ nào vượt năng lực.</div>'
+  $('tl-xl-xemtruoc').innerHTML = h
+  tlXlDoiNut()
 }
-async function tlChonTuan(tuan) {
-  $('tl-chon-tuan').querySelectorAll('[data-dt]').forEach(b => b.classList.toggle('tl-chon', b.dataset.dt === tuan))
-  TL.doiMoi = tuan
-  const { data: a, error } = await sb.rpc('tl_anh_huong_doi', { p_viec_id: TL.vD, p_tuan_moi: tuan })
-  if (error) return bao(error.message, true)
-  $('tl-doi-cu').textContent = dmy(a.tuan_cu); $('tl-doi-cu-mo').textContent = a.ten_to
-  $('tl-doi-moi').textContent = dmy(tuan); $('tl-doi-moi-mo').textContent = a.ten_to
-  const nl = a.to_moi.nang_luc
-  let h = '<div class="tl-ah-d"><span class="tl-n">' + esc(a.ten_to) + ' tuần ' + dmy(a.tuan_cu) + '</span><span class="tl-v tl-tot">' + Math.round(a.to_cu.truoc) + ' → ' + Math.round(a.to_cu.sau) + ' giờ</span></div>'
-    + '<div class="tl-ah-d"><span class="tl-n">' + esc(a.ten_to) + ' tuần ' + dmy(tuan) + '</span><span class="tl-v ' + (a.to_moi.se_vuot ? 'tl-xau' : '') + '">' + Math.round(a.to_moi.truoc) + ' → ' + Math.round(a.to_moi.sau) + '/' + (nl != null ? Math.round(nl) : '—') + ' giờ' + (a.to_moi.se_vuot ? ' · VƯỢT' : '') + '</span></div>'
-    + '<div class="tl-ah-d"><span class="tl-n">' + (a.la_hang_lam_san ? 'Hàng làm sẵn' : 'Đơn') + ' xong sản xuất</span><span class="tl-v ' + (a.don_lui_ngay > 0 ? 'tl-xau' : 'tl-tot') + '">' + (a.don_lui_ngay > 0 ? 'lùi ' + a.don_lui_ngay + ' ngày' : 'sớm ' + (-a.don_lui_ngay) + ' ngày') + '</span></div>'
-  $('tl-ah-list').innerHTML = h
-  $('tl-doi-canh').innerHTML = a.la_hang_lam_san
-    ? '<div class="tl-canh tl-xanh"><b>Hàng làm sẵn dời thoải mái</b>Không ai chờ lô này.</div>'
-    : (a.tre_khach ? '<div class="tl-canh"><b>Có thể trễ hẹn khách</b>Dời muộn làm đơn xong sau ngày hẹn. Gọi báo khách.</div>' : '<div class="tl-canh tl-xanh"><b>Vẫn kịp hẹn khách</b></div>')
-  $('tl-doi-luu').disabled = false
+// Lưu chỉ sáng khi: đã XEM TRƯỚC OK (không đóng băng) + (không phải SX hoặc lý do ≥5). Không cho bấm mù.
+function tlXlDoiNut() {
+  const lyOk = !TL.xlSX || $('tl-xl-lydo').value.trim().length >= 5
+  $('tl-xl-xep').disabled = !(TL.xlXemOk && lyOk)
 }
-async function tlLuuDoi() {
-  if (!TL.doiMoi) return
-  const lyDo = $('tl-doi-lydo').value.trim()
-  if (!lyDo) return bao('Dời tay bắt buộc ghi lý do', true)
-  const ngoaiLe = $('tl-cb-ngoaile2').checked && tlLaCeo()
-  const { error } = await sb.rpc('tl_doi_viec', { p_viec_id: TL.vD, p_tuan_moi: TL.doiMoi, p_ngoai_le: ngoaiLe, p_ly_do: lyDo })
-  if (error) return bao('Không dời được: ' + error.message, true)
-  tlDong('tl-hop-doi')
+// Bước 2 — LƯU (luu_xep_lich) + ■2 kiểm xem-trước KHỚP kết quả lưu.
+async function tlXlXep() {
+  if (!TL.xlXem || !TL.xlXemOk) return
+  const kieu = TL.xlHen ? 'nguoc' : 'xuoi'
+  const lyDo = TL.xlSX ? $('tl-xl-lydo').value.trim() : null
+  if (TL.xlSX && (!lyDo || lyDo.length < 5)) return
+  $('tl-xl-xep').disabled = true
+  const { data: r, error } = await sb.rpc('luu_xep_lich', { p_ma_don: TL.xlDon, p_kieu: kieu, p_ngoai_le: false, p_ly_do: lyDo })
+  if (error) { $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Chưa xếp được</b>' + esc(String(error.message).replace(/^.*luu_xep_lich:\s*/, '')) + '</div>'; tlXlDoiNut(); return }
+  if (r && r.ok === false) { $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Máy không xếp nổi</b>' + esc(r.ly_do || r.loi || '') + '</div>'; tlXlDoiNut(); return }
+  // ■2 · so tuần bắt đầu ĐÃ LƯU (đọc xep_lich) với tuần XEM TRƯỚC
+  const { data: rows } = await sb.from('xep_lich').select('tuan_bat_dau').eq('ma_don', TL.xlDon).order('tuan_bat_dau', { ascending: true }).limit(1)
+  const luuBatDau = rows && rows[0] ? String(rows[0].tuan_bat_dau).slice(0, 10) : null
+  const xemBatDau = TL.xlXem.batdau ? String(TL.xlXem.batdau).slice(0, 10) : null
+  const ma = TL.xlDon
+  if (luuBatDau && xemBatDau && luuBatDau !== xemBatDau) {
+    console.error('[Xếp lại đơn] XEM TRƯỚC ≠ LƯU · đơn=' + ma + ' · xem trước=' + xemBatDau + ' · đã lưu=' + luuBatDau)
+    $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>⚠ Xem trước và kết quả lưu KHÔNG khớp</b>Xem trước bắt đầu ' + dmy(xemBatDau) + ' · đã lưu ' + dmy(luuBatDau) + '. Lịch đã ghi theo số THẬT — báo kỹ thuật.</div>'
+    await taiTaiLich()
+    bao('⚠ Đã lưu nhưng xem trước không khớp — xem cảnh báo', true)
+    return   // GIỮ hộp mở để người thấy cảnh báo đỏ
+  }
+  tlDong('tl-hop-xl')
   await taiTaiLich()
-  bao('✓ Đã dời việc sang tuần ' + dmy(TL.doiMoi))
+  bao('✓ Đã xếp lại ' + ma + ' · ' + ((r && r.so_dong) || 0) + ' bước')
 }
 
 function tlDong(id) { $(id).classList.remove('tl-mo') }

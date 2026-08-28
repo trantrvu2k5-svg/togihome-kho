@@ -100,9 +100,9 @@ const homNay = (await one(`select current_date d`)).d
 
 // ═══ 6.4 · xếp lại (luu_xep_lich) 2 lần cùng đơn A → KHÔNG đẻ trùng (xoá-rồi-ghi) ═══
 { const n1 = await xepDong('DEMO-WP43-A')
-  const r1 = await as(U.ceo, `select kho.luu_xep_lich('DEMO-WP43-A','nguoc',false,null) j`, [], true)
+  const r1 = await as(U.ceo, `select kho.luu_xep_lich('DEMO-WP43-A','nguoc',false,'xếp lại kiểm trùng') j`, [], true)
   const n2 = await xepDong('DEMO-WP43-A')
-  const r2 = await as(U.ceo, `select kho.luu_xep_lich('DEMO-WP43-A','nguoc',false,null) j`, [], true)
+  const r2 = await as(U.ceo, `select kho.luu_xep_lich('DEMO-WP43-A','nguoc',false,'xếp lại kiểm trùng') j`, [], true)
   const n3 = await xepDong('DEMO-WP43-A')
   ok('6.4 luu_xep_lich 2 lần → xep_lich KHÔNG đẻ trùng (giữ nguyên số dòng)', !r1.e && !r2.e && n2 === n3 && n2 === n1, `${n1}→${n2}→${n3} ${r1.e || r2.e || ''}`) }
 
@@ -143,7 +143,7 @@ const homNay = (await one(`select current_date d`)).d
 
 // ═══ 8.1 [L-14 db/158] đơn KHÔNG hẹn → luu_xep_lich('xuoi') xếp được KHÔNG cần ngoại lệ (ca B2 lật xanh) ═══
 { const D = await mkDon('K', null)
-  const r = await as(U.ceo, `select kho.luu_xep_lich('${D.ma}','xuoi',false,null) j`, [], true)
+  const r = await as(U.ceo, `select kho.luu_xep_lich('${D.ma}','xuoi',false,'xếp lại (WP-45 planning fence)') j`, [], true)
   const j = r.r && r.r[0].j
   const w = (await one(`select min(tuan_bat_dau) w from kho.xep_lich where ma_don=$1`, [D.ma]))?.w
   const nguong = (await one(`select (kho.tuan_cua(current_date)+14) w`)).w
@@ -155,7 +155,7 @@ const homNay = (await one(`select current_date d`)).d
 { const D = await mkDon('L', null)
   await as(U.ceo, `select kho.ban_giao_xuong('${D.ma}','${FILE}'::jsonb,null) j`, [], true)
   const a = await one(`select count(*)::int n, min(tuan_bat_dau) w from kho.xep_lich where ma_don=$1`, [D.ma])
-  await as(U.ceo, `select kho.luu_xep_lich('${D.ma}','xuoi',false,null) j`, [], true)
+  await as(U.ceo, `select kho.luu_xep_lich('${D.ma}','xuoi',false,'xếp lại (WP-45 planning fence)') j`, [], true)
   const b = await one(`select count(*)::int n, min(tuan_bat_dau) w from kho.xep_lich where ma_don=$1`, [D.ma])
   console.log(`   8.2 ban_giao=${a.n} dòng·bước đầu ${a.w?.toISOString?.().slice(0, 10)} ‖ luu_xep=${b.n} dòng·bước đầu ${b.w?.toISOString?.().slice(0, 10)}`)
   ok('8.2 hai đường GIỐNG NHAU: số dòng + tuần bước đầu khớp', a.n === b.n && a.w && b.w && +new Date(a.w) === +new Date(b.w), `${a.n}/${a.w} vs ${b.n}/${b.w}`) }
@@ -194,7 +194,7 @@ const wtext = async ma => (await one(`select to_char(min(tuan_bat_dau),'YYYY-MM-
 const wPreview = async ma => { const pv = await as(U.ceo, `select kho.tl_xep_thu('${ma}',null,'xuoi',false) j`, [], false); return ((pv.r?.[0]?.j?.lich) || []).map(x => x.tuan_moi).sort()[0] }
 async function baDuong(ma) {
   await as(U.ceo, `select kho.ban_giao_xuong('${ma}','${FILE}'::jsonb,null) j`, [], true); const bg = await wtext(ma)
-  await as(U.ceo, `select kho.luu_xep_lich('${ma}','xuoi',false,null) j`, [], true); const lx = await wtext(ma)
+  await as(U.ceo, `select kho.luu_xep_lich('${ma}','xuoi',false,'kiểm ba đường') j`, [], true); const lx = await wtext(ma)
   const tx = await wPreview(ma)
   return { bg, lx, tx, eq: !!bg && bg === lx && lx === tx }
 }

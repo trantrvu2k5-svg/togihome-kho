@@ -424,7 +424,10 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 .tl-hop-dau{padding:18px 22px;border-bottom:1px solid var(--vien);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--the);z-index:2}
 .tl-hop-dau h3{font-size:18px;font-weight:600} .tl-hop-dau p{font-size:13.5px;color:var(--chu-nhat);margin-top:3px}
 .tl-hop-dong{font-size:24px;color:var(--chu-mo);line-height:1;padding:0 4px} .tl-hop-than{padding:18px 22px}
-.tl-giai{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:11px 14px;font-size:12.5px;color:#6B4A08;line-height:1.55;margin-bottom:16px} .tl-giai b{display:block;margin-bottom:3px}
+.tl-giai{background:#FFF8E6;border:1px solid #F0DFB0;border-radius:var(--bo-nho);padding:11px 14px;font-size:12.5px;color:#6B4A08;line-height:1.55;margin-bottom:16px} .tl-giai b{display:block;margin-bottom:3px} .tl-giai b.i{display:inline;margin:0}
+.tl-khoa{display:inline-block;font-size:11px;font-weight:500;color:#8A5A05;background:#FDF3E3;border:1px solid #F0D9A8;border-radius:5px;padding:1px 7px;margin-left:7px;white-space:nowrap;vertical-align:middle}
+.tl-xl-xt{margin-bottom:6px} .tl-xl-r{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13.5px;border-bottom:1px solid var(--vien)} .tl-xl-r:last-child{border-bottom:0} .tl-xl-r span{color:var(--chu-nhat)} .tl-xl-r b.tl-tot{color:var(--xong)} .tl-xl-r b.tl-xau{color:var(--tre)}
+.tl-xl-dang{padding:10px 2px;font-size:13px;color:var(--chu-nhat)}
 .tl-doi-ts{display:grid;grid-template-columns:1fr 34px 1fr;gap:12px;align-items:center;margin-bottom:16px}
 .tl-dso{border:1px solid var(--vien);border-radius:var(--bo-nho);padding:13px 15px} .tl-dso.tl-moi{border-color:var(--xong);background:var(--tl-xong-nhat)}
 .tl-dso p{font-size:11.5px;color:var(--chu-nhat);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:5px}
@@ -777,25 +780,7 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
 
   <div class="mo" id="mo"></div>
 
-  <!-- HỘP XẾP LẠI ĐƠN (đường chính) -->
-  <div class="tl-phu" id="tl-hop-xep">
-    <div class="tl-hop">
-      <div class="tl-hop-dau"><div><h3>Xếp lại đơn</h3><p id="tl-xep-mota"></p></div><button class="tl-hop-dong" id="tl-xep-x">×</button></div>
-      <div class="tl-hop-than">
-        <p style="font-size:13px;color:var(--chu-nhat);margin-bottom:10px">Máy tính cả chuỗi bước theo thứ tự và năng lực từng tổ. Xem trước rồi mới lưu.</p>
-        <div class="tl-kieu"><button id="tl-xk-nguoc" class="tl-chon" data-kieu="nguoc">Ngược — lùi từ ngày giao</button><button id="tl-xk-xuoi" data-kieu="xuoi">Xuôi — làm sớm nhất có thể</button></div>
-        <label>Ngày giao mục tiêu</label>
-        <div class="tl-chon-tuan" id="tl-xep-tuan"></div>
-        <label class="tl-ongoaile"><input type="checkbox" id="tl-cb-ngoaile"><span><b>CEO duyệt ngoại lệ</b> — cho xếp vào tuần đóng băng. Tuần đóng băng tấm đã cắt, vật tư đã đặt; chêm việc vào đó phải có lý do.</span></label>
-        <div class="tl-anhhuong"><div class="tl-ah-dau">Lịch máy xếp ra</div><div id="tl-xep-lich"></div></div>
-        <div class="tl-anhhuong"><div class="tl-ah-dau">Tải đổi thế nào</div><div id="tl-xep-tai"></div></div>
-        <div id="tl-xep-canh"></div>
-        <label>Vì sao xếp lại</label>
-        <textarea rows="2" id="tl-xep-lydo" placeholder="khách xin lùi · ưu tiên đơn khác · tổ hỏng máy…"></textarea>
-      </div>
-      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-xep-huy">Huỷ</button><button class="tl-n-ok" id="tl-xep-luu">Xếp lại và lưu</button></div>
-    </div>
-  </div>
+  <!-- [WP-45 L-20] Đã gỡ hộp xem-trước #tl-hop-xep (thay bằng #tl-hop-xl "Xếp lại cả đơn") -->
 
   <!-- HỘP XẾP LẠI ĐƠN CHƯA VÀO ĐƯỢC LỊCH (từ dải cảnh báo đỏ · WP-43) -->
   <div class="tl-phu" id="tl-hop-ket">
@@ -814,22 +799,21 @@ input,textarea,select{border:1px solid var(--vien);border-radius:var(--bo-nho);p
     </div>
   </div>
 
-  <!-- HỘP DỜI TAY MỘT BƯỚC (đường phụ) -->
-  <div class="tl-phu" id="tl-hop-doi">
+  <!-- HỘP XẾP LẠI CẢ ĐƠN (WP-45 · thay dời tay một bước) -->
+  <div class="tl-phu" id="tl-hop-xl">
     <div class="tl-hop">
-      <div class="tl-hop-dau"><div><h3>Dời tay một bước</h3><p id="tl-doi-mota"></p></div><button class="tl-hop-dong" id="tl-doi-x">×</button></div>
+      <div class="tl-hop-dau"><div><h3>Xếp lại cả đơn</h3><p id="tl-xl-mota"></p></div><button class="tl-hop-dong" id="tl-xl-x">×</button></div>
       <div class="tl-hop-than">
-        <div class="tl-giai"><b>Chỉ dùng khi máy không xếp được</b>Cách thường là "Xếp lại đơn" — máy tự tính cả chuỗi. Dời tay từng bước chỉ dành cho việc ngoài kế hoạch: máy hỏng đột xuất, thợ nghỉ, khách gọi đổi gấp. Dời tay không kéo các bước sau theo — phải tự kiểm thứ tự.</div>
-        <div class="tl-doi-ts"><div class="tl-dso"><p>Đang ở</p><b id="tl-doi-cu"></b><small id="tl-doi-cu-mo"></small></div><div class="tl-dsmui">→</div><div class="tl-dso tl-moi"><p>Dời sang</p><b id="tl-doi-moi"></b><small id="tl-doi-moi-mo"></small></div></div>
-        <label id="tl-lb-chon">Chọn tuần dời sang</label>
-        <div class="tl-chon-tuan" id="tl-chon-tuan"></div>
-        <label class="tl-ongoaile"><input type="checkbox" id="tl-cb-ngoaile2"><span><b>CEO duyệt ngoại lệ</b> — cho xếp vào tuần đóng băng.</span></label>
-        <div class="tl-anhhuong"><div class="tl-ah-dau">Dời thì đổi gì</div><div id="tl-ah-list"></div></div>
-        <div id="tl-doi-canh"></div>
-        <label>Vì sao dời tay <b style="color:var(--tre)">· bắt buộc</b></label>
-        <textarea rows="2" id="tl-doi-lydo" placeholder="máy CNC hỏng · thợ nghỉ đột xuất · khách gọi gấp…"></textarea>
+        <div class="tl-giai">Lịch xếp theo cả chuỗi bước, dời lẻ một bước sẽ làm các bước sau đứng sai thứ tự. Thợ nghỉ hay tổ thiếu người thì sửa ở màn <b class="i">Năng lực tổ</b>, lịch mọi đơn sẽ tự dạt theo.</div>
+        <div class="tl-anhhuong"><div class="tl-ah-dau">Xem trước máy xếp ra</div><div id="tl-xl-xemtruoc"></div></div>
+        <div id="tl-xl-canh"></div>
+        <div id="tl-xl-lybox" style="display:none">
+          <label>Vì sao xếp lại <b style="color:var(--tre)">· bắt buộc</b></label>
+          <p style="font-size:12.5px;color:var(--chu-nhat);margin:2px 0 7px;line-height:1.5">Đơn đã xuống xưởng — ghi lý do để sau này biết vì sao lịch đổi.</p>
+          <textarea rows="2" id="tl-xl-lydo" placeholder="khách đổi ngày giao · ưu tiên đơn khác · tổ hỏng máy…"></textarea>
+        </div>
       </div>
-      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-doi-huy">Huỷ</button><button class="tl-n-ok" id="tl-doi-luu">Dời tay và lưu</button></div>
+      <div class="tl-hop-nut"><button class="tl-n-huy" id="tl-xl-huy">Đóng</button><button class="tl-n-ok" id="tl-xl-xep" disabled>Xếp lại cả đơn</button></div>
     </div>
   </div>
 
