@@ -687,9 +687,21 @@ async function taiDongTien() {
     const sc = (k === 'doi_soat_cod' && r) ? `${n(r.so_dot)} đợt · ${n(r.so_don)} đơn` : cnt
     return `<tr><td class="dt-l">${ten}<span class="dt-phu">${phu}</span></td><td>${sc}</td><td>${fmt(r ? r.so_tien : 0)}</td></tr>`
   }).join('')
+  // [WP-75 L-3] BÓC khối thu 2 lát con (lát cắt của cùng tổng — KHÔNG cộng thêm): đã giao vs khách ứng trước
+  const boc = g.thu.boc || { da_giao: 0, ung_truoc: 0 }
   $('dt_thu_foot').innerHTML = `<tr><td class="dt-l">TỔNG THU</td><td>${sp}</td><td>${fmt(g.thu.tong)}</td></tr>`
-  $('dt_thu_cb').innerHTML = g.canh_bao.so_don > 0
+    + `<tr class="kut-boc"><td class="dt-l">↳ Thu của đơn đã giao<span class="dt-phu">đã ghi nhận doanh thu (đã bàn giao)</span></td><td></td><td>${fmt(boc.da_giao)}</td></tr>`
+    + `<tr class="kut-boc"><td class="dt-l">↳ Khách ứng trước<span class="dt-phu">khoản PHẢI TRẢ tới khi giao hàng</span></td><td></td><td>${fmt(boc.ung_truoc)}</td></tr>`
+  const cb = g.canh_bao.so_don > 0
     ? `<div class="dt-canhbao">⚠ ${g.canh_bao.so_don} đơn đã giao trong kỳ <b>chưa có phiếu thu nào</b> — quên ghi hay chưa đòi được?</div>` : ''
+  // [WP-75 L-3] bảng nhỏ SỐ DƯ KHÁCH ỨNG TRƯỚC (nợ phải trả) — số DB tính, client không tính lại
+  const u = g.ung_truoc_du || {}
+  $('dt_thu_cb').innerHTML = cb
+    + `<table class="kut-tbl"><caption>Số dư khách ứng trước (khoản phải trả)</caption>`
+    + `<tr><td>Đầu kỳ</td><td class="kut-n">${fmt(u.dau_ky)}</td></tr>`
+    + `<tr><td>+ Nhận thêm trong kỳ</td><td class="kut-n">${fmt(u.nhan_them)}</td></tr>`
+    + `<tr><td>− Kết chuyển khi giao hàng</td><td class="kut-n">${fmt(u.ket_chuyen)}</td></tr>`
+    + `<tr class="kut-tong"><td>= Còn giữ của khách</td><td class="kut-n">${fmt(u.con_giu)}</td></tr></table>`
   // KHỐI 2 — chi
   $('dt_chi_body').innerHTML = DT_CHI_L.map(([k, ten, phu]) => {
     const phuTxt = k === 'tra_ncc' ? `${PC_CNT.n || 0} phiếu chi · còn nợ NCC ${fmt(g.con_no_ncc)} đ` : phu

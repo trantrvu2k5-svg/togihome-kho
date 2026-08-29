@@ -46,8 +46,13 @@ Trong app dùng chung stylesheet, class mới phải có **tiền tố theo màn
 
 ## KỶ LUẬT TEST — ĐO Ở MỨC 100.000 DÒNG
 
-Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòng**. Test cắn hai vế (bắt lỗi logic, không bắt lỗi tốc độ).
+Lô nào dựng RPC đọc bảng lớn thì phải **đo**. Test cắn hai vế (bắt lỗi logic, không bắt lỗi tốc độ).
 - Đã dính: `tram_dang_cho`/`do_gio_that` timeout ở 10.000 tem trong khi mọi test đều xanh — vì test chạy trên vài chục dòng.
+
+**MỨC ĐO THEO LOẠI BẢNG (CEO chốt 29/08 — sửa "đo 100k mọi thứ" của 23/08):**
+- **Bảng SỔ** (append-only lớn thật: `giao_dich`, `su_kien_quet`, `xep_lich`, `lich_thu`, và sổ mới sau này): đo **100.000 dòng**, ngưỡng theo hạng dưới.
+- **Bảng CHỨNG TỪ** (`don_hang`, `phieu_thu`, `don_mua`, `hoa_don_ncc`, `gia_ncc`, `vat_tu`…): đo **30.000 dòng** — bằng ~3 năm quy mô thật (~200 đơn/ngày). **KHÔNG đo 100k.**
+- **Lý do:** 100k chứng từ = hàng chục năm doanh số. Đo sai đối tượng làm CẢ HỌ RPC tài chính (`dong_tien_ky`, `con_phai_thu`, `cm_don_ky`, `kenh_cac_ky`, `pl_ky`, `lap_day_ky`) **đỏ giả** — quét 100k chứng từ mà kỳ thật chỉ vài nghìn. RPC đọc chứng từ **tự chiếu 30k**.
 
 **LUẬT TỐC ĐỘ 2 HẠNG (CEO chốt 18/08 — QD-40):**
 - **Hạng TÁC NGHIỆP** (người đứng chờ: ghi phiếu, chốt đơn, `quet_tem`…): **< 500ms** (tem thợ chờ: < 300ms).
@@ -59,6 +64,14 @@ Lô nào dựng RPC đọc bảng lớn thì phải **đo ở mức 100.000 dòn
 **BẪY ĐO PERF — phải đo DIRECT, không savepoint:**
 - Helper test `asK()` tạo **1 savepoint mỗi call**. Chuỗi test dài (>64 subxid) → **tràn subtrans SLRU của Postgres** → quét bảng lớn sau đó chậm GIẢ (587ms thật → 980-1210ms). Prod không có savepoint lồng nên không dính.
 - ⟹ Đo perf: **set role + jwt claims MỘT LẦN rồi `c.query` thẳng** (giống prod), KHÔNG bọc savepoint mỗi call. (Đã dính L-49; xem đầu `web/ops/test_116.mjs`.)
+
+## KỶ LUẬT DEPLOY FILE ?raw
+
+File import `?raw` (`togihome_sale.html`, `togihome_taichinh.html`…) là **CHUỖI** với bundler, **build xanh KHÔNG chứng minh cú pháp đúng**. Hai cổng bắt buộc mỗi lần deploy:
+1. **`node --check`** trên JS trích ra, **TRƯỚC build**.
+2. **Mở prod bằng Chrome thật** xác nhận app boot + đủ nav, **SAU deploy** — không boot thì **rollback ngay**, chẩn đoán sau.
+
+Đã dính: 29/08 lệch 1 dấu `)` làm **chết app Sale trên prod**, robot kẹt boot bị đọc nhầm thành lỗi harness.
 
 ## RANH GIỚI HOẠT ĐỘNG = chỗ BÀN GIAO VẬT LÝ (QD-02)
 

@@ -2261,6 +2261,134 @@ function BanChoGui({ ds, moDon }) {
   );
 }
 
+// [WP-75 L-2b] KHỐI LỊCH THU (A) + MỐC BÀN GIAO (B) trên thẻ đơn (XemDon). Tiền TỪ DB (lich_thu_cua_don). CSS lt-/mbg-.
+function LtMocKhoi({ d }) {
+  const el = React.createElement;
+  const vaiCeo = ((window.__saleUser && window.__saleUser.vai_tro) || "") === "ceo";
+  const daChot = !["bao_gia", "bao_gia_thua", "bao_gia_treo"].includes(d.tt);
+  const [st, setSt] = useState({ loading: true, err: "", data: null });
+  const [suaMo, setSuaMo] = useState(false), [suaDot, setSuaDot] = useState([]), [suaLyDo, setSuaLyDo] = useState("");
+  const [luiMo, setLuiMo] = useState(false), [luiLyDo, setLuiLyDo] = useState("");
+  const tai = () => { setSt(s => ({ ...s, loading: true, err: "" }));
+    window.saleApi.lichThuCuaDon(d.ma).then(data => setSt({ loading: false, err: "", data })).catch(e => setSt({ loading: false, err: e.message || String(e), data: null })); };
+  useEffect(() => { tai(); }, [d.ma]);
+  const MOC = { chot_don: "Chốt đơn", da_giao_chua_lap: "Đã giao, chưa lắp", da_lap_xong: "Lắp xong", ngay_co_dinh: "Ngày cố định" };
+  const TT = { da_thu: ["Đã thu", "lt-xanh"], den_han: ["Đến hạn", "lt-vang"], chua_toi: ["Chưa tới", "lt-trang"] };
+  const MBG = { chua_giao: "Chưa giao", da_giao_chua_lap: "Đã giao, chưa lắp", da_lap_xong: "Lắp xong" };
+  const setErr = m => setSt(s => ({ ...s, err: m }));
+  const ghiPhieu = async r => { const loai = r.moc === "chot_don" ? "coc" : (r.moc === "da_giao_chua_lap" || r.moc === "da_lap_xong") ? "thu_khi_giao" : "thu_no";
+    try { await window.saleApi.ptGhi({ ma_don: d.ma, so_tien: r.con_thieu, loai, ghi_chu: "Đợt " + r.so_dot + " · " + (MOC[r.moc] || r.moc) }); tai(); } catch (e) { setErr(e.message || String(e)); } };
+  const taoLich = async () => { const dong = st.data && st.data.dong; const bo = dong === "du_an"
+      ? [{ so_dot: 1, moc: "chot_don", ty_le: 30 }, { so_dot: 2, moc: "da_giao_chua_lap", ty_le: 40 }, { so_dot: 3, moc: "da_lap_xong", ty_le: 30 }]
+      : [{ so_dot: 1, moc: "da_giao_chua_lap", ty_le: 100 }];
+    try { await window.saleApi.ltGhi(st.data.don_id, bo, null); tai(); } catch (e) { setErr(e.message || String(e)); } };
+  const moSua = () => { setSuaDot((st.data.dot || []).map(x => ({ so_dot: x.so_dot, moc: x.moc, ty_le: Number(x.ty_le) }))); setSuaLyDo(""); setSuaMo(true); };
+  const luuSua = async () => { try { await window.saleApi.ltGhi(st.data.don_id, suaDot.map(x => ({ so_dot: x.so_dot, moc: x.moc, ty_le: x.ty_le })), suaLyDo || null); setSuaMo(false); tai(); } catch (e) { setErr(e.message || String(e)); } };
+  const tienMoc = async () => { const nxt = st.data.moc_ban_giao === "chua_giao" ? "da_giao_chua_lap" : "da_lap_xong";
+    try { await window.saleApi.datMocBanGiao(st.data.don_id, nxt, null); tai(); } catch (e) { setErr(e.message || String(e)); } };
+  const luiMoc = async () => { const pre = st.data.moc_ban_giao === "da_lap_xong" ? "da_giao_chua_lap" : "chua_giao";
+    try { await window.saleApi.datMocBanGiao(st.data.don_id, pre, luiLyDo || null); setLuiMo(false); setLuiLyDo(""); tai(); } catch (e) { setErr(e.message || String(e)); } };
+  const CSS = ".lt-khoi{border:1px solid #E6E9F0;border-radius:11px;padding:14px 16px;margin-bottom:12px;background:#fff}.lt-tit{font-weight:700;font-size:13.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}.lt-loi{background:#FDECEC;color:#B4232A;border:1px solid #F3C4C4;border-radius:7px;padding:8px 11px;margin-bottom:10px;white-space:pre-wrap;font-size:12.5px}.lt-thuoc{display:flex;gap:6px;margin-bottom:12px}.lt-seg{flex:1;border-radius:8px;padding:8px 10px;border:1px solid #E3E7EE;font-size:12px}.lt-seg b{display:block;font-size:12.5px;margin-bottom:2px}.lt-seg .lt-t{font-variant-numeric:tabular-nums;font-weight:600}.lt-xanh{background:#E9F7EE;border-color:#BEE7CB}.lt-vang{background:#FFF6E0;border-color:#F3DCA0}.lt-trang{background:#FAFBFC}.lt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}.lt-tbl th,.lt-tbl td{padding:6px 8px;border-bottom:1px solid #EEF1F6;text-align:left;white-space:nowrap}.lt-tbl th{color:#6B7488;font-size:10.5px;text-transform:uppercase}.lt-num{text-align:right;font-variant-numeric:tabular-nums}.lt-tong td{font-weight:700;background:#FAFBFC;border-top:2px solid #E3E7EE}.lt-btn{background:#2B59FF;color:#fff;border:0;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}.lt-btn.sec{background:#EEF1F6;color:#33405A}.lt-btn:disabled{opacity:.45;cursor:not-allowed}.lt-form{margin-top:10px;border-top:1px dashed #DDE2EA;padding-top:10px}.lt-form .r{display:flex;gap:8px;align-items:center;margin-bottom:6px}.lt-form input,.lt-form select{border:1px solid #D5DAE3;border-radius:6px;padding:4px 7px;font-size:12.5px}.lt-note{font-size:11.5px;color:#8A94A6;margin-top:4px}.mbg-khoi{border:1px solid #E6E9F0;border-radius:11px;padding:14px 16px;margin-bottom:12px;background:#fff}.mbg-cur{font-weight:700;font-size:14px;margin:6px 0 10px}.mbg-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}";
+  if (st.loading) return el("div", { className: "lt-khoi" }, el("style", null, CSS), "Đang tải lịch thu…");
+  const dt = st.data || {}, dot = dt.dot || [];
+  const tong = dot.reduce((a, r) => ({ ty: a.ty + Number(r.ty_le || 0), due: a.due + (r.due || 0), da: a.da + (r.da_thu_dot || 0) }), { ty: 0, due: 0, da: 0 });
+  const suaHopLe = Math.abs(suaDot.reduce((a, x) => a + Number(x.ty_le || 0), 0) - 100) < 0.01;
+  const luuDisabled = (daChot && !suaLyDo.trim()) || !suaHopLe;
+  return el(React.Fragment, null,
+    el("style", null, CSS),
+    el("div", { className: "lt-khoi" },
+      el("div", { className: "lt-tit" }, el("span", null, "Lịch thu"),
+        dot.length > 0 && el("button", { className: "lt-btn sec", onClick: moSua }, "Sửa lịch thu")),
+      st.err && el("div", { className: "lt-loi" }, st.err),
+      dot.length === 0
+        ? el("div", null, el("div", { className: "lt-note" }, "Đơn này chưa có lịch thu."),
+            el("button", { className: "lt-btn", style: { marginTop: 8 }, onClick: taoLich }, "Tạo lịch thu"))
+        : el(React.Fragment, null,
+          el("div", { className: "lt-thuoc" }, dot.map((r, i) => el("div", { key: i, className: "lt-seg " + (TT[r.trang_thai] ? TT[r.trang_thai][1] : "lt-trang") },
+            el("b", null, MOC[r.moc] || r.moc), el("span", { className: "lt-t" }, vnd(r.due)), " · " + r.ty_le + "% · " + (TT[r.trang_thai] ? TT[r.trang_thai][0] : "")))),
+          el("table", { className: "lt-tbl" },
+            el("thead", null, el("tr", null, el("th", null, "Đợt"), el("th", null, "Mốc"), el("th", { className: "lt-num" }, "Tỷ lệ"), el("th", { className: "lt-num" }, "Phải thu"), el("th", { className: "lt-num" }, "Đã thu"), el("th", null, "Trạng thái"), el("th", null, ""))),
+            el("tbody", null, dot.map((r, i) => el("tr", { key: i },
+              el("td", null, r.so_dot + "/" + (dt.dot.length)), el("td", null, MOC[r.moc] || r.moc),
+              el("td", { className: "lt-num" }, r.ty_le + "%"), el("td", { className: "lt-num" }, vnd(r.due)), el("td", { className: "lt-num" }, vnd(r.da_thu_dot)),
+              el("td", null, TT[r.trang_thai] ? TT[r.trang_thai][0] : r.trang_thai),
+              el("td", null, r.con_thieu > 0 && el("button", { className: "lt-btn", onClick: () => ghiPhieu(r) }, "Ghi phiếu thu"))))),
+            el("tfoot", null, el("tr", { className: "lt-tong" },
+              el("td", { colSpan: 2 }, "Tổng"), el("td", { className: "lt-num" }, Math.round(tong.ty) + "%"), el("td", { className: "lt-num" }, vnd(tong.due)), el("td", { className: "lt-num" }, vnd(tong.da)),
+              el("td", { colSpan: 2 }, "còn phải thu " + vnd(dt.con_phai_thu))))),
+      suaMo && el("div", { className: "lt-form" },
+        suaDot.map((x, i) => el("div", { className: "r", key: i },
+          el("span", null, "Đợt " + x.so_dot),
+          el("select", { value: x.moc, onChange: e => { const v = e.target.value; setSuaDot(a => a.map((y, j) => j === i ? { ...y, moc: v } : y)); } },
+            ["chot_don", "da_giao_chua_lap", "da_lap_xong", "ngay_co_dinh"].map(m => el("option", { key: m, value: m }, MOC[m]))),
+          el("input", { type: "number", style: { width: 64 }, value: x.ty_le, onChange: e => { const v = Number(e.target.value); setSuaDot(a => a.map((y, j) => j === i ? { ...y, ty_le: v } : y)); } }), el("span", null, "%"))),
+        el("div", { className: "r" }, el("input", { style: { flex: 1 }, placeholder: "Lý do sửa (bắt buộc khi đơn đã chốt)", value: suaLyDo, onChange: e => setSuaLyDo(e.target.value) })),
+        !suaHopLe && el("div", { className: "lt-note", style: { color: "#B4232A" } }, "Σ tỷ lệ phải = 100% (đang " + Math.round(suaDot.reduce((a, x) => a + Number(x.ty_le || 0), 0)) + "%)"),
+        daChot && !suaLyDo.trim() && el("div", { className: "lt-note" }, "Đơn đã chốt — phải nhập lý do mới lưu được."),
+        el("div", { className: "r" }, el("button", { className: "lt-btn", disabled: luuDisabled, onClick: luuSua }, "Lưu"), el("button", { className: "lt-btn sec", onClick: () => setSuaMo(false) }, "Huỷ")))),
+    el("div", { className: "mbg-khoi" },
+      el("div", { className: "lt-tit" }, el("span", null, "Mốc bàn giao")),
+      el("div", { className: "mbg-cur" }, MBG[dt.moc_ban_giao] || dt.moc_ban_giao || "—"),
+      el("div", { className: "mbg-row" },
+        dt.moc_ban_giao === "chua_giao" && el("button", { className: "lt-btn", onClick: tienMoc }, "Đánh dấu ĐÃ GIAO, CHƯA LẮP"),
+        dt.moc_ban_giao === "da_giao_chua_lap" && el("button", { className: "lt-btn", onClick: tienMoc }, "Đánh dấu LẮP XONG"),
+        vaiCeo && dt.moc_ban_giao !== "chua_giao" && el("button", { className: "lt-btn sec", onClick: () => setLuiMo(v => !v) }, "Lùi mốc")),
+      luiMo && el("div", { className: "lt-form" },
+        el("div", { className: "r" }, el("input", { style: { flex: 1 }, placeholder: "Lý do lùi mốc (bắt buộc)", value: luiLyDo, onChange: e => setLuiLyDo(e.target.value) })),
+        el("div", { className: "r" }, el("button", { className: "lt-btn", disabled: !luiLyDo.trim(), onClick: luiMoc }, "Lùi"), el("button", { className: "lt-btn sec", onClick: () => setLuiMo(false) }, "Huỷ"))))));
+}
+
+// [WP-75 L-2a] TAB "Đợt đến hạn" — màn ĐỘC LẬP đọc lich_thu_den_han. Tiền TỪ DB. Nút Ghi phiếu thu dùng pt_ghi CÓ SẴN.
+function DoiDenHan({ tien }) {
+  const el = React.createElement;
+  const [st, setSt] = useState({ loading: true, err: "", dot: [] });
+  const tai = () => {
+    setSt(s => ({ ...s, loading: true, err: "" }));
+    window.saleApi.lichThuDenHan()
+      .then(r => setSt({ loading: false, err: "", dot: (r && r.dot) || [] }))
+      .catch(e => setSt({ loading: false, err: e.message || String(e), dot: [] }));
+  };
+  useEffect(() => { tai(); }, []);
+  const rows = st.dot;
+  const mocTxt = { chot_don: "Chốt đơn", da_giao_chua_lap: "Đã giao, chưa lắp", da_lap_xong: "Lắp xong", ngay_co_dinh: "Ngày cố định" };
+  const tuoiTxt = t => t == null ? "—" : t <= 0 ? "hôm nay" : "quá " + t + " ngày";
+  const dmTxt = r => r.ngay_dat_moc ? (String(r.ngay_dat_moc).slice(8, 10) + "/" + String(r.ngay_dat_moc).slice(5, 7)) : (mocTxt[r.moc] || r.moc);
+  const ghiPhieu = async r => {
+    const loai = r.moc === "chot_don" ? "coc" : (r.moc === "da_giao_chua_lap" || r.moc === "da_lap_xong") ? "thu_khi_giao" : "thu_no";
+    try {
+      await window.saleApi.ptGhi({ ma_don: r.ma_don, so_tien: r.con_thieu, loai, ghi_chu: "Đợt " + r.so_dot + "/" + r.so_dot_tong + " · " + (mocTxt[r.moc] || r.moc) });
+      tai();   // nạp lại → cột "đã thu" đổi theo, đợt thu đủ tự rời bảng
+    } catch (e) { setSt(s => ({ ...s, err: e.message || String(e) })); }
+  };
+  const tong = rows.reduce((a, r) => ({ due: a.due + (r.due || 0), da: a.da + (r.da_thu || 0), ct: a.ct + (r.con_thieu || 0) }), { due: 0, da: 0, ct: 0 });
+  const CSSDH = ".dh-wrap{padding:18px 22px;max-width:1120px}.dh-head{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}.dh-head h3{margin:0;font-size:19px}.dh-dem{background:#EEF2FF;color:#3549A6;font-weight:700;border-radius:999px;padding:2px 11px;font-size:13px}.dh-loi{background:#FDECEC;color:#B4232A;border:1px solid #F3C4C4;border-radius:8px;padding:9px 12px;margin-bottom:12px;white-space:pre-wrap}.dh-trong{color:#6B7488;background:#FAFBFC;border:1px dashed #D9DEE7;border-radius:10px;padding:22px;line-height:1.55}.dh-tblwrap{overflow-x:auto;border:1px solid #EAEDF2;border-radius:10px}.dh-tbl{width:100%;border-collapse:collapse;font-size:13.5px}.dh-tbl th,.dh-tbl td{padding:9px 12px;border-bottom:1px solid #EEF1F6;text-align:left;white-space:nowrap}.dh-tbl th{color:#6B7488;font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}.dh-num{text-align:right;font-variant-numeric:tabular-nums}.dh-ma{font-family:var(--mono,monospace);font-weight:600}.dh-btn{background:#2B59FF;color:#fff;border:0;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer}.dh-btn:hover{background:#1E45D8}.dh-tong td{font-weight:700;background:#FAFBFC;border-top:2px solid #E3E7EE}";
+  return el("div", { className: "dh-wrap" },
+    el("style", null, CSSDH),
+    el("div", { className: "dh-head" }, el("h3", null, "Đợt đến hạn"), el("span", { className: "dh-dem" }, rows.length + " đợt")),
+    st.err && el("div", { className: "dh-loi" }, st.err),
+    st.loading ? el("div", { className: "dh-trong" }, "Đang tải…")
+      : rows.length === 0 ? el("div", { className: "dh-trong" }, "Chưa có đợt nào đến hạn. Khi một mốc (chốt đơn · đã giao · lắp xong · ngày cố định) đạt mà đơn chưa thu đủ, đợt đó sẽ hiện ở đây để đòi tiền.")
+        : el("div", { className: "dh-tblwrap" }, el("table", { className: "dh-tbl" },
+          el("thead", null, el("tr", null,
+            el("th", null, "Đơn"), el("th", null, "Khách"), el("th", null, "Đợt"), el("th", null, "Mốc đạt"),
+            el("th", { className: "dh-num" }, "Phải thu"), el("th", { className: "dh-num" }, "Đã thu"),
+            el("th", null, "Tuổi"), el("th", null, ""))),
+          el("tbody", null, rows.map((r, i) => el("tr", { key: i },
+            el("td", null, el("span", { className: "dh-ma" }, r.ma_don)),
+            el("td", null, r.khach),
+            el("td", null, r.so_dot + "/" + r.so_dot_tong + " · " + r.ty_le + "%"),
+            el("td", null, dmTxt(r)),
+            el("td", { className: "dh-num" }, vnd(r.due)),
+            el("td", { className: "dh-num" }, vnd(r.da_thu)),
+            el("td", null, tuoiTxt(r.tuoi)),
+            el("td", null, el("button", { className: "dh-btn", onClick: () => ghiPhieu(r) }, "Ghi phiếu thu"))))),
+          el("tfoot", null, el("tr", { className: "dh-tong" },
+            el("td", { colSpan: 4 }, "Tổng " + rows.length + " đợt"),
+            el("td", { className: "dh-num" }, vnd(tong.due)),
+            el("td", { className: "dh-num" }, vnd(tong.da)),
+            el("td", { colSpan: 2 }, "còn thiếu " + vnd(tong.ct)))))));
+}
+
 /* ================= APP ================= */
 function App() {
   const [tab, setTab] = useState("bg");   // L-57: màn Báo giá là NHÀ CHÍNH của sale → mở mặc định
@@ -2465,12 +2593,13 @@ function App() {
   const MO = {
     don: true,
     bg: true,
+    dh: ["sale", "ceo"].includes((window.__saleUser && window.__saleUser.vai_tro) || ""),   // [WP-75 L-2a] Đợt đến hạn: sale|ceo
     nhom: ["truong_nhom_sale", "ceo"].includes((window.__saleUser && window.__saleUser.vai_tro) || ""),   // L-72: mục Nhóm CHỈ trưởng nhóm/ceo
     tv: true,   // L-78: Thư viện bản — mọi sale (cho khách xem bản khách khác)
     sp: true,
     khach: true
   };
-  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["nhom", "Nhóm"], ["tv", "Thư viện bản"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
+  const NAV0 = [["bg", "Báo giá"], ["don", "Sổ đơn hàng"], ["dh", "Đợt đến hạn"], ["nhom", "Nhóm"], ["tv", "Thư viện bản"], ["sp", "Danh mục sản phẩm"], ["khach", "Khách hàng"]];
   const NAV = NAV0.filter(([k], i) => {
     if (k) return !!MO[k];
     for (let j = i + 1; j < NAV0.length && NAV0[j][0] !== ""; j++) if (MO[NAV0[j][0]]) return true;
@@ -2563,6 +2692,8 @@ function App() {
     //   "chot:" (Chuyển thành đơn) rời màn sang Sổ đơn vì từ giây đó nó là đơn.
     moDon: ma => { setMoMa(ma); if (String(ma).slice(0, 5) === "chot:") setTab("don"); },
     reload: taiBgK
+  }), okTab === "dh" && /*#__PURE__*/React.createElement(DoiDenHan, {
+    tien
   }), okTab === "nhom" && /*#__PURE__*/React.createElement(NhomMan, {
     db,
     moDon: ma => { setMoMa(ma); },
@@ -5452,6 +5583,8 @@ function XemDon({
     onDoi: onDoi,
     onGiao: onGiao,
     onLyDo: onLyDo
+  }), !["bao_gia", "bao_gia_thua", "bao_gia_treo"].includes(d.tt) && /*#__PURE__*/React.createElement(LtMocKhoi, {
+    d: d
   }), d.tt === "bao_gia" && onThua && /*#__PURE__*/React.createElement("div", {
     className: "note",
     style: {

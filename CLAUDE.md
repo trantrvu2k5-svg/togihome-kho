@@ -62,11 +62,25 @@ màn** (vd `qt-nhat`, `ns-mo`).
   của app Sản phẩm → hai ô Tổ và Dùng ở bị kéo khỏi lưới, trông như **trống rỗng**. **Không test nào bắt được,
   chỉ mắt bắt** (L-13d). Vá bằng đổi `s mo` → `s nhat`.
 
-## KỶ LUẬT TEST — ĐO Ở MỨC 100.000 DÒNG
+## KỶ LUẬT TEST — ĐO THEO LOẠI BẢNG
 
-LÔ NÀO DỰNG RPC ĐỌC BẢNG LỚN THÌ PHẢI ĐO Ở MỨC 100.000 DÒNG.
-Quá 500ms = ĐỎ. RPC thợ đứng chờ (quet_tem) quá 300ms = ĐỎ.
-Test cắn hai vế bắt lỗi logic, KHÔNG bắt lỗi tốc độ.
+LÔ NÀO DỰNG RPC ĐỌC BẢNG LỚN THÌ PHẢI ĐO. **Mức đo theo LOẠI bảng (CEO chốt 29/08):**
+- **Bảng SỔ** (append-only lớn thật: `giao_dich`, `su_kien_quet`, `xep_lich`, `lich_thu`, sổ mới sau này):
+  đo **100.000 dòng**, ngưỡng theo hạng (TÁC NGHIỆP <500ms · PHÂN TÍCH <900ms).
+- **Bảng CHỨNG TỪ** (`don_hang`, `phieu_thu`, `don_mua`, `hoa_don_ncc`, `gia_ncc`, `vat_tu`…):
+  đo **30.000 dòng** — bằng ~3 năm quy mô thật (~200 đơn/ngày). **KHÔNG đo 100k nữa.**
+- **Lý do:** 100k chứng từ = hàng chục năm doanh số; đo sai đối tượng làm CẢ HỌ RPC tài chính
+  (`dong_tien_ky`, `con_phai_thu`, `cm_don_ky`…) hiện ĐỎ GIẢ.
+
+RPC thợ đứng chờ (quet_tem) quá 300ms = ĐỎ. Test cắn hai vế bắt lỗi logic, KHÔNG bắt lỗi tốc độ.
+
+## KỶ LUẬT DEPLOY FILE ?raw
+
+File import `?raw` (`togihome_sale.html`, `togihome_taichinh.html`…) là CHUỖI với bundler, **build xanh KHÔNG chứng minh cú pháp đúng**. Hai cổng bắt buộc mỗi lần deploy:
+1. **`node --check`** trên JS trích ra, **TRƯỚC build**.
+2. **Mở prod bằng Chrome thật** xác nhận app boot + đủ nav, **SAU deploy** — không boot thì **rollback ngay**, chẩn đoán sau.
+
+Đã dính: 29/08 lệch 1 dấu `)` làm chết app Sale trên prod, robot kẹt boot bị đọc nhầm thành lỗi harness.
 Đã dính: tram_dang_cho và do_gio_that timeout ở 10.000 tem trong khi
 mọi test đều xanh — vì test chạy trên vài chục dòng.
 

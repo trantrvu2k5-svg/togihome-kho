@@ -1083,3 +1083,52 @@ của mọi đơn đang chạy kể cả đã bàn giao — thợ đang làm gi�
   app sanpham đã deploy + CEO kiểm mắt 4 ảnh + bấm nút thật (TU-BEP sửa tại chỗ, phiên bản không tăng; đổi tên;
   hoàn nguyên). PHÁT SINH: (a) nút kéo đơn sang bản mới chưa lên UI; (b) `quy_trinh_cua_mon` còn lưới
   `min(phien_ban)` — gỡ khi chắc mọi mẫu đều có dòng `hien_hanh`.
+
+## QD-72 (29/08, WP-75 L-1, db/174) — MỐC BÀN GIAO (TRỤC 2) · LỊCH THU THEO ĐỢT · CỬA CỌC DỰ ÁN · CHỐT
+
+Ba việc quanh mốc bàn giao / dòng tiền, một migration (siết ràng buộc):
+
+- **Mốc bàn giao là TRỤC THỨ HAI cạnh 15 trạng thái** (ERP 5.3.3, hai trục). `don_hang.moc_ban_giao`
+  (`chua_giao`→`da_giao_chua_lap`→`da_lap_xong`) + `moc_dat_luc`/`moc_nguoi`. Client KHÔNG ghi được (cột mới =
+  0 grant, db/150 vẫn 69 cột). Chỉ TIẾN 1 nấc, LÙI chỉ CEO + lý do (`dat_moc_ban_giao`). Vào `da_giao_chua_lap`
+  TỰ ĐỘNG khi đơn sang `da_giao` (nhánh có sẵn của `doi_trang_thai_don`, không mở đường ghi thứ hai). Backfill lịch
+  sử: `trang_thai='da_giao'` → `da_giao_chua_lap`; còn lại `chua_giao` (đây là suy đoán lịch sử — số dòng: 1 đơn
+  → `chua_giao` 1, `da_giao_chua_lap` 0 tại thời điểm migrate).
+- **Lịch thu theo ĐỢT sửa bằng TÁCH KHOẢNG + lý do, cấm ghi đè** (khuôn QD-68). `lich_thu(don_hang_id, so_dot, moc,
+  ty_le, ngay_han, hieu_luc_tu/den, ly_do)`. Σ tỷ lệ đợt đang hiệu lực = 100 (constraint trigger DEFERRABLE — kiểm
+  cuối transaction). `lt_ghi` đóng khoảng cũ rồi chèn bộ mới; đơn đã chốt thiếu lý do → RAISE. `lt_sinh_mac_dinh`
+  (gọi từ `chot_don`): dự án 30/40/30 theo mốc chốt/đã-giao/lắp-xong, lẻ+combo 1 đợt 100% mốc đã-giao. Client chỉ
+  SELECT; ghi qua RPC DEFINER. `lich_thu_den_han` lấy "đã thu" QUA CÙNG định nghĩa với `con_phai_thu` (VIEW
+  `v_tien_da_thu` — cấm chép công thức, bài học 03 §C).
+- **Cọc chặn bàn giao (dự án)** vì cọc là TIỀN THẬT (`phieu_thu` loai='coc'), không phải số suy → không vênh QD-69.
+  Ngưỡng `tham_so_tai_chinh.coc_toi_thieu_du_an_pct` (=30, không hardcode). Thiếu cọc → RAISE nêu cần/đã/thiếu.
+  Cửa vượt CHỈ CEO + lý do, ghi vết 3 cột (`vuot_coc_boi/luc/ly_do`). Đơn lẻ không gác.
+- **Khách ứng trước là khoản PHẢI TRẢ** — bóc tách trong khối thu, KHÔNG cộng thêm vào doanh thu (Garrison ch.14
+  Exhibit 14-2 + cấm đếm đôi họ QD-56). **Vế này L-3 mới code** — QD ghi trước để L-3 khỏi trôi.
+
+**LÝ DO:** ERP 5.3.3 tách trục thực thi (15 trạng thái sản xuất) khỏi trục giao-nhận-lắp (mốc bàn giao) — một đơn
+"đã giao" nhưng "chưa lắp" là trạng thái tiền-doanh-thu có thật, cần trục riêng chứ không nhồi vào 15 trạng thái.
+QD-68 (đợt = tách khoảng + lý do) áp cho lịch thu để mọi thay đổi điều khoản thanh toán có vết, không ghi đè. Cọc là
+tiền thật nên chặn được ở cổng bàn giao mà không mâu thuẫn QD-69 (việc thật thắng số suy) — vì nó KHÔNG phải số suy.
+
+- **Lịch thu ĐỌC qua RPC theo đơn** (`lich_thu_cua_don`) — client KHÔNG nhân tỷ lệ × giá chốt (04 §A); vá lỗ L-1 (chỉ có ghi `lt_ghi` + lọc `lich_thu_den_han`, thiếu đường đọc cả bộ đợt của một đơn cho thẻ đơn).
+- **[L-3] Khách ứng trước (Garrison ch.14 + QD-56):** khối THU của `dong_tien_ky` bóc **2 lát con** — "Thu của đơn đã giao" vs "Khách ứng trước" — là **LÁT CẮT** của cùng tổng (KHÔNG cộng thêm khối; `tong = da_giao + ung_truoc`). **Định nghĩa "đã giao" = `don_hang.moc_ban_giao <> 'chua_giao'`** (KHÔNG dùng `trang_thai='da_giao'`) — vì moc_ban_giao là trục GIAO-NHẬN chính xác (ERP 5.3.3), doanh thu ghi nhận khi GIAO HÀNG; `trang_thai='da_giao'` chỉ là trạng thái SX, và mọi đơn `da_giao` đã tự set `moc_ban_giao≠chua_giao` nên moc bao trùm + chính xác hơn. Bảng "Số dư khách ứng trước" khép vòng theo mốc giao (`moc_dat_luc`): đầu + nhận thêm − kết chuyển = còn giữ. Lọc demo qua `p_gom_demo` (mặc định false — màn BÁO CÁO, khác màn đòi tiền L-2a). Tests a/b/c 7/0.
+- **[L-2] điều chỉnh ngoài db/174 gốc L-1:** `lich_thu_den_han` (a) guard nới `ceo|ke_toan` → thêm `sale` (màn đòi tiền App Sale — chỉ ĐỌC); (b) enrich 4 trường `khach/so_dot_tong/ngay_dat_moc/tuoi` cho cột tab; (c) **lọc demo qua `p_gom_demo boolean DEFAULT false`** (khuôn QD-46) — mặc định ẨN demo (dòng demo lọt danh sách đòi tiền = gọi nhầm khách), `true` mới hiện.
+- **[L-6] gộp phép bóc** vào MỘT pass tính khối thu (`with p as materialized`) — 1 lần quét `phieu_thu⋈don_hang` thay 2. Số dư ứng trước (quét thứ 3 theo `moc_dat_luc`) giữ nguyên.
+- **[L-8] LUẬT ĐO sửa (CEO chốt 29/08):** RPC đọc **chứng từ** (`don_hang`, `phieu_thu`…) đo ở **30.000** (~3 năm thật), KHÔNG 100k; chỉ bảng **SỔ** đo 100k. 100k chứng từ = hàng chục năm → làm cả họ RPC tài chính đỏ giả. `test_117` sửa về 30k → **24/0** (#8 `nhan_xet_ky` 1555ms<3000). Ghi vào `CLAUDE.md` + `00_LUAT_LAM_VIEC.md`.
+
+**5 GIẢ ĐỊNH (CEO duyệt 29/08):**
+
+| # | Giả định | Vì sao | Gỡ khi nào |
+|---|---|---|---|
+| 1 | Cọc dự án tối thiểu **30%** | `tham_so_tai_chinh.coc_toi_thieu_du_an_pct`, CEO chỉnh được | CEO chốt số khác → sửa tham số, không sửa code |
+| 2 | Mẫu đợt dự án **30/40/30** (lẻ/combo 1 đợt 100%) | `lt_sinh_mac_dinh` mặc định | CEO chốt tỷ lệ khác → sửa `lt_sinh_mac_dinh` |
+| 3 | Vai bấm mốc = **sale\|ceo** | Q-C CEO chốt (mốc bàn giao) | CEO đổi vai → sửa guard `dat_moc_ban_giao` |
+| 4 | **"đã giao" = `moc_ban_giao≠chua_giao`** (bóc lát kế toán) | trục giao-nhận ERP 5.3.3, doanh thu ghi khi giao (Garrison) | cần theo `trang_thai='da_giao'` → sửa `dong_tien_ky` |
+| 5 | **Cọc = `phieu_thu` loai='coc'** (tiền thật), KHÔNG dùng `don_hang.tien_coc` (số khai) | cọc là tiền thật nên chặn bàn giao không vênh QD-69 | nếu đổi nguồn cọc → sửa cửa cọc `ban_giao_xuong` |
+
+- **Trạng thái: CEO DUYỆT 29/08 · CHỐT.** ĐÃ CHẠY prod (db/174, gồm gộp bóc L-6). `test_wp75` 8/0 · `test_117` 24/0
+  (30k) · a/b/c 6/0 · hồi quy wp07/08/43/44/45 + 116 XANH. Đo @30k: `dong_tien_ky` 329ms · `con_phai_thu` 222ms ·
+  `cm_don_ky` 359ms · `kenh_cac_ky` 210ms · `pl_ky` 120ms · `lap_day_ky` 101ms · `nhan_xet_ky` 1487ms — tất cả <ngưỡng.
+  test_047/069 ĐỎ **PRE-EXISTING** (permission denied client-role, chứng minh trên hàm gốc), không đụng WP-75.
+  4 lô UI deploy prod (sale/thietke/taichinh) qua 2 cổng ?raw (node --check + Chrome boot). 3 điều ĐỊNH NGHĨA XONG đều ĐẠT.

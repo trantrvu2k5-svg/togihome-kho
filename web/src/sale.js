@@ -349,6 +349,16 @@ window.storage = {
 //   Trả {data, error} thô để React tự xử. dong: app (ban_le…) -> DB (le…) qua DONG_W.
 window.saleApi = {
   monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
+  // [WP-75 L-2a] Đợt lịch thu ĐẾN HẠN (mốc đã đạt, chưa thu đủ) — {ok, ngay, dot:[...]}. Tiền TỪ DB.
+  lichThuDenHan: async (ngay = null) => { const { data, error } = await sb.rpc('lich_thu_den_han', ngay ? { p_ngay: ngay } : {}); if (error) throw error; return data },
+  // [WP-75 L-2a] Ghi phiếu thu — dùng pt_ghi CÓ SẴN (KHÔNG mở đường ghi tiền thứ hai). p_phieu={ma_don,so_tien,loai,ghi_chu?}.
+  ptGhi: async phieu => { const { data, error } = await sb.rpc('pt_ghi', { p_phieu: phieu }); if (error) throw error; return data },
+  // [WP-75 L-2b] đọc CẢ bộ đợt của MỘT đơn cho thẻ đơn (tiền từ DB) — {ok, gia, da_thu, moc_ban_giao, sum_ty_le, tong_due, con_phai_thu, dot:[...]}.
+  lichThuCuaDon: async maDon => { const { data, error } = await sb.rpc('lich_thu_cua_don', { p_ma_don: maDon }); if (error) throw error; return data },
+  // [WP-75 L-2b] ghi/sửa bộ đợt (tách khoảng + lý do). p_dot=[{so_dot,moc,ty_le,ngay_han?}].
+  ltGhi: async (donId, dot, lyDo = null) => { const { data, error } = await sb.rpc('lt_ghi', { p_don_id: donId, p_dot: dot, p_ly_do: lyDo }); if (error) throw error; return data },
+  // [WP-75 L-2b] đẩy/lùi mốc bàn giao. moc∈{chua_giao,da_giao_chua_lap,da_lap_xong}. Lùi cần lý do (server gác).
+  datMocBanGiao: async (donId, moc, lyDo = null) => { const { data, error } = await sb.rpc('dat_moc_ban_giao', { p_don_id: donId, p_moc: moc, p_ly_do: lyDo }); if (error) throw error; return data },
   // chuông "bản chờ gửi" (db/087) — trả {tong, ds} cùng một điều kiện; badge=tong, danh sách=ds (≤ gioi_han)
   banChoGui: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data },
   // màn báo giá (db/091) — {tong, ds:[đơn báo giá + gd]}. App tự tính ô/lọc như v5. Sale KHÔNG thấy giá vốn.

@@ -914,8 +914,10 @@ async function taiNhapSo() {
   if (!NS.qtds) { const { data } = await sb.rpc('quy_trinh_ds'); NS.qtds = data || [] }
   const { data, error } = await sb.rpc('nhap_so_don_don_hang', { p_ma_don: md })
   if (error) { nsLoiDon(error.message); return }
-  if (md !== NS._lastDon) { NS.files = []; NS._lastDon = md }   // đổi đơn → xoá file đã đính kèm
+  if (md !== NS._lastDon) { NS.files = []; NS._lastDon = md; NS.cocLoi = null; NS.cocVuotMo = false }   // đổi đơn → xoá file + reset cửa cọc
   NS.ma_don = md; NS.data = data
+  // [WP-75 L-2c] cờ cảnh báo bàn-giao-vượt-cọc (đọc từ DB, tới khi thu đủ)
+  try { const { data: cb } = await sb.rpc('vuot_coc_canh_bao', { p_ma_don: md }); NS.data.vuot_coc_canh_bao = cb === true } catch (_) { NS.data.vuot_coc_canh_bao = false }
   if (!NS.sel || !data.mon.find(m => m.mon_id === NS.sel)) NS.sel = (data.mon[0] || {}).mon_id
   renderNsDau(); renderNsTong(); renderNsMonDs(); await renderNsPhai()
 }
@@ -936,11 +938,33 @@ function renderNsDau() {
   else { const ly = nsLyDoKhoa(); if (ly) { nhan = 'Chưa gửi được — ' + ly; dis = true } else { nhan = 'Gửi file sản xuất cho xưởng'; dis = false } }
   const attach = d.da_vao_chuyen ? '' :
     '<div class="ns-file"><div class="ns-tha" id="nsThaFile">+ Đính kèm file cắt (DXF/CSV/ảnh)<input type="file" id="nsInpFile" multiple hidden></div><div id="nsFileList"></div></div>'
+  // [WP-75 L-2c] dải cảnh báo đã-bàn-giao-vượt-cọc (đọc DB, không nút tắt — QD-69)
+  const canh = d.vuot_coc_canh_bao
+    ? '<div class="cc-canh">⚠ Đơn này đã bàn giao khi CHƯA đủ cọc — theo dõi thu tiền tới khi đủ. (không tắt được — QD-69)</div>' : ''
+  // [WP-75 L-2c] banner cửa cọc: nguyên văn RPC + (chỉ CEO) nút vượt cửa mở ô lý do
+  let banner = ''
+  if (NS.cocLoi) {
+    const laCeo = USER && USER.vai_tro === 'ceo'
+    const vuot = !laCeo ? ''
+      : NS.cocVuotMo
+        ? '<div class="cc-vuot"><input id="ccLyDo" class="cc-lydo" placeholder="Lý do CEO cho vượt cửa cọc (bắt buộc)">' +
+          '<button id="ccLuu" class="cc-luu" disabled>Vượt cửa & bàn giao</button>' +
+          '<div class="cc-note" id="ccNote">Phải nhập lý do mới vượt được.</div></div>'
+        : '<button id="ccVuot" class="cc-vuot-nut">CEO cho vượt cửa…</button>'
+    banner = '<div class="cc-banner"><div class="cc-msg">' + esc(NS.cocLoi) + '</div>' + vuot + '</div>'
+  }
   $('nsDau').innerHTML = '<div><span class="ma mono">' + esc(d.ma_don) + '</span><h1>' + esc(d.ten_don || d.ma_don) +
     '</h1><p>Gán quy trình cho từng món và nhập số đơn vị. Đủ số + file cắt + bản khách duyệt thì gửi được cho xưởng.</p></div>' +
+    canh + banner +
     '<div class="ns-giao">' + attach +
     '<button class="nut-day" id="nsNutDay"' + (dis ? ' disabled' : '') + '>' + esc(nhan) + '</button></div>'
-  $('nsNutDay').onclick = nsBanGiao
+  $('nsNutDay').onclick = () => nsBanGiao()
+  if ($('ccVuot')) $('ccVuot').onclick = () => { NS.cocVuotMo = true; renderNsDau() }
+  if ($('ccLyDo')) {
+    const sync = () => { const v = $('ccLyDo').value.trim(); $('ccLuu').disabled = !v; if ($('ccNote')) $('ccNote').style.display = v ? 'none' : '' }
+    $('ccLyDo').oninput = sync
+    $('ccLuu').onclick = () => { const v = $('ccLyDo').value.trim(); if (v) nsBanGiao(v) }
+  }
   if ($('nsThaFile')) {
     const z = $('nsThaFile'), inp = $('nsInpFile')
     z.onclick = () => inp.click()
@@ -1153,7 +1177,7 @@ async function nsGanQt() {
   await taiNhapSo()
 }
 // BÀN GIAO XƯỞNG (QD-14): tải file lên storage rồi gọi ban_giao_xuong (gác 3 chốt + đẩy cho_cat)
-async function nsBanGiao() {
+async function nsBanGiao(lyDoVuot) {
   const btn = $('nsNutDay'); if (!btn) return
   btn.disabled = true; const cu = btn.textContent; btn.textContent = 'Đang tải file…'
   try {
@@ -1164,8 +1188,14 @@ async function nsBanGiao() {
       if (up.error) throw new Error(up.error.message)
       ds.push({ loai_file: f.loai, duong_dan: path, ten_goc: f.ten, co_byte: f.byte })
     }
-    const { data: rbg, error } = await sb.rpc('ban_giao_xuong', { p_ma_don: NS.ma_don, p_danh_sach: ds, p_ghi_chu: null })
-    if (error) { bao(error.message.replace(/^.*(THIEU_FILE_CAT|CHUA_KHACH_DUYET|THIEU_SO_DON_VI|CHUA_GAN_QUY_TRINH|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT):\s*/, ''), true); btn.disabled = false; btn.textContent = cu; return }
+    const { data: rbg, error } = await sb.rpc('ban_giao_xuong', { p_ma_don: NS.ma_don, p_danh_sach: ds, p_ghi_chu: null, p_ly_do_vuot_coc: lyDoVuot || null })
+    if (error) {
+      const msg = error.message.replace(/^.*(THIEU_FILE_CAT|CHUA_KHACH_DUYET|THIEU_SO_DON_VI|CHUA_GAN_QUY_TRINH|DA_VAO_CHUYEN|TRANG_THAI_KHONG_DAY|DON_CHUA_CHOT|THIEU_COC|VUOT_COC_CHI_CEO):\s*/, '')
+      // [WP-75 L-2c] cửa cọc: hiện BANNER cố định tại form (nguyên văn RPC — client không soạn lại, không tính lại số)
+      if (/THIEU_COC|VUOT_COC_CHI_CEO/.test(error.message)) { NS.cocLoi = msg; btn.disabled = false; btn.textContent = cu; renderNsDau(); return }
+      bao(msg, true); btn.disabled = false; btn.textContent = cu; return
+    }
+    NS.cocLoi = null; NS.cocVuotMo = false
     // [WP-43] bàn giao ĐÃ xong (không chặn) — báo thêm việc tự xếp lịch có vào được hay không
     if (rbg && rbg.da_xep) bao('Đã gửi xưởng · đã vào lịch, ' + (rbg.so_dong_xep_lich || 0) + ' dòng ✓')
     else bao('Đã gửi xưởng · CHƯA vào được lịch: ' + ((rbg && rbg.ly_do_khong_xep) || 'không rõ') + '. Xưởng sẽ xếp tay.', false, true)
