@@ -45,7 +45,16 @@ async function main() {
   client.on('notice', m => console.log('  NOTICE:', m.message))
   await client.connect()
 
-  if (process.env.BO_QUA_BACKUP === '1') {
+  // Bỏ cờ 29/08: dump mất vài giây và 6 MB, không có lý do chính đáng nào để bỏ qua.
+  // Cửa mở sẵn thì sớm muộn có người đi qua — 29/08 đã xảy ra đúng một lần.
+  //   → migration ≥177 LUÔN backup; cờ BO_QUA_BACKUP/CEO_BO_QUA đã XOÁ (không đường vòng, không công tắc).
+  //   Cần bỏ backup thật sự khi khẩn → CEO tự sửa file này. (QD-61, sửa lần 2 · 29/08)
+  const migNum = parseInt(basename(file), 10)                      // NaN cho file scratch/test (không bắt đầu bằng số)
+  const boQua = process.env.BO_QUA_BACKUP === '1'
+  if (boQua && migNum >= 177) {                                    // cờ còn trong môi trường nhưng đã BỎ → cảnh báo rồi VẪN backup
+    console.error(do_('⚠️  Cờ BO_QUA_BACKUP đã BỎ (29/08) — bỏ qua cờ, VẪN BACKUP db/' + migNum + '.'))
+  }
+  if (boQua && !(migNum >= 177)) {                                 // CHỈ ≤176 / scratch (NaN): cờ vẫn cho bỏ backup (không hồi tố)
     console.error(do_('⚠️  BO_QUA_BACKUP=1 — BỎ QUA BACKUP PRE-MIGRATE. Chỉ dùng cho file SCRATCH, KHÔNG phải để lách backup thật!'))
   } else {
     // (1) pg_dump 17.x
@@ -89,7 +98,7 @@ async function main() {
     if (daXoa.length) console.log(`   xoay vòng (giữ ${GIU_LAI}): xoá ${daXoa.length} file cũ — ${daXoa.join(', ')}`)
   }
 
-  // ── chạy SQL (chỉ tới đây khi backup OK hoặc BO_QUA_BACKUP) ──
+  // ── chạy SQL (tới đây khi backup OK; hoặc scratch/≤176 bỏ backup) ──
   try {
     await client.query(readFileSync(file, 'utf8'))
     console.log('✅ CHẠY XONG:', file)

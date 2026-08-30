@@ -1,0 +1,38 @@
+{
+  "_ghi_chu": "Fixture WP-70 L-02b — 3 hội thoại tự dựng theo cấu trúc Pancake. KHÔNG có dữ liệu khách thật.",
+  "conversations": [
+    {
+      "id": "FIX-HT-1",
+      "page_id": "FIXPAGE",
+      "customer_id": "CUST-A",
+      "inserted_at": "2026-08-10T08:00:00Z",
+      "updated_at": "2026-08-10T09:30:00Z",
+      "type": "INBOX",
+      "tags": ["quan_tam"],
+      "phone_numbers": ["0900000001"],
+      "ad_ids": ["AD-100"]
+    },
+    {
+      "id": "FIX-HT-2",
+      "page_id": "FIXPAGE",
+      "customer_id": "CUST-B",
+      "inserted_at": "2026-08-11T10:00:00Z",
+      "updated_at": "2026-08-11T10:05:00Z",
+      "type": "INBOX",
+      "tags": [],
+      "phone_numbers": [],
+      "ad_ids": []
+    },
+    {
+      "id": "FIX-HT-3",
+      "page_id": "FIXPAGE",
+      "customer_id": "CUST-C",
+      "inserted_at": "2026-08-12T14:00:00Z",
+      "updated_at": "2026-08-12T14:20:00Z",
+      "type": "COMMENT",
+      "tags": ["hoi_gia"],
+      "phone_numbers": [],
+      "ad_ids": []
+    }
+  ]
+}

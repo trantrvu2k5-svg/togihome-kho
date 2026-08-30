@@ -101,7 +101,7 @@ function doiTab(t) {
   if (t === 'gvdon') taiGiaVonDon()
   if (t === 'pl') taiPL()
   if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
-  if (t === 'kenhcac') { KC_BRAND = 'all'; taiKenhCac() }
+  if (t === 'kenhcac') { KC_BRAND = 'all'; taiCacLuong(); taiKenhCac() }
   if (t === 'dongtien') { DT_TRANG = 1; taiDongTien() }
   if (t === 'nhanxet') taiNhanXet()
   if (t === 'chiphi') taiChiPhiKy()
@@ -659,6 +659,101 @@ async function kcLuu() {
   await taiKenhCac()
 }
 
+// ══════════ WP-70 L-03 · Kênh & CAC theo LUỒNG + CHỦ ĐỀ (cac_theo_luong_loai) — client KHÔNG tính ══════════
+const CL_LUONG_TEN = { qua_web: 'Qua web rồi nhắn', mess_truc_tiep: 'Nhắn tin trực tiếp', khong_biet: 'Không biết luồng' }
+const CL_MUC = [['xac_dinh', 'seg-xd', 'Xác định', 'Có mã quảng cáo thật từ Pancake'],
+  ['suy_ref', 'seg-sr', 'Suy theo nút web', 'Khớp log nút chat trên web'],
+  ['doi_chieu_lo', 'seg-dc', 'Ước theo lô ngày', 'Chỉ đúng ở mức tổng, không quy về từng khách'],
+  ['khong_biet', 'seg-kb', 'Không biết', 'Không có dấu vết nào']]
+const clMon = v => v == null ? '—' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1).replace('.', ',') + ' tr' : fmt(v))
+async function taiCacLuong() {
+  const box = $('cl_root'); if (!box) return
+  const { data: j, error } = await sb.rpc('cac_theo_luong_loai', { p_ky: KY })
+  if (error) { box.innerHTML = `<div class="hint" style="padding:20px;color:#C8202E">Lỗi tải luồng/chủ đề: ${escH(error.message)}</div>`; return }
+  const c = j.chat_luong, tong = c.tong || 0, keo = j.bo_keo || {}
+  const pct = n => tong > 0 ? (n / tong * 100) : 0
+  const kbPct = pct(c.khong_biet)
+  const canhbao = kbPct > 70            // VIỆC 2: kỳ này > 70% không biết nguồn → đổi giọng + làm mờ 2 bảng
+  const moBang = canhbao ? ' mo' : ''
+  const nhanNho = canhbao ? '<span class="cl-nhonho">số của phần nhỏ</span>' : ''
+
+  // ── khối 1 · chắc chắn nguồn ──
+  const capNhat = keo.phut_truoc == null ? 'chưa kéo lần nào'
+    : (keo.phut_truoc <= 0 ? 'vừa xong' : `cập nhật ${keo.phut_truoc} phút trước`)
+  let bar = '', keys = ''
+  for (const [k, seg, ten, mo] of CL_MUC) {
+    const w = pct(c[k])
+    bar += `<div class="cc-seg ${seg}" style="width:${w}%">${w >= 7 ? Math.round(w) + '%' : ''}</div>`
+    keys += `<div><div class="k">${ten}</div><div class="v">${fmt(c[k])}</div><div class="d">${mo}</div></div>`
+  }
+  let alarm = ''
+  if (canhbao) {
+    const chi = j.chi_ads_that_ky
+    const cauChi = (chi != null && chi > 0)
+      ? `Chi quảng cáo ${clMon(chi)} không quy được về khách nào.`
+      : `Kỳ này chưa ghi nhận chi quảng cáo (kế toán chưa nhập ở bảng dưới).`
+    alarm = `<div class="cl-alarm">Kỳ này ${Math.round(kbPct)}% hội thoại không truy được nguồn. ${cauChi} `
+      + `Bảng CAC bên dưới chỉ nói về ${fmt(c.xac_dinh)} hội thoại có mã quảng cáo.</div>`
+  }
+  const b1 = `<section class="cl-sec"><div class="cl-sh"><h2>1 · Nguồn của số này chắc tới đâu</h2><span class="note">đọc trước khi đọc CAC</span></div>`
+    + alarm
+    + `<div class="cc"><div class="cc-top"><span class="t">${fmt(tong)} hội thoại trong kỳ</span>`
+    + `<span class="s${keo.tre ? ' do' : ''}">${capNhat}</span></div>`
+    + `<div class="cc-bar">${bar}</div><div class="cc-key">${keys}</div>`
+    + `<div class="cc-foot">Chỉ <strong>${fmt(c.xac_dinh)} hội thoại mức xác định</strong> được tính vào cột nguồn quảng cáo của đơn. `
+    + `Ba mức còn lại giữ nhãn nhưng vào đơn là “khác” — số suy không đi vào sổ tài chính (QD-73, QD-76).</div></div></section>`
+
+  // ── khối 2 · theo luồng ──
+  const chiT = j.chi_ads_that_ky, donT = j.don_chot_tong || 0
+  const cacT = (chiT != null && donT > 0) ? Math.round(chiT / donT) : null
+  let rL = ''
+  for (const r of (j.luong || [])) {
+    rL += `<tr${r.luong === 'khong_biet' ? ' class="mo"' : ''}><td>${CL_LUONG_TEN[r.luong] || r.luong}</td>`
+      + `<td class="n">${fmt(r.hoi_thoai)}</td><td class="n">${fmt(r.don_chot)}</td>`
+      + `<td class="n">${r.ty_le_chot == null ? '—' : String(r.ty_le_chot).replace('.', ',') + '%'}</td>`
+      + `<td class="n">${clMon(r.chi_ads)}</td><td class="n">${clMon(r.cac)}</td><td class="n">—</td></tr>`
+  }
+  rL += `<tr class="tong"><td>Cả kỳ</td><td class="n">${fmt(tong)}</td><td class="n">${fmt(donT)}</td>`
+    + `<td class="n">${tong > 0 ? (donT * 100 / tong).toFixed(1).replace('.', ',') + '%' : '—'}</td>`
+    + `<td class="n">${clMon(chiT)}</td><td class="n">${clMon(cacT)}</td><td class="n">—</td></tr>`
+  const b2 = `<section class="cl-sec"><div class="cl-sh"><h2>2 · CAC theo luồng</h2><span class="note">khách đến bằng đường nào${nhanNho ? '' : ''}</span></div>`
+    + `<table class="cl-tbl${moBang}"><thead><tr><th>Luồng</th><th>Hội thoại</th><th>Đơn chốt</th><th>Tỷ lệ chốt</th><th>Chi quảng cáo</th><th>CAC</th><th>CAC tối đa</th></tr></thead><tbody>${rL}</tbody></table>`
+    + `<p class="cl-p" style="margin-top:12px">Cột <b>CAC tối đa</b> để trống có chủ đích — mức trần phụ thuộc giá trị đơn, đó là việc của WP-76. ${nhanNho}</p></section>`
+
+  // ── khối 3 · theo LOẠI SẢN PHẨM (L-08: chu_de → loai; loại suy từ đơn chốt) ──
+  let b3
+  if (!(j.loai || []).length) {
+    b3 = `<section class="cl-sec"><div class="cl-sh"><h2>3 · CAC theo loại sản phẩm</h2><span class="note">chưa gán luôn đứng đầu</span></div>`
+      + `<div class="cl-rong"><div class="t">Màn này khi mở lần đầu</div><div class="d">Chưa có hội thoại nào trong kỳ. Loại chỉ suy được khi hội thoại đã CHỐT ĐƠN (đơn → dòng → loại); lead chưa chốt thì nằm ở "chưa gán".</div></div></section>`
+  } else {
+    let rC = ''
+    for (const r of j.loai) {
+      const ten = r.chua_gan ? 'Chưa gán loại' : escH(r.ten || r.loai_ma)
+      const badge = r.chua_gan ? '<span class="cl-nhan n-tr">chưa gán</span>'
+        : (r.co_tron_suy ? '<span class="cl-nhan n-suy">có phần suy</span>' : '<span class="cl-nhan n-xd">xác định</span>')
+      const sc = r.co_tron_suy ? ' suy' : ''
+      rC += `<tr${r.chua_gan ? ' class="mo"' : ''}><td>${ten}</td><td>${badge}</td>`
+        + `<td class="n">${fmt(r.hoi_thoai)}</td><td class="n">${fmt(r.don_chot)}</td>`
+        + `<td class="n${sc}">${clMon(r.chi_ads)}</td><td class="n${sc}">${clMon(r.cac)}</td></tr>`   // chi_ads/cac LUÔN NULL → '—'
+    }
+    rC += `<tr class="tong"><td>Cả kỳ</td><td></td><td class="n">${fmt(tong)}</td><td class="n">${fmt(donT)}</td><td class="n">—</td><td class="n">—</td></tr>`
+    b3 = `<section class="cl-sec"><div class="cl-sh"><h2>3 · CAC theo loại sản phẩm</h2><span class="note">chưa gán luôn đứng đầu</span></div>`
+      + `<table class="cl-tbl${moBang}"><thead><tr><th>Loại sản phẩm</th><th>Nguồn</th><th>Hội thoại</th><th>Đơn chốt</th><th>Chi quảng cáo</th><th>CAC</th></tr></thead><tbody>${rC}</tbody></table>`
+      + `<p class="cl-p" style="margin-top:12px"><b>Chi quảng cáo theo loại: chưa có</b> — cần bản đồ quảng cáo → loại (WP-78), chưa chia được nên để trống, KHÔNG chia đều. Loại suy từ đơn chốt (món giá trị lớn nhất). ${nhanNho}</p></section>`
+  }
+
+  // ── khối 4 · bộ kéo ── (L-06: đèn đỏ theo NHỊP TIM lan_keo_luc — đập mỗi lượt kể cả 0 lead; lead mới gần nhất tách riêng)
+  const coLead = keo.phut_co_lead == null ? 'chưa có lead nào'
+    : (keo.phut_co_lead <= 0 ? 'vừa xong' : `${keo.phut_co_lead} phút trước`)
+  const b4 = `<section class="cl-sec"><div class="cl-sh"><h2>4 · Bộ kéo đang chạy thế nào</h2><span class="note">khối nhỏ cuối màn</span></div>`
+    + `<div class="cl-cot2"><div><div class="k">Nhịp tim (lần kéo gần nhất)</div><div class="v${keo.tre ? ' do' : ''}">${capNhat}</div>`
+    + `<div class="d">Đập MỖI LƯỢT kể cả 0 lead mới — quá 15 phút không đập mới chuyển đỏ.</div></div>`
+    + `<div><div class="k">Lead mới gần nhất</div><div class="v">${coLead}</div>`
+    + `<div class="d">Lần gần nhất THỰC SỰ có lead mới — ghi thêm ${fmt(keo.hoi_thoai_moi_lan_cuoi)} dòng. Kỳ lặng thì đây đứng yên, nhịp tim vẫn chạy.</div></div></div></section>`
+
+  box.innerHTML = b1 + b2 + b3 + b4
+}
+
 // ══════════ TAB DÒNG TIỀN (L-49): dong_tien_ky + con_phai_thu; forms phiếu thu/COD/vốn/quỹ ══════════
 let DT_TRANG = 1, DT_SOTRANG = 1
 const DT_THU_L = [['coc', 'Cọc đơn mới chốt', 'tiền về trước khi sản xuất'], ['thu_khi_giao', 'Thu khi giao', 'phần còn lại lúc lắp xong'],
@@ -962,7 +1057,7 @@ async function loadKy() {
   // L-43: đổi kỳ → nạp lại P/L + Chi phí kỳ NẾU tab đang mở (đổi kỳ = đổi ngữ cảnh, bỏ chỉnh sửa chi phí chưa lưu)
   if ($('tab-pl') && $('tab-pl').classList.contains('on')) await taiPL()
   if ($('tab-cmdon') && $('tab-cmdon').classList.contains('on')) { CM_TRANG = 0; CM_MO = -1; await taiCM() }
-  if ($('tab-kenhcac') && $('tab-kenhcac').classList.contains('on')) { KC_BRAND = 'all'; await taiKenhCac() }
+  if ($('tab-kenhcac') && $('tab-kenhcac').classList.contains('on')) { KC_BRAND = 'all'; await taiCacLuong(); await taiKenhCac() }
   if ($('tab-dongtien') && $('tab-dongtien').classList.contains('on')) { DT_TRANG = 1; await taiDongTien() }
   if ($('tab-nhanxet') && $('tab-nhanxet').classList.contains('on')) await taiNhanXet()
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()

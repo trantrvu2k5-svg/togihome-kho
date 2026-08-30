@@ -511,6 +511,32 @@ td input.ce::placeholder{color:#C6CDD9}
 .bg-man .bg-tai{padding:30px;text-align:center;color:var(--bg-chu-nhat)}
 @media(max-width:1180px){ .bg-man .bg-dong, .bg-man .bg-dong-dau{grid-template-columns:1fr 160px 130px} .bg-man .bg-dong-dau div:nth-child(4), .bg-man .bg-dong .bg-cn{grid-column:1/-1} .bg-man .bg-cn{flex-direction:row;flex-wrap:wrap;margin-top:4px} .bg-man .bg-cn button{width:auto;flex:0 0 auto;padding:7px 14px} .bg-man .bg-ket-thuc{grid-template-columns:1fr 1fr} }
 @media(max-width:860px){ .bg-man .bg-dong, .bg-man .bg-dong-dau{grid-template-columns:1fr} .bg-man .bg-dong-dau{display:none} .bg-man .bg-ket-thuc{grid-template-columns:1fr} }
+/* [WP-70 L-04] Ô hội thoại nguồn */
+.hn-box{position:relative}
+.hn-open{width:100%;text-align:left;padding:9px 12px;border:1px solid var(--bdS);border-radius:9px;background:var(--raise);color:var(--tx2);font:inherit;font-size:14px;cursor:pointer}
+.hn-open:hover{border-color:var(--priB)}
+.hn-thanh{display:flex;gap:8px;align-items:stretch}
+.hn-thanh .hn-open{flex:1}
+.hn-keo{flex:0 0 auto;padding:9px 14px;border:1px solid var(--priB);border-radius:9px;background:var(--priS);color:var(--pri);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.hn-keo:hover:not(:disabled){background:var(--pri);color:#fff;border-color:var(--pri)}
+.hn-keo:disabled{opacity:.5;cursor:default}
+.hn-drop{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--bdS);border-radius:10px;box-shadow:0 8px 28px rgba(21,27,44,.16);overflow:hidden}
+.hn-tim{width:100%;border:0;border-bottom:1px solid var(--bd);padding:10px 12px;font:inherit;font-size:14px;outline:none}
+.hn-list{max-height:280px;overflow-y:auto}
+.hn-row{padding:9px 12px;border-bottom:1px solid var(--bd2);cursor:pointer}
+.hn-row:hover{background:var(--priS)}
+.hn-row-t{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.hn-row-s{font-size:12px;color:var(--mut);font-family:var(--mono);margin-top:2px}
+.hn-empty{padding:18px 12px;text-align:center;color:var(--mut);font-size:13px}
+.hn-chon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border:1px solid var(--gnB);background:var(--gnB);border-radius:9px;font-size:13.5px}
+.hn-bo{border:1px solid var(--bdS);background:var(--surface);border-radius:7px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;color:var(--tx2)}
+.hn-doc-hang{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.hn-doc{border:1px solid var(--bd);border-radius:8px;padding:8px 10px;background:var(--auto)}
+.hn-doc-k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-family:var(--mono);margin-bottom:3px}
+.hn-doc-v{font-size:13.5px;font-weight:600;color:var(--tx)}
+.hn-nhan{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 7px;border-radius:4px;text-transform:uppercase;white-space:nowrap}
+.hn-xd{background:var(--gnB);color:var(--gn)} .hn-suy{background:var(--amB);color:var(--am)} .hn-tr{background:var(--bd2);color:var(--mut)}
+@media(max-width:700px){ .hn-doc-hang{grid-template-columns:1fr 1fr} }
 `;
 
 /* ============ QUYỀN ============ */
@@ -2999,7 +3025,7 @@ function BaoGiaForm({ db, onClose, onSave }) {
   const cu = db.khach.find(k => sdtChuan(k.sdt) === sdtChuan(f.sdt));
   const donCu = cu ? db.don.filter(d => d.khachId === cu.id) : [];
   const tong = ln.reduce((s, x) => s + (+x.sl || 0) * (+x.gia || 0), 0);
-  const E = { sdt: sdtChuan(f.sdt).length < 9, brand: !f.brand, mon: !ln.every(x => x.ten.trim()), nguon: !f.nguonKhach };
+  const E = { sdt: sdtChuan(f.sdt).length < 9, brand: !f.brand, mon: !ln.every(x => x.ten.trim()), nguon: !f.nguonKhach && !f.leadId };
   const ok = !E.sdt && !E.brand && !E.mon;   // nguon KHÔNG chặn lưu — chỉ nhắc mềm ở "Còn thiếu"
   const THIEU = [["brand", "Thương hiệu"], ["sdt", "Số điện thoại"], ["mon", "Mỗi món cần có tên"], ["nguon", "Nguồn khách (nên ghi)"]].filter(([k]) => E[k]);
   const bad = k => thu && E[k] ? { borderColor: "var(--rd)", boxShadow: "0 0 0 3px var(--rdB)" } : null;
@@ -3074,6 +3100,65 @@ function BaoGiaForm({ db, onClose, onSave }) {
 }
 
 /* ---------------- HỘP THOẠI LÊN ĐƠN ---------------- */
+/* [WP-70 L-04] Ô "Hội thoại nguồn": danh sách 7 ngày gần nhất + lọc theo tên; chọn → 4 ô ĐỌC (sale không sửa). */
+function HoiThoaiNguon({ chon, onChon }) {
+  const el = React.createElement;
+  const [mo, setMo] = useState(false);
+  const [tim, setTim] = useState("");
+  const [ds, setDs] = useState([]);
+  const [dangTai, setDangTai] = useState(false);
+  const tai = (q) => {
+    if (!(window.saleApi && window.saleApi.leadGoiY)) { setDs([]); return; }
+    setDangTai(true);
+    window.saleApi.leadGoiY(q || null, 7).then(r => setDs(Array.isArray(r) ? r : [])).catch(() => setDs([])).finally(() => setDangTai(false));
+  };
+  useEffect(() => { if (mo) tai(tim); }, [mo]);
+  useEffect(() => { if (!mo) return; const t = setTimeout(() => tai(tim), 250); return () => clearTimeout(t); }, [tim]);
+  // [WP-70 L-09] "Kéo ngay": bấm là Worker kéo một lượt ngay, không chờ nhịp. Chặn bấm lại 30s.
+  const [keoChay, setKeoChay] = useState(false);
+  const [keoCho, setKeoCho] = useState(0);
+  useEffect(() => { if (keoCho <= 0) return; const t = setTimeout(() => setKeoCho(keoCho - 1), 1000); return () => clearTimeout(t); }, [keoCho]);
+  const keoNgay = () => {
+    if (keoChay || keoCho > 0 || !(window.saleApi && window.saleApi.keoNgay)) return;
+    setKeoChay(true); setMo(true);
+    window.saleApi.keoNgay().then(() => tai(tim)).catch(() => {}).finally(() => { setKeoChay(false); setKeoCho(30); });
+  };
+  const NEN = { zalo: "Zalo", facebook: "Facebook", instagram: "Instagram" };
+  const MUC = { xac_dinh: ["Xác định", "hn-xd"], suy_ref: ["Suy web", "hn-suy"], doi_chieu_lo: ["Ước lô", "hn-suy"], khong_biet: ["Không rõ", "hn-tr"] };
+  const LUONG = { qua_web: "Qua web rồi nhắn", mess_truc_tiep: "Nhắn tin trực tiếp", khong_biet: "Không biết luồng" };
+  const dmy = s => { try { const d = new Date(s); const p = n => ("0" + n).slice(-2); return p(d.getDate()) + "/" + p(d.getMonth() + 1) + " " + p(d.getHours()) + ":" + p(d.getMinutes()); } catch (e) { return ""; } };
+  if (chon) {
+    const mm = MUC[chon.muc_chac_chan] || ["—", "hn-tr"];
+    const doc = (k, v) => el("div", { className: "hn-doc", key: k }, el("div", { className: "hn-doc-k" }, k), el("div", { className: "hn-doc-v" }, v));
+    return el("div", { className: "fld full" },
+      el("label", null, "Hội thoại nguồn ", el("span", { className: "mini", style: { color: "var(--mut,#888)" } }, "hệ tự điền nguồn — sale không sửa")),
+      el("div", { className: "hn-chon" },
+        el("div", null, el("b", null, chon.ten_khach || "(chưa có tên)"), " · ", NEN[chon.nen_tang] || chon.nen_tang, chon.sdt ? " · " + chon.sdt : ""),
+        el("button", { type: "button", className: "hn-bo", onClick: () => onChon(null) }, "Bỏ chọn")),
+      el("div", { className: "hn-doc-hang" },
+        doc("Nguồn khách", chon.muc_chac_chan === "xac_dinh" ? "Quảng cáo" : "Khác"),
+        doc("Luồng", LUONG[chon.luong] || chon.luong),
+        doc("Loại", chon.loai_ma || "Chưa gán"),
+        el("div", { className: "hn-doc" }, el("div", { className: "hn-doc-k" }, "Mức chắc chắn"), el("div", { className: "hn-doc-v" }, el("span", { className: "hn-nhan " + mm[1] }, mm[0])))));
+  }
+  return el("div", { className: "fld full" },
+    el("label", null, "Hội thoại nguồn ", el("span", { className: "mini", style: { color: "var(--mut,#888)" } }, "chọn để nguồn tự điền — bỏ trống vẫn lên đơn được")),
+    el("div", { className: "hn-box" },
+      el("div", { className: "hn-thanh" },
+        el("button", { type: "button", className: "hn-open", onClick: () => setMo(!mo) }, mo ? "Đóng danh sách" : "Chọn hội thoại nguồn…"),
+        el("button", { type: "button", className: "hn-keo", disabled: keoChay || keoCho > 0, onClick: keoNgay, title: "Kéo hội thoại mới ngay, không chờ nhịp 1 phút" },
+          keoChay ? "Đang kéo…" : keoCho > 0 ? "Đợi " + keoCho + "s" : "↻ Kéo ngay")),
+      mo && el("div", { className: "hn-drop" },
+        el("input", { className: "hn-tim", placeholder: "Lọc theo tên khách…", value: tim, onChange: e => setTim(e.target.value), autoFocus: true }),
+        el("div", { className: "hn-list" },
+          dangTai ? el("div", { className: "hn-empty" }, "Đang tải…")
+            : !ds.length ? el("div", { className: "hn-empty" }, tim ? "Không có hội thoại khớp." : "7 ngày qua chưa có hội thoại.")
+              : ds.map(x => { const mm = MUC[x.muc_chac_chan] || ["—", "hn-tr"];
+                return el("div", { className: "hn-row", key: x.lead_id, onClick: () => { onChon(x); setMo(false); setTim(""); } },
+                  el("div", { className: "hn-row-t" }, el("b", null, x.ten_khach || "(chưa có tên)"), el("span", { className: "hn-nhan " + mm[1] }, mm[0])),
+                  el("div", { className: "hn-row-s" }, (NEN[x.nen_tang] || x.nen_tang) + " · " + dmy(x.thoi_diem) + (x.sdt ? " · " + x.sdt : ""))); })))));
+}
+
 function DonModal({
   db,
   don,
@@ -3107,6 +3192,7 @@ function DonModal({
     nganSach: don.nganSach ?? "",
     tuDung: !!don.tuDung,
     nguonKhach: don.nguonKhach || "",
+    leadId: don.leadId || "",
     hd: don.hd || {
       ten: "",
       mst: "",
@@ -3137,6 +3223,7 @@ function DonModal({
     nganSach: "",
     tuDung: false,
     nguonKhach: "",
+    leadId: "",
     hd: {
       ten: "",
       mst: "",
@@ -3144,6 +3231,8 @@ function DonModal({
       em: ""
     }
   });
+  /* [WP-70 L-04] hội thoại nguồn đã chọn (để hiện 4 ô đọc + ẩn ô nguồn khách). null = chưa chọn. */
+  const [htChon, setHtChon] = useState(null);
   const [ln, setLn] = useState(cu.length ? cu.map(x => ({
     ...x,
     anh: x.anh || (x.anhSP ? [{
@@ -3268,8 +3357,8 @@ function DonModal({
       return;
     }
     /* L-46b: "+ Lên đơn" mới INSERT thẳng moi_len_don → cũng đòi nguồn khách (server db/111 chặn cứng cho người dùng thật). */
-    if (!don && !f.nguonKhach) {
-      window.alert("Chưa chọn nguồn khách — chọn rồi mới lên đơn.");
+    if (!don && !f.nguonKhach && !f.leadId) {   /* [WP-70 L-04] hội thoại nguồn đã chọn → nguồn theo lead, không đòi ô nguồn */
+      window.alert("Chưa chọn nguồn khách — chọn rồi mới lên đơn (hoặc chọn hội thoại nguồn).");
       return;
     }
     onSave({
@@ -3297,8 +3386,8 @@ function DonModal({
       return;
     }
     /* L-45: ÉP nguồn khách tại cổng CHỐT (server còn chặn cứng bằng trigger — đây chỉ đỡ UX). */
-    if (!f.nguonKhach) {
-      window.alert("Chưa chọn nguồn khách — chọn rồi mới chốt đơn.");
+    if (!f.nguonKhach && !f.leadId) {   /* [WP-70 L-04] hoặc chọn hội thoại nguồn */
+      window.alert("Chưa chọn nguồn khách — chọn rồi mới chốt đơn (hoặc chọn hội thoại nguồn).");
       return;
     }
     if (giam > 0 && !(f.lyDoGiam || "").trim()) {
@@ -3540,7 +3629,10 @@ function DonModal({
     style: {
       color: "var(--am)"
     }
-  }, "Không hỗ trợ lắp đặt")), /*#__PURE__*/React.createElement("div", {
+  }, "Không hỗ trợ lắp đặt")), /*#__PURE__*/React.createElement(HoiThoaiNguon, {
+    chon: htChon,
+    onChon: lead => { setHtChon(lead); setF(p => ({ ...p, leadId: lead ? lead.lead_id : "" })); }
+  }), !htChon && /*#__PURE__*/React.createElement("div", {
     className: "fld"
   }, /*#__PURE__*/React.createElement("label", { title: "Bắt buộc để CHỐT đơn" }, "Khách biết mình qua đâu? ", /*#__PURE__*/React.createElement("span", {
     className: "mini", style: { color: "#C8202E" }
@@ -4809,6 +4901,7 @@ function SoDon({
       nganSach: f.nganSach,
       tuDung: !!f.tuDung,
       nguonKhach: f.nguonKhach || "",
+      leadId: f.leadId || don?.leadId || "",   // [WP-70 L-04] hội thoại nguồn Pancake (uuid lead) → tao_don p_lead_id
       salePhuTrach: don?.salePhuTrach || (window.__saleUser && window.__saleUser.id) || "",   // L-71: model cục bộ khớp NGAY chủ trigger sẽ gán (KHÔNG gửi qua donToRow → đổi-chủ chỉ qua RPC)
       loai: f.loai,
       tkCoc: f.tkCoc,

@@ -312,6 +312,56 @@
   #tc .tc-cnt-ct { border:1px solid var(--bd); background:#fff; border-radius:6px; padding:2px 9px; cursor:pointer; font-size:12px; }
   #tc .tc-cnt-hd { background:var(--auto); }
   #tc .tc-cnt-hd td { font-family:var(--mono); font-size:11.5px; color:var(--mut); }
+  /* ══ WP-70 L-03 · Kênh & CAC theo luồng + chủ đề (mẫu man_cac_luong_chude_v1) ══ */
+  #tc .cl-sep { border-top:2px solid var(--tx); margin:38px 0 22px; }
+  #tc .cl-h2brand { font-size:17px; font-weight:600; margin-bottom:2px; }
+  #tc .cl-root section.cl-sec { margin-bottom:30px; }
+  #tc .cl-sh { display:flex; align-items:baseline; gap:12px; border-bottom:1px solid var(--bdS); padding-bottom:7px; margin-bottom:14px; }
+  #tc .cl-sh h2 { font-size:16px; font-weight:600; }
+  #tc .cl-sh .note { margin-left:auto; font-size:11.5px; color:var(--fnt); }
+  #tc .cl-p { color:var(--mut); font-size:13px; margin-bottom:14px; }
+  /* thanh chắc chắn nguồn */
+  #tc .cc { border:1px solid var(--bdS); background:var(--surface); border-radius:8px; }
+  #tc .cc-top { display:flex; justify-content:space-between; align-items:baseline; padding:14px 18px 10px; gap:12px; flex-wrap:wrap; }
+  #tc .cc-top .t { font-size:15px; font-weight:600; }
+  #tc .cc-top .s { font-family:var(--mono); font-size:12px; color:var(--mut); }
+  #tc .cc-top .s.do { color:var(--rd); font-weight:600; }
+  #tc .cc-bar { display:flex; height:32px; margin:0 18px; border:1px solid var(--bdS); border-radius:3px; overflow:hidden; }
+  #tc .cc-seg { display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; font-weight:500; overflow:hidden; white-space:nowrap; }
+  #tc .seg-xd { background:var(--gnB); color:var(--gn); } #tc .seg-sr { background:#EAF0F6; color:#2C5578; }
+  #tc .seg-dc { background:var(--amB); color:var(--am); } #tc .seg-kb { background:var(--bd2); color:var(--mut); }
+  #tc .cc-key { display:grid; grid-template-columns:repeat(4,1fr); margin:14px 18px 0; border-top:1px solid var(--bd); }
+  #tc .cc-key > div { padding:12px 12px 0 0; }
+  #tc .cc-key .k { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin-bottom:4px; }
+  #tc .cc-key .v { font-family:var(--mono); font-size:19px; font-weight:500; }
+  #tc .cc-key .d { font-size:12px; color:var(--fnt); line-height:1.4; margin-top:2px; }
+  #tc .cc-foot { margin:14px 18px 0; padding:12px 0 16px; border-top:1px solid var(--bd); font-size:12.5px; color:var(--mut); }
+  #tc .cc-foot strong { color:var(--tx); }
+  /* câu báo động khong_biet > 70% (VIỆC 2) */
+  #tc .cl-alarm { background:var(--rdB); border-left:3px solid var(--rd); padding:12px 16px; margin:0 0 16px; font-size:13.5px; color:var(--tx); font-weight:600; line-height:1.55; }
+  /* bảng luồng/chủ đề */
+  #tc table.cl-tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
+  #tc table.cl-tbl th { text-align:left; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); font-weight:500; border-bottom:1px solid var(--bdS); padding:0 10px 8px 0; vertical-align:bottom; }
+  #tc table.cl-tbl td { border-bottom:1px solid var(--bd); padding:10px 10px 10px 0; vertical-align:top; }
+  #tc table.cl-tbl td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+  #tc table.cl-tbl tr.tong td { border-top:2px solid var(--tx); border-bottom:0; font-weight:600; padding-top:11px; }
+  #tc table.cl-tbl tr.mo td { color:var(--fnt); }
+  #tc table.cl-tbl td.suy { color:var(--am); }
+  #tc table.cl-tbl.mo { opacity:.62; }
+  #tc .cl-nhan { display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:.05em; padding:2px 7px; border-radius:3px; text-transform:uppercase; white-space:nowrap; }
+  #tc .n-xd { background:var(--gnB); color:var(--gn); } #tc .n-suy { background:var(--amB); color:var(--am); } #tc .n-tr { background:var(--bd2); color:var(--mut); }
+  #tc .cl-nhonho { font-size:10.5px; color:var(--fnt); font-family:var(--mono); margin-left:8px; }
+  #tc .cl-rong { border:1px dashed var(--bdS); background:var(--raise); padding:22px 20px; text-align:center; border-radius:8px; }
+  #tc .cl-rong .t { font-weight:600; margin-bottom:5px; }
+  #tc .cl-rong .d { font-size:13px; color:var(--mut); max-width:520px; margin:0 auto; }
+  #tc .cl-cot2 { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--bdS); background:var(--surface); border-radius:8px; }
+  #tc .cl-cot2 > div { padding:15px 18px; border-right:1px solid var(--bd); }
+  #tc .cl-cot2 > div:last-child { border-right:0; }
+  #tc .cl-cot2 .k { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin-bottom:6px; }
+  #tc .cl-cot2 .v { font-family:var(--mono); font-size:16px; font-weight:500; }
+  #tc .cl-cot2 .v.do { color:var(--rd); }
+  #tc .cl-cot2 .d { font-size:12px; color:var(--fnt); margin-top:4px; }
+  @media(max-width:700px){ #tc .cc-key{grid-template-columns:1fr 1fr} #tc .cl-cot2{grid-template-columns:1fr} #tc .cl-cot2>div{border-right:0;border-bottom:1px solid var(--bd)} }
 </style>
 <div id="tc"><div class="app">
   <aside class="nav">
@@ -573,7 +623,12 @@
 
     <!-- ══════════ TAB · KÊNH & CAC (L-48) ══════════ -->
     <div class="tabp" id="tab-kenhcac">
-      <h1>Kênh &amp; CAC theo thương hiệu</h1>
+      <h1>Kênh &amp; CAC</h1>
+      <!-- WP-70 L-03: khối luồng + chủ đề (mẫu man_cac_luong_chude_v1). Render trong JS: taiCacLuong(). -->
+      <section id="cl_root" class="cl-root"><div class="hint" style="padding:22px">Đang tải luồng &amp; chủ đề…</div></section>
+
+      <div class="cl-sep"></div>
+      <h2 class="cl-h2brand">CAC theo thương hiệu</h2>
       <div class="subline">Mỗi thương hiệu một team ads — CAC đo theo cặp thương hiệu × kênh · khách MỚI tính theo thương hiệu. Kỳ = ô <b>Kỳ</b> ở trên.</div>
       <div class="kc-tomtat">
         <div><div class="kc-nhan">Tổng ads thật</div><div class="kc-so" id="kc_tongads">—</div></div>

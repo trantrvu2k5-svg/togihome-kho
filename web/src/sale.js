@@ -91,7 +91,7 @@ function rowToDon(r) {
     ngayDiHang: r.ngay_di_hang || '', ngayGiao: r.ngay_giao || '', ngayDuKien: r.ngay_du_kien || '', ngayHenKhach: r.ngay_hen_khach || '', ngayHenKhachBanDau: r.ngay_hen_khach_ban_dau || '', laDemo: r.la_demo || false,
     lo: r.lo || '', ghiChu: r.ghi_chu || '', link: r.link || '',
     phongCach: r.phong_cach || '', nganSach: r.ngan_sach_trieu != null ? Number(r.ngan_sach_trieu) : '', tuDung: !!r.tu_dung, nguonKhach: r.nguon_khach || '',
-    kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '',
+    kgs: r.kgs || [], hd: r.hoa_don || null, saleId: '', leadId: r.lead_id || '',   // [WP-70 L-04] hội thoại nguồn đã gắn
     khachMoi: r.khach_moi == null ? null : !!r.khach_moi,   // L-45: khách MỚI/CŨ (DB set lúc da_giao); null = chưa xác định
     salePhuTrach: r.sale_phu_trach || '',   // L-71: chủ đơn (uuid); tên hiện từ bg.sale_ten hoặc roster dsSale
   }
@@ -226,7 +226,8 @@ async function _set(k, jsonStr) {
         // ═══ [WP-07 L-133] ĐƠN MỚI -> RPC tao_don. Server ÉP trang_thai='bao_gia'; "+ Lên đơn" (đích moi_len_don)
         //   -> p_chot=true -> chot_don CÙNG transaction. KHÔNG gửi trang_thai (như đơn cũ WP-06 dòng 237).
         const r = rowCua(d); delete r.trang_thai   // trang_thai do SERVER ép, không phải client gửi
-        const { data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don' })
+        // [WP-70 L-04] hội thoại nguồn đã chọn → p_lead_id; server tao_don tự đặt nguon_khach theo lead (đè p_don.nguon_khach)
+        const { data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don', p_lead_id: d.leadId || null })
         if (error) throw new Error(error.message)   // RAISE nguyên văn -> hiện đỏ tại chỗ (không nuốt)
         const srv = Array.isArray(tr) ? tr[0] : tr
         if (srv && srv.trang_thai) d.tt = toTT(srv.trang_thai)   // vẽ lại theo trạng thái SERVER TRẢ VỀ, không đoán
@@ -368,6 +369,11 @@ window.saleApi = {
   // sale ghi phản hồi khách (dùng lại phan_hoi_ban db/051): khach_duyet | khach_doi_y | chua_dung_yeu_cau
   phanHoiBanRpc: async (banId, ketQua, ghiChu) => { const { data, error } = await sb.rpc('phan_hoi_ban', { p_ban_id: banId, p_ket_qua: ketQua, p_ghi_chu: ghiChu || '' }); if (error) throw error; return data },
   leadTime: (dong, sku) => sb.rpc('sale_lead_time', { p_dong: DONG_W[dong] || dong || null, p_sku: sku || null }),
+  // [WP-70 L-04] gợi ý hội thoại nguồn (Pancake) cho form lên đơn — rỗng → 7 ngày gần nhất ≤50; có chữ → khớp tên/sđt.
+  leadGoiY: async (tim = null, ngay = 7) => { const { data, error } = await sb.rpc('lead_goi_y', { p_tim: tim || null, p_ngay: ngay }); if (error) throw error; return data || [] },
+  // [WP-70 L-09] "Kéo ngay": gọi Worker Cloudflare kéo một lượt (không chờ nhịp). Sale KHÔNG ghi thẳng — Worker ghi
+  //   qua lead_ghi + GUC như cron. Khoá chống chồng ở Worker; app tự chặn bấm lại 30s.
+  keoNgay: async () => { const r = await fetch('https://togihome-keo-lead.togihome-keo-lead.workers.dev/', { method: 'GET' }); return await r.json().catch(() => ({})) },
   // [WP-44] ngày XONG XƯỞNG (dự kiến) cho MỘT đơn — nay dùng ngay_giao_hua (CTP: tải + thiếu vật tư + lead),
   //   KHÔNG còn atp thẳng. Gọi TỪNG đơn (temp table/lần → không gộp). Map ngay_hua→ngay_hua_duoc để render cũ chạy;
   //   kèm căn cứ/độ tin: {ok,ngay_hua_duoc,ngay_hua,do_tin,can_cu,vat_tu_dang_doan,so_vat_tu_dang_doan,cac_gia_dinh,...}.

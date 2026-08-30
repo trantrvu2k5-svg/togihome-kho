@@ -875,6 +875,7 @@ dựng xong 3D nhưng CHƯA gửi cho sale.
 - **Chặn khi:** dump fail · thiếu `pg_dump` · client **lệch major** với server · đĩa **< 2 GiB**. In nguyên văn lỗi, exit ≠ 0, KHÔNG chạy SQL.
 - **Giữ 20 bản xoay vòng**, chỉ xoá đúng mẫu `pre_*.dump` (không đụng file lạ). In đường dẫn · MB · giây trước khi chạy SQL.
 - **Cửa hậu `BO_QUA_BACKUP=1`** (chỉ cho file scratch) — bắt buộc in **cảnh báo ĐỎ**.
+- **[sửa 29/08] SIẾT cửa hậu từ db/177:** *"Từ db/177: CẤM cờ BO_QUA_BACKUP, trừ khi CEO tự gõ trong lệnh (CEO_BO_QUA=<lý do>). Không backup không migrate — QD-61, siết 29/08."* Migration ≥177 + `BO_QUA_BACKUP` mà KHÔNG có `CEO_BO_QUA=<lý do>` (rỗng không tính) → **THOÁT LỖI, không chạy**; có đủ → chạy + in cảnh báo + ghi lý do vào log. Migration ≤176 giữ nguyên. **Lý do:** cờ mở sẵn thì nó thành mặc định — người sau bật mà không ai biết (đã dính db/174/176 dùng cờ). Dump bù cho db/176: `pre_bu_176_…dump`.
 - **Lý do:** dev = prod cùng MỘT Supabase project (01 §D) — migrate là áp thẳng prod; 142 migration **không có sổ, không bọc transaction**. MES §7.2.5 xếp "execution and **checking** of complete data security" là bảo trì DB bắt buộc: **backup chưa restore thử thì chưa tính là backup**.
 - **Kiểm khôi phục (L-93):** restore vào Postgres.app 17 local, **cắn hai vế 5/5** — `giao_dich` 235 · `don_mua_dong` 18 · `su_kien_quet` 181 · **107 bảng** · **329 function** đều khớp prod. Phạm vi đã kiểm: schema `kho`. **CHƯA kiểm:** auth/storage/realtime.
 - **Ngoài phạm vi:** tách dev/prod = WP riêng (đắt hơn nhiều bậc); `run_sql.mjs` bọc transaction + sổ migration = WP riêng; VACUUM DB phình 643MB do rác test = WP riêng.
@@ -1132,3 +1133,76 @@ tiền thật nên chặn được ở cổng bàn giao mà không mâu thuẫn 
   `cm_don_ky` 359ms · `kenh_cac_ky` 210ms · `pl_ky` 120ms · `lap_day_ky` 101ms · `nhan_xet_ky` 1487ms — tất cả <ngưỡng.
   test_047/069 ĐỎ **PRE-EXISTING** (permission denied client-role, chứng minh trên hàm gốc), không đụng WP-75.
   4 lô UI deploy prod (sale/thietke/taichinh) qua 2 cổng ?raw (node --check + Chrome boot). 3 điều ĐỊNH NGHĨA XONG đều ĐẠT.
+
+## QD-73 (29/08, WP-70 L-01, db/175) — NHÃN MỨC CHẮC CHẮN NGUỒN QUẢNG CÁO 4 BẬC · CHỐT
+
+`lead.muc_chac_chan` 4 bậc, số suy PHẢI đeo nhãn (họ QD-10/15/69 — không trộn số suy với số xác định):
+- **`xac_dinh`** — có `ad_id` từ Pancake (hội thoại đính kèm ad_id thật).
+- **`suy_ref`** — khớp log nút chat web theo psid + thời điểm (suy từ hành vi, chưa có ad_id).
+- **`doi_chieu_lo`** — chỉ ước theo lô ngày; **CẤM gán cho lead lẻ**, chỉ hiện ở màn TỔNG.
+- **`khong_biet`** — không suy được.
+
+**LÝ DO:** nguồn quảng cáo phần lớn là số SUY (Pancake không luôn trả ad_id). Trộn suy với xác định = báo cáo ads
+dối. Đeo nhãn để màn tổng tách được "chắc" khỏi "ước". (Sách ERP 5.5.1 không nói về nguồn ads — đây là QĐ nội bộ.)
+**Trạng thái:** ĐÃ CHẠY (db/175, CHECK 4 bậc trên `lead.muc_chac_chan`). CHƯA commit/tag (đóng ở lô sau).
+
+## QD-74 (29/08, WP-70 L-01, db/175) — chu_de LÀ DANH MỤC ĐÓNG · CHỐT
+
+`kho.chu_de` (ma/ten/hieu_luc_tu/den/ly_do/dang_bat) — **danh mục ĐÓNG dùng chung**: ads (WP-70), dự báo (WP-73),
+gom lô (QD-60). Sửa = **TÁCH KHOẢNG + lý do** (khuôn QD-68): đóng `hieu_luc_den` dòng cũ + thêm mã mới. **CẤM UPDATE
+đè `ma`/`ten`** (trigger `chu_de_cam_sua` RAISE). Seed 0 dòng — CEO điền 5–8 chủ đề tay.
+**LÝ DO:** ba việc (ads/dự báo/gom lô) dùng BA danh mục khác nhau thì không đối chiếu với nhau được. Một danh mục
+đóng, đổi có vết.
+**Trạng thái:** ĐÃ CHẠY (db/175). CHƯA commit/tag.
+
+## QD-75 (29/08, WP-70 L-01, db/175) — lead LÀ SỔ APPEND-ONLY, HIỆN HÀNH = stt LỚN NHẤT · CHỐT
+
+`kho.lead` = **sổ append-only** (khuôn `giao_dich`/`su_kien_quet` db/119, QD-44). Mỗi lần kéo Pancake thấy đổi (có sđt,
+đổi thẻ, gán chủ đề) ghi **dòng MỚI** (không sửa dòng cũ) → sổ giữ lịch sử. `dau_van` (hash tập trường theo dõi) trùng
+dòng hiện hành → KHÔNG ghi (chống phình). Hiện hành = `v_lead_hien_hanh` (mỗi `(page_id,hoi_thoai_id)` lấy `stt` lớn
+nhất). Cửa ghi DUY NHẤT = `lead_ghi` (SecDef); client bị revoke INSERT/UPDATE/DELETE. **CẤM cột nội dung tin nhắn.**
+**LÝ DO:** prospect là dữ liệu biến động (Pancake cập nhật liên tục); ghi đè mất lịch sử attribution. Append-only +
+`stt` cho "dòng cuối" tường minh (bài học WP-11).
+**Trạng thái:** ĐÃ CHẠY (db/175, bảng RỖNG — bộ kéo Pancake là L-02). CHƯA commit/tag.
+
+## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
+
+Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**
+- **DÒNG** (`kho.dong_san_pham`, 11) = xưởng **LÀM** gì (BOM, định mức, giá vốn).
+- **LOẠI THƯƠNG MẠI** (`kho.loai_thuong_mai`, 10, **danh mục ĐÓNG**) = công ty **BÁN** gì. Rộng hơn dòng vì gồm hàng
+  săn (Sofa · Thảm · Chăn ga · Đèn) xưởng không làm — 4 loại này KHÔNG có dòng trỏ tới, ra 0 tới khi có SKU.
+- **PHÒNG** (`kho.khong_gian`, 4) = khách **DÙNG** ở đâu.
+
+Quyết định cứng:
+- **`loai_thuong_mai` là bảng gốc DUY NHẤT của phân loại thương mại. BỎ `kho.chu_de`** (đã drop, 0 dòng nên không mất
+  data). Danh mục đóng, **sửa = tách khoảng + lý do** (tinh thần QD-74; trigger `loai_cam_sua` chặn đè `ma`/`ten`).
+- **Nối dòng→loại qua `kho.dong_loai`** (dong_ma PK → loai_ma FK), NHIỀU DÒNG MỘT LOẠI. Dòng chưa có trong cầu → NULL
+  "chưa gán", CẤM auto-gán.
+- **Lead suy loại QUA ĐƠN CHỐT:** lead → `don_hang.lead_id` → `don_hang_mon` → biến thể → `san_pham_loi.dong_id` →
+  `dong_loai` → loai_ma. **Đơn nhiều loại → lấy loại của món GIÁ TRỊ LỚN NHẤT** (một đơn một loại thì bảng cộng được;
+  chia tỷ lệ theo món làm số đơn thành số lẻ). Lead chưa chốt → NULL "chưa gán" (sự thật, không phải lỗi).
+- **Bảng loại ở màn CAC: chi quảng cáo & CAC = NULL** (cần bản đồ quảng-cáo→loại, thuộc WP-78). CẤM chia đều để lấp ô.
+
+**LÝ DO bỏ đề xuất CD-TUAO/CD-KE… (L-07):** lấy 12 dòng-xưởng làm chủ đề thì khách hỏi thảm/đèn/chăn ga rơi hết ra
+"chưa gán" — sai hướng. `chu_de` (L-01) chỉ là chỗ tạm, chưa có dữ liệu nên bỏ sạch, thay bằng chiều thương mại thật.
+Tên 10 loại ghi Y HỆT chữ tool ngoài của CEO (WP-09 khớp từng ký tự).
+
+## QD-76 (29/08, WP-70 L-02a, db/176) — CHỈ MỨC XÁC ĐỊNH MỚI ĐỔI ĐƯỢC NGUỒN KHÁCH · CHỐT
+
+Sửa LỖI mapping của L-01 (đã bơm số suy vào sổ tài chính). `tao_don(p_lead_id)` map `nguon_khach`:
+- **`lead.ad_id NOT NULL`** (mức `xac_dinh`) → `nguon_khach = 'quang_cao'`.
+- **Mọi mức khác** (`suy_ref` · `doi_chieu_lo` · `khong_biet`, hoặc ad_id NULL) → `nguon_khach = 'khac'`.
+- **CẤM suy 'quang_cao'** từ `suy_ref`/`doi_chieu_lo`/`khong_biet`.
+Nhãn suy GIỮ NGUYÊN trong `lead.muc_chac_chan` (màn Kênh&CAC db/115 hiện tỷ lệ `khong_biet` đầu màn) — mất nhãn
+mới là mất, còn `nguon_khach` thì phải SẠCH.
+
+**LÝ DO:** L-01 map mọi mức ≠ `khong_biet` → `'quang_cao'`. Nhưng `suy_ref`/`doi_chieu_lo` là SỐ SUY — một lead vào
+từ nút chat web không quảng cáo sẽ ăn chi phí quảng cáo khi màn CAC chia theo `nguon_khach`. Đúng họ QD-69 (việc thật
+thắng số suy) + QD-10/15 (số suy đeo nhãn, không trộn với số xác định). 6 giá trị `nguon_khach` thật: `quang_cao ·
+gioi_thieu · cua_hang · san_tmdt · khach_cu · khac` → quảng cáo='quang_cao', mặc định='khac' (không thêm giá trị mới).
+
+Kèm lô này: `lead_ghi` thêm **cửa GUC `kho.lead_he_thong`** (khuôn WP-21 db/127) cho bộ kéo nền (vai NULL) — KHÔNG mở
+vai mới, cửa ghi vẫn một `lead_ghi`. Bảng **`lead_moc_keo`** (mốc kéo mỗi trang, UPDATE được — MỐC không append-only)
+để L-02b không kéo lại từ đầu; ghi qua `lead_moc_ghi` (cùng cửa GUC).
+
+**Trạng thái:** ĐÃ CHẠY (db/176; `test_lead` 18/0 gồm ca chặn lỗi mapping). CHƯA commit/tag.
