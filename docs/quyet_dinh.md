@@ -1253,6 +1253,15 @@ Dọn demo thì:
 **Kèm:** mọi lệnh `DELETE` dọn demo **phải ràng buộc `la_demo`**, không chỉ ràng theo mã đơn — mã gõ nhầm thì không
 có hàng rào thứ hai.
 
+**RANH GIỚI — hai việc khác bản chất, đừng gộp:**
+- **(a) DỌN trên dữ liệu THẬT** (xoá dòng sổ đã tồn tại, dù là demo): **CẤM tắt trigger.** Đây là phạm vi QD-86.
+- **(b) SEED fixture trong transaction có ROLLBACK** (`session_replication_role='replica'` hoặc `savepoint→rollback`):
+  **ĐƯỢC.** Không chạm dữ liệu thật; rollback đóng cửa lại; cấm nhóm này thì mọi test dựng dữ liệu chết mà không bảo
+  vệ được gì.
+- **Phân biệt bằng CÂU HỎI:** sau khi chạy xong, có dòng nào trong prod **BIẾN MẤT** không? **Có = (a), cấm. Không =
+  (b), được.**
+
+
 **Lý do:** L-07 (31/08) đã kết luận không tự gỡ chốt sổ; **L-05 CÙNG NGÀY lại làm đúng việc đó** (tắt `dhlnk_chan_sua`
 trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ nhỏ, nên khoá thành điều khoản.
 
