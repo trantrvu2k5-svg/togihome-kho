@@ -1,0 +1,21 @@
+# WP-79 L-79c · Worker RIÊNG cho tuyến công khai /chat. KHÔNG cron (khác worker-keo-lead).
+# Dùng LẠI Hyperdrive id sẵn có — KHÔNG tạo mới.
+name = "togihome-chat"
+main = "src/index.mjs"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "1feb21b95d0840859d902e6d4b142f60"
+
+# ⚠ CHỜ CEO — 4 đích thật (KHÔNG bịa, luật §1). Đích chat suy từ ĐÂY, không bao giờ từ query.
+#   ZALO_URL   = link Zalo OA / zalo.me của Togihome
+#   MESS_URL   = link m.me/<page> (mang được ?ref — thứ L-79d đi soi ở Pancake)
+#   IG_URL     = link ig.me / instagram.com/<handle>
+#   HOME_URL   = trang chủ khách (kenh sai → về đây, không ghi sổ)
+[vars]
+ZALO_URL = "https://zalo.me/0908386258"
+MESS_URL = "https://m.me/576847645509797"
+IG_URL   = "https://ig.me/m/sconcept.vn"
+HOME_URL = "https://sconcept.vn/"

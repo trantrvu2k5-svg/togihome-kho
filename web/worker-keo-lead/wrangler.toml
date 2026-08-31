@@ -7,5 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 binding = "HYPERDRIVE"
 id = "1feb21b95d0840859d902e6d4b142f60"
 
+# [L-70r9] CEO đã nâng Workers Paid. cpu_ms = TRẦN AN TOÀN, KHÔNG phải mục tiêu — lượt lành phải xong
+#   dưới 1 GIÂY CPU (r8 gộp lô đã đạt cả dưới Free 10ms). Đặt 30s để lượt BẤT THƯỜNG bị cắt sớm thay vì
+#   âm thầm nuốt tiền. Gói Paid là CHỖ DƯ, không phải chỗ dựa để nới ẩu.
+[limits]
+cpu_ms = 30000
+
 [triggers]
 crons = ["* * * * *"]

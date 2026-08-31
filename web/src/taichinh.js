@@ -751,7 +751,19 @@ async function taiCacLuong() {
     + `<div><div class="k">Lead mới gần nhất</div><div class="v">${coLead}</div>`
     + `<div class="d">Lần gần nhất THỰC SỰ có lead mới — ghi thêm ${fmt(keo.hoi_thoai_moi_lan_cuoi)} dòng. Kỳ lặng thì đây đứng yên, nhịp tim vẫn chạy.</div></div></div></section>`
 
-  box.innerHTML = b1 + b2 + b3 + b4
+  // ── L-70r5 · ĐÈN "mốc kéo đứng" — banner TOP, soi lan_keo_luc per-page (không soi so_luot). ──
+  //   Chỉ hiện khi CÓ vấn đề (nhãn bật mọi lúc = nhãn chết, 03 §C). KHÔNG nút tắt (QD-69). Đèn hỏng không chặn màn.
+  let den = ''
+  try {
+    const { data: sk } = await sb.rpc('keo_lead_suc_khoe')
+    const KENH = { zalo: 'Zalo', messenger: 'Messenger', instagram: 'Instagram' }
+    const roi = (sk || []).filter(s => s.tinh_trang === 'dung' || s.tinh_trang === 'keo_khong_ra')
+    const cham = (sk || []).filter(s => s.tinh_trang === 'cham')
+    if (roi.length) den = roi.map(s => `<div class="cac-den-nguon cac-den-do">Nguồn lead ${KENH[s.kenh] || s.kenh} đứng ${s.phut_tre} phút — số trên màn này đang thiếu.</div>`).join('')
+    else if (cham.length) den = cham.map(s => `<div class="cac-den-nguon cac-den-vang">Nguồn lead ${KENH[s.kenh] || s.kenh} chậm ${s.phut_tre} phút.</div>`).join('')
+  } catch (e) { /* đèn lỗi → bỏ qua, KHÔNG chặn số CAC */ }
+
+  box.innerHTML = den + b1 + b2 + b3 + b4
 }
 
 // ══════════ TAB DÒNG TIỀN (L-49): dong_tien_ky + con_phai_thu; forms phiếu thu/COD/vốn/quỹ ══════════

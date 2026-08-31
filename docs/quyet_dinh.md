@@ -1165,6 +1165,49 @@ nhất). Cửa ghi DUY NHẤT = `lead_ghi` (SecDef); client bị revoke INSERT/U
 `stt` cho "dòng cuối" tường minh (bài học WP-11).
 **Trạng thái:** ĐÃ CHẠY (db/175, bảng RỖNG — bộ kéo Pancake là L-02). CHƯA commit/tag.
 
+## QD-78 (30/08, WP-79 L-79b, db/183) — CÚ CLICK NÚT CHAT LÀ SỔ BÊN HỆ KHO · CHỐT
+
+Cú click nút chat trên web là **SỔ GHI THÊM bên hệ kho** (`kho.click_chat`); nền web CHỈ đóng góp chuỗi `href`.
+
+**Lý do:** web D2C sắp thay bằng Shopify (CEO 30/08) — tín hiệu nguồn KHÔNG được chết theo nền web. Ref sai/rác
+VẪN ghi sổ, chỉ đeo cờ `ref_hop_le=false`, KHÔNG chặn người dùng (họ QD-69: việc thật thắng số suy). Chỉ `kenh`
+sai mới từ chối. Khuôn sổ append-only theo QD-18/QD-44 (RLS+FORCE + trigger chặn UPDATE/DELETE; cửa ghi duy nhất =
+RPC `ghi_click_chat` đường owner/Worker, KHÔNG grant anon/authenticated). KHÔNG lưu IP/nội dung.
+
+**Trạng thái:** hiệu lực (db/183).
+
+## QD-79 (31/08, WP-70 L-70r4, db/185) — LEAD CÓ HAI MỐC · cờ moc_dang_ngo · CHỐT
+
+Lead giữ **HAI mốc**, không gộp một: `thoi_diem_hoi_thoai` = **ngày quen khách** (`inserted_at` Pancake) ·
+`cham_cuoi_luc` = **lần chạm cuối** (`updated_at` Pancake) · cờ `moc_dang_ngo` bật khi hai mốc lệch > 24h
+HOẶC thiếu `updated_at`.
+
+**Lý do:** gộp một mốc là **mất một câu hỏi** (khách từ bao giờ ≠ hoạt động gần nhất). `updated_at` NHÍCH cả
+khi CHÍNH MÌNH trả lời khách (last_sent_by = page) → đây là "chạm cuối", KHÔNG phải "giờ khách nhắn" — tên cột
+`cham_cuoi_luc` nói đúng điều đó, không đặt tên `khach_nhan_luc`. Đối chiếu cửa sổ 30′ của WP-79 đọc
+`cham_cuoi_luc`, KHÔNG đọc `thoi_diem_hoi_thoai` (bài học lead Vy: quen 05/2025, nhắn 30/08 — lệch 480 ngày).
+Cờ `moc_dang_ngo` dùng để **HẠ MỨC/đeo nhãn**, KHÔNG loại cứng (contact cũ nhắn lại chính là ca doi_chieu_lo
+khớp được); **chỉ loại cứng khi `cham_cuoi_luc` NULL**. Họ QD-15 (ba mốc) + QD-10 (số suy đeo nhãn).
+
+**Trạng thái:** hiệu lực (db/185; backfill 4.576 lead qua ghiLoLead).
+
+## QD-80 (31/08, WP-70 L-70r1→r8) — finally KHÔNG đáng tin · khoá TỰ HẾT HẠN · đèn soi MỐC TIẾN · CHỐT
+
+Cơ chế dọn dẹp đặt trong `finally` **KHÔNG đáng tin**: nền tảng (Cloudflare) giết tiến trình (Exceeded CPU) thì
+`finally`/`catch` **không chạy** → khoá không được nhả. Vì vậy: **khoá phải TỰ HẾT HẠN theo thời gian**
+(`held_at < now() - 3 phút` mới chiếm lại, có ghi log "thu hồi khoá treo"). Và **đèn sức khoẻ soi MỐC TIẾN**
+(`lan_keo_luc` per page), **KHÔNG soi số lượt/số lỗi**.
+
+**Lý do:** sự cố 30/08 sống **8 giờ** với `loi_lien_tiep = 0` và `so_luot` tăng 1.446 lượt — cron "xanh" mà mốc
+đứng, không kéo được gì. Mọi đèn dựa lượt/lỗi đều **mù** kiểu đó. Gốc: Free-plan CPU 10ms + `lead_ghi` hỏi DB
+**từng dòng** (tới 540 câu/lượt) → gộp lô `lead_ghi_lo` (540→~18 câu) sống cả dưới 10ms (db/187→188). Kèm bài
+học **test-qua-giả**: test bằng driver KHÁC prod (pg vs postgres.js) che bug mã-hoá-kép chuỗi→jsonb, chỉ lộ ở
+prod — cổng kiểm cuối phải chạy đúng RUNTIME thật.
+
+**Trạng thái:** hiệu lực (worker-keo-lead: xoay vòng page · try/catch mỗi page · commit theo trang · khoá 3′ ·
+đèn `v_keo_lead_suc_khoe` db/186 · gộp lô db/188). **Chưa chứng minh:** tải thật (TRAN_TRANG=10 chưa chạm, kỳ
+vắng) · tỷ lệ lỗi Cloudflare sạch (đọc lại sau 24h).
+
 ## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
 
 Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**

@@ -3,14 +3,20 @@
 //   BẮT BUỘC (L-05/L-06): khoá chống chồng (kho.keo_lead_runner.held_at) · lùi dần 429 (trong core) ·
 //     5 lỗi LIÊN TIẾP → ngủ 15' · 1 dòng log/lượt (giờ · lead mới · lỗi) · KHÔNG in token.
 import postgres from 'postgres'
-import { keoMotPage } from '../../ops/keo_lead_core.mjs'
+import { keoMotPage, MET, metReset } from '../../ops/keo_lead_core.mjs'
+
+// [L-70r7 ĐO] đếm câu SQL + thời-gian-trôi-qua DB mỗi lượt (KHÔNG phải CPU). Reset đầu mỗi chayLuot.
+const MET_DB = { ms: 0, n: 0 }
 
 // shim client kiểu pg: .query(text, params) -> {rows}, chạy trên postgres.js.
 //   OBJECT param → sql.json() (postgres.js đòi vậy cho jsonb; JSON-string trần bị nó băm sai). Date/nguyên thuỷ giữ nguyên.
 const makeClient = sql => ({
   query: async (text, params = []) => {
     const p = params.map(v => (v !== null && typeof v === 'object' && !(v instanceof Date)) ? sql.json(v) : v)
-    return { rows: await sql.unsafe(text, p) }
+    const _t0 = Date.now()
+    const r = { rows: await sql.unsafe(text, p) }
+    MET_DB.ms += Date.now() - _t0; MET_DB.n++
+    return r
   }
 })
 
@@ -20,30 +26,50 @@ async function chayLuot(env) {
   if (!pages.length) return { skip: 'khong-pages' }
   const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, prepare: false, fetch_types: false })
   const client = makeClient(sql)
+  const t_run = Date.now()
+  metReset(); MET_DB.ms = 0; MET_DB.n = 0
+  let ket_noi_ms = 0
   try {
-    await sql`update kho.keo_lead_runner set so_luot = so_luot + 1 where id = 1`   // đếm MỌI lượt cron (kể cả bỏ/ngủ)
+    const t_conn0 = Date.now()
+    const upd = await sql`update kho.keo_lead_runner set so_luot = so_luot + 1 where id = 1 returning so_luot`   // đếm MỌI lượt
+    ket_noi_ms = Date.now() - t_conn0                              // câu ĐẦU gồm bắt tay kết nối (TLS+SCRAM)
+    // [L-70r7] XOAY VÒNG thứ tự page theo so_luot → igo không vĩnh viễn cuối hàng (chết đói). Vá đúng bất kể CPU.
+    const off = Number(upd[0].so_luot) % pages.length
+    pages = pages.slice(off).concat(pages.slice(0, off))
     // BACKOFF: đang ngủ (sau 5 lỗi liên tiếp)?
     const st = (await sql`select loi_lien_tiep, ngu_toi from kho.keo_lead_runner where id=1`)[0]
     if (st && st.ngu_toi && new Date(st.ngu_toi) > new Date()) return { skip: 'ngu', ngu_toi: st.ngu_toi }
-    // KHOÁ chống chồng: chiếm held_at nếu rảnh / lượt trước treo quá 90s
+    // KHOÁ chống chồng: chiếm held_at nếu rảnh / lượt trước TREO quá 3 phút.
+    //   [L-70r2] Phát hiện + GHI LOG khoá treo: trước đây nhả sau 90s NHƯNG IM LẶNG → sự cố CPU-kill sống 8h
+    //   mà loi_lien_tiep=0 không ai biết. Nay hễ thu hồi khoá treo là hét ra một dòng.
+    const treo = (await sql`select held_at from kho.keo_lead_runner where id=1 and held_at is not null and held_at < now() - interval '3 minutes'`)[0]
     const lock = await sql`update kho.keo_lead_runner set held_at = now(), cap_nhat_luc = now()
-      where id = 1 and (held_at is null or held_at < now() - interval '90 seconds') returning held_at`
+      where id = 1 and (held_at is null or held_at < now() - interval '3 minutes') returning held_at`
     if (!lock.length) return { skip: 'chong' }        // lượt trước đang giữ → bỏ, không xếp hàng
+    if (treo) console.warn(`  ⚠ thu hồi khoá treo (lượt trước chết không nhả, giữ từ ${new Date(treo.held_at).toISOString()})`)
     try {
       let tongGhi = 0
       // [L-09] Kéo MỖI TRANG trong 1 TRANSACTION: Hyperdrive multiplex backend giữa các câu rời → cờ GUC
       //   set_config bị đánh rơi (~43% lượt lỗi "chỉ ceo/ke_toan… GUC"). Transaction GHIM 1 backend cho cả
       //   set_config + lead_ghi + lead_moc_ghi → cờ giữ nguyên. (pg local ổn định nên core không đổi.)
+      const client = makeClient(sql)                                   // pool cho ĐỌC mốc (không cần transaction)
       const keoTatCa = (async () => {
         for (const p of pages) {
-          const T = await sql.begin(async txs => keoMotPage(makeClient(txs), p.page_id, p.token || p.page_access_token))
-          tongGhi += T.ghi
+          try {
+            // [L-70r2] MỖI TRANG 1 transaction (ghim backend cho GUC). Một page hỏng → BỎ QUA, đi tiếp page sau.
+            const tx = (fn) => sql.begin(txs => fn(makeClient(txs)))
+            const T = await keoMotPage(client, p.page_id, p.token || p.page_access_token, { tx })
+            tongGhi += T.ghi
+          } catch (e) {
+            console.error(`  ✗ page ${p.page_id} lỗi (BỎ QUA, đi tiếp): ${(e && e.message || String(e)).slice(0, 90)}`)
+          }
         }
       })()
       // CẮT 50s: lượt chạy quá lâu thì bỏ, không đè sang nhịp 60s sau (kết nối rớt → transaction tự rollback).
       const cat50s = new Promise((_, rej) => setTimeout(() => rej(new Error('lượt quá 50s — tự cắt')), 50000))
       await Promise.race([keoTatCa, cat50s])
       await sql`update kho.keo_lead_runner set loi_lien_tiep = 0, ngu_toi = null, held_at = null, cap_nhat_luc = now() where id = 1`
+      console.log(`  [do] ket_noi=${ket_noi_ms}ms goi_pancake=${MET.pancakeMs}ms parse_json=${MET.parseMs}ms ghi_db=${MET_DB.ms}ms tong=${Date.now() - t_run}ms cauSQL=${MET_DB.n} hoiThoai=${tongGhi} pancakeN=${MET.pancakeN} (troi-qua, KHONG phai CPU)`)
       return { ok: true, ghi: tongGhi }
     } catch (e) {
       let fails = null, ngu = null
