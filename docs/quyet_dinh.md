@@ -1236,6 +1236,27 @@ mù có chủ đích (để `khong_biet`, không đoán). Giờ đông khách = 
 
 **Trạng thái:** db/194 (4 cột + `khop_click_lead(p_tu,p_den,p_dry)`); bám nhịp kéo lead, KHÔNG cron thứ hai. CHƯA commit/tag.
 
+## QD-84 (31/08, WP-79b L-06, db/193) — MÃ CLICK giữ NGUYÊN VĂN nhãn 'chua_giai', KHÔNG suy ad_id/chiến dịch · CHỐT
+
+Bắt mã click (`fbclid`/`gclid`) + `utm_*` ở **trang đích** (GTM ghi vào `sessionStorage`, giữ QUA TRANG), mang qua
+`/chat` vào 8 cột thô trên `kho.click_chat` (`ma_click, loai_ma_click, utm_source/medium/campaign/content/term, trang_dat`).
+Quyết định cứng:
+
+- **`fbclid` = MÃ CLICK, KHÔNG phải mã quảng cáo.** Giữ **NGUYÊN VĂN** — không cắt, không hash, không đoán chiến dịch từ
+  nó. Chỉ chặn **trần độ dài** (ma_click 512 · loai 16 · utm 256 · trang_dat 1024), KHÔNG làm sạch nội dung.
+- **CẤM đặt cột tên `ad_id`/`campaign_id`.** Mọi chỗ đọc mã click mang nhãn **`chua_giai`**. Giải mã click→chiến dịch là
+  việc của **Meta Marketing API (WP-77)**, không suy từ chuỗi này ở tầng nào.
+- **Có mã click KHÔNG nâng mức chắc chắn** (`muc_chac_chan` giữ theo QD-73/76). `nguon_khach` KHÔNG đổi vì có mã click.
+  Mã click là DỮ LIỆU THÔ chờ giải, không phải bằng chứng quảng cáo.
+- **MỐC bật (VIỆC 4):** `tham_so_van_hanh.wp79b_ma_click_tu` (epoch giây). Lead/click **TRƯỚC mốc = TRỐNG VĨNH VIỄN** —
+  CẤM lấp ngược bằng bất kỳ cách suy nào. Mọi màn đọc mã click phải hiện được câu "chỉ có từ <mốc>".
+
+**Nối dây tới lead (VIỆC 3) — HOÃN CÓ CHỦ ĐÍCH:** WP-79 **CHƯA có** máy khớp click↔lead theo cửa sổ 30′ (đã soi, không
+tồn tại). Không có đường khớp thì **KHÔNG thêm cột `ma_click` chết vào `lead`** (luật §5 nối-dây: cột không ai bơm = luật
+chết). Mã click dừng ở `click_chat` tới khi WP-79 dựng máy khớp. Báo khoảng trống, không lấp bằng cột treo.
+
+**Lý do:** họ QD-10/15/76 — số chưa giải đeo nhãn, không trộn vào số xác định; sổ tài chính/nguồn khách phải SẠCH.
+
 ## QD-86 (31/08, WP-78 L-05c→f) — CẤM XOÁ DÒNG khỏi sổ append-only trên dữ liệu thật (không phụ thuộc có trigger hay chưa) · CHỐT
 
 **CẤM XOÁ DÒNG khỏi mọi sổ append-only trên dữ liệu thật — BẤT KỂ bảng đó đã có trigger chặn hay chưa.** Chưa có

@@ -12,17 +12,17 @@ const DICH = { zalo: 'ZALO_URL', messenger: 'MESS_URL', instagram: 'IG_URL' }
 // L-79h · Mã GTM nhúng THẲNG vào Worker (Worker không có ổ đĩa, không đọc file lúc chạy). GTM chỉ giữ 1 dòng
 //   <script src=".../gtm.js"> → không có thân JS để GTM biên dịch → không thể parse error. Đây là bản min
 //   (byte y hệt web/ops/gtm_ref_chat.min.js). Regex viết \\.(\\d+) để template literal cho ra đúng \.(\d+).
-const GTM_JS = `(function(){try{var WORKER="https://togihome-chat.togihome-keo-lead.workers.dev/chat";function kenhTuHref(h){if(!h)return null;if(h.indexOf("zalo.me/0908386258")>=0)return "zalo";if(h.indexOf("m.me")>=0||h.indexOf("messenger.com")>=0)return "messenger";if(h.indexOf("ig.me")>=0)return "instagram";return null;}function idWebTuPath(path){var m=(path||"").match(/\\.(\\d+)$/);return m?m[1]:"0";}function nonce6(){var s="";var abc="abcdefghijklmnopqrstuvwxyz0123456789";for(var i=0;i<6;i++)s+=abc.charAt(Math.floor(Math.random()*abc.length));return s;}document.addEventListener("click",function(e){try{var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;var href=a.getAttribute("href")||"";if(href.indexOf("tel:")===0)return;var kenh=kenhTuHref(href);if(!kenh)return;var path=location.pathname||"/";var ref="w-"+idWebTuPath(path)+"-"+nonce6();var dich=WORKER+"?kenh="+encodeURIComponent(kenh)+"&ref="+encodeURIComponent(ref)+"&dd="+encodeURIComponent(path)+"&src=gtm";e.preventDefault();location.href=dich;}catch(err){}},true);}catch(e){}})();`
+const GTM_JS = `(function(){try{var WORKER="https://togihome-chat.togihome-keo-lead.workers.dev/chat";var K="togi_click";var UT=["source","medium","campaign","content","term"];var UK={source:"us",medium:"um",campaign:"uc",content:"uo",term:"ut"};try{var q=new URLSearchParams(location.search);var fb=q.get("fbclid"),gc=q.get("gclid");var cur={};try{cur=JSON.parse(sessionStorage.getItem(K)||"{}");}catch(e){}if(fb){cur.mc=fb;cur.mt="fbclid";}else if(gc){cur.mc=gc;cur.mt="gclid";}var any=fb||gc;UT.forEach(function(u){var v=q.get("utm_"+u);if(v){cur[u]=v;any=1;}});if(any){try{sessionStorage.setItem(K,JSON.stringify(cur));}catch(e){}}}catch(e){}function kenhTuHref(h){if(!h)return null;if(h.indexOf("zalo.me/0908386258")>=0)return "zalo";if(h.indexOf("m.me")>=0||h.indexOf("messenger.com")>=0)return "messenger";if(h.indexOf("ig.me")>=0)return "instagram";return null;}function idWebTuPath(path){var m=(path||"").match(/\\.(\\d+)$/);return m?m[1]:"0";}function nonce6(){var s="";var abc="abcdefghijklmnopqrstuvwxyz0123456789";for(var i=0;i<6;i++)s+=abc.charAt(Math.floor(Math.random()*abc.length));return s;}document.addEventListener("click",function(e){try{var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;var href=a.getAttribute("href")||"";if(href.indexOf("tel:")===0)return;var kenh=kenhTuHref(href);if(!kenh)return;var path=location.pathname||"/";var ref="w-"+idWebTuPath(path)+"-"+nonce6();var st={};try{st=JSON.parse(sessionStorage.getItem(K)||"{}");}catch(e){}var dich=WORKER+"?kenh="+encodeURIComponent(kenh)+"&ref="+encodeURIComponent(ref)+"&dd="+encodeURIComponent(path)+"&src=gtm";if(st.mc){dich+="&mc="+encodeURIComponent(st.mc)+"&mt="+encodeURIComponent(st.mt||"");}UT.forEach(function(u){if(st[u])dich+="&"+UK[u]+"="+encodeURIComponent(st[u]);});dich+="&td="+encodeURIComponent(location.href);e.preventDefault();location.href=dich;}catch(err){}},true);}catch(e){}})();`
 
 // Ghi sổ qua RPC — MỘT câu SQL trong MỘT transaction (ghim 1 backend Hyperdrive). KHÔNG set_config/GUC
 //   (bài học L-09: Hyperdrive multiplex backend giữa 2 câu rời → GUC rơi ~43% lượt). DB lỗi/chậm → nuốt, chỉ log.
-async function ghiSo(env, { ref, kenh, dich, nguon, ua, dd }) {
+async function ghiSo(env, { ref, kenh, dich, nguon, ua, dd, mc, mt, us, um, uc, uo, ut, td }) {
   const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, prepare: false, fetch_types: false })
   try {
-    // RPC 7 tham số (db/184): p_duong_dan = dd (thiếu → null). id_web RPC tự tách số cuối dd.
+    // RPC 15 tham số (db/193): +mã click nguyên văn (mc/mt) + utm + trang_dat (td). id_web tách từ dd (p_id_web=null).
     await sql.begin(t => t.unsafe(
-      'select kho.ghi_click_chat($1,$2,$3,$4,$5,$6)',
-      [ref ?? '', kenh, dich, nguon, ua, dd ?? null]))
+      'select kho.ghi_click_chat($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)',
+      [ref ?? '', kenh, dich, nguon, ua, dd ?? null, null, mc ?? null, mt ?? null, us ?? null, um ?? null, uc ?? null, uo ?? null, ut ?? null, td ?? null]))
   } finally { try { await sql.end() } catch {} }
 }
 
@@ -63,8 +63,10 @@ export default {
     if (req.method === 'GET') {
       const nguon = url.searchParams.get('src') || req.headers.get('Referer') || null   // src= để đánh dấu lượt kiểm thử
       const dd = url.searchParams.get('dd')                                              // pathname trang khách click (GTM gửi)
+      const g = k => url.searchParams.get(k)                                             // mã click + utm (nguyên văn, GTM gửi)
+      const mc = g('mc'), mt = g('mt'), us = g('us'), um = g('um'), uc = g('uc'), uo = g('uo'), ut = g('ut'), td = g('td')
       const ua = req.headers.get('User-Agent')
-      ctx.waitUntil(ghiSo(env, { ref, kenh, dich, nguon, ua, dd }).catch(e =>
+      ctx.waitUntil(ghiSo(env, { ref, kenh, dich, nguon, ua, dd, mc, mt, us, um, uc, uo, ut, td }).catch(e =>
         console.error('chat: ghi sổ lỗi (vẫn đã chuyển hướng) —', (e && e.message || String(e)).slice(0, 120))))
     }
     return res
