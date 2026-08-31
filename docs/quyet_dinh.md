@@ -1236,16 +1236,18 @@ mù có chủ đích (để `khong_biet`, không đoán). Giờ đông khách = 
 
 **Trạng thái:** db/194 (4 cột + `khop_click_lead(p_tu,p_den,p_dry)`); bám nhịp kéo lead, KHÔNG cron thứ hai. CHƯA commit/tag.
 
-## QD-86 (31/08, WP-78 L-05c) — CẤM tắt/drop trigger append-only để DỌN dữ liệu (kể cả demo) · CHỐT
+## QD-86 (31/08, WP-78 L-05c→f) — CẤM XOÁ DÒNG khỏi sổ append-only trên dữ liệu thật (không phụ thuộc có trigger hay chưa) · CHỐT
 
-**CẤM tắt/drop trigger append-only để dọn dữ liệu — kể cả dữ liệu demo, kể cả trong một transaction có rollback.**
-Sổ append-only (`click_chat` · `don_hang_lead_nhat_ky` · `giao_dich` · `su_kien_quet` và MỌI sổ sau này) chỉ có **một
-cửa ghi**; **KHÔNG có cửa dọn.**
+**CẤM XOÁ DÒNG khỏi mọi sổ append-only trên dữ liệu thật — BẤT KỂ bảng đó đã có trigger chặn hay chưa.** Chưa có
+trigger **KHÔNG phải là được phép**, chỉ là **chưa cài răng** (vd `su_kien_quet` hở tới L-05f). Cấm mọi cách VÒNG:
+**tắt/drop trigger** · **`session_replication_role='replica'` ngoài tx-rollback** · **chạy bằng vai owner**.
+Sổ: `giao_dich` · `su_kien_quet` · `click_chat` · `don_hang_lead_nhat_ky` · `vat_tu_tham_so_lich_su` · `lead`
+(mở rộng khi có sổ mới). Mỗi sổ chỉ có **một cửa ghi**; **KHÔNG có cửa dọn.**
 
-Dọn demo thì:
-- **(a) Để nguyên** — `la_demo` đã lọc khỏi mọi báo cáo/KPI (QD-46); đơn demo tồn tại KHÔNG hại.
-- **(b) Cần biến mất khỏi tồn/công nợ** → dùng `xoa_demo()` theo QD-46 ("0 tác động", ghi **dòng ĐẢO**), **KHÔNG xoá
-  dòng sổ**.
+Dọn demo = **0 TÁC ĐỘNG** chứ không 0 dấu vết (QD-46 sửa 22/08):
+- **(a) Để nguyên** — `la_demo` đã lọc khỏi mọi báo cáo/KPI (QD-46); bản ghi demo tồn tại KHÔNG hại.
+- **(b) Cần biến mất khỏi tồn/công nợ** → qua `xoa_demo()`: **sổ SỐ DƯ** (giao_dich) ghi **dòng-đảo** (huy_phieu); **sổ
+  LOG THÔ** (su_kien_quet) **để NGUYÊN** — sự kiện đã xảy ra, đảo vô nghĩa (QD-18). **KHÔNG xoá dòng sổ** trong cả hai.
 
 **Ngoại lệ DUY NHẤT:** CEO **tự gõ** lệnh tắt trigger trong lệnh dán — **máy KHÔNG BAO GIỜ tự thêm** (cùng khuôn
 `BO_QUA_BACKUP` QD-61).
@@ -1260,7 +1262,6 @@ có hàng rào thứ hai.
   vệ được gì.
 - **Phân biệt bằng CÂU HỎI:** sau khi chạy xong, có dòng nào trong prod **BIẾN MẤT** không? **Có = (a), cấm. Không =
   (b), được.**
-
 
 **Lý do:** L-07 (31/08) đã kết luận không tự gỡ chốt sổ; **L-05 CÙNG NGÀY lại làm đúng việc đó** (tắt `dhlnk_chan_sua`
 trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ nhỏ, nên khoá thành điều khoản.
