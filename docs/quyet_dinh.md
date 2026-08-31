@@ -1208,6 +1208,46 @@ prod — cổng kiểm cuối phải chạy đúng RUNTIME thật.
 đèn `v_keo_lead_suc_khoe` db/186 · gộp lô db/188). **Chưa chứng minh:** tải thật (TRAN_TRANG=10 chưa chạm, kỳ
 vắng) · tỷ lệ lỗi Cloudflare sạch (đọc lại sau 24h).
 
+## QD-81 (31/08, WP-78 L-02, db/189) — VAI ads_user: đọc quy kết + GIÁ TRỊ đơn, KHÔNG đọc tài chính · CHỐT
+
+Thêm vai `ads_user` vào danh mục `nguoi_dung.vai_tro`. **Ranh giới:**
+- **ĐƯỢC đọc** (qua RPC `ads_ad_ngay`, SECURITY DEFINER): lead (quy kết `ad_id`, luồng, chủ đề, mốc, SĐT) · đơn
+  gắn lead ở mức **SỐ ĐƠN + GIÁ TRỊ ĐƠN** (`doanh_thu`, gồm VAT theo 04 §C) + trạng thái tới `da_giao`.
+- **KHÔNG được đọc:** giá vốn, lãi/CM, lương, dòng tiền, công nợ, chi phí kỳ, P/L — toàn bộ họ RPC tài chính
+  (`pl_ky`, `cm_don_ky`, `dong_tien_ky`, `nhan_xet_ky`, `con_phai_thu`…). Các RPC đó đã guard `current_vai_tro()
+  not in ('ceo','ke_toan')` → `ads_user` tự bị từ chối; và KHÔNG grant `ads_user` bảng giá vốn nào.
+
+**Lý do:** ERP 2.7 xếp CRM là **add-on ghép vào ERP**, không phải mô-đun lõi kế toán. **Giá trị đơn KHÔNG phải
+P/L** — người chạy ads cần nó để đọc CAC theo dải giá trị (họ QD-WP-76); giá vốn/lãi thì không được chạm.
+
+**Trạng thái:** hiệu lực (db/189: +vai · RPC `ads_ad_ngay` mức ad_id×ngày · index lead(ad_id) + don_hang(lead_id)).
+Chi tiêu ad = **CHƯA CÓ NGUỒN** (`chi_ad` NULL, `nguon_chi='chua_co_nguon'`) — Pancake không trả spend (WP-78 L-01);
+CẤM suy chi bằng chia đều. Hai bậc phễu đầu (hiển thị/bấm) chờ nguồn Meta.
+
+## QD-82 (31/08, WP-78 L-04, db/190) — GẮN LEAD = máy GỢI Ý, người XÁC NHẬN một chạm · CHỐT
+
+Gắn lead vào đơn: hệ tra SĐT khách trên đơn → **gợi ý** lead trùng (RPC `lead_goi_y_theo_sdt`); **người bấm xác
+nhận** thì mới gắn (RPC `don_gan_lead`). **Không xác nhận = không gắn.** CẤM gắn NGẦM kể cả khi trùng đúng một
+lead. CẤM nhập tay `ad_id` ở bất cứ đâu.
+
+**Lý do:** một SĐT KHÔNG chắc một người (khách cũ nhắn lại, số dùng chung). Gắn ngầm = máy tự quyết nguồn khách
+→ trái QD-76 (chỉ mức xác định mới đổi `nguon_khach`). `don_gan_lead` set `nguon_khach='quang_cao'` chỉ khi lead
+`xac_dinh` (có `ad_id`); lead không xác định thì KHÔNG đổi `nguon_khach`. Lead `sdt_hong`/số không parse được →
+KHÔNG gợi ý (số không đáng tin thì không gắn).
+
+**Trạng thái:** hiệu lực (db/190: `lead_goi_y_theo_sdt` + `chuan_hoa_sdt` dùng chung).
+
+## QD-83 (31/08, WP-78 L-04, db/190) — ĐỔI lead ghi VẾT dòng mới, KHÔNG có đường gỡ về trống · CHỐT
+
+`don_gan_lead` là **cổng DUY NHẤT** ghi `don_hang.lead_id` ngoài `tao_don` (trigger chặn UPDATE thẳng từ client).
+Đổi lead: **BẮT BUỘC lý do**, ghi **dòng vết mới** `don_hang_lead_nhat_ky` (tu = lead cũ, den = lead mới, ai · lúc
+nào · lý do), KHÔNG sửa đè dòng cũ. SĐT của lead phải KHỚP SĐT khách trên đơn (chuẩn hoá) — lệch → từ chối.
+(Sổ vết lead TÁCH khỏi `don_hang_nhat_ky` — bảng đó CHECK `den` = trạng-thái, không chứa được uuid lead; bảng
+mới CÙNG KHUÔN `{don_id, tu, den, nguoi_id, luc, ly_do}`, KHÔNG phải kiểu vết thứ hai.)
+**GỠ về trống: KHÔNG CÓ ĐƯỜNG** — gắn nhầm thì đổi sang lead đúng; không có lead đúng thì để nguyên + ghi lý do.
+
+**Lý do:** họ QD-16/18 — đơn đã chốt là sự thật lịch sử, đính chính bằng DÒNG MỚI (append-only), không xoá về trống.
+
 ## QD-85 (31/08, WP-79 L-09, db/194) — KHỚP CLICK↔LEAD CỬA-SỔ-1:1, mức suy_ref có khoa_khop · CHỐT
 
 Sau khi thực nghiệm chốt **không kênh nào có khoá xác định** (Zalo query-string CHẾT L-08b, Messenger CHẾT 2 phép thử) —
