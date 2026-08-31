@@ -3159,6 +3159,77 @@ function HoiThoaiNguon({ chon, onChon }) {
                   el("div", { className: "hn-row-s" }, (NEN[x.nen_tang] || x.nen_tang) + " · " + dmy(x.thoi_diem) + (x.sdt ? " · " + x.sdt : ""))); })))));
 }
 
+// [WP-78 L-05] Gợi ý lead theo SĐT khách (db/190 lead_goi_y_theo_sdt). 3 trạng thái bám mẫu CEO:
+//   A trùng 1 (Đúng khách này/Không phải) · B trùng nhiều ≤5 mới-nhất-trên (Chọn đợt này) · C không trùng (xám, không nút gắn tay).
+//   Mặc định CHƯA GẮN (QD-82): không bấm = không gắn. onChon(lead|null) do caller quyết hành động (tao_don mới / don_gan_lead cũ).
+//   Style INLINE (napApp chỉ inject <script>, CSS <style> không tới) → tự chứa, không phụ thuộc stylesheet.
+function GoiYLead({ sdt, chon, onChon, err, dangGan }) {
+  const el = React.createElement;
+  const [ds, setDs] = useState([]);
+  const [tai, setTai] = useState(false);
+  const digits = (sdt || "").replace(/\D/g, "");
+  useEffect(() => {
+    const cs = (sdt || "").replace(/\D/g, "");
+    if (cs.length < 9) { setDs([]); return; }
+    if (!(window.saleApi && window.saleApi.leadGoiYTheoSdt)) return;
+    const t = setTimeout(() => {
+      setTai(true);
+      window.saleApi.leadGoiYTheoSdt(sdt).then(r => setDs(Array.isArray(r) ? r : [])).catch(() => setDs([])).finally(() => setTai(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [sdt]);
+  const NEN = { zalo: "Zalo", messenger: "Messenger", instagram: "Instagram" };
+  const MUCC = { xac_dinh: ["Xác định", "#E6F4EA", "#1E7B34"], suy_ref: ["Suy web", "#FDF0DD", "#8A5A00"], doi_chieu_lo: ["Ước lô", "#FDF0DD", "#8A5A00"], khong_biet: ["Không rõ", "#EEF0F4", "#6B7488"] };
+  const dmy = s => { if (!s) return "—"; try { const d = new Date(s); const p = n => ("0" + n).slice(-2); return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes()); } catch (e) { return "—"; } };
+  const S = {
+    wrap: { border: "1px solid #E1E5EC", borderRadius: 10, padding: 10, background: "#FAFBFC", marginTop: 4 },
+    row: { display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid #EEF0F4" },
+    kv: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px", flex: 1, fontSize: 13 },
+    k: { color: "#6B7488", whiteSpace: "nowrap" }, v: { color: "#151B2C", fontWeight: 500 }, num: { fontFamily: "'JetBrains Mono',monospace" },
+    btns: { display: "flex", flexDirection: "column", gap: 6, minWidth: 118 },
+    ok: { padding: "7px 10px", background: dangGan ? "#C9CDD4" : "#1E7B34", color: "#fff", border: 0, borderRadius: 8, fontWeight: 600, cursor: dangGan ? "default" : "pointer", fontSize: 13 },
+    no: { padding: "7px 10px", background: "#fff", color: "#6B7488", border: "1px solid #D3D9E4", borderRadius: 8, cursor: dangGan ? "default" : "pointer", fontSize: 13 },
+    badge: { marginTop: 6, fontSize: 12, color: "#8A5A00", background: "#FDF0DD", padding: "4px 8px", borderRadius: 6, display: "inline-block" },
+    none: { color: "#6B7488", fontSize: 13, padding: "8px 4px" }, n2: { fontSize: 12, color: "#98A0AE", marginTop: 3 },
+    err: { marginTop: 6, color: "#C8202E", fontSize: 12.5, fontWeight: 600 },
+    after: { display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", background: "#F2F7F3", border: "1px solid #D7E7DA", borderRadius: 8, padding: "8px 10px" }
+  };
+  const nhan = x => { const m = MUCC[x.muc_chac_chan] || ["—", "#EEF0F4", "#6B7488"]; return el("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: m[1], color: m[2] } }, m[0]); };
+  const nguon = x => x.ad_id ? el("span", null, "Ad ", el("span", { style: S.num }, x.ad_id)) : "Không biết (không có ad)";
+  const kv = x => el("div", { style: S.kv },
+    el("div", { style: S.k }, "Nguồn quy kết"), el("div", { style: S.v }, nguon(x)),
+    el("div", { style: S.k }, "Kênh"), el("div", { style: S.v }, NEN[x.kenh] || x.kenh),
+    el("div", { style: S.k }, "Ngày khách nhắn đầu"), el("div", { style: Object.assign({}, S.v, S.num) }, dmy(x.khach_nhan_dau)),
+    el("div", { style: S.k }, "Ngày chạm cuối"), el("div", { style: Object.assign({}, S.v, S.num) }, dmy(x.cham_cuoi)));
+  if (chon) {
+    return el("div", { className: "fld full" },
+      el("label", null, "Lead nguồn đã gắn"),
+      el("div", { style: S.after },
+        el("div", null, el("b", null, chon.ten_khach || "(chưa có tên)"), " · ", nguon(chon), " · ", NEN[chon.kenh] || chon.kenh, " ", nhan(chon)),
+        el("button", { type: "button", disabled: dangGan, style: S.no, onClick: () => onChon(null) }, "Không phải")),
+      err && el("div", { style: S.err }, err));
+  }
+  if (digits.length < 9) return null;
+  return el("div", { className: "fld full" },
+    el("label", null, "Gợi ý lead theo SĐT ", el("span", { className: "mini", style: { color: "#98A0AE" } }, "hệ tra hội thoại trùng số — mặc định CHƯA GẮN")),
+    el("div", { style: S.wrap },
+      tai ? el("div", { style: S.none }, "Đang tra…")
+        : !ds.length ? el("div", { style: S.none }, "không tìm thấy hội thoại trùng số này", el("div", { style: S.n2 }, "Không có nút gắn tay · không ô nhập ad_id · đơn vẫn chốt bình thường"))
+          : ds.length === 1
+            ? el("div", null,
+                el("div", { style: Object.assign({}, S.row, { borderTop: "none", paddingTop: 0 }) }, kv(ds[0]),
+                  el("div", { style: S.btns },
+                    el("button", { type: "button", disabled: dangGan, style: S.ok, onClick: () => onChon(ds[0]) }, dangGan ? "Đang gắn…" : "Đúng khách này"),
+                    el("button", { type: "button", disabled: dangGan, style: S.no, onClick: () => onChon(null) }, "Không phải"))),
+                el("div", { style: S.badge }, "Mặc định CHƯA GẮN — không bấm “Đúng khách này” = đơn không gắn lead"),
+                err && el("div", { style: S.err }, err))
+            : el("div", null,
+                ds.slice(0, 5).map(x => el("div", { key: x.lead_id, style: S.row }, kv(x),
+                  el("div", { style: S.btns }, el("button", { type: "button", disabled: dangGan, style: S.ok, onClick: () => onChon(x) }, "Chọn đợt này"), nhan(x)))),
+                el("div", { style: S.badge }, "Mới nhất trên cùng · tối đa 5 đợt · chọn được ĐÚNG MỘT"),
+                err && el("div", { style: S.err }, err))));
+}
+
 function DonModal({
   db,
   don,
@@ -3233,6 +3304,8 @@ function DonModal({
   });
   /* [WP-70 L-04] hội thoại nguồn đã chọn (để hiện 4 ô đọc + ẩn ô nguồn khách). null = chưa chọn. */
   const [htChon, setHtChon] = useState(null);
+  const [ganErr, setGanErr] = useState("");     // [WP-78 L-05] lỗi gắn lead — đỏ inline, không alert/banner
+  const [dangGan, setDangGan] = useState(false); // khoá nút khi đang gọi don_gan_lead (tránh bấm đúp)
   const [ln, setLn] = useState(cu.length ? cu.map(x => ({
     ...x,
     anh: x.anh || (x.anhSP ? [{
@@ -3629,9 +3702,22 @@ function DonModal({
     style: {
       color: "var(--am)"
     }
-  }, "Không hỗ trợ lắp đặt")), /*#__PURE__*/React.createElement(HoiThoaiNguon, {
+  }, "Không hỗ trợ lắp đặt")), /*#__PURE__*/React.createElement(GoiYLead, {
+    sdt: f.sdt,
     chon: htChon,
-    onChon: lead => { setHtChon(lead); setF(p => ({ ...p, leadId: lead ? lead.lead_id : "" })); }
+    err: ganErr,
+    dangGan: dangGan,
+    onChon: async lead => {
+      setGanErr("");
+      if (!lead) { setHtChon(null); setF(p => ({ ...p, leadId: "" })); return; }
+      // Đơn ĐÃ tồn tại (có ma_don trên máy chủ) → gắn NGAY qua don_gan_lead (ghi vết). Đơn MỚI → chờ tao_don mang p_lead_id.
+      if (don && don.ma) {
+        setDangGan(true);
+        try { await window.saleApi.donGanLead(don.ma, lead.lead_id, null); setHtChon(lead); setF(p => ({ ...p, leadId: lead.lead_id })); }
+        catch (e) { setGanErr(e.message || String(e)); }
+        finally { setDangGan(false); }
+      } else { setHtChon(lead); setF(p => ({ ...p, leadId: lead.lead_id })); }
+    }
   }), !htChon && /*#__PURE__*/React.createElement("div", {
     className: "fld"
   }, /*#__PURE__*/React.createElement("label", { title: "Bắt buộc để CHỐT đơn" }, "Khách biết mình qua đâu? ", /*#__PURE__*/React.createElement("span", {
@@ -5549,6 +5635,51 @@ function XemDon({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+  // ── [WP-78 L-05] Nguồn khách (lead): hiện nguồn+mức+vết (db/196) + Đổi lead có LÝ DO (db/192, cửa duy nhất). ──
+  const [leadVet, setLeadVet] = React.useState(null);       // null=đang tải · []=chưa gắn
+  const [doiLeadMo, setDoiLeadMo] = React.useState(false);
+  const [doiLyDo, setDoiLyDo] = React.useState("");
+  const [doiErr, setDoiErr] = React.useState("");
+  const [doiBusy, setDoiBusy] = React.useState(false);
+  const taiLeadVet = () => {
+    if (!(window.saleApi && window.saleApi.donLeadVet)) { setLeadVet([]); return; }
+    window.saleApi.donLeadVet(d.ma).then(r => setLeadVet(Array.isArray(r) ? r : [])).catch(() => setLeadVet([]));
+  };
+  useEffect(() => { taiLeadVet(); }, [d.ma]);
+  const doiLead = async lead => {
+    setDoiErr("");
+    if (!lead) return;   // "Không phải" trong panel đổi → không làm gì
+    setDoiBusy(true);
+    try { await window.saleApi.donGanLead(d.ma, lead.lead_id, doiLyDo || null); setDoiLeadMo(false); setDoiLyDo(""); taiLeadVet(); }
+    catch (e) { setDoiErr(e.message || String(e)); }   // RPC từ chối (SĐT lệch / thiếu lý do) → đỏ inline nguyên văn
+    finally { setDoiBusy(false); }
+  };
+  const NENX = { zalo: "Zalo", messenger: "Messenger", instagram: "Instagram" };
+  const MUCX = { xac_dinh: ["Xác định", "#E6F4EA", "#1E7B34"], suy_ref: ["Suy web", "#FDF0DD", "#8A5A00"], doi_chieu_lo: ["Ước lô", "#FDF0DD", "#8A5A00"], khong_biet: ["Không rõ", "#EEF0F4", "#6B7488"] };
+  const nhanMuc = m => { const x = MUCX[m] || ["—", "#EEF0F4", "#6B7488"]; return React.createElement("span", { style: { fontSize: 11.5, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: x[1], color: x[2] } }, x[0]); };
+  const dmyX = s => { if (!s) return "—"; try { const dd = new Date(s); const p = n => ("0" + n).slice(-2); return p(dd.getDate()) + "/" + p(dd.getMonth() + 1) + "/" + dd.getFullYear() + " " + p(dd.getHours()) + ":" + p(dd.getMinutes()); } catch (e) { return "—"; } };
+  const curLead = (leadVet && leadVet[0]) || null;
+  const leadPanel = React.createElement("div", { style: { marginTop: 14 } },
+    React.createElement("div", { className: "sec" }, "Nguồn khách (lead)"),
+    React.createElement("div", { style: { border: "1px solid #E1E5EC", borderRadius: 10, padding: 12, background: "#FAFBFC" } },
+      leadVet === null ? React.createElement("div", { style: { color: "#6B7488", fontSize: 13 } }, "Đang tải…")
+        : !curLead ? React.createElement("div", { style: { color: "#6B7488", fontSize: 13 } }, "Chưa gắn lead cho đơn này.")
+          : React.createElement("div", null,
+              React.createElement("div", { style: { fontSize: 14 } }, React.createElement("b", null, "Nguồn: "),
+                curLead.o_den_ad ? React.createElement("span", null, "Ad ", React.createElement("span", { style: { fontFamily: "'JetBrains Mono',monospace" } }, curLead.o_den_ad)) : "Không biết (không có ad)",
+                " · ", NENX[curLead.o_den_kenh] || curLead.o_den_kenh, " ", nhanMuc(curLead.o_den_muc)),
+              React.createElement("div", { style: { fontSize: 12.5, color: "#6B7488", marginTop: 4 } }, "Khách: ", React.createElement("b", null, curLead.o_den_ten || "(chưa có tên)"), " · gắn bởi ", React.createElement("b", null, curLead.o_nguoi || "—"), " lúc ", React.createElement("span", { style: { fontFamily: "'JetBrains Mono',monospace" } }, dmyX(curLead.o_luc)))),
+      (leadVet && leadVet.length) ? React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid #EEF0F4", paddingTop: 8 } },
+        React.createElement("div", { style: { fontSize: 12, color: "#98A0AE", marginBottom: 4 } }, "Lịch sử gắn/đổi (dòng cũ không mất):"),
+        leadVet.map((v, i) => React.createElement("div", { key: i, style: { fontSize: 12.5, color: "#4B5262", padding: "3px 0" } },
+          React.createElement("b", null, v.o_nguoi || "—"), " · ", (v.o_tu_ten ? (v.o_tu_ten + " → ") : "gắn lần đầu → "), (v.o_den_ten || "?"),
+          " · ", React.createElement("span", { style: { fontFamily: "'JetBrains Mono',monospace" } }, dmyX(v.o_luc)), v.o_ly_do ? (" · " + v.o_ly_do) : ""))) : null,
+      !doiLeadMo ? React.createElement("button", { className: "btn", style: { marginTop: 10, padding: "5px 12px" }, onClick: () => { setDoiLeadMo(true); setDoiErr(""); } }, curLead ? "Đổi lead" : "Gắn lead")
+        : React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid #E1E5EC", paddingTop: 10 } },
+            React.createElement("label", { style: { fontSize: 12.5, color: "#151B2C", fontWeight: 600, display: "block", marginBottom: 4 } }, "Lý do đổi ", React.createElement("span", { style: { color: "#C8202E" } }, "* bắt buộc khi đổi")),
+            React.createElement("input", { value: doiLyDo, onChange: e => setDoiLyDo(e.target.value), placeholder: "Vì sao đổi lead này…", style: { width: "100%", boxSizing: "border-box", padding: 9, border: "1px solid #D3D9E4", borderRadius: 8, fontSize: 14, marginBottom: 8 } }),
+            React.createElement(GoiYLead, { sdt: d.khachId, chon: null, err: doiErr, dangGan: doiBusy, onChon: doiLead }),
+            React.createElement("button", { className: "btn", style: { marginTop: 8, padding: "4px 10px" }, onClick: () => { setDoiLeadMo(false); setDoiErr(""); setDoiLyDo(""); } }, "Huỷ"))));
   const R = ({
     l,
     v
@@ -5792,7 +5923,7 @@ function XemDon({
     }, "chưa chọn"), canHD(d) && /*#__PURE__*/React.createElement("span", {
       className: "bdg am"
     }, "bắt buộc xuất hoá đơn"))
-  }))), d.hd && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }))), leadPanel, d.hd && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "sec"
   }, "Thông tin xuất hoá đơn"), /*#__PURE__*/React.createElement("table", {
     className: "info"

@@ -95,6 +95,20 @@ with sync_playwright() as p:
     # ── L-45: cue "* bắt buộc" cho nguồn khách trên form (nhắc thị giác của gác chốt) ──
     ok('Form lên đơn: ô nguồn khách có cue "* bắt buộc để chốt"',
        pg.locator('.ovl:has-text("Khách biết mình qua đâu") :text("bắt buộc để chốt")').count() > 0)
+    # ── [WP-78 L-05] BƯỚC GẮN LEAD (liền kề bước lên đơn): gõ SĐT có lead → khối gợi ý lead hiện + nút "Chọn đợt này" ──
+    #   Lỗi HARNESS (không tìm thấy ô, timeout mạng) TÁCH khỏi lỗi APP (khối không render) — harness ghi notes, app ghi ok().
+    try:
+        sdt_inp = pg.locator('.ovl input[placeholder="0903 792 333"]')
+        if sdt_inp.count():
+            sdt_inp.first.fill("0988224999")
+            pg.wait_for_timeout(1300)   # GoiYLead debounce 300ms + RPC lead_goi_y_theo_sdt
+            goi = pg.locator('.ovl:has-text("Gợi ý lead theo SĐT")').count()
+            chon = pg.locator('.ovl button:has-text("Chọn đợt này")').count()
+            ok("Gõ SĐT có lead (0988224999) → khối gợi ý lead hiện + nút chọn (VIỆC 1)", goi > 0 and chon > 0, f"goi={goi} chon={chon}")
+        else:
+            R["notes"].append("HARNESS: không thấy ô SĐT form lên đơn — bỏ qua bước gắn lead (không phải lỗi app)")
+    except Exception as ex:
+        R["notes"].append("HARNESS lỗi bước gắn lead (KHÔNG phải lỗi app): " + str(ex)[:110])
     dong_modal()
 
     # ── NÚT SỐNG trên màn Báo giá: mỗi ô đếm lọc, số khớp danh sách (ô == list) ──

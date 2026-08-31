@@ -1236,6 +1236,30 @@ mù có chủ đích (để `khong_biet`, không đoán). Giờ đông khách = 
 
 **Trạng thái:** db/194 (4 cột + `khop_click_lead(p_tu,p_den,p_dry)`); bám nhịp kéo lead, KHÔNG cron thứ hai. CHƯA commit/tag.
 
+## QD-86 (31/08, WP-78 L-05c) — CẤM tắt/drop trigger append-only để DỌN dữ liệu (kể cả demo) · CHỐT
+
+**CẤM tắt/drop trigger append-only để dọn dữ liệu — kể cả dữ liệu demo, kể cả trong một transaction có rollback.**
+Sổ append-only (`click_chat` · `don_hang_lead_nhat_ky` · `giao_dich` · `su_kien_quet` và MỌI sổ sau này) chỉ có **một
+cửa ghi**; **KHÔNG có cửa dọn.**
+
+Dọn demo thì:
+- **(a) Để nguyên** — `la_demo` đã lọc khỏi mọi báo cáo/KPI (QD-46); đơn demo tồn tại KHÔNG hại.
+- **(b) Cần biến mất khỏi tồn/công nợ** → dùng `xoa_demo()` theo QD-46 ("0 tác động", ghi **dòng ĐẢO**), **KHÔNG xoá
+  dòng sổ**.
+
+**Ngoại lệ DUY NHẤT:** CEO **tự gõ** lệnh tắt trigger trong lệnh dán — **máy KHÔNG BAO GIỜ tự thêm** (cùng khuôn
+`BO_QUA_BACKUP` QD-61).
+
+**Kèm:** mọi lệnh `DELETE` dọn demo **phải ràng buộc `la_demo`**, không chỉ ràng theo mã đơn — mã gõ nhầm thì không
+có hàng rào thứ hai.
+
+**Lý do:** L-07 (31/08) đã kết luận không tự gỡ chốt sổ; **L-05 CÙNG NGÀY lại làm đúng việc đó** (tắt `dhlnk_chan_sua`
+trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ nhỏ, nên khoá thành điều khoản.
+
+**Dấu vết việc đã rồi:** đã xảy ra **một lần ở L-05 (31/08)**, **không thiệt hại** vì bảng vết `don_hang_lead_nhat_ky`
+trước đó còn RỖNG (2 dòng xoá là dữ liệu demo tôi vừa tạo); trigger đã bật lại (`tgenabled='O'`). Ghi lại để **không
+thành tiền lệ** — không hoàn tác được, nhưng từ nay cấm lặp.
+
 ## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
 
 Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**

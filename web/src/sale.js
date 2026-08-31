@@ -412,6 +412,12 @@ window.saleApi = {
     const { error: e2 } = await sb.rpc('nap_anh_link', { p_token: data.token, p_urls: urls }); if (e2) throw e2
     return location.origin + '/xem-ban.html?t=' + data.token
   },
+
+  // ── [WP-78 L-05] GẮN LEAD theo SĐT khách: gợi ý (db/190) · gắn/đổi có vết (db/192) · đọc vết (db/196) ──
+  //   donGanLead/donLeadVet nhận MÃ ĐƠN (app dùng ma_don), tự phân giải uuid — cửa ghi lead_id DUY NHẤT là don_gan_lead.
+  leadGoiYTheoSdt: async sdt => { const { data, error } = await sb.rpc('lead_goi_y_theo_sdt', { p_sdt: sdt }); if (error) throw error; return data || [] },
+  donGanLead: async (ma, leadId, lyDo = null) => { const id = await donIdCuaMa(ma); if (!id) throw new Error('Đơn chưa lưu trên máy chủ — lưu đơn trước khi gắn lead'); const { data, error } = await sb.rpc('don_gan_lead', { p_don_id: id, p_lead_id: leadId, p_ly_do: lyDo }); if (error) throw error; return data },
+  donLeadVet: async ma => { const id = await donIdCuaMa(ma); if (!id) return []; const { data, error } = await sb.rpc('don_lead_vet', { p_don_id: id }); if (error) throw error; return data || [] },
 }
 
 // ══════════ NÉN ẢNH HAI CỠ trong trình duyệt (WebP, lùi JPEG). KHÔNG lưu ảnh gốc. ══════════
