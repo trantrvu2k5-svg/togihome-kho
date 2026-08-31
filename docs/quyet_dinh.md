@@ -1208,6 +1208,34 @@ prod — cổng kiểm cuối phải chạy đúng RUNTIME thật.
 đèn `v_keo_lead_suc_khoe` db/186 · gộp lô db/188). **Chưa chứng minh:** tải thật (TRAN_TRANG=10 chưa chạm, kỳ
 vắng) · tỷ lệ lỗi Cloudflare sạch (đọc lại sau 24h).
 
+## QD-85 (31/08, WP-79 L-09, db/194) — KHỚP CLICK↔LEAD CỬA-SỔ-1:1, mức suy_ref có khoa_khop · CHỐT
+
+Sau khi thực nghiệm chốt **không kênh nào có khoá xác định** (Zalo query-string CHẾT L-08b, Messenger CHẾT 2 phép thử) —
+`lead.muc_chac_chan` phân giải như sau (kiện toàn QD-73, KHÔNG đụng `doi_chieu_lo`):
+
+- **(1) `doi_chieu_lo` GIỮ NGUYÊN** = ước theo lô ngày, **CẤM gán lead lẻ**, chỉ hiện màn TỔNG (QD-73 nguyên vẹn).
+- **(2) `suy_ref`** = lead khớp về MỘT dòng log nút chat web (`click_chat`). Hai dạng khoá **cùng mức**:
+  - **(a) psid** = khớp XÁC ĐỊNH — *hiện KHÔNG kênh nào phát psid ra link* (Zalo/Messenger đều không), nên đường này **treo tới khi có nguồn psid**.
+  - **(b) cửa sổ thời gian + kênh** — CHỈ gán khi trong cửa sổ có **ĐÚNG MỘT click và ĐÚNG MỘT lead** (song ánh 1:1).
+- **(3) n click × m lead** (n>1 hoặc m>1, hoặc n=0): **KHÔNG gán gì, để `khong_biet`**. CẤM chọn gần nhất, CẤM chia, CẤM đoán,
+  CẤM nới cửa sổ khi không khớp. Ghi lý do loại: `nhieu_click` / `nhieu_lead` / `khong_co_click`.
+- **(4) Lead gán bằng (b) mang cột `khoa_khop='cua_so_1_1'`** — không trộn hai chất lượng (psid xác định vs cửa-sổ suy) vào một
+  nhãn. Cột thêm trên lead: `ma_click · loai_ma_click · khoa_khop · khop_luc`.
+- **(5) Điều kiện đạt WP-79** = `SELECT ≥1 lead THẬT mang suy_ref` (khoá `cua_so_1_1`) sau mốc `wp79b_ma_click_tu`.
+
+**Cơ chế ghi (tôn trọng QD-75 append-only):** matcher `khop_click_lead` UPDATE **TẠI CHỖ** 4 cột + `muc_chac_chan` trên
+DÒNG HIỆN HÀNH (khuôn don_gan_lead QD-83: enrichment DẪN XUẤT khác lịch sử nội dung Pancake). **KHÔNG đụng `dau_van`** → nhịp
+kéo vẫn thấy `khong_doi`, khớp bền cho tới khi hội thoại có tin mới (lúc đó dòng mới append, matcher pass sau khớp lại).
+`nguon_khach` KHÔNG đổi (tao_don khoá theo `ad_id`, không theo muc_chac_chan → suy_ref vẫn ='khac', sổ tài chính sạch, QD-76).
+
+**Lý do sửa xếp loại:** khớp cửa-sổ-30′ **không thuộc mức nào** của QD-73 (không phải xác-định-psid, không phải ước-lô);
+chữ `doi_chieu_lo` trong tiêu chí đạt của L-05 là **LỖI XẾP LOẠI** — nó là `suy_ref` khoá cửa-sổ, đã sửa ở (2b)/(4).
+
+**GIỚI HẠN (CEO cần biết):** khoá THỜI GIAN chỉ phân giải được khi **lưu lượng THƯA** — cửa sổ có >1 lead cùng kênh thì
+mù có chủ đích (để `khong_biet`, không đoán). Giờ đông khách = độ phủ thấp. Đo thật ở VIỆC 4c (tỷ lệ lead-đơn-độc-trong-cửa-sổ).
+
+**Trạng thái:** db/194 (4 cột + `khop_click_lead(p_tu,p_den,p_dry)`); bám nhịp kéo lead, KHÔNG cron thứ hai. CHƯA commit/tag.
+
 ## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
 
 Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**

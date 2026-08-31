@@ -68,6 +68,15 @@ async function chayLuot(env) {
       // CẮT 50s: lượt chạy quá lâu thì bỏ, không đè sang nhịp 60s sau (kết nối rớt → transaction tự rollback).
       const cat50s = new Promise((_, rej) => setTimeout(() => rej(new Error('lượt quá 50s — tự cắt')), 50000))
       await Promise.race([keoTatCa, cat50s])
+      // [L-09 WP-79 QD-85] Sau khi kéo xong: KHỚP click↔lead cửa-sổ-1:1 trên window gần (60'), KHÔNG cron thứ hai.
+      //   MỘT transaction ghim 1 backend cho GUC lead_he_thong (Hyperdrive multiplex rơi cờ — cùng bài học kéo trên).
+      //   Lỗi khớp KHÔNG được đánh sập lượt kéo (kéo đã xong, durable) → nuốt + log.
+      try {
+        await sql.begin(async txs => {
+          await txs`select set_config('kho.lead_he_thong','1',true)`
+          await txs`select 1 from kho.khop_click_lead(now() - interval '60 minutes', now(), false)`
+        })
+      } catch (e) { console.error(`  ✗ khop_click_lead lỗi (BỎ QUA, kéo đã xong): ${(e && e.message || String(e)).slice(0, 90)}`) }
       await sql`update kho.keo_lead_runner set loi_lien_tiep = 0, ngu_toi = null, held_at = null, cap_nhat_luc = now() where id = 1`
       console.log(`  [do] ket_noi=${ket_noi_ms}ms goi_pancake=${MET.pancakeMs}ms parse_json=${MET.parseMs}ms ghi_db=${MET_DB.ms}ms tong=${Date.now() - t_run}ms cauSQL=${MET_DB.n} hoiThoai=${tongGhi} pancakeN=${MET.pancakeN} (troi-qua, KHONG phai CPU)`)
       return { ok: true, ghi: tongGhi }
