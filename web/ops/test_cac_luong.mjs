@@ -36,10 +36,17 @@ const j8 = await call('2026-08')
 { const lu = (j8.luong || []).map(x => x.luong)
   ok('4. luồng đủ 3 dòng qua_web·mess_truc_tiep·khong_biet', lu.length === 3 && lu.includes('qua_web') && lu.includes('mess_truc_tiep') && lu.includes('khong_biet'), JSON.stringify(lu)) }
 
-// ═══ 5 · chi_ads kỳ = 0 → luồng chi/CAC NULL; bảng LOẠI chi/CAC LUÔN NULL (kể cả khi có chi) ═══
-{ const luNull = (j8.luong || []).every(r => r.chi_ads === null && r.cac === null)
-  const loNull = (j8.loai || []).every(r => r.chi_ads === null && r.cac === null)
-  ok('5. chi_ads kỳ NULL → luồng & loại chi/cac = NULL (không phải 0)', j8.chi_ads_that_ky === null && luNull && loNull, JSON.stringify({ chi: j8.chi_ads_that_ky })) }
+// ═══ 5 · chi_ads kỳ RỖNG → luồng chi/CAC NULL; bảng LOẠI chi/CAC LUÔN NULL ═══
+//   (WP-90 db/201: gộp Meta đã seed chi_ads 2026-08 thật → cô lập bất biến bằng cách XOÁ chi_ads kỳ trong savepoint,
+//    gọi lại rồi rollback. Soi ĐÚNG "rỗng→NULL", không phụ thuộc prod còn trống hay không.)
+{ await c.query('savepoint s5'); await c.query('reset role')            // owner: bỏ RLS để xoá fixture trong tx
+  await c.query(`delete from kho.chi_ads where ma_ky='2026-08'`)
+  await c.query('set local role authenticated')                        // jwt claims ceo còn nguyên → RPC đọc được
+  const j = await call('2026-08')
+  const luNull = (j.luong || []).every(r => r.chi_ads === null && r.cac === null)
+  const loNull = (j.loai || []).every(r => r.chi_ads === null && r.cac === null)
+  ok('5. chi_ads kỳ RỖNG → luồng & loại chi/cac = NULL (không phải 0)', j.chi_ads_that_ky === null && luNull && loNull, JSON.stringify({ chi: j.chi_ads_that_ky }))
+  await c.query('rollback to savepoint s5') }
 
 // ═══ 6 · chi ads phân bổ theo xac_dinh Ở BẢNG LUỒNG (không ăn mức suy); bảng LOẠI thì LUÔN NULL (cần WP-78) ═══
 { await c.query('savepoint s6')

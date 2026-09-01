@@ -1331,6 +1331,28 @@ trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ 
 trước đó còn RỖNG (2 dòng xoá là dữ liệu demo tôi vừa tạo); trigger đã bật lại (`tgenabled='O'`). Ghi lại để **không
 thành tiền lệ** — không hoàn tác được, nhưng từ nay cấm lặp.
 
+## QD-90 (01/09, WP-90 L-21, db/201) — BẢN ĐỒ tài khoản quảng cáo → brand (khoảng hiệu lực); chi_ads GỘP tự động từ chi_ads_ngay · CHỐT
+
+- **Bản đồ act_id → brand là BẢNG có khoảng hiệu lực** (`ads_tai_khoan_brand`, họ QD-68), **KHÔNG ghi cứng trong code**; nạp
+  **theo từng brand** (triển khai lần lượt). Đổi brand = **đóng khoảng cũ + mở mới** (EXCLUDE gist chặn chồng), CẤM sửa đè.
+  Nạp lô 1: **6 tài khoản → `sconcept`** (Sophia Concept), hieu_luc_tu `2026-08-01` (đầu kỳ mốc). 3 TK có chi, 3 chưa.
+- **`chi_ads` (hạt kỳ×brand×kênh, app Tài chính đọc) lấy số bằng GỘP từ `chi_ads_ngay`** qua bản đồ (`chi_ads_gop_meta`),
+  **THAY nhập tay** — kênh `quang_cao`, từ **MỐC = ngày sớm nhất có trong `chi_ads_ngay`** trở đi. **Trước mốc giữ số tay.**
+- **Brand chưa nạp thì chi ads của nó CHƯA vào hệ** — RPC `ads_do_phu_brand` trả **brand đã phủ / tổng brand đang bán**
+  (`thuong_hieu_ban`), hiện **1/9**, để không ai đọc tổng chi ads trong hệ như **tổng chi của công ty**. Nạp brand thứ hai → số tự đổi.
+- **Tài khoản chưa có trong bản đồ: KHÔNG đoán brand** — chi của nó **treo ở mục "chưa gán"** (`chi_treo_chua_gan` + `so_tk_chua_gan`),
+  **phải đếm được**, không im lặng nuốt.
+- **HAI CHẤT LƯỢNG TÁCH NHÃN (04 §C):** `chi_ads` thêm cột **`nguon`** (`nhap_tay`/`meta_tu_dong`) + **`nhan_vat`**
+  (`gom_vat` cho nhập tay · `chua_ro_vat` cho Meta). **CAC (`kenh_cac_ky`) đọc cột này** → **rẽ theo nhãn**: `gom_vat` ÷(1+VAT)
+  như cũ; `chua_ro_vat` **lấy nguyên, KHÔNG bóc VAT số chưa rõ**. Kỳ chỉ-nhập-tay → CAC **byte-identical** (nhãn mặc định `gom_vat`).
+- **HAI CỬA GHI TÁCH `nguon`:** `ads_ghi` (nhập tay) chỉ xoá/ghi `nguon='nhap_tay'`; gộp chỉ đụng `meta_tu_dong` — **không giẫm nhau**.
+  **Số nhập tay kỳ đã qua KHÔNG bị đè**; gộp **idempotent** (unique một dòng auto mỗi kỳ×brand×kênh; chạy lại không cộng chồng).
+  Gặp dòng nhập tay cùng (kỳ,brand,quang_cao) ở kỳ ≥ mốc → **gộp NHƯỜNG** (không đè), đếm ở `bo_qua_vi_nhap_tay`.
+- **Nghiệm thu (L-21):** kỳ **2026-08** chi_ads tự lên **7.378.315 = Σ chi_ads_ngay** (khớp tuyệt đối, 3 TK). CAC 2026-08 sconcept:
+  trước = chưa có dòng → sau = chi 7.378.315, **0 khách mới brand → CAC vô hạn** (đang đốt tiền chưa ra khách sconcept). `test_wp90` **9/0**.
+- **PHÁT SINH (ngoài lô):** ① nối bộ kéo Meta → gọi `chi_ads_gop_meta` sau mỗi vòng upsert (tự làm tươi) · ② RPC sửa bản đồ
+  (đóng/mở khoảng) khi TK đổi brand · ③ sửa MÀN Tài chính hiện "phủ 1/9" + khối treo. Đều là việc riêng (lô này chỉ DB+test).
+
 ## QD-89 (01/09, WP-78 L-20, db/200) — TRỤC app Quảng cáo = CHIẾN DỊCH/tài khoản × ngày; mức ad_id là khối PHỤ · CHỐT
 
 Đổi trục màn app Quảng cáo:
