@@ -1331,6 +1331,34 @@ trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ 
 trước đó còn RỖNG (2 dòng xoá là dữ liệu demo tôi vừa tạo); trigger đã bật lại (`tgenabled='O'`). Ghi lại để **không
 thành tiền lệ** — không hoàn tác được, nhưng từ nay cấm lặp.
 
+## QD-91 (01/09, WP-76 L-76c, db/203) — CAC tối đa đọc theo DẢI GIÁ TRỊ ĐƠN, hai cột NGẮN HẠN / DÀI HẠN · CHỐT
+
+RPC `cac_toi_da_ky(p_ky, p_gom_demo=false, p_nguong=ARRAY[3e6,7e6,15e6,40e6])` — mỗi dải một dòng, HAI cột CAC.
+Nguồn SDĐP/biến phí = `cm_don_raw` (một bản sự thật, 04 §A — KHÔNG viết công thức lần hai). Định nghĩa per-đơn:
+- `dt_thuan = gia_chot/(1+vat/100)` · `SDĐP (đảm phí) = dt_thuan − k1 − k2 − ship − hoa` (KHÔNG trừ k3) · `cac_hoa_von = SDĐP − k3` (= `cm_don_raw.cm`).
+
+**Công thức HAI CỘT:**
+- **cac_ngan_han = SDĐP − chi phí TĂNG THÊM − chi phí CƠ HỘI.**
+  · chi phí tăng thêm: chỉ phần khối ③ là tiền chi thêm thật; lương thiết kế/CNC trả theo tháng KHÔNG phải tăng thêm.
+    k3 hiện **chưa tách biến/định** → cờ `k3_chua_tach`, phần tăng thêm = **0** (CẤM lặng lẽ trừ cả k3).
+  · chi phí cơ hội: **chỉ khác 0 khi nguồn lực ĐANG KÍN**; đọc kín/trống từ `lap_day_ky` (QD-36, `ty_le_lap_day` ≥ `nguong_lap_day_cao`) —
+    KHÔNG tự đặt ngưỡng mới. Kín mà không có pool đơn thay thế để định giá đơn-vị-nguồn-lực-ràng-buộc → cờ `thieu_chi_phi_co_hoi`, cột NULL.
+- **cac_dai_han = SDĐP − khối ③ đầy đủ − bien_muc_tieu × (giá chốt bóc VAT)** = `cac_hoa_von − bien_muc_tieu×dt_thuan`.
+  · `bien_muc_tieu` NULL → cac_dai_han NULL + cờ `thieu_bien`; **vẫn trả `cac_hoa_von`**. CẤM lấy `he_so_m` thay biên mục tiêu.
+- **gia_toi_thieu = (khối ③ + CAC dự kiến của dải `n_cac`) ÷ tỷ lệ SDĐP** — đọc theo cột DÀI HẠN.
+- Trả kèm `cot_dang_sang ∈ {ngan_han, dai_han}` suy từ lap_day_ky (kín→ngắn hạn · trống→dài hạn) + lý do bằng chữ.
+- Ràng buộc: **khối ④ (định phí chung: giám đốc xưởng, kế toán, phần mềm) KHÔNG vào cả hai cột ở mức đơn** (Garrison ch.6) —
+  cột dài hạn gánh định phí QUA biên mục tiêu, không rải định phí vào từng đơn. k3 lưu cả đơn, không chia món (L-76a). Dải 0 đơn → `chua_co_don`, số NULL (họ cờ `vo_han` WP-90).
+
+**Lý do (vì sao HAI cột, không một):** khuôn *Special Orders* (Garrison ch.12 tr.542-543) chỉ đúng cho đơn **MỘT LẦN** khi còn công
+suất trống; bán lẻ đơn chiếc chạy **quanh năm** — dùng MỘT cột (chỉ biến phí tăng thêm) thì đơn nào cũng "lãi" mà cả năm không đơn nào
+phủ định phí. **Khối ③ không phải hằng số:** còn trống → làm thêm đơn ≈ 0 chi phí tăng thêm (ch.12 tr.541 Opportunity Cost); kín việc →
+một giờ dành cho đơn này là đơn tốt hơn bị đẩy ra, đo bằng **số dư đảm phí trên đơn vị nguồn lực ràng buộc** (ch.12 tr.543-544). Cột
+ngắn hạn = quyết định KHI KÍN (nhận đơn nào); cột dài hạn = giá sàn để KHÔNG lỗ định phí về dài. DACTA §1 (số suy đeo nhãn, không trộn số đo).
+
+**Trạng thái:** dải 5 mức (`p_nguong`) và `bien_muc_tieu` là **THAM SỐ** — sửa dải/biên = **tách khoảng + lý do** (khuôn QD-68), KHÔNG sửa đè.
+`bien_muc_tieu` thêm cột NULL (chưa chốt, ô nhập UI là lệnh sau) — KHÔNG backfill, KHÔNG suy từ he_so_m. ĐÃ LÀM DB+test (db/203, test_wp76c); UI/deploy/tag là lệnh sau.
+
 ## QD-90 (01/09, WP-90 L-21, db/201) — BẢN ĐỒ tài khoản quảng cáo → brand (khoảng hiệu lực); chi_ads GỘP tự động từ chi_ads_ngay · CHỐT
 
 - **Bản đồ act_id → brand là BẢNG có khoảng hiệu lực** (`ads_tai_khoan_brand`, họ QD-68), **KHÔNG ghi cứng trong code**; nạp
