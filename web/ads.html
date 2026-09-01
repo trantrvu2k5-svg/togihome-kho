@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Togihome · Quảng cáo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#F4F5F3; --card:#FFF; --line:#E2E5E0; --tx:#1C231D; --tx2:#66706A;
+    --gn:#0B7A4B; --gnB:#DCF5E9; --am:#8A5A00; --amB:#FDF3DC; --xam:#9aa39d; --cho:#FBF1E0; --choTx:#8A5A00; --do:#A82C27; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:'Be Vietnam Pro',system-ui,sans-serif;font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num,.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+  button,input{font-family:inherit;font-size:inherit;color:inherit}
+  #boot{padding:40px;color:var(--tx2)}
+  /* cổng đăng nhập */
+  #cong{max-width:360px;margin:9vh auto;padding:0 20px;text-align:center}
+  #cong .logo{font-size:40px}
+  #cong h1{font-size:21px;margin:6px 0 2px} #cong .sub{color:var(--tx2);font-size:13px;margin-bottom:18px}
+  #cong input{width:100%;padding:12px;margin:7px 0;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:15px}
+  #cong button{width:100%;padding:12px;margin-top:6px;background:var(--do);color:#fff;border:0;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer}
+  #cong .err{color:var(--do);font-size:13px;min-height:18px;margin-top:8px}
+  /* app */
+  #app{max-width:1020px;margin:0 auto;padding:20px 20px 60px}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px}
+  .topbar h1{font-size:20px;font-weight:800} .topbar .sub{color:var(--tx2);font-size:13px;margin-top:2px}
+  .who{text-align:right;font-size:12.5px;color:var(--tx2)} .who b{color:var(--tx);display:block;font-size:13.5px}
+  .who button{margin-top:5px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 11px;cursor:pointer;font-size:12.5px;color:var(--tx2)}
+  .range{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:16px;font-size:13px;color:var(--tx2);flex-wrap:wrap}
+  .range input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;background:#fff}
+  .range button{background:var(--tx);color:#fff;border:0;border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:13px}
+  .thucte{background:#FFF9EC;border:1px solid #F0D089;border-left:4px solid var(--am);border-radius:9px;padding:11px 14px;margin-bottom:22px;font-size:13px;line-height:1.65;color:#5c4a1a}
+  .thucte b{color:var(--am)} .thucte .num{color:var(--tx);font-weight:700}
+  .sec{margin-bottom:30px}
+  h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:8px;font-weight:700}
+  h2 .n{width:22px;height:22px;border-radius:6px;background:var(--tx);color:#fff;font-size:12px;display:grid;place-items:center;font-weight:800}
+  h2 .h2sub{font-weight:400;color:var(--tx2);font-size:12px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .c{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .c .big{font-size:26px;font-weight:800;line-height:1.1;font-family:'JetBrains Mono',monospace} .c .big .sub2{font-size:15px;color:var(--tx2);font-weight:600}
+  .c .lbl{font-size:12.5px;color:var(--tx2);margin-top:3px} .c .d{font-size:11.5px;color:var(--xam);margin-top:6px;line-height:1.5}
+  .c.zero .big{color:var(--am)} .c.zero{background:var(--amB);border-color:#F0D089}
+  .funnel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .fr{display:grid;grid-template-columns:120px 1fr 96px;align-items:center;gap:14px;padding:7px 0}
+  .fr+.fr{border-top:1px dashed #EDEFEC}
+  .fr .fl{font-size:13px;color:var(--tx2)} .fr .fv{text-align:right;font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace}
+  .bar{height:26px;border-radius:6px;position:relative}
+  .bar.solid{background:linear-gradient(90deg,#0B7A4B,#12905a)}
+  .bar.dash{background:repeating-linear-gradient(90deg,#EDEFEC,#EDEFEC 8px,transparent 8px,transparent 14px);border:1px dashed #C9CFC9}
+  .bar.hollow{background:#fff;border:1.5px dashed #D8B77A}
+  .bar .tag{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700}
+  .bar.dash .tag{color:var(--choTx)} .bar.hollow .tag{color:var(--am)}
+  .fv.cho{color:var(--choTx);font-weight:600;font-size:12px} .fv.zero{color:var(--am)}
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:840px}
+  th,td{padding:8px 11px;text-align:right;border-bottom:1px solid #EEF0ED;white-space:nowrap}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  th{background:#FAFBFA;font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:var(--tx2);font-weight:700;position:sticky;top:0}
+  td.num{font-family:'JetBrains Mono',monospace} .adid{font-family:'JetBrains Mono',monospace;font-size:12px}
+  tr.adrow{cursor:pointer} tr.adrow:hover td{background:#FAFBFA}
+  tr.ngayrow td{background:#F7F9F7;font-size:12px;color:var(--tx2)} td.ngayc{padding-left:22px;color:var(--tx2)}
+  td.cho{background:var(--cho);color:var(--choTx);font-weight:700;font-size:11.5px;text-align:center}
+  td.dash{color:var(--xam)}
+  tr.ngoai td{background:#F1F2F0;color:var(--tx2);font-style:italic;border-top:2px solid var(--line)}
+  .trong,.trong2{padding:26px;text-align:center;color:var(--tx2);font-size:13px}
+  .placeholder{border:2px dashed #C9CFC9;border-radius:12px;padding:20px;text-align:center;color:var(--tx2);font-size:13.5px;background:repeating-linear-gradient(45deg,#fafbfa,#fafbfa 10px,#f4f5f3 10px,#f4f5f3 20px)}
+  .placeholder b{color:var(--tx)} .placeholder .ph2{font-size:12px;color:var(--xam)}
+</style>
+</head>
+<body>
+  <div id="cong" style="display:none"></div>
+  <div id="boot">Đang mở ứng dụng quảng cáo…</div>
+  <div id="app" style="display:none">
+    <div class="topbar">
+      <div><h1>Người chạy ads · theo ad_id × ngày</h1><div class="sub">Nhịp tuần. Vào là thấy việc phải làm. Quy kết đã có, chi tiêu chưa nối (chờ WP-77).</div></div>
+      <div class="who"><b id="hdTen"></b><span id="hdVai"></span><br><button id="btOut">Đăng xuất</button></div>
+    </div>
+    <div class="range">Khoảng ngày (theo lúc khách nhắn đầu):
+      <input id="dTu" type="date"> → <input id="dDen" type="date">
+      <button id="btXem">Xem</button>
+    </div>
+    <div id="noi"><div class="trong">Đang tải…</div></div>
+  </div>
+  <script type="module" src="/src/ads.js"></script>
+</body>
+</html>
