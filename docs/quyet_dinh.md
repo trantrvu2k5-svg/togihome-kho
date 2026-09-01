@@ -1331,6 +1331,54 @@ trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ 
 trước đó còn RỖNG (2 dòng xoá là dữ liệu demo tôi vừa tạo); trigger đã bật lại (`tgenabled='O'`). Ghi lại để **không
 thành tiền lệ** — không hoàn tác được, nhưng từ nay cấm lặp.
 
+## QD-89 (01/09, WP-78 L-20, db/200) — TRỤC app Quảng cáo = CHIẾN DỊCH/tài khoản × ngày; mức ad_id là khối PHỤ · CHỐT
+
+Đổi trục màn app Quảng cáo:
+
+- **Trục CHÍNH = chiến dịch × ngày** (`ads_chien_dich_ngay`, đọc `chi_chien_dich_ngay`): chi/hiển thị/bấm có số thật;
+  **đơn/doanh thu/CAC = NULL + nhãn `'cho_capi'`** (quy kết đi qua CAPI vế a, CHƯA có). `objective` nguyên trạng.
+- **Mức `ad_id` xuống KHỐI PHỤ, thu gọn mặc định** — ghi rõ "chỉ đúng cho quảng cáo TIN NHẮN". Giữ `ads_ad_ngay` +
+  `chi_ads_ngay` nguyên (không đụng chữ ký — app còn gọi).
+- **Lý do (đo thật L-19):** 6 ad đang tiêu tiền đều `OUTCOME_SALES/OFFSITE_CONVERSIONS` — **chuyển đổi dẫn vào web,
+  KHÔNG đóng ad_id lên hội thoại**; giao với 21 ad có hội thoại = **0 mã** (cấu trúc, không tạm thời). Trục ad_id chỉ đo
+  được loại **tin nhắn** (đã tắt). Chi phí thì có ở MỌI cấp → trục chiến dịch đo được tiền đang chạy.
+- **Quy kết đơn cho ad chuyển đổi đi qua CAPI + web pixel** (khử trùng event_id, WP-77 vế a). **CẤM ghép tạm bằng ad_id,
+  CẤM suy doanh thu theo tỷ lệ chi** (họ QD-10/15: số suy đeo nhãn, không trộn số xác định).
+- **Câu trung thực đầu màn (CEO duyệt) sửa lại:** chi = số thật Meta chưa rõ VAT; đơn/CAC chưa có vì ad chuyển-đổi-dẫn-web;
+  12,7% lead có mã là **DI SẢN** ad tin nhắn đã tắt, KHÔNG phải phần quy kết của tiền đang chạy.
+
+**Nghiệm thu (L-20):** chiến dịch "Cố định COMBO NGỦ NÂU" ngày 30/08 — app `325.899 · 3.636 · 220` **KHỚP tuyệt đối** Meta.
+Bộ kéo thêm cấp campaign (`chi_chien_dich_ngay`, cùng khuôn, một nguồn số). `ads_chien_dich_ngay` guard ceo/ke_toan/ads_user.
+
+**Trạng thái:** db/200 · UI đổi trục (deploy togihome-ads) · `test_chi_ads_ngay` 5/0 · hồi quy năm-bộ 95/0. CHƯA commit/tag.
+
+## QD-88 (01/09, WP-77 L-18, db/199) — chi_ads_ngay là bảng ĐỒNG BỘ (upsert), chi nguyên trạng nhãn chua_ro_vat · CHỐT
+
+Kéo chi phí Meta mức **ad × ngày** vào `chi_ads_ngay`, nối vào `ads_ad_ngay` (cột chi/CAC ở app Quảng cáo):
+
+- **`chi_ads_ngay` là bảng ĐỒNG BỘ, KHÔNG phải sổ append-only.** Meta chốt số muộn (~72h chi phí một ngày còn đổi) →
+  kéo lại cùng `(act_id, ad_id, ngày)` **CẬP NHẬT dòng đó** (upsert theo khoá), không đẻ dòng mới. **Khác họ QD-44/86**
+  (sổ bất biến) — ghi rõ để không ai nhầm; vì vậy `chi_ads_ngay` **KHÔNG** có trigger chặn UPDATE.
+- **`chi_tieu` lưu NGUYÊN TRẠNG số Meta trả** — CẤM +VAT, CẤM quy đổi, CẤM làm tròn. Nhãn `nhan_vat='chua_ro_vat'` cho
+  MỌI dòng tới khi có QD gỡ. **Gỡ nhãn** = đối chiếu hoá đơn Meta **một tài khoản một tháng** (chi_tieu tổng ↔ số trên
+  hoá đơn) để biết Meta trả gồm hay chưa gồm VAT, RỒI ghi QD mới. KHÔNG tự đoán.
+- **Không có dòng chi khớp `(ad_id, ngày)` → `chi_ad` NULL + `nguon_chi='chua_co_nguon'`.** KHÔNG suy, KHÔNG nội suy
+  ngày thiếu, **KHÔNG bịa 0** (0 nghĩa là "chi bằng 0", khác "không có dữ liệu").
+- **`cac_ad` = `chi_ad ÷ số đơn chốt của ad đó trong ngày`; 0 đơn → NULL** (CẤM chia 0, CẤM ghi 0). Hiện mọi ad đều 0 đơn
+  gắn lead → `cac_ad` NULL toàn bộ — ĐÚNG, không phải lỗi. Grain này (**ad×ngày ÷ đơn chốt**) KHÁC `kenh_cac_ky`
+  (**brand×kênh ÷ khách mới**) → là metric khác, KHÔNG phải công thức CAC thứ hai (không chép, không dùng chung được).
+- **`chi_ads` cũ (db/115, hạt kỳ×brand, app Tài chính đọc) KHÔNG đụng** — hai hạt khác nhau, không phá màn CAC kế toán.
+
+**VIỆC 4 (chi_ads cũ thôi nhập tay) TẮC — việc riêng:** để `chi_ads` lấy số từ `chi_ads_ngay` gộp lên cần **bản đồ
+ad → brand**, mà bản đồ này **CHƯA CÓ** trong hệ (soi: không có bảng ad_brand/map nào). KHÔNG tự đoán brand từ tên ad →
+**DỪNG vế này**, `chi_ads` tạm giữ nhập tay của kế toán. Vế 3 (nối `ads_ad_ngay`) chạy độc lập, đã xong.
+
+**Nghiệm thu số thật (L-18):** ad "TNTT Bàn học điều chỉnh chiều cao - 11/8" ngày 25/08 kéo về **chi 180.384 · hiển thị
+3.331 · bấm 189** — khớp tuyệt đối Trình quản lý quảng cáo. Bộ kéo `keo_chi_ads_meta.mjs` (khuôn worker-keo-lead, 6 tài
+khoản động, cô lập lỗi từng tài khoản, retry ≤3, tài khoản DISABLED vẫn kéo) — **chưa deploy cron**, chạy tay 1 vòng.
+
+**Trạng thái:** db/199 · `test_chi_ads_ngay` 5/0. Chưa nối vế (a) [công tắc meta_capi_bat vẫn TẮT]. CHƯA commit/tag.
+
 ## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
 
 Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**
