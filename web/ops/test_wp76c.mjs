@@ -6,10 +6,10 @@ let P = 0, F = 0
 const ok = (n, v, e = '') => { console.log((v ? '✅' : '❌') + ' ' + n + (!v && e ? '  — ' + String(e).slice(0, 220) : '')); v ? P++ : F++ }
 const one = async (s, a = []) => (await c.query(s, a)).rows[0]
 const CEO = (await one(`select auth_uid a from kho.nguoi_dung where vai_tro='ceo' and auth_uid is not null limit 1`)).a
-const call = async (ky, gom = false) => {
+const call = async (ky, gom = false, cac = null) => {
   await c.query('savepoint sp'); await c.query('set local role authenticated')
   await c.query(`select set_config('request.jwt.claims',$1,true)`, [JSON.stringify({ sub: CEO, role: 'authenticated' })])
-  const j = (await one(`select kho.cac_toi_da_ky($1,$2) j`, [ky, gom])).j
+  const j = (await one(`select kho.cac_toi_da_ky(p_ky=>$1, p_gom_demo=>$2, p_cac_du_kien=>$3) j`, [ky, gom, cac])).j
   await c.query('reset role'); await c.query(`select set_config('request.jwt.claims','',true)`); await c.query('release savepoint sp')
   return j
 }
@@ -65,6 +65,26 @@ ok('2. cùng đơn KÍN → thieu_chi_phi_co_hoi=true · cac_ngan_han NULL · co
 const jC = await call('2099-03'); const b3C = dai(jC, 3)
 ok('4. bien_muc_tieu NULL → cac_dai_han NULL + thieu_bien=true · cac_hoa_von VẪN có số',
    b3C.cac_dai_han === null && b3C.thieu_bien === true && b3C.cac_hoa_von !== null && b3C.cac_hoa_von > 0, JSON.stringify(b3C))
+
+// ── L-76e: giá sàn KHÔNG đẻ từ số ví dụ — chỉ ra số khi NGƯỜI nhập p_cac_du_kien ──
+// ca7 — không truyền p_cac_du_kien → gia_toi_thieu NULL + thieu_cac_du_kien (chặn hồi quy 1,5tr)
+ok('7. KHÔNG truyền p_cac_du_kien → gia_toi_thieu NULL + thieu_cac_du_kien=true (chặn 1,5tr bò lại)',
+   b3.gia_toi_thieu === null && b3.thieu_cac_du_kien === true && b3.cac_du_kien_nhap_tay === false, JSON.stringify({gts:b3.gia_toi_thieu, thieu:b3.thieu_cac_du_kien}))
+
+// ca8 — p_cac_du_kien=800.000 → gia_toi_thieu = (k3_don + 800.000) / ty_le_sdp, nhãn nhập tay
+const j8 = await call('2099-01', false, 800000); const b3_8 = dai(j8, 3)
+const mongDoi = (Number(b3_8.khoi3_don) + 800000) / Number(b3_8.ty_le_sdp)
+ok('8. p_cac_du_kien=800.000 → gia_toi_thieu = (k3+800k)/tỷ_lệ_SDĐP ĐÚNG · cac_du_kien_nhap_tay=true · thieu=false',
+   b3_8.gia_toi_thieu !== null && Math.abs(Number(b3_8.gia_toi_thieu) - mongDoi) < 1 &&
+   b3_8.cac_du_kien_nhap_tay === true && b3_8.thieu_cac_du_kien === false,
+   JSON.stringify({gts:b3_8.gia_toi_thieu, mongDoi:Math.round(mongDoi), nhap_tay:b3_8.cac_du_kien_nhap_tay}))
+
+// ca9 — p_cac_du_kien=0 (hợp lệ: không chi quảng cáo) → RA SỐ, KHÔNG rơi về NULL
+const j9 = await call('2099-01', false, 0); const b3_9 = dai(j9, 3)
+const mongDoi9 = (Number(b3_9.khoi3_don) + 0) / Number(b3_9.ty_le_sdp)
+ok('9. p_cac_du_kien=0 → xử như CÓ số (giá sàn = k3/tỷ_lệ_SDĐP), KHÔNG rơi về NULL · nhãn nhập tay',
+   b3_9.gia_toi_thieu !== null && Math.abs(Number(b3_9.gia_toi_thieu) - mongDoi9) < 1 &&
+   b3_9.cac_du_kien_nhap_tay === true && b3_9.thieu_cac_du_kien === false, JSON.stringify({gts:b3_9.gia_toi_thieu, mongDoi:Math.round(mongDoi9)}))
 
 await c.query('rollback')
 const con = await one(`select count(*)::int n from kho.don_hang where ma_don like 'T76C_%'`)
