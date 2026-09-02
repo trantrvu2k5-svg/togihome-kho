@@ -1331,6 +1331,32 @@ trên bảng vết để xoá 2 dòng demo) — luật mòn bằng ngoại lệ 
 trước đó còn RỖNG (2 dòng xoá là dữ liệu demo tôi vừa tạo); trigger đã bật lại (`tgenabled='O'`). Ghi lại để **không
 thành tiền lệ** — không hoàn tác được, nhưng từ nay cấm lặp.
 
+## QD-93 (02/09, WP-93 L-01, db/205) — NGƯỠNG cảnh báo ads lưu THAM SỐ có lịch sử, không nhét vào code · CHỐT
+
+- **`ads_nguong(ma, gia_tri, hieu_luc_tu, hieu_luc_den, ly_do, nguoi_ghi)`** — khoảng hiệu lực + EXCLUDE gist chống chồng
+  (khuôn QD-68/QD-90). Sửa ngưỡng = **đóng khoảng cũ + mở mới có lý do**, KHÔNG sửa đè, KHÔNG sửa code. RPC đọc qua `ads_nguong_lay(ma, ngày)`.
+- **5 ngưỡng seed (QĐ-c), tất cả `[TẠM]`:** `chi_cao_khong_hoi_thoai=500.000đ · tang_dot_bien_pct=50 · tang_dot_bien_tuyet_doi=300.000đ ·
+  ad_moi_du_ngay=3 · den_sat_tran_pct=85`. ly_do='khởi tạo WP-93 [TẠM]'.
+- **Lý do:** Garrison ch.10 (quản trị theo NGOẠI LỆ) — ngưỡng phải chỉnh được mà không sửa code; và biểu đồ kiểm soát theo
+  độ lệch chuẩn (tr.438) cần chuỗi kỳ → số hiện tại chưa đo được, **rà lại khi có 8 tuần dữ liệu thật**.
+- **Trạng thái:** ĐÃ LÀM DB (db/205). `ads_viec_phai_lam` đọc ngưỡng từ bảng (test_wp93 T4 bẻ ngưỡng → kết quả đổi). Chưa UI (L-02).
+
+## QD-92 (02/09, WP-92 L-01, db/205) — ĐÈN TRẦN CAC mức CHIẾN DỊCH, 5 trạng thái, KHÔNG lộ số trần ra app ads · CHỐT
+
+- **Đèn ở MỨC CHIẾN DỊCH** (QĐ-b). Dải trần của một chiến dịch = **dải giá trị đơn thật quy kết cho chính nó** (bình quân
+  giá trị đơn) → tra `cac_toi_da_ky` (WP-76). Đèn nằm ở chiến dịch nhưng trần chia theo dải giá trị ĐƠN → phải **bắc cầu qua đơn thật**.
+- **5 trạng thái:** `con_du` (CAC < 85%×trần) · `sat_tran` (85–100%) · `vuot_tran` (>100%) · `chua_du_so` (có đường quy kết
+  nhưng chưa có đơn thật) · `khong_do_duoc` (chiến dịch dẫn web, nền tảng không đóng hội thoại). Tách bạch hai loại "không có số".
+- **RPC (`ads_bang_ky`) TUYỆT ĐỐI KHÔNG trả CON SỐ TRẦN ra client** — không lộ biên cho người chạy ads; số trần chỉ ở app Tài chính.
+  RPC chỉ trả trạng thái đèn (chuỗi), trần tính nội bộ rồi bỏ.
+- **CHƯA có map campaign↔ad** trong schema → chưa có đường campaign→đơn → `don_qua_ket=0` → thực tế mọi chiến dịch chỉ ra
+  `khong_do_duoc` (objective dẫn web: OUTCOME_SALES…) hoặc `chua_du_so` (tin nhắn). 3 trạng thái con_du/sat_tran/vuot_tran là
+  **CƠ CHẾ mở sẵn**, với tới khi có đường quy kết (WP-77 vế a CAPI + map campaign↔ad).
+- **XONG CƠ CHẾ, KHÔNG tag XONG (QĐ-a):** trần chưa có số thật (WP-76 còn điều kiện: cần ≥1 đơn thật) — không lặp lỗi WP-79.
+- **Gộp theo `objective`** chứ không "dạng nội dung" (VIỆC 0b): nguồn `chi_chien_dich_ngay` KHÔNG có trường dạng nội dung
+  (video/ảnh/carousel) → gộp theo số thật đang có. Đổi tiêu chí so mẫu duyệt, ghi rõ ở đây.
+- **Trạng thái:** ĐÃ LÀM DB (db/205: `ads_bang_ky`/`ads_tong_so_sanh`/`ads_viec_phai_lam`, grant ceo/ads_user). Chưa UI (L-02).
+
 ## QD-91 (01/09, WP-76 L-76c, db/203) — CAC tối đa đọc theo DẢI GIÁ TRỊ ĐƠN, hai cột NGẮN HẠN / DÀI HẠN · CHỐT
 
 RPC `cac_toi_da_ky(p_ky, p_gom_demo=false, p_nguong=ARRAY[3e6,7e6,15e6,40e6])` — mỗi dải một dòng, HAI cột CAC.
