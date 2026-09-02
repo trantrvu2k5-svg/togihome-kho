@@ -1530,3 +1530,24 @@ Cột nghiệp vụ mà đường ghi hợp lệ là một RPC cổng thì **cli
 **Trạng thái:** db/212 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · test_091 7/0 · test_099 20/0 · test_146 12/0; test_036
 chết ở kết nối (DATABASE_URL+SSL, nợ môi trường sẵn có — KHÔNG do revoke, logic dòng 49 vẫn đúng). CHƯA commit/tag — robot tầng
 PostgREST + commit ở L-10C.
+
+## QD-96 (02/09, WP-11b L-11b, db/213) — QUYỀN GHI TẦNG API KHAI THEO DANH SÁCH CHO-PHÉP, cột mới mặc định ĐÓNG · CHỐT
+
+Grant UPDATE của client (`authenticated`) trên bảng nghiệp vụ **khai theo DANH SÁCH CHO-PHÉP (whitelist)**, VIẾT TAY tên từng cột —
+**KHÔNG sinh động từ `information_schema`**. Cột `don_hang` sinh SAU **mặc định ĐÓNG** (không trong list = không grant).
+
+- **Lý do (đảo db/150/QD-66):** db/150 grant theo **danh sách CẤM** ("mọi cột TRỪ trang_thai", sinh động) nên MỌI cột nghiệp vụ
+  thêm sau tự hở ra tầng API. Đã trả giá 2 lần: `ly_do_thua` (WP-10, db/212) + `han_tra_loi` (db/209 phải vá riêng db/211). Danh
+  sách CẤM là **bệnh cấu trúc**, không phải sự cố — cứ thêm cột là hở, không ai biết cho tới khi có người probe.
+- **db/213:** revoke hết rồi grant lại **63 cột** viết tay = 41 cột client-ghi (donToRow 40 + `han_tra_loi`) + 22 cột NGỜ giữ hiện
+  trạng. **Rớt 5** (0 client ghi): `id`·`ma_don`·`tao_luc` (định danh/mốc DB) + `la_demo`·`sale_phu_trach` (hệ-tự-ghi, ngoài payload).
+  `nguoi_tao` GIỮ MỞ dù hệ-tự-ghi (db/153) vì `donToRow:74` còn gửi trong payload → gỡ khỏi payload rồi revoke ở lô UI sau.
+- **TEST CANH bắt buộc** (`web/ops/test_grant_don_hang.mjs` + `db/grant_don_hang_whitelist.txt` một-cột-một-dòng): so grant thực
+  tế với whitelist hai chiều — cột hở ngoài whitelist HOẶC revoke nhầm cột → ĐỎ, nêu tên cột.
+- **Thêm cột nghiệp vụ mới = VIẾT RPC (SECURITY DEFINER), KHÔNG nới whitelist cho xanh test.** Đó là cả điểm của WP.
+- **Nghiệm thu (L-11bB, BEGIN/ROLLBACK):** thông XANH (payload 40 cột donToRow + `han_tra_loi` UPDATE OK — màn Sale không chết) ·
+  chặn (5 cột rớt + trang_thai/ly_do_thua → permission denied) · canh biết kêu (bẩn grant `la_demo` → test đỏ đúng cột). Họ QD-64/66/67.
+
+**Trạng thái:** db/213 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · 091 7/0 · 099 20/0 · 146 12/0 · 116 48/0 · 117 24/0 ·
+test_grant_don_hang 3/0; test_118 #2 (sdt cong_no) + test_036 (SSL) là nợ cũ owner/môi-trường, KHÔNG do revoke. CHƯA commit/tag —
+kiểm cuối trình duyệt + robot ở L-11bC. Nhóm NGỜ (24 cột, gồm doanh_thu/gia_goc/ma_ky_ap_dung — 0 dòng thật) đo riêng lô sau.
