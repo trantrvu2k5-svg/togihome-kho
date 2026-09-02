@@ -4,15 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Togihome · Quảng cáo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root{ --bg:#F4F5F3; --card:#FFF; --line:#E2E5E0; --tx:#1C231D; --tx2:#66706A;
-    --gn:#0B7A4B; --gnB:#DCF5E9; --am:#8A5A00; --amB:#FDF3DC; --xam:#9aa39d; --cho:#FBF1E0; --choTx:#8A5A00; --do:#A82C27; }
+  /* MÀU THEO APP TÀI CHÍNH (L-06). App Tài chính là bundle React minify KHÔNG có khối :root/biến CSS để chép —
+     màu của nó là hex inline. Nên đây map GIÁ TRỊ HEX NGUYÊN của Tài chính vào TÊN BIẾN sẵn có của ads (xem PHÁT SINH báo cáo).
+     Không đẻ mã màu mới (A3). Font: system-ui + mono hệ thống, giống Tài chính (bỏ Google Fonts). */
+  :root{ --bg:#FFFFFF; --card:#FFFFFF; --line:#D3D9E4; --tx:#131A2B; --tx2:#98A2B3;
+    --gn:#175E24; --am:#C99A3B; --do:#C8202E; --xam:#98A2B3;
+    /* biến RIÊNG của ads — Tài chính không có (nền nhạt badge/khối), giữ nguyên giá trị cũ */
+    --gnB:#DCF5E9; --amB:#FDF3DC; --cho:#FFF7F7; --choTx:#8A1620; }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--tx);font-family:'Be Vietnam Pro',system-ui,sans-serif;font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-  .num,.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+  body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num,.mono{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums}
   button,input{font-family:inherit;font-size:inherit;color:inherit}
   #boot{padding:40px;color:var(--tx2)}
   /* cổng đăng nhập */
@@ -23,7 +25,7 @@
   #cong button{width:100%;padding:12px;margin-top:6px;background:var(--do);color:#fff;border:0;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer}
   #cong .err{color:var(--do);font-size:13px;min-height:18px;margin-top:8px}
   /* app */
-  #app{max-width:1020px;margin:0 auto;padding:20px 20px 60px}
+  #app{max-width:1280px;margin:0 auto;padding:20px 20px 60px}   /* rộng để bảng ③ đủ 10 cột vừa trong 1440px, không cuộn ngang */
   .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px}
   .topbar h1{font-size:20px;font-weight:800} .topbar .sub{color:var(--tx2);font-size:13px;margin-top:2px}
   .who{text-align:right;font-size:12.5px;color:var(--tx2)} .who b{color:var(--tx);display:block;font-size:13.5px}
@@ -31,8 +33,9 @@
   .range{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin-bottom:16px;font-size:13px;color:var(--tx2);flex-wrap:wrap}
   .range input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;background:#fff}
   .range button{background:var(--tx);color:#fff;border:0;border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:13px}
-  .thucte{background:#FFF9EC;border:1px solid #F0D089;border-left:4px solid var(--am);border-radius:9px;padding:11px 14px;margin-bottom:22px;font-size:13px;line-height:1.65;color:#5c4a1a}
-  .thucte b{color:var(--am)} .thucte .num{color:var(--tx);font-weight:700}
+  .thucte{background:var(--amB);border:1px solid var(--am);border-left:4px solid var(--am);border-radius:9px;padding:11px 14px;margin-bottom:22px;font-size:13px;line-height:1.65;color:#5c4a1a}
+  .thucte b{color:var(--choTx)} .thucte .num{color:var(--tx);font-weight:700}
+  .thucte .ads-phu-moc{display:block;margin-top:7px;font-size:12.5px;color:var(--tx2)} .thucte .ads-phu-moc b{color:var(--tx)}
   .sec{margin-bottom:30px}
   h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:8px;font-weight:700}
   h2 .n{width:22px;height:22px;border-radius:6px;background:var(--tx);color:#fff;font-size:12px;display:grid;place-items:center;font-weight:800}
@@ -70,6 +73,66 @@
   .obj{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--tx2);background:#EEF0ED;padding:2px 6px;border-radius:5px}
   .mo-khoi{background:none;border:0;font:inherit;font-weight:700;cursor:pointer;color:var(--tx);padding:0}
   tr.cdrow{cursor:pointer} tr.cdrow:hover td{background:#FAFBFA}
+  /* v2b · class mới tiền tố ads- (luật 00) */
+  .ads-tg{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+  .ads-nut-tg{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;color:var(--tx)}
+  .ads-nut-tg.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+  .ads-tg-khoang{font-size:12.5px;color:var(--tx2);margin-left:4px}
+  .ads-tg-chon input{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+  .ads-tg-chon button{background:var(--tx);color:#fff;border:0;border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:13px;margin-left:6px}
+  .ads-3o{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+  .ads-o{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .ads-o-big{font-size:23px;font-weight:800;line-height:1.15}
+  .ads-o-sub{font-size:12.5px;color:var(--tx2);margin-top:4px}
+  .ads-gop{background:var(--amB);border:1px solid #F0D089;border-left:4px solid var(--am);border-radius:9px;padding:11px 14px;margin:-10px 0 22px;font-size:13px;line-height:1.6;color:#5c4a1a}
+  .ads-truc{font-size:11px;color:var(--xam);text-transform:uppercase;letter-spacing:.03em;margin-bottom:7px}
+  .ads-viec-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid #EDEFEC}
+  .ads-viec-item:last-child{border-bottom:0}
+  .ads-viec-loai{flex:0 0 auto;font-size:11px;font-weight:700;background:var(--amB);color:var(--am);padding:3px 9px;border-radius:6px;white-space:nowrap}
+  .ads-viec-cau{font-size:13.5px;line-height:1.5}
+  .ads-viec-trong{padding:18px;color:var(--tx2);font-size:13px}
+  .ads-lech.up{color:var(--do)} .ads-lech.down{color:var(--gn)}
+  .ads-den{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .ads-den-gn{background:var(--gn)} .ads-den-am{background:var(--am)} .ads-den-do{background:var(--do)} .ads-den-xam{background:var(--xam)}
+  .ads-tk-id{color:var(--tx2);font-size:11.5px}
+  th.ads-sort{cursor:pointer;user-select:none} th.ads-sort:hover{color:var(--tx)} th.ads-on{color:var(--tx)}
+  .ads-hien-wrap{font-size:12.5px;color:var(--tx2);margin-top:10px}
+  .ads-hien{color:var(--tx);font-weight:600;cursor:pointer;text-decoration:underline}
+  .ads-den-lydo{font-size:12.5px;color:var(--tx2);margin-top:10px;line-height:1.55;background:#F7F9F7;border-left:3px solid var(--xam);padding:9px 12px;border-radius:0 8px 8px 0}
+  .ads-cg-wrap{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .ads-cg{font-size:13px}
+  .ads-cg-note{font-size:12px;color:var(--tx2);line-height:1.55;max-width:660px}
+  .ads-loi{padding:16px;color:var(--do);font-weight:600;border:1px solid var(--do);background:var(--cho);border-radius:9px}
+  /* B · bảng ③ vừa trong khung: min-width 0 để không ép cuộn; cột đèn (cuối) GHIM mép phải phòng khi hẹp */
+  .ads-bang3 table{min-width:0}
+  .ads-bang3 th,.ads-bang3 td{padding:7px 9px}
+  .ads-bang3 th:last-child,.ads-bang3 td:last-child{position:sticky;right:0;background:#fff;box-shadow:-6px 0 6px -6px rgba(0,0,0,.12)}
+  .ads-bang3 thead th:last-child{background:#FAFBFA}
+  .ads-bang3 tfoot td:last-child{background:#F1F2F0}
+  .ads-bang-note{font-size:12px;color:var(--tx2);margin-top:8px;line-height:1.55}
+  /* C · dưới 860px: bảng ③ → thẻ; khối ② → lưới 2 cột thẻ; ba ô trạng thái → 2 cột */
+  .ads-cards{display:none}
+  .ads-so2-cards{display:none}
+  .ads-card{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:var(--card)}
+  .ads-card+.ads-card{margin-top:0}
+  .ads-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .ads-card-ten{font-weight:700;font-size:14px;line-height:1.3}
+  .ads-card-meta{font-size:11.5px;color:var(--tx2);margin-top:2px}
+  .ads-card-den{flex:0 0 auto;font-size:12px;white-space:nowrap}
+  .ads-card-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-top:1px solid #EEF0ED}
+  .ads-card-row .k{color:var(--tx2)} .ads-card-row .v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;font-weight:600}
+  .ads-so2-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card)}
+  .ads-so2-card .k{font-size:12px;color:var(--tx2)}
+  .ads-so2-card .now{font-size:17px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;margin-top:2px}
+  .ads-so2-card .prev{font-size:11.5px;color:var(--tx2);margin-top:1px}
+  @media(max-width:860px){
+    .ads-bang3{display:none}
+    .ads-cards{display:flex;flex-direction:column;gap:10px}
+    .ads-so2-tbl{display:none}
+    .ads-so2-cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .ads-3o{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:430px){ .ads-3o{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -77,12 +140,8 @@
   <div id="boot">Đang mở ứng dụng quảng cáo…</div>
   <div id="app" style="display:none">
     <div class="topbar">
-      <div><h1>Người chạy ads · theo ad_id × ngày</h1><div class="sub">Nhịp tuần. Vào là thấy việc phải làm. Quy kết đã có, chi tiêu chưa nối (chờ WP-77).</div></div>
+      <div><h1>Tiền quảng cáo theo chiến dịch</h1><div class="sub">Nhịp tuần. Vào là thấy việc phải làm.</div></div>
       <div class="who"><b id="hdTen"></b><span id="hdVai"></span><br><button id="btOut">Đăng xuất</button></div>
-    </div>
-    <div class="range">Khoảng ngày (theo lúc khách nhắn đầu):
-      <input id="dTu" type="date"> → <input id="dDen" type="date">
-      <button id="btXem">Xem</button>
     </div>
     <div id="noi"><div class="trong">Đang tải…</div></div>
   </div>
