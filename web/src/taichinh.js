@@ -687,19 +687,29 @@ function caMaxCho(r, cac) {   // CAC tối đa của dải (cột ĐANG SÁNG, t
   const max = cac.cot_dang_sang === 'ngan_han' ? b.cac_ngan_han : b.cac_dai_han
   return { max, chenh: (max == null || r.cac == null) ? null : max - r.cac }
 }
+// L-76i · Quyết định KHOÁ cột ngắn hạn — THUẦN, đọc cờ k3_chua_tach TỪ RPC (cấm cắm cứng). Cờ tắt → cột tự mở lại.
+function caKhoaNgan(j) {
+  const khoa = (j.dai || []).some(b => b.k3_chua_tach)   // k3 chưa tách biến/định → CAC ngắn hạn lạc quan → KHOÁ
+  const eff = khoa ? 'dai_han' : j.cot_dang_sang          // khoá → cột đang sáng BUỘC là dài hạn
+  return { khoa, effSang: eff, sangKey: eff === 'ngan_han' ? 'cac_ngan_han' : 'cac_dai_han' }
+}
+if (typeof window !== 'undefined') window.__caKhoaNgan = caKhoaNgan   // hook kiểm HAI VẾ (test_cac_khoa)
 function renderCacDai(j) {
   const body = $('cac_dai_body'), cot = $('cac_dai_cot'), co = $('cac_dai_co'); if (!body) return
-  const sang = j.cot_dang_sang === 'ngan_han' ? 'ngắn hạn' : 'dài hạn'
-  cot.innerHTML = `<div class="cac-cotline">Cột đang đọc: <b>CAC ${sang}</b> — ${escH(j.ly_do_sang || '')}</div>`
-  if ($('cac_th_ngan')) $('cac_th_ngan').classList.toggle('cac-sang', j.cot_dang_sang === 'ngan_han')
-  if ($('cac_th_dai')) $('cac_th_dai').classList.toggle('cac-sang', j.cot_dang_sang === 'dai_han')
+  const { khoa, effSang, sangKey } = caKhoaNgan(j)
+  const sang = effSang === 'ngan_han' ? 'ngắn hạn' : 'dài hạn'
+  let lydo = escH(j.ly_do_sang || '')
+  if (khoa && j.cot_dang_sang === 'ngan_han') lydo = 'Năng lực đang kín nhưng CAC ngắn hạn ĐANG KHOÁ (khối ③ chưa tách phần chi thêm thật) → tạm đọc theo cột dài hạn.'
+  cot.innerHTML = `<div class="cac-cotline">Cột đang đọc: <b>CAC ${sang}</b> — ${lydo}</div>`
+    + (khoa ? `<div class="cac-cotline cac-cotline-khoa">Cột <b>CAC ngắn hạn</b> đang KHOÁ (mờ): khối ③ chưa tách được phần chi thêm THẬT nên cột này lạc quan nhất có thể — chỉ mở lại khi sổ lương có nhóm thiết kế.</div>` : '')
+  if ($('cac_th_ngan')) { $('cac_th_ngan').classList.toggle('cac-sang', sangKey === 'cac_ngan_han'); $('cac_th_ngan').classList.toggle('cac-khoa', khoa) }
+  if ($('cac_th_dai')) $('cac_th_dai').classList.toggle('cac-sang', sangKey === 'cac_dai_han')
   const dai = j.dai || [], co3 = []
   if (dai.some(b => b.k3_chua_tach)) co3.push('Khối ③ chưa tách phần tăng thêm — CAC ngắn hạn tính phần tăng thêm bằng 0')
   if (dai.some(b => b.thieu_bien)) co3.push('Chưa chốt biên lợi nhuận mục tiêu — cột dài hạn để trống')
   if (dai.some(b => b.thieu_cac_du_kien)) co3.push('Chưa nhập CAC dự kiến — giá sàn đơn lẻ để trống')
   co.innerHTML = co3.map(t => `<span class="cac-co">${escH(t)}</span>`).join('')
-  const sangKey = j.cot_dang_sang === 'ngan_han' ? 'cac_ngan_han' : 'cac_dai_han'
-  const cl = k => k === sangKey ? ' class="cac-sang"' : ''
+  const cl = k => { const c = []; if (k === sangKey) c.push('cac-sang'); if (k === 'cac_ngan_han' && khoa) c.push('cac-khoa'); return c.length ? ` class="${c.join(' ')}"` : '' }
   let h = ''
   for (const b of dai) {
     const san = b.gia_toi_thieu == null ? '—' : fmt(b.gia_toi_thieu) + (b.cac_du_kien_nhap_tay ? '<span class="cac-nhaptay">số nhập tay</span>' : '')

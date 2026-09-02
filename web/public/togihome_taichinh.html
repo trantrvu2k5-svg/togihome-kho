@@ -383,6 +383,9 @@
   #tc .cac-sanbox { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--bd); }
   #tc .cac-sanbox input { width:170px; padding:8px 10px; border:1px solid var(--bdS); border-radius:7px; font-family:var(--mono); }
   #tc .cac-err { color:var(--rd); font-weight:600; }
+  /* L-76i · cột CAC ngắn hạn KHOÁ (mờ, không đọc) khi k3 chưa tách */
+  #tc table.cac-tbl th.cac-khoa, #tc table.cac-tbl td.cac-khoa { opacity:.38; pointer-events:none; text-decoration:line-through; text-decoration-color:var(--mut); }
+  #tc .cac-cotline-khoa { border-left-color:var(--am); color:var(--am); background:var(--amB); }
   /* WP-76 L-76g · khối Số món/đơn theo trục (cd-) + Giờ thiết kế đơn thua (tk-) */
   #tc table.cd-tbl, #tc table.tk-tbl { width:100%; border-collapse:collapse; font-size:13px; }
   #tc table.cd-tbl th, #tc table.tk-tbl th { text-align:right; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); font-weight:500; border-bottom:1px solid var(--bdS); padding:0 10px 8px; white-space:nowrap; }
