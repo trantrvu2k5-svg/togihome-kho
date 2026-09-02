@@ -39,6 +39,7 @@
 - `chan_lui_san_xuat` (db/047) — cấm hạ đơn đang SX về nhóm trước-SX (sale/tk_ban_hang chặn tuyệt đối; ceo/xuong phải có lý do).
 - `dong_bo_trang_thai_don` (db/038, db/045) — đơn = bước CHẬM NHẤT của các món; mọi món xong_sx → đơn cho_giao.
 - **Cửa vào chuyền** (moi_len_don/xong_file → cho_cat): `dua_vao_chuyen` (ceo/xuong) · tem tự bắc cầu · `ban_giao_xuong` (thiet_ke, gác 3 chốt: file + khách duyệt + đủ số) — **sau 3 chốt còn ĐÓNG BĂNG BOM `du_kien→chuan` + sinh GIỮ CHỖ mềm (WP-32/QD-52, db/130); dòng BOM CHỜ hệ số (`so_luong_co_so` NULL) BỎ QUA khi giữ chỗ — WP-36/QD-55**.
+- **Lý do thua báo giá** (`ly_do_thua` + `ghi_chu_thua`): đường ghi nay **CHỈ CÒN `doi_trang_thai_don`** (SECURITY DEFINER); client **hết grant UPDATE** hai cột (WP-10/QD-95, db/212 revoke khỏi `authenticated`). PATCH thẳng PostgREST → 403. Cùng khuôn `trang_thai` (chỉ qua cổng, QD-64/66).
 
 **`buoc_thiet_ke` — 5 bước, TÁCH khỏi trang_thai đơn:**
 `cho_nhan` → `dang_dung` → `cho_duyet` → `sua_gop_y` → `xong_file`. (NULL = chưa vào luồng.) Đổi bởi RPC: `nhan_viec_thiet_ke`→dang_dung · `gui_ban_thiet_ke`→cho_duyet · `phan_hoi_ban`(chê)→sua_gop_y · `ban_giao_xuong`/đẩy tem→xong_file. Một đơn có thể ở trang_thai=`bao_gia` trong khi buoc_thiet_ke chạy dang_dung→cho_duyet…
