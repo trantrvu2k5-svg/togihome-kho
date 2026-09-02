@@ -1511,3 +1511,22 @@ Trả nợ vùng tối 03 §D (luồng báo giá db/035+036 ra đời KHÔNG có
 - **Lý do:** ERP (Sagegg&Alfnes §5.5.1) nói theo dõi báo giá SẮP HẾT HẠN để đòi khách trả lời — KHÔNG nói tự đóng. Máy tự đóng đơn = máy quyết thay người (họ QD-69: việc thật của người thắng số máy suy).
 
 **Trạng thái:** db/209 (`han_tra_loi` + `han_bao_gia_mac_dinh` + `moc_bao_gia` mở rộng + `doi_trang_thai_don` bản mới + `sale_bao_gia_ds` bổ sung + `sale_bao_gia_han_dem`). UI `togihome_sale.html`/`sale.js`. CHƯA commit/tag — chờ CEO kiểm mắt.
+
+## QD-95 (02/09, WP-10 L-10, db/212) — CỘT NGHIỆP VỤ DO RPC GHI thì client KHÔNG cầm grant UPDATE · CHỐT
+
+Cột nghiệp vụ mà đường ghi hợp lệ là một RPC cổng thì **client tuyệt đối không giữ quyền UPDATE cột đó** ở tầng API.
+`ly_do_thua` + `ghi_chu_thua` **revoke khỏi `authenticated`** (db/212); đường ghi DUY NHẤT còn lại là `doi_trang_thai_don`
+(SECURITY DEFINER, đã kiểm `prosecdef=true` trước khi revoke).
+
+- **Lý do:** grant db/150 (QD-66) viết theo **danh sách CẤM** ("mọi cột TRỪ `trang_thai`") thay vì danh sách CHO PHÉP →
+  mọi cột nghiệp vụ **sinh sau** (`ly_do_thua`/`ghi_chu_thua` từ db/036) **tự động lọt ra tầng API**. WP-72 (QD-94) chặn "đóng
+  thua không lý do" ở tầng RPC, NHƯNG L-10A nghiệm thu bằng dữ liệu: `PATCH don_hang {ly_do_thua}` bằng JWT sale vẫn **THÀNH
+  CÔNG** (bỏ cổng), và **không để lại vết ai sửa** (`don_hang_nhat_ky` chỉ ghi chuyển trạng thái, không ghi sửa cột đơn lẻ).
+- **Bài học grant:** danh sách CẤM là bẫy — cột mới mặc định HỞ. Cột nghiệp vụ mới do RPC ghi phải revoke NGAY khi thêm.
+- **Nghiệm thu (L-10B, role=authenticated, BEGIN/ROLLBACK):** chặn ĐỎ (`ly_do_thua`+`ghi_chu_thua` → permission denied) ·
+  thông XANH (`doi_trang_thai_don` đóng thua → `ly_do_thua='gia_cao'`) · đối chứng XANH (`ghi_chu` vẫn UPDATE được — chỉ 2/70
+  cột bị siết). Họ QD-64/66/67.
+
+**Trạng thái:** db/212 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · test_091 7/0 · test_099 20/0 · test_146 12/0; test_036
+chết ở kết nối (DATABASE_URL+SSL, nợ môi trường sẵn có — KHÔNG do revoke, logic dòng 49 vẫn đúng). CHƯA commit/tag — robot tầng
+PostgREST + commit ở L-10C.
