@@ -1,11 +1,12 @@
 # 01 — BẢN ĐỒ TOÀN HỆ
 
 > Repo `togihome-kho` (hệ kho/MES) · Supabase schema `kho` · migrate: `cd web && node ops/run_sql.mjs ../db/NNN.sql`.
-> Plugin SketchUp là repo RIÊNG (`togihome-plugin`, luật hình học tủ áo). Bảy app là bảy project Cloudflare Pages tách.
+> Plugin SketchUp là repo RIÊNG (`togihome-plugin`, luật hình học tủ áo). TÁM app = BẢY project Cloudflare Pages (Sale · Thiết kế · Xưởng · Sản phẩm · Kho · Tài chính · Quảng cáo) + plugin.
+> Hệ **KHÔNG có stylesheet dùng chung** — mỗi app tự khai màu. App Tài chính là bundle React KHÔNG có biến CSS; app Quảng cáo **chép TAY** bộ màu Tài chính (cần một WP dựng bộ màu chung).
 
 ---
 
-## A. BẢY APP
+## A. TÁM APP
 
 | App | Vai vào được | Các tab / màn | Làm được gì | Ghi bảng | Đọc bảng |
 |---|---|---|---|---|---|
@@ -15,6 +16,7 @@
 | **Sản phẩm** (`togihome-sanpham`) | ceo · ke_toan | Cây · Danh sách (3 tầng: lõi→biến thể→niêm yết) · **Quy trình** | Khai/sửa sản phẩm 3 tầng · thương hiệu · sửa routing + phút quy trình (gác kiem) | san_pham_loi · san_pham_mau · niem_yet · gia_niem_yet · thuong_hieu · quy_trinh · quy_trinh_buoc | don_gia_baseline · bo_san_pham |
 | **Kho** (`togihome-kho`) | ceo · kho | Tồn kho · Cần đặt hàng · **Đơn mua** · Phiếu nhập · Phiếu xuất · Nhà cung cấp · Ghép mã plugin · **Đơn vị & hao hụt (WP-36)** | Ghi phiếu nhập/xuất (FIFO theo lô) · huỷ bằng phiếu ngược · duyệt map mã plugin · **khai khổ ván + %hao hụt + đơn vị quy đổi cho từng mã (WP-36, RPC luu_tham_so_vat_tu/tham_so_vat_tu_ds/thu_quy_doi_bom), nhập xong xuất bù tem đã cắt** · **lập đơn mua NCC (WP-20): 5 bước moi→da_gui→xac_nhan→da_nhan→da_khop_hd + huỷ, cổng RPC · NHẬN HÀNG (WP-21): phiếu nhập tự sinh gắn don_mua_id, nhận một phần/đủ, bảng máy tính + thẻ điện thoại** | phieu(+don_mua_id) · phieu_dong(+don_mua_dong_id) · lo_nhap · ton · giao_dich · vat_tu(+kho_dai/rong_mm,hao_hut_pct) · vat_tu_don_vi · vat_tu_tham_so_lich_su(append-only) · plugin_ma_map (đổi tên từ quy_doi — WP-36) · **don_mua · don_mua_dong · don_mua_lich_su (RPC dm_tao/dm_sua_dong/dm_chuyen_trang_thai/dm_danh_sach/dm_chi_tiet/dm_nhan_hang)** | nha_cung_cap · vat_tu · v_gia_tham_khao |
 | **Tài chính** (`togihome-taichinh`) | ceo · ke_toan | Tham số (2 tab) · **Giá vốn theo đơn** | Nhập lương tổ → 12 đơn giá hoạt động · nhập giá vốn TAY cho đơn không plugin | tham_so_tai_chinh · luong_to · don_gia_baseline · don_hang_gia_von | san_pham_mau_gia_von · gia_von_don_ds |
+| **Quảng cáo** (`togihome-ads`) | ads_user · ceo | Bảng chiến dịch · Việc phải làm · So sánh kỳ · Mức từng ad | Xem tiền quảng cáo Meta theo CHIẾN DỊCH · việc phải làm (chi cao 0 hội thoại · chi tăng vượt NHỊP CHUNG · mới bật) · đèn trần CAC 5 trạng thái (chưa sáng con dư/sát/vượt — chờ đơn quy về) · CTR/CPC theo **bấm-vào-link** · hai số độ phủ có mốc | (chỉ đọc — bộ kéo `keo_chi_ads_meta`/`keo_lai_khoang_ads` ghi `chi_chien_dich_ngay`/`chi_ads_ngay` qua GUC `meta_he_thong`) | chi_chien_dich_ngay · chi_ads_ngay · ads_nguong · ads_tai_khoan_brand · **RPC** `ads_bang_ky` · `ads_tong_so_sanh` · `ads_viec_phai_lam` · `ads_do_phu` · `ads_ad_ngay` |
 | **Plugin SketchUp** (repo riêng) | (chạy trên máy thiết kế) | — (trong SketchUp) | Dựng hình tủ · xuất cutlist/DXF · sinh tem · đẩy **giá vốn** + **tem** lên Supabase | don_hang_gia_von (ghi_gia_von_don) · tem_ban_ve | plugin_ma_map (mã kho đã duyệt; đổi tên từ quy_doi — WP-36) |
 
 ---
