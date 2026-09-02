@@ -33,6 +33,8 @@ Nhiều lần câu trả lời nằm sẵn trong báo cáo vừa nhận mà khô
 - Đã vi phạm HAI lần (L-10b ghi đè số đơn vị Kệ tivi làm giờ phình; L-11 kéo đơn về trạng thái khác để chụp). Đừng lặp.
 
 **CẤM nghiệm thu giao diện bằng bản tự render/shim.** Ảnh kiểm mắt phải chụp từ **TRANG DEPLOY THẬT, đăng nhập thật, trình duyệt thật**. Bản tự render (shim createElement→HTML, hay serve component tách rời) chỉ dùng lúc đang dựng, **KHÔNG có giá trị nghiệm thu** — nó bỏ mất CSS/JS bao quanh của app thật (vd `.ca button` ghi đè `.bg-o`), nên "giống" trên shim mà "sai" trên trang thật.
+
+**Luật ảnh console (02/09, từ WP-11b):** ảnh kiểm mắt có khẳng định về console phải **MỞ DEVTOOLS THẬT** trong ảnh. Badge/nhãn do chính app in ra ("console: 0 lỗi đỏ") là **app tự chấm điểm mình**, không phải bằng chứng — cùng họ luật nghiệm thu bằng dữ liệu (31/08). Bằng chứng console 0 lỗi nằm ở assert của robot (bắt `console.error`), không ở chữ dán lên ảnh.
 - **Dính ở L-51:** shim tự chấm giống v5 BA lần trong khi trang thật sai. **Gốc (L-52):** `.ca button{background:none…}` (đặc thù 0,1,1) đè `.bg-o`/nút (0,1,0) → mọi thẻ/nút mất nền màu trên trang thật; shim không có `.ca button` nên không thấy. Bài học: **CSS của app bao quanh màn — luôn kiểm cascade trên bundle/trang THẬT, không trên bản tách.**
 
 ## KỶ LUẬT MẬT KHẨU — CẤM tự đặt lại mật khẩu

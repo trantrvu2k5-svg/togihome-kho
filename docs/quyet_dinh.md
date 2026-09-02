@@ -1551,3 +1551,27 @@ Grant UPDATE của client (`authenticated`) trên bảng nghiệp vụ **khai th
 **Trạng thái:** db/213 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · 091 7/0 · 099 20/0 · 146 12/0 · 116 48/0 · 117 24/0 ·
 test_grant_don_hang 3/0; test_118 #2 (sdt cong_no) + test_036 (SSL) là nợ cũ owner/môi-trường, KHÔNG do revoke. CHƯA commit/tag —
 kiểm cuối trình duyệt + robot ở L-11bC. Nhóm NGỜ (24 cột, gồm doanh_thu/gia_goc/ma_ky_ap_dung — 0 dòng thật) đo riêng lô sau.
+
+## QD-97 (02/09, WP-11c L-11cB, db/214) — SIẾT 22 CỘT NGỜ don_hang: DB/RPC ghi thì client KHÔNG cầm grant · CHỐT
+
+Nối tiếp QD-96: **thu quyền UPDATE của client (`authenticated`) trên 22 cột NGỜ còn lại** của `don_hang`. Whitelist **63 → 41 cột**.
+
+- **Đo (L-11cA):** cả 22 cột **client GHI 0/22** — không cột nào nằm trong payload `sale.js:255` donToRow (40 cột) hay `sale.js:379`
+  datHan. Đều do **DB/trigger/RPC SECURITY DEFINER** ghi (mốc thời gian, người phụ trách, cờ gấp, mốc báo giá, đếm món/tổ-hợp) →
+  client không cần cầm grant (QD-95). 22 cột = 3 tài chính + 19 mốc/người/cờ.
+- **3 cột tài chính:** `doanh_thu` (DB path db/021 ghi) · `ma_ky_ap_dung` (**0/6 dòng populated, KHÔNG hàm/trigger/client nào GHI**
+  — 12 hàm "khả nghi" ở L-11cA hoá ra đều chỉ ĐỌC làm bộ lọc kỳ giá `where ma_ky_ap_dung = p_ma_ky`; comment db/028 "đóng dấu
+  lúc chốt" là ý định CHƯA hiện thực) · `gia_goc` (**0 dòng, 0 writer**, chỉ còn ở 1 cột CSV export sale.html).
+- **gia_goc: CEO chốt REVOKE, KHÔNG DROP** — chưa hiểu hết vòng đời cột thì không xoá; xét drop lại ở WP-11f. `ma_ky_ap_dung` cùng
+  cảnh (dead-ish) nhưng vẫn là bộ lọc kỳ giá được ĐỌC → giữ cột, chỉ revoke quyền ghi.
+- **Rủi ro thật DUY NHẤT** = trigger/RPC DEFINER ghi cột revoke có gãy không. **Nghiệm thu vế RPC:** `tao_don` (DEFINER, INSERT
+  hard-code `trang_thai='bao_gia'`) → BEFORE trigger `trg_moc_bao_gia` **stamp `ngay_tao_bao_gia`** (cột vừa revoke) NGAY lúc tạo →
+  SELECT thấy cột có giá trị. DEFINER chạy như owner → revoke trên `authenticated` KHÔNG chạm. ✓
+- **Nghiệm thu 4 vế (L-11cB, BEGIN/ROLLBACK, jwt sale thật):** THÔNG (40 cột donToRow + `han_tra_loi` UPDATE OK — màn Sale sống) ·
+  CHẶN (22 cột revoke + trang_thai/ly_do_thua/la_demo → permission denied 42501) · CANH (whitelist 41 khớp grant; bẩn `grant
+  doanh_thu` trong tx → test bắt đúng cột) · RPC (trên) → **16/0**. Whitelist cập nhật CÙNG migration (bản khai ý định ↔ thi hành
+  phải khớp; CẤM thêm cột vào whitelist cho xanh test — cột mới thì viết RPC).
+
+**Trạng thái:** db/214 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · 091 7/0 · 099 20/0 · 146 12/0 · 116 48/0 · 117 24/0 ·
+test_grant_don_hang 3/0 (41 cột) · test_wp11c 16/0. test_118 #2 + test_036 = nợ cũ owner/môi-trường, KHÔNG do revoke. CHƯA
+commit/tag — probe prod + robot + commit gộp + tag ở L-11cC. Nhóm NGỜ đóng xong; còn 41 cột client-ghi thật.
