@@ -571,6 +571,7 @@ async function taiCM() {
 
 // ══════════ TAB KÊNH & CAC (L-48): dữ liệu từ kenh_cac_ky; form ads gồm VAT, "thật" bóc theo vat kỳ ══════════
 let KC_BRAND = 'all', KC_VAT = 10, KC_BRANDS = {}   // ma→ten brand bật
+let CAC_DUKIEN = null   // WP-76 L-76f: CAC dự kiến người nhập gần nhất (null = chưa nhập → giá sàn để trống)
 const KC_KENH = [['quang_cao', 'Quảng cáo'], ['gioi_thieu', 'Giới thiệu'], ['cua_hang', 'Cửa hàng'], ['san_tmdt', 'Sàn TMĐT'], ['khach_cu', 'Khách cũ'], ['khac', 'Khác']]
 const KC_KMAP = Object.fromEntries(KC_KENH.concat([['(chưa ghi nguồn)', 'Chưa ghi nguồn']]))
 const tenBrand = ma => KC_BRANDS[ma] || (ma === '(chưa ghi TH)' ? '(Chưa ghi thương hiệu)' : ma)
@@ -584,8 +585,11 @@ async function taiKenhCac() {
   await napBrandsKC()
   const { data: g, error } = await sb.rpc('kenh_cac_ky', { p_ky: KY, p_brand: null })
   const body = $('kc_body'), foot = $('kc_foot')
-  if (error) { body.innerHTML = `<tr><td class="kc-lbl" colspan="8" style="color:#C8202E">${escH(error.message)}</td></tr>`; foot.innerHTML = ''; $('kc_brand').innerHTML = ''; $('kc_tongads').textContent = '—'; $('kc_khachmoi').textContent = '—'; $('kc_sauads').textContent = '—'; return }
+  if (error) { body.innerHTML = `<tr><td class="kc-lbl" colspan="10" style="color:#C8202E">${escH(error.message)}</td></tr>`; foot.innerHTML = ''; $('kc_brand').innerHTML = ''; $('kc_tongads').textContent = '—'; $('kc_khachmoi').textContent = '—'; $('kc_sauads').textContent = '—'; return }
   KC_VAT = Number(g.vat) || 10
+  // WP-76 L-76f: dải CAC tối đa (đọc cac_toi_da_ky đúng kỳ, dùng CAC dự kiến người nhập nếu có) — dùng cho cột mới + khối dưới.
+  let cacJ = null
+  { const { data, error: e2 } = await sb.rpc('cac_toi_da_ky', CAC_DUKIEN == null ? { p_ky: KY } : { p_ky: KY, p_cac_du_kien: CAC_DUKIEN }); if (!e2) cacJ = data; else if ($('cac_dai_body')) $('cac_dai_body').innerHTML = `<tr><td class="l cac-err" colspan="9">Lỗi tải CAC theo dải: ${escH(e2.message)}</td></tr>` }
   const all = g.dong || []
   // nút brand + tổng ads thật mỗi brand
   const adsB = {}; all.forEach(r => { adsB[r.brand] = (adsB[r.brand] || 0) + (Number(r.chi_ads_that) || 0) })
@@ -605,23 +609,32 @@ async function taiKenhCac() {
       + `<td class="kc-num">${r.don_giao}</td><td class="kc-num">${r.khach_moi_brand}</td>`
       + `<td class="kc-num kc-ads">${ads ? fmt(ads) : '—'}</td>`
       + `<td class="kc-num kc-ads${r.mau_mong ? ' kc-im' : ''}">${cacTxt}</td>`
+      + caCols(r)   // WP-76 L-76f: CAC tối đa (dải rơi vào) + Chênh
       + `<td class="kc-num">${fmt(r.dt_thuan)}</td><td class="kc-num">${fmt(r.cm_kenh)}</td>`
       + `<td class="kc-num ${sauCls}">${fmt(r.cm_sau_ads)}</td></tr>`
   }
+  const caCols = r => {   // CAC tối đa + Chênh; không map được (0 đơn / dải rỗng) → "—", không 0
+    const { max, chenh } = caMaxCho(r, cacJ)
+    const chTxt = chenh == null ? '—' : `<span class="${chenh < 0 ? 'cac-am' : ''}">${chenh > 0 ? '+' : ''}${fmt(chenh)}</span>`
+    return `<td class="kc-num">${max == null ? '—' : fmt(max)}</td><td class="kc-num">${chTxt}</td>`
+  }
   let h = ''
-  if (!loc.length) h = '<tr><td colspan="8" class="hint" style="padding:36px;text-align:center">Kỳ này chưa có đơn giao / chi ads.</td></tr>'
+  if (!loc.length) h = '<tr><td colspan="10" class="hint" style="padding:36px;text-align:center">Kỳ này chưa có đơn giao / chi ads.</td></tr>'
   else if (KC_BRAND === 'all') {
     [...new Set(loc.map(r => r.brand))].forEach(b => {
-      h += `<tr class="kc-nhom"><td colspan="8">${escH(tenBrand(b).toUpperCase())}</td></tr>`
+      h += `<tr class="kc-nhom"><td colspan="10">${escH(tenBrand(b).toUpperCase())}</td></tr>`
       loc.filter(r => r.brand === b).forEach(r => h += hangKenh(r))
     })
   } else loc.forEach(r => h += hangKenh(r))
   body.innerHTML = h
   // tổng theo lọc
   const T = loc.reduce((a, r) => ({ ads: a.ads + (Number(r.chi_ads_that) || 0), moi: a.moi + r.khach_moi_brand, don: a.don + r.don_giao, dt: a.dt + Number(r.dt_thuan), cm: a.cm + Number(r.cm_kenh), sau: a.sau + Number(r.cm_sau_ads) }), { ads: 0, moi: 0, don: 0, dt: 0, cm: 0, sau: 0 })
-  foot.innerHTML = loc.length ? `<tr><td class="kc-lbl">TỔNG${KC_BRAND !== 'all' ? '' : ' (tất cả)'}</td><td class="kc-num">${T.don}</td><td class="kc-num">${T.moi}</td><td class="kc-num kc-ads">${fmt(T.ads)}</td><td class="kc-num kc-ads">—</td><td class="kc-num">${fmt(T.dt)}</td><td class="kc-num">${fmt(T.cm)}</td><td class="kc-num ${T.sau < 0 ? 'kc-xau' : ''}">${fmt(T.sau)}</td></tr>` : ''
+  foot.innerHTML = loc.length ? `<tr><td class="kc-lbl">TỔNG${KC_BRAND !== 'all' ? '' : ' (tất cả)'}</td><td class="kc-num">${T.don}</td><td class="kc-num">${T.moi}</td><td class="kc-num kc-ads">${fmt(T.ads)}</td><td class="kc-num kc-ads">—</td><td class="kc-num">—</td><td class="kc-num">—</td><td class="kc-num">${fmt(T.dt)}</td><td class="kc-num">${fmt(T.cm)}</td><td class="kc-num ${T.sau < 0 ? 'kc-xau' : ''}">${fmt(T.sau)}</td></tr>` : ''
   $('kc_tongads').textContent = fmt(T.ads); $('kc_khachmoi').textContent = T.moi
   $('kc_sauads').textContent = fmt(T.sau); $('kc_sauads').style.color = T.sau < 0 ? 'var(--pri)' : ''
+  if (cacJ) renderCacDai(cacJ)   // WP-76 L-76f: khối CAC tối đa theo dải
+  wireCacTinh()
+  wireCdTruc(); taiMonTruc(); taiGioThua()   // WP-76 L-76g: số món/đơn theo trục + giờ TK đơn thua
   await taiAdsForm()
 }
 async function taiAdsForm() {
@@ -657,6 +670,159 @@ async function kcLuu() {
   if (error) { $('kc_msg').style.color = '#C8202E'; $('kc_msg').textContent = 'Lỗi: ' + error.message; return }
   $('kc_msg').style.color = 'var(--gn)'; $('kc_msg').textContent = `✓ Đã lưu ${data.so_dong} dòng ads cho kỳ ${KY}`
   await taiKenhCac()
+}
+
+// ══════════ WP-76 L-76f · KHỐI CAC tối đa theo dải giá trị đơn (ĐỌC cac_toi_da_ky — client KHÔNG tính lại số) ══════════
+const caMon = v => v == null ? '—' : `<span class="${Number(v) < 0 ? 'cac-am' : ''}">${fmt(v)}</span>`
+const caPct = v => v == null ? '—' : (Number(v) * 100).toFixed(1).replace('.', ',') + '%'
+// Dải mà brand×kênh rơi vào — CHỈ chọn ô bucket theo giá trị đơn TB; số CAC tối đa lấy NGUYÊN từ RPC (không tự tính).
+function bandCho(r, cac) {
+  if (!cac || !r.don_giao || r.don_giao <= 0) return null
+  const avg = Number(r.dt_thuan) * (1 + (Number(cac.vat) || KC_VAT) / 100) / r.don_giao   // giá trị đơn (gồm VAT) TB
+  return (cac.dai || []).find(b => (b.tu == null || avg >= Number(b.tu)) && (b.den == null || avg < Number(b.den))) || null
+}
+function caMaxCho(r, cac) {   // CAC tối đa của dải (cột ĐANG SÁNG, từ RPC) + Chênh = CAC tối đa − CAC thực tế
+  const b = bandCho(r, cac)
+  if (!b || b.chua_co_don) return { max: null, chenh: null }
+  const max = cac.cot_dang_sang === 'ngan_han' ? b.cac_ngan_han : b.cac_dai_han
+  return { max, chenh: (max == null || r.cac == null) ? null : max - r.cac }
+}
+function renderCacDai(j) {
+  const body = $('cac_dai_body'), cot = $('cac_dai_cot'), co = $('cac_dai_co'); if (!body) return
+  const sang = j.cot_dang_sang === 'ngan_han' ? 'ngắn hạn' : 'dài hạn'
+  cot.innerHTML = `<div class="cac-cotline">Cột đang đọc: <b>CAC ${sang}</b> — ${escH(j.ly_do_sang || '')}</div>`
+  if ($('cac_th_ngan')) $('cac_th_ngan').classList.toggle('cac-sang', j.cot_dang_sang === 'ngan_han')
+  if ($('cac_th_dai')) $('cac_th_dai').classList.toggle('cac-sang', j.cot_dang_sang === 'dai_han')
+  const dai = j.dai || [], co3 = []
+  if (dai.some(b => b.k3_chua_tach)) co3.push('Khối ③ chưa tách phần tăng thêm — CAC ngắn hạn tính phần tăng thêm bằng 0')
+  if (dai.some(b => b.thieu_bien)) co3.push('Chưa chốt biên lợi nhuận mục tiêu — cột dài hạn để trống')
+  if (dai.some(b => b.thieu_cac_du_kien)) co3.push('Chưa nhập CAC dự kiến — giá sàn đơn lẻ để trống')
+  co.innerHTML = co3.map(t => `<span class="cac-co">${escH(t)}</span>`).join('')
+  const sangKey = j.cot_dang_sang === 'ngan_han' ? 'cac_ngan_han' : 'cac_dai_han'
+  const cl = k => k === sangKey ? ' class="cac-sang"' : ''
+  let h = ''
+  for (const b of dai) {
+    const san = b.gia_toi_thieu == null ? '—' : fmt(b.gia_toi_thieu) + (b.cac_du_kien_nhap_tay ? '<span class="cac-nhaptay">số nhập tay</span>' : '')
+    h += `<tr${b.chua_co_don ? ' class="cac-rong"' : ''}><td class="l">${escH(b.dai)}</td>`
+      + `<td>${b.chua_co_don ? '—' : b.so_don}</td><td>${b.chua_co_don ? '—' : fmt(b.gia_tri_tb)}</td>`
+      + `<td>${caPct(b.ty_le_sdp)}</td><td>${b.sdp_don == null ? '—' : fmt(b.sdp_don)}</td>`
+      + `<td>${b.khoi3_don == null ? '—' : fmt(b.khoi3_don)}</td>`
+      + `<td${cl('cac_ngan_han')}>${caMon(b.cac_ngan_han)}</td><td${cl('cac_dai_han')}>${caMon(b.cac_dai_han)}</td>`
+      + `<td>${san}</td></tr>`
+  }
+  body.innerHTML = h || `<tr><td class="l" colspan="9">Chưa có dải nào.</td></tr>`
+}
+function wireCacTinh() {
+  const bt = $('cac_tinh'), inp = $('cac_dukien'); if (!bt || bt._wired) return
+  bt._wired = true
+  if (inp) inp.addEventListener('input', () => fmtMoneyEl(inp))
+  bt.onclick = async () => {
+    const raw = ((inp && inp.value) || '').replace(/\D/g, '')
+    CAC_DUKIEN = raw === '' ? null : Number(raw)
+    const { data: j, error } = await sb.rpc('cac_toi_da_ky', CAC_DUKIEN == null ? { p_ky: KY } : { p_ky: KY, p_cac_du_kien: CAC_DUKIEN })
+    const msg = $('cac_dai_msg')
+    if (error) { msg.className = 'hint cac-err'; msg.textContent = 'Lỗi: ' + error.message; return }
+    msg.className = 'hint'; msg.textContent = CAC_DUKIEN == null ? 'Bỏ trống → giá sàn để trống.' : `Giá sàn tính với CAC dự kiến ${fmt(CAC_DUKIEN)} đ (số nhập tay).`
+    renderCacDai(j)
+  }
+}
+
+// ══════════ WP-76 L-76g · Số món/đơn theo TRỤC (đọc v_mon_chu_de + đơn thật; client KHÔNG re-tính SDĐP) ══════════
+let CD_TRUC = 'chu_de'
+const CD_TEN = { chu_de: 'Chủ đề', nguoi_ban: 'Người bán', thuong_hieu: 'Thương hiệu', kenh: 'Kênh' }
+const cdRatio = (a, b) => b > 0 ? (a / b).toFixed(1).replace('.', ',') : '—'
+const kyRange = () => { const [y, m] = KY.split('-').map(Number); const to = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`; return [KY + '-01', to] }
+function bandGia(gc, cac) { if (!cac) return null; return (cac.dai || []).find(b => (b.tu == null || gc >= Number(b.tu)) && (b.den == null || gc < Number(b.den))) || null }
+async function taiMonTruc() {
+  const body = $('cd_body'), th = $('cd_th_truc'); if (!body) return
+  if (th) th.textContent = CD_TEN[CD_TRUC]
+  const [from, to] = kyRange()
+  const [donR, monR, gvR, ndR, cacR, ltR, dlR, slR, smR] = await Promise.all([
+    sb.from('don_hang').select('id,ma_don,gia_chot,so_mon,sale_phu_trach,thuong_hieu,nguon_khach').eq('trang_thai', 'da_giao').eq('la_demo', false).gte('ngay_giao', from).lt('ngay_giao', to),
+    sb.from('v_mon_chu_de').select('mon_id,don_id,loai_ma,loai_ten'),
+    sb.from('don_hang_gia_von').select('ma_don,khoi_3'),
+    sb.from('nguoi_dung').select('id,ho_ten'),
+    sb.rpc('cac_toi_da_ky', { p_ky: KY }),
+    sb.from('loai_thuong_mai').select('ma,ten,dang_bat'),
+    sb.from('dong_loai').select('dong_ma,loai_ma'),
+    sb.from('san_pham_loi').select('ma_loi,dong_id'),
+    sb.from('san_pham_mau').select('ma_loi')
+  ])
+  const err = [donR, monR, gvR, cacR, ltR].find(r => r.error)
+  if (err) { body.innerHTML = `<tr><td class="l cac-err" colspan="8">Lỗi tải số món theo trục: ${escH(err.error.message)}</td></tr>`; return }
+  const cac = cacR.data, sangKey = cac && cac.cot_dang_sang === 'ngan_han' ? 'cac_ngan_han' : 'cac_dai_han'
+  const donMap = new Map((donR.data || []).map(d => [d.id, d]))
+  const k3Map = new Map((gvR.data || []).map(g => [g.ma_don, Number(g.khoi_3)]))
+  const ndMap = new Map((ndR.data || []).map(n => [n.id, n.ho_ten]))
+  // độ phủ chủ đề: loại có sản phẩm (chain lõi→dòng→dong_loai)
+  const maus = new Set((smR.data || []).map(x => x.ma_loi))
+  const dongCoMau = new Set((slR.data || []).filter(l => maus.has(l.ma_loi)).map(l => l.dong_id))
+  const loaiCoSP = new Set((dlR.data || []).filter(d => dongCoMau.has(d.dong_ma)).map(d => d.loai_ma))
+  const ltBat = (ltR.data || []).filter(t => t.dang_bat)
+  const chuaCoSP = ltBat.filter(t => !loaiCoSP.has(t.ma)).length
+  window.__cd_dophu = { loai_co_sp: loaiCoSP.size, tong_loai: ltBat.length }   // cho báo cáo
+  // gộp theo trục — chỉ MÓN của đơn thật đã giao trong kỳ
+  const keyOf = (mon, don) => {
+    if (CD_TRUC === 'chu_de') return mon.loai_ma == null ? { k: '__chuagan', ten: 'Chưa gán chủ đề' } : { k: mon.loai_ma, ten: mon.loai_ten || mon.loai_ma }
+    if (CD_TRUC === 'nguoi_ban') return { k: don.sale_phu_trach || '__ks', ten: don.sale_phu_trach ? (ndMap.get(don.sale_phu_trach) || '(người bán)') : '(chưa gán người bán)' }
+    if (CD_TRUC === 'thuong_hieu') return { k: don.thuong_hieu || '__kb', ten: don.thuong_hieu ? tenBrand(don.thuong_hieu) : '(chưa ghi thương hiệu)' }
+    return { k: don.nguon_khach || '__kk', ten: KC_KMAP[don.nguon_khach] || don.nguon_khach || '(chưa ghi kênh)' }
+  }
+  const G = new Map()
+  for (const mon of (monR.data || [])) {
+    const don = donMap.get(mon.don_id); if (!don) continue   // chỉ đơn thật đã giao trong kỳ
+    const { k, ten } = keyOf(mon, don)
+    let g = G.get(k); if (!g) { g = { ten, dons: new Set(), soMon: 0, k3PerMon: [], cacs: [] }; G.set(k, g) }
+    g.dons.add(don.id); g.soMon++
+    const sm = Number(don.so_mon) || 0, k3 = k3Map.get(don.ma_don)
+    if (k3 != null && sm > 0) g.k3PerMon.push(k3 / sm)
+    const b = bandGia(Number(don.gia_chot), cac); if (b && b[sangKey] != null) g.cacs.push(Number(b[sangKey]))
+  }
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null
+  const rowFor = g => {
+    const nDon = g.dons.size, gtTB = avg([...g.dons].map(id => Number(donMap.get(id).gia_chot) || 0))
+    return `<td>${nDon}</td><td>${g.soMon}</td><td>${cdRatio(g.soMon, nDon)}</td>`
+      + `<td>${gtTB == null ? '—' : fmt(Math.round(gtTB))}</td><td>—</td>`   // SDĐP theo trục: cần RPC riêng (kỳ 08=0 đơn)
+      + `<td>${g.k3PerMon.length ? fmt(Math.round(avg(g.k3PerMon))) : '—'}</td>`
+      + `<td>${g.cacs.length ? fmt(Math.round(avg(g.cacs))) : '—'}</td>`
+  }
+  let h = ''
+  for (const [k, g] of [...G].filter(([k]) => !String(k).startsWith('__'))) h += `<tr><td class="l">${escH(g.ten)}</td>${rowFor(g)}</tr>`
+  if (!h) h = `<tr><td class="l" colspan="8" style="color:var(--fnt);padding:22px">Kỳ này chưa có món đã bán (đơn đã giao) — mọi ô để trống.</td></tr>`
+  // hai dòng ĐỘ PHỦ luôn hiện
+  const chuaGan = G.get('__chuagan')
+  h += `<tr class="cd-phu"><td class="l">Chưa gán chủ đề</td><td>${chuaGan ? chuaGan.dons.size : '—'}</td><td>${chuaGan ? chuaGan.soMon : '—'}</td><td colspan="5">món đã bán chưa nối được tới chủ đề nào</td></tr>`
+  h += `<tr class="cd-phu"><td class="l">${chuaCoSP} chủ đề chưa có sản phẩm nào</td><td colspan="7">trong ${ltBat.length} chủ đề đang bật — đây là độ phủ danh mục, không gộp vào tổng</td></tr>`
+  body.innerHTML = h
+}
+function wireCdTruc() {
+  const box = $('cd_truc'); if (!box || box._wired) return
+  box._wired = true
+  box.querySelectorAll('button').forEach(bt => bt.onclick = () => { CD_TRUC = bt.dataset.t; box.querySelectorAll('button').forEach(x => x.classList.toggle('cd-chon', x === bt)); taiMonTruc() })
+}
+
+// ══════════ WP-76 L-76g · Giờ thiết kế trên ĐƠN THUA theo người bán (tiền giờ = "—", chưa có đơn giá) ══════════
+async function taiGioThua() {
+  const body = $('tk_body'); if (!body) return
+  const [donR, gioR, ndR] = await Promise.all([
+    sb.from('don_hang').select('ma_don,sale_phu_trach,trang_thai').in('trang_thai', ['huy', 'bao_gia_treo']),
+    sb.from('gio_thiet_ke_thuc').select('ma_don,gio_thuc'),
+    sb.from('nguoi_dung').select('id,ho_ten')
+  ])
+  const err = [donR, gioR].find(r => r.error)
+  if (err) { body.innerHTML = `<tr><td class="l cac-err" colspan="4">Lỗi tải giờ thiết kế: ${escH(err.error.message)}</td></tr>`; return }
+  const donMap = new Map((donR.data || []).map(d => [d.ma_don, d]))
+  const ndMap = new Map((ndR.data || []).map(n => [n.id, n.ho_ten]))
+  const G = new Map()
+  for (const g of (gioR.data || [])) {
+    const don = donMap.get(g.ma_don); if (!don) continue   // chỉ đơn THUA (huỷ / báo giá treo)
+    const k = don.sale_phu_trach || '__ks'
+    let x = G.get(k); if (!x) { x = { ten: don.sale_phu_trach ? (ndMap.get(don.sale_phu_trach) || '(người bán)') : '(chưa gán người bán)', dons: new Set(), gio: 0 }; G.set(k, x) }
+    x.dons.add(g.ma_don); x.gio += Number(g.gio_thuc) || 0
+  }
+  let h = ''
+  for (const [, x] of G) h += `<tr><td class="l">${escH(x.ten)}</td><td>${x.dons.size}</td><td>${x.gio ? x.gio.toFixed(1).replace('.', ',') : '—'}</td><td>— <span class="tk-nhan">chưa có đơn giá giờ TK</span></td></tr>`
+  body.innerHTML = h || `<tr><td class="l" colspan="4" style="color:var(--fnt);padding:22px">Chưa có giờ thiết kế ghi trên đơn thua — để trống.</td></tr>`
 }
 
 // ══════════ WP-70 L-03 · Kênh & CAC theo LUỒNG + CHỦ ĐỀ (cac_theo_luong_loai) — client KHÔNG tính ══════════

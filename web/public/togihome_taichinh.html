@@ -366,6 +366,35 @@
   #tc .cl-cot2 .v.do { color:var(--rd); }
   #tc .cl-cot2 .d { font-size:12px; color:var(--fnt); margin-top:4px; }
   @media(max-width:700px){ #tc .cc-key{grid-template-columns:1fr 1fr} #tc .cl-cot2{grid-template-columns:1fr} #tc .cl-cot2>div{border-right:0;border-bottom:1px solid var(--bd)} }
+  /* WP-76 L-76f · KHỐI CAC tối đa theo dải giá trị đơn — class tiền tố cac- (tránh đụng class .mo/.kc-) */
+  #tc table.cac-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  #tc table.cac-tbl th { text-align:right; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); font-weight:500; border-bottom:1px solid var(--bdS); padding:0 10px 8px; vertical-align:bottom; white-space:nowrap; }
+  #tc table.cac-tbl th.l { text-align:left; padding-left:0; }
+  #tc table.cac-tbl td { border-bottom:1px solid var(--bd); padding:9px 10px; text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #tc table.cac-tbl td.l { text-align:left; font-family:inherit; padding-left:0; }
+  #tc table.cac-tbl tr.cac-rong td { color:var(--fnt); }
+  #tc table.cac-tbl th.cac-sang, #tc table.cac-tbl td.cac-sang { background:var(--gnB); box-shadow:inset 3px 0 0 var(--gn); }
+  #tc .cac-am { color:var(--rd); }
+  #tc .cac-cotline { font-size:13px; color:var(--tx); background:var(--raise); border:1px solid var(--bdS); border-left:3px solid var(--gn); border-radius:8px; padding:11px 14px; margin:0 0 12px; line-height:1.55; }
+  #tc .cac-cotline b { font-family:var(--mono); }
+  #tc .cac-co-wrap { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+  #tc .cac-co { display:inline-block; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px; background:var(--amB); color:var(--am); border:1px solid var(--am); line-height:1.4; }
+  #tc .cac-nhaptay { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em; padding:1px 6px; border-radius:3px; text-transform:uppercase; background:var(--amB); color:var(--am); margin-left:6px; }
+  #tc .cac-sanbox { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; padding-top:12px; border-top:1px solid var(--bd); }
+  #tc .cac-sanbox input { width:170px; padding:8px 10px; border:1px solid var(--bdS); border-radius:7px; font-family:var(--mono); }
+  #tc .cac-err { color:var(--rd); font-weight:600; }
+  /* WP-76 L-76g · khối Số món/đơn theo trục (cd-) + Giờ thiết kế đơn thua (tk-) */
+  #tc table.cd-tbl, #tc table.tk-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  #tc table.cd-tbl th, #tc table.tk-tbl th { text-align:right; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); font-weight:500; border-bottom:1px solid var(--bdS); padding:0 10px 8px; white-space:nowrap; }
+  #tc table.cd-tbl th.l, #tc table.tk-tbl th.l { text-align:left; padding-left:0; }
+  #tc table.cd-tbl td, #tc table.tk-tbl td { border-bottom:1px solid var(--bd); padding:9px 10px; text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #tc table.cd-tbl td.l, #tc table.tk-tbl td.l { text-align:left; font-family:inherit; padding-left:0; }
+  #tc table.cd-tbl tr.cd-phu td { background:var(--raise); color:var(--am); font-weight:600; }
+  #tc .cd-truc { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  #tc .cd-truc button { padding:6px 14px; border:1px solid var(--bdS); background:var(--surface); border-radius:7px; cursor:pointer; font-size:13px; color:var(--tx); }
+  #tc .cd-truc button.cd-chon { background:var(--tx); color:#fff; border-color:var(--tx); }
+  #tc .cd-note, #tc .tk-note { font-size:12px; color:var(--fnt); margin-top:12px; line-height:1.55; }
+  #tc .tk-nhan { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.04em; padding:1px 6px; border-radius:3px; text-transform:uppercase; background:var(--amB); color:var(--am); }
 </style>
 <div id="tc"><div class="app">
   <aside class="nav">
@@ -645,8 +674,47 @@
         <div class="cb" style="overflow-x:auto"><table class="kc-tbl"><thead><tr>
           <th class="kc-lbl">Kênh</th><th class="r">Đơn giao</th><th class="r">Khách mới</th>
           <th class="kc-ads r">Chi ads</th><th class="kc-ads r">CAC</th>
+          <th class="r">CAC tối đa</th><th class="r">Chênh</th>
           <th class="r">DT thuần</th><th class="r">CM kênh</th><th class="r">CM sau ads</th>
         </tr></thead><tbody id="kc_body"><tr><td class="kc-lbl">Đang tải…</td></tr></tbody><tfoot id="kc_foot"></tfoot></table></div>
+      </section>
+      <section class="card" id="cac_dai_card">
+        <div class="ch"><h2>CAC tối đa theo dải giá trị đơn</h2><span class="hint">trần chi thu hút một khách theo cỡ đơn — cột đang đọc do năng lực xưởng quyết (ngắn hạn khi kín · dài hạn khi trống)</span></div>
+        <div class="cb">
+          <div id="cac_dai_cot"></div>
+          <div class="cac-co-wrap" id="cac_dai_co"></div>
+          <div style="overflow-x:auto"><table class="cac-tbl"><thead><tr>
+            <th class="l">Dải giá trị đơn</th><th>Số đơn</th><th>Giá trị TB</th><th>Tỷ lệ SDĐP</th><th>SDĐP/đơn</th><th>Khối ③/đơn</th>
+            <th id="cac_th_ngan">CAC ngắn hạn</th><th id="cac_th_dai">CAC dài hạn</th><th>Giá sàn đơn lẻ</th>
+          </tr></thead><tbody id="cac_dai_body"><tr><td class="l">Đang tải…</td></tr></tbody></table></div>
+          <div class="cac-sanbox">
+            <label class="hint" for="cac_dukien">CAC dự kiến cho một khách mới (đồng):</label>
+            <input id="cac_dukien" class="money" inputmode="numeric" placeholder="vd 800.000">
+            <button class="btn" id="cac_tinh">Tính giá sàn</button>
+            <span class="hint" id="cac_dai_msg"></span>
+          </div>
+        </div>
+      </section>
+      <section class="card" id="cd_card">
+        <div class="ch"><h2>Số món / đơn theo trục</h2><span class="hint">đếm từ MÓN ĐÃ BÁN (đơn đã giao trong kỳ, KHÔNG tính demo) — chọn trục để đổi cách gộp</span></div>
+        <div class="cb">
+          <div class="cd-truc" id="cd_truc">
+            <button data-t="chu_de" class="cd-chon">Chủ đề</button><button data-t="nguoi_ban">Người bán</button><button data-t="thuong_hieu">Thương hiệu</button><button data-t="kenh">Kênh</button>
+          </div>
+          <div style="overflow-x:auto"><table class="cd-tbl"><thead><tr>
+            <th class="l" id="cd_th_truc">Chủ đề</th><th>Số đơn</th><th>Số món</th><th>Món/đơn</th><th>Giá trị TB/đơn</th><th>SDĐP</th><th>Khối ③/món</th><th>CAC tối đa TB</th>
+          </tr></thead><tbody id="cd_body"><tr><td class="l">Đang tải…</td></tr></tbody></table></div>
+          <p class="cd-note">Khối ③ <b>chia đều cho số món trong đơn</b> (k3 lưu cả đơn). Số ở đây đếm từ <b>món đã bán</b> — KHÁC con số theo loại suy từ lead ở app Quảng cáo; hai chỗ KHÔNG cộng được.</p>
+        </div>
+      </section>
+      <section class="card" id="tk_card">
+        <div class="ch"><h2>Giờ thiết kế trên đơn thua</h2><span class="hint">theo người bán · tạm nhận đơn thua theo TRẠNG THÁI (huỷ · báo giá treo) — chia theo lý do thua là việc WP-72</span></div>
+        <div class="cb">
+          <div style="overflow-x:auto"><table class="tk-tbl"><thead><tr>
+            <th class="l">Người bán</th><th>Số đơn thua</th><th>Giờ thiết kế</th><th>Tiền giờ TK</th>
+          </tr></thead><tbody id="tk_body"><tr><td class="l">Đang tải…</td></tr></tbody></table></div>
+          <p class="tk-note">Cột tiền giờ để trống + nhãn "chưa có đơn giá giờ thiết kế": sổ lương kỳ này không có nhóm thiết kế nên KHÔNG quy ra tiền bằng hoa hồng % hay số suy nào.</p>
+        </div>
       </section>
       <section class="card">
         <div class="ch"><h2>Nhập chi ads kỳ</h2><span class="hint">mỗi dòng gắn THƯƠNG HIỆU + KÊNH · chi tiết FB/Google ghi vào ghi chú · nhập số ĐÚNG HOÁ ĐƠN (gồm VAT), máy bóc VAT theo tham số kỳ</span></div>
