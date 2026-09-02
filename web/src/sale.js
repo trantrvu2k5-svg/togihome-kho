@@ -241,13 +241,20 @@ async function _set(k, jsonStr) {
         const { error } = await sb.rpc('chot_don', { p_don_id: dd.id, p_nguon_khach: d.nguonKhach || null, p_thuong_hieu: d.brand || null })
         if (error) throw new Error(error.message)
       } else {                                              // da_giao · bao_gia* · tam_ngung · huy (đích khác -> DB gác)
-        const { error } = await sb.rpc('doi_trang_thai_don', { p_don_id: dd.id, p_trang_thai_moi: denDB, p_ly_do: d.lyDo || null })
+        // [WP-72] bao_gia_thua: cổng bản mới bắt p_ly_do_thua (danh mục đóng) + p_ghi_chu_thua.
+        const { error } = await sb.rpc('doi_trang_thai_don', { p_don_id: dd.id, p_trang_thai_moi: denDB, p_ly_do: d.lyDo || null,
+          p_ly_do_thua: denDB === 'bao_gia_thua' ? (d.lyDoThua || null) : null,
+          p_ghi_chu_thua: denDB === 'bao_gia_thua' ? (d.ghiChuThua || null) : null })
         if (error) throw new Error(error.message)
       }
     }
-    // ĐƠN CŨ còn upsert cột dữ liệu (KHÔNG trang_thai — đã đi RPC). Đơn MỚI đã tao_don ở trên, KHÔNG upsert lại.
-    const rows = doiOrMoi.filter(d => snap[d.ma]).map(d => { const r = rowCua(d); delete r.trang_thai; return r })
-    if (rows.length) { const { error } = await sb.from('don_hang').upsert(rows, { onConflict: 'ma_don' }); if (error) throw error }
+    // ĐƠN CŨ: UPDATE cột dữ liệu (KHÔNG upsert — client KHÔNG có INSERT sau QD-66/67, .upsert INSERT-on-conflict → 403).
+    //   [WP-72 L-72d] trang_thai/ly_do_thua/ghi_chu_thua là cột CỔNG (doi_trang_thai_don, QD-64/66) — xoá khỏi payload, client không ghi thẳng.
+    for (const d of doiOrMoi.filter(d => snap[d.ma])) {
+      const r = rowCua(d); delete r.trang_thai; delete r.ly_do_thua; delete r.ghi_chu_thua; delete r.ma_don
+      const { error } = await sb.from('don_hang').update(r).eq('ma_don', d.ma)
+      if (error) throw new Error(error.message)   // RAISE nguyên văn -> banner đỏ (không nuốt)
+    }
     mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.ma, JSON.stringify(d)]))   // cập nhật snapshot
     // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB
     //   -> đó là ý đồ XOÁ -> BÁO RÕ, không .delete() im lặng. Muốn bỏ đơn thì chuyển trạng thái (huỷ/tạm ngưng).
@@ -364,6 +371,12 @@ window.saleApi = {
   banChoGui: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data },
   // màn báo giá (db/091) — {tong, ds:[đơn báo giá + gd]}. App tự tính ô/lọc như v5. Sale KHÔNG thấy giá vốn.
   baoGiaDs: async (gioiHan = 1000) => { const { data, error } = await sb.rpc('sale_bao_gia_ds', { p_gioi_han: gioiHan }); if (error) throw error; return data },
+  // [WP-72] đếm 3 nhóm hạn (quá hạn / sắp hết hạn ≤3 ngày / còn hạn) + tiền, cho khối đầu màn. Chỉ đơn thật (loại demo).
+  baoGiaHanDem: async () => { const { data, error } = await sb.rpc('sale_bao_gia_han_dem'); if (error) throw error; return data },
+  // [WP-72] Đánh dấu THUA (cổng bản mới bắt lý do trong 5 giá trị) — cửa "Đánh dấu thua" gọi thẳng, không qua batch upsert.
+  danhDauThua: async (donId, lyDoThua, ghiChuThua = null) => { const { data, error } = await sb.rpc('doi_trang_thai_don', { p_don_id: donId, p_trang_thai_moi: 'bao_gia_thua', p_ly_do: null, p_ly_do_thua: lyDoThua, p_ghi_chu_thua: ghiChuThua || null }); if (error) throw error; return data },
+  // [WP-72] sale sửa hạn trả lời tay (dh_sua RLS) — trigger không ghi đè giá trị đã có.
+  datHan: async (maDon, han) => { const { error } = await sb.from('don_hang').update({ han_tra_loi: han || null }).eq('ma_don', maDon); if (error) throw error; return true },
   // dải 6 số mặt-đồng-hồ màn Báo giá (db/099) — {so1..so6, tong_funnel, nguong_tam}. KHÔNG giá vốn. n nhỏ → app dán [TẠM].
   daiSoBaoGia: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_dai_so_bao_gia', { p_gioi_han: gioiHan }); if (error) throw error; return data },
   // sale ghi phản hồi khách (dùng lại phan_hoi_ban db/051): khach_duyet | khach_doi_y | chua_dung_yeu_cau

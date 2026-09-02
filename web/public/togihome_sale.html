@@ -2111,6 +2111,63 @@ function NhomMan({ db, moDon, reload }) {
     el("div", { className: "nh-hdr" }, el("h1", null, "Nhóm của tôi"), el("p", null, "Đơn của cả nhóm — chỉ đọc. Đổi người phụ trách + mở đơn tại chỗ.")),
     khoi1, khoi2, khoi3);
 }
+/* ==== [WP-72] Hạn trả lời báo giá — class tiền tố bg72- (luật 00) ==== */
+const BG72_CSS = ".bg72-khoi{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px}"
+  + ".bg72-o{flex:1 1 160px;min-width:150px;border:1px solid #E3E7EF;border-radius:10px;padding:10px 12px;background:#fff}"
+  + ".bg72-o b{font-size:20px;font-weight:800;display:block;font-variant-numeric:tabular-nums}"
+  + ".bg72-o p{font-size:12px;color:#6B7488;margin:2px 0 0}.bg72-o .t{font-size:11.5px;color:#98A2B3;margin-top:2px}"
+  + ".bg72-do{border-left:4px solid #C8202E}.bg72-do b{color:#C8202E}"
+  + ".bg72-am{border-left:4px solid #C99A3B}.bg72-am b{color:#8A5A05}"
+  + ".bg72-xanh{border-left:4px solid #175E24}.bg72-xanh b{color:#175E24}"
+  + ".bg72-trong{color:#6B7488;font-size:13px;padding:12px;border:1px dashed #D3D9E4;border-radius:10px;background:#FAFBFC;margin:4px 0 12px}"
+  + ".bg72-han{display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;flex-wrap:wrap}"
+  + ".bg72-den{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}"
+  + ".bg72-den-do{background:#C8202E}.bg72-den-am{background:#C99A3B}.bg72-den-xanh{background:#175E24}"
+  + ".bg72-han-sua{background:none;border:0;color:#3B6CB0;cursor:pointer;font-size:11.5px;text-decoration:underline;padding:0}"
+  + ".bg72-han-in{border:1px solid #D3D9E4;border-radius:6px;padding:3px 5px;font-size:12px}"
+  + ".bg72-loc{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}"
+  + ".bg72-chip{padding:4px 11px;border:1px solid #D3D9E4;border-radius:16px;background:#fff;cursor:pointer;font-size:12.5px}"
+  + ".bg72-chip.on{background:#131A2B;color:#fff;border-color:#131A2B}";
+// khối đầu tab: 3 ô hạn (đọc sale_bao_gia_han_dem — chỉ đơn THẬT). 0 đơn thật → trạng thái trống, không vẽ số 0 giả.
+function HanKhoiWP72() {
+  const el = React.createElement;
+  const [d, setD] = useState(undefined);
+  useEffect(() => {
+    if (!(window.saleApi && window.saleApi.baoGiaHanDem)) { setD(null); return; }
+    let alive = true;
+    window.saleApi.baoGiaHanDem().then(r => { if (alive) setD(r); }).catch(() => { if (alive) setD(null); });
+    return () => { alive = false; };
+  }, []);
+  const tr = n => !+n ? "0" : (+n / 1e6).toFixed(1) + " tr";
+  if (d === undefined) return el("div", { className: "bg72-trong" }, "Đang tải hạn báo giá…");
+  if (!d || !d.tong_don) return el("div", null, el("style", null, BG72_CSS), el("div", { className: "bg72-trong" }, "Chưa có báo giá nào cần đòi trả lời."));
+  const o = (cls, x, nhan, tip) => el("div", { className: "bg72-o " + cls }, el("b", null, x.so), el("p", null, nhan), el("div", { className: "t" }, tr(x.tien) + " · " + tip));
+  return el("div", null, el("style", null, BG72_CSS),
+    el("h3", { style: { fontSize: 13, margin: "2px 0 6px", color: "#101828" } }, "Báo giá cần đòi trả lời"),
+    el("div", { className: "bg72-khoi" },
+      o("bg72-do", d.qua_han, "Quá hạn", "gọi ngay"),
+      o("bg72-am", d.sap_het_han, "Hết hạn trong 3 ngày", "sắp tới"),
+      o("bg72-xanh", d.con_han, "Còn hạn", "theo dõi")));
+}
+// ô hạn + đèn trong dòng danh sách; bấm "sửa" để đặt hạn tay (saleApi.datHan → dh_sua, trigger không ghi đè).
+function HanOWP72({ b, reload }) {
+  const el = React.createElement;
+  const [sua, setSua] = useState(false), [v, setV] = useState(b.han_tra_loi ? String(b.han_tra_loi).slice(0, 10) : "");
+  if (b.gd === "thua" || b.gd === "treo") return null;
+  const den = b.nhom === "qua_han" ? "do" : b.nhom === "sap_het_han" ? "am" : "xanh";
+  const dmy = s => s ? (String(s).slice(8, 10) + "/" + String(s).slice(5, 7)) : "—";
+  const conTxt = b.so_ngay_con == null ? "" : b.so_ngay_con < 0 ? (" · quá " + (-b.so_ngay_con) + " ngày") : (" · còn " + b.so_ngay_con + " ngày");
+  const luu = async () => { try { await window.saleApi.datHan(b.ma_don, v || null); setSua(false); if (reload) reload(); } catch (e) { alert(e.message); } };
+  if (sua) return el("div", { className: "bg72-han" },
+    el("input", { className: "bg72-han-in", type: "date", value: v, onChange: e => setV(e.target.value) }),
+    el("button", { className: "bg72-han-sua", onClick: luu }, "Lưu"),
+    el("button", { className: "bg72-han-sua", onClick: () => setSua(false) }, "Huỷ"));
+  return el("div", { className: "bg72-han" },
+    el("span", { className: "bg72-den bg72-den-" + den }),
+    el("span", null, "hạn " + dmy(b.han_tra_loi) + conTxt),
+    el("button", { className: "bg72-han-sua", onClick: () => setSua(true) }, "sửa"));
+}
+
 function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const el = React.createElement;
   const [f, setF] = useState({ tt: initFilter || "can", ai: "", loai: "", th: "", ngay: "", tim: "", ptr: "" });
@@ -2137,7 +2194,7 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const ds = data.ds || [];
   const dangMo = b => b.gd !== "thua" && b.gd !== "treo";
   const canLam = b => dangMo(b) && (b.gd === "chua_nhan" || b.gd === "ban_moi" || b.gd === "du_len_don" || (b.gd === "da_gui" && b.cho_khach >= 4));
-  const oCond = (b, tt) => tt === "can" ? canLam(b) : tt === "mo" ? dangMo(b) : tt === "cho_lau" ? (b.gd === "da_gui" && b.cho_khach >= 4) : tt === "treo_lau" ? (b.gd === "treo" && b.mo_ngay >= 25) : tt === "tat" ? true : b.gd === tt;
+  const oCond = (b, tt) => tt === "can" ? canLam(b) : tt === "mo" ? dangMo(b) : tt === "cho_lau" ? (b.gd === "da_gui" && b.cho_khach >= 4) : tt === "treo_lau" ? (b.gd === "treo" && b.mo_ngay >= 25) : tt === "qua_han" ? b.nhom === "qua_han" : tt === "sap_het_han" ? b.nhom === "sap_het_han" : tt === "tat" ? true : b.gd === tt;   // [WP-72] lọc theo hạn
   const dem = tt => ds.filter(b => oCond(b, tt)).length;
   const passF = b => oCond(b, f.tt) && !(f.ptr && b.sale_phu_trach !== f.ptr) && !(f.ai === "chua" && b.gd !== "chua_nhan") && !(f.ai === "da" && b.gd === "chua_nhan") && !(f.loai && b.loai !== f.loai) && !(f.th && b.thuong_hieu !== f.th) && !(f.ngay === "chua" && !b.chua_co_ngay) && !(f.ngay === "co" && b.chua_co_ngay) && !(f.tim && (b.ma_don + " " + b.ten_khach + " " + (b.mon_ten || "")).toLowerCase().indexOf(f.tim.toLowerCase()) < 0);
   const list = ds.filter(passF);
@@ -2180,6 +2237,7 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const oNgayTien = b => el("div", { className: "bg-ngay3" },
     b.ngay_hen ? el("div", { className: "bg-d" }, el("span", null, "hẹn"), el("b", null, dmy(b.ngay_hen))) : el("div", { className: "bg-chua" }, "chưa hẹn ngày giao"),
     xongLine(b),
+    el(HanOWP72, { b: b, reload: reload, key: "han72" }),
     el("div", { className: "bg-tien" }, tr(b.tien)), el("div", { className: "bg-tien-phu" }, b.tien == null ? "chưa có giá bán" : "giá bán"));
   // ── nút hàng ──
   const nut = b => b.gd === "du_len_don" ? [el("button", { key: 1, className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn")]
@@ -2258,7 +2316,11 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
   const COTS = [["chua_nhan", "Chưa ai nhận dựng"], ["ban_moi", "Có bản mới, chưa gửi"], ["da_gui", "Chờ khách"], ["sua_gop_y", "Khách chê, chờ bản mới"], ["du_len_don", "Khách duyệt bản"]];
   const cotView = el("div", { className: "bg-the-ct" }, theDau,
     el("div", { className: "bg-cot-wrap" }, COTS.map(kk => { const cards = ds.filter(b => oCond(b, kk[0])); return el("div", { className: "bg-cot", key: kk[0] }, el("div", { className: "bg-cot-hd" }, el("b", null, kk[1]), el("i", null, cards.length)), el("div", { className: "bg-cot-body" }, cards.length ? cards.map(the2) : el("div", { className: "bg-cot-rong" }, "—"))); })));
-  return el("div", { className: "bg-man" }, header, bang, kt, daiSo, kieu === "cot" ? cotView : dsView);
+  // [WP-72] chip lọc theo hạn: Tất cả / Quá hạn / Sắp hết hạn / Đang treo
+  const locHan = el("div", { className: "bg72-loc" },
+    [["tat", "Tất cả"], ["qua_han", "Quá hạn"], ["sap_het_han", "Sắp hết hạn"], ["treo", "Đang treo"]].map(o =>
+      el("button", { key: o[0], className: "bg72-chip" + (f.tt === o[0] ? " on" : ""), onClick: () => set1("tt", o[0]) }, o[1])));
+  return el("div", { className: "bg-man" }, el("style", null, BG72_CSS), el(HanKhoiWP72, { key: "hk72" }), header, bang, kt, locHan, daiSo, kieu === "cot" ? cotView : dsView);
 }
 
 

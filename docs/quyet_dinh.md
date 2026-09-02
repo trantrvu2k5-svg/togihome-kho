@@ -1496,3 +1496,18 @@ vai mới, cửa ghi vẫn một `lead_ghi`. Bảng **`lead_moc_keo`** (mốc k�
 để L-02b không kéo lại từ đầu; ghi qua `lead_moc_ghi` (cùng cửa GUC).
 
 **Trạng thái:** ĐÃ CHẠY (db/176; `test_lead` 18/0 gồm ca chặn lỗi mapping). CHƯA commit/tag.
+
+## QD-94 (02/09, WP-72 L-72, db/035+036 bù + db/209) — VÒNG ĐỜI BÁO GIÁ: ba trạng thái · thua bắt lý do · hạn trả lời tham số · quá hạn chỉ bật đèn · CHỐT
+
+Trả nợ vùng tối 03 §D (luồng báo giá db/035+036 ra đời KHÔNG có QD). Chốt cấu trúc:
+
+- **BA trạng thái báo giá, mỗi cái một lý do tồn tại:**
+  - `bao_gia` — đơn đang chào giá, CHƯA cam kết: bỏ qua mọi cổng chốt giá, không doanh thu, không kéo vào `he_so_m`. Đứng TRƯỚC `moi_len_don`.
+  - `bao_gia_treo` — khách chưa trả lời dứt khoát (còn cân nhắc): kết thúc TẠM, **KHÔNG bắt lý do** (chưa có kết luận để ghi).
+  - `bao_gia_thua` — khách đã từ chối: kết thúc DỨT, **BẮT BUỘC `ly_do_thua`** (danh mục đóng 5 giá trị `gia_cao/cham/doi_y/chon_noi_khac/khac`) + `ghi_chu_thua` tuỳ chọn — để phân tích vì sao mất đơn.
+- **Thua bắt lý do, treo không.** Ép ở HAI tầng: cổng `doi_trang_thai_don` (bản mới, nhận `p_ly_do_thua`, từ chối sớm với câu tiếng Việt) VÀ trigger `moc_bao_gia` (chốt cuối, chặn cả UPDATE thẳng). Không nới trigger.
+- **Hạn trả lời có THAM SỐ theo loại đơn** (`han_bao_gia_mac_dinh`, khoảng hiệu lực khuôn QD-93): đơn lẻ (`dong` ≠ du_an) = **7 ngày**, dự án (`dong='du_an'`) = **21 ngày** [TẠM]. `moc_bao_gia` tự đặt `han_tra_loi = ngay_tao_bao_gia::date + so_ngay` khi vào `bao_gia` nếu chưa có; **sale sửa được từng đơn**, trigger KHÔNG ghi đè giá trị đã có.
+- **Quá hạn CHỈ bật đèn, máy KHÔNG tự đóng đơn thay sale.** `han_tra_loi` quá hạn → màn hiện nhóm `qua_han`/`sap_het_han` (≤3 ngày) để sale ĐÒI khách trả lời; trạng thái đơn giữ nguyên tới khi sale tự đánh dấu thua/treo.
+- **Lý do:** ERP (Sagegg&Alfnes §5.5.1) nói theo dõi báo giá SẮP HẾT HẠN để đòi khách trả lời — KHÔNG nói tự đóng. Máy tự đóng đơn = máy quyết thay người (họ QD-69: việc thật của người thắng số máy suy).
+
+**Trạng thái:** db/209 (`han_tra_loi` + `han_bao_gia_mac_dinh` + `moc_bao_gia` mở rộng + `doi_trang_thai_don` bản mới + `sale_bao_gia_ds` bổ sung + `sale_bao_gia_han_dem`). UI `togihome_sale.html`/`sale.js`. CHƯA commit/tag — chờ CEO kiểm mắt.
