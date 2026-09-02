@@ -32,11 +32,18 @@ export async function layTaiKhoan(fetchFn, token) {
   return out
 }
 
-// Insights cấp ad × ngày (7 ngày gần nhất) của MỘT tài khoản.
-export async function layInsights(fetchFn, token, act) {
+// Bộ chọn thời gian: range={since,until} → time_range (kéo lại khoảng lịch sử); không có → last_7d (nhịp thường).
+function chonThoiGian(range) {
+  return range && range.since && range.until
+    ? '&time_range=' + encodeURIComponent(JSON.stringify({ since: range.since, until: range.until }))
+    : '&date_preset=last_7d'
+}
+
+// Insights cấp ad × ngày của MỘT tài khoản. inline_link_clicks = bấm-vào-link (cho CTR/CPC); clicks = mọi lượt bấm.
+export async function layInsights(fetchFn, token, act, range) {
   const B = 'https://graph.facebook.com/' + CAPI_V
-  let url = B + '/' + act + '/insights?level=ad&time_increment=1&date_preset=last_7d' +
-    '&fields=ad_id,ad_name,spend,impressions,clicks,date_start&limit=500&access_token=' + encodeURIComponent(token)
+  let url = B + '/' + act + '/insights?level=ad&time_increment=1' + chonThoiGian(range) +
+    '&fields=ad_id,ad_name,spend,impressions,clicks,inline_link_clicks,date_start&limit=500&access_token=' + encodeURIComponent(token)
   const out = []
   for (let i = 0; i < 20 && url; i++) {
     const j = await goi(fetchFn, url)
@@ -47,10 +54,10 @@ export async function layInsights(fetchFn, token, act) {
 }
 
 // Insights cấp CHIẾN DỊCH × ngày (trục chính). objective NGUYÊN TRẠNG. Số Meta cấp campaign = nguồn gốc (không suy từ ad).
-export async function layInsightsChienDich(fetchFn, token, act) {
+export async function layInsightsChienDich(fetchFn, token, act, range) {
   const B = 'https://graph.facebook.com/' + CAPI_V
-  let url = B + '/' + act + '/insights?level=campaign&time_increment=1&date_preset=last_7d' +
-    '&fields=campaign_id,campaign_name,objective,spend,impressions,clicks,date_start&limit=500&access_token=' + encodeURIComponent(token)
+  let url = B + '/' + act + '/insights?level=campaign&time_increment=1' + chonThoiGian(range) +
+    '&fields=campaign_id,campaign_name,objective,spend,impressions,clicks,inline_link_clicks,date_start&limit=500&access_token=' + encodeURIComponent(token)
   const out = []
   for (let i = 0; i < 20 && url; i++) {
     const j = await goi(fetchFn, url)
@@ -69,14 +76,16 @@ export async function keoChiAdsMeta(client, opts = {}) {
   const ketQua = []
   const rows = []      // cấp ad → chi_ads_ngay (giữ nguyên, cho ad tin nhắn)
   const cdRows = []    // cấp CHIẾN DỊCH → chi_chien_dich_ngay (trục chính)
+  const range = opts.range   // {since,until} → kéo lại khoảng lịch sử; không có → last_7d
   for (const a of accts) {
     try {
-      const [ins, insCd] = [await layInsights(fetchFn, token, a.act), await layInsightsChienDich(fetchFn, token, a.act)]
+      const [ins, insCd] = [await layInsights(fetchFn, token, a.act, range), await layInsightsChienDich(fetchFn, token, a.act, range)]
       for (const r of ins) rows.push({
         act_id: a.act_id, ad_id: r.ad_id, ad_name: r.ad_name || null, ngay: r.date_start,
         chi_tieu: Number(r.spend),              // NGUYÊN TRẠNG (không +VAT, không quy đổi)
         hien_thi: r.impressions != null ? Number(r.impressions) : null,
         luot_bam: r.clicks != null ? Number(r.clicks) : null,
+        luot_bam_link: r.inline_link_clicks != null ? Number(r.inline_link_clicks) : null,   // bấm-vào-link (CTR/CPC)
         tien_te: a.currency || 'VND'
       })
       for (const r of insCd) cdRows.push({
@@ -84,7 +93,9 @@ export async function keoChiAdsMeta(client, opts = {}) {
         objective: r.objective || null,         // NGUYÊN TRẠNG (không dịch, không phân loại lại)
         ngay: r.date_start, chi_tieu: Number(r.spend),
         hien_thi: r.impressions != null ? Number(r.impressions) : null,
-        luot_bam: r.clicks != null ? Number(r.clicks) : null, tien_te: a.currency || 'VND'
+        luot_bam: r.clicks != null ? Number(r.clicks) : null,
+        luot_bam_link: r.inline_link_clicks != null ? Number(r.inline_link_clicks) : null,   // bấm-vào-link (CTR/CPC)
+        tien_te: a.currency || 'VND'
       })
       ketQua.push({ ten: a.name, act: a.act, dong: ins.length, dong_cd: insCd.length, loi: null })
     } catch (e) {
