@@ -1614,3 +1614,59 @@ Nối QD-96/97: thu quyền ghi trực tiếp của client (`authenticated`/`ano
 
 **Trạng thái:** db/215+216+217+218 áp prod (dump QD-61). md5 luong_to giữ nguyên; tham_so_tai_chinh đổi ĐÚNG 1 cột (ngay_ap_dung
 kỳ 08) — cố ý (db/218). CHƯA commit/tag — commit gộp + tag ở L-11d-8.
+
+## QD-99 (03/09, WP-14b L-2, db/219) — MÚI GIỜ DB = Asia/Ho_Chi_Minh; ngày nghiệp vụ KHÔNG đi qua UTC · CHỐT
+
+`SHOW timezone` của Postgres = **UTC** → `now()::date` / `current_date` trả **sai ngày mọi lúc 00:00–07:00 giờ VN**
+(đo lúc L-2: `now()::date`=2026-09-02 khi VN đã 2026-09-03). Làm **~170 chỗ nghiệp vụ SQL** sai cùng một kiểu: DEFAULT ngày
+chứng từ · `p_ngay` null→DB điền · hạn báo giá · hạn TT · xếp lịch tuần · cảnh báo đặt hàng · cửa sổ N ngày. **Sửa GỐC** (1 cấu
+hình) thay vì 170 điểm. Đây là **BỆNH LẦN 2** (lần 1: bộ kéo Meta lệch −1 ngày, WP-90).
+
+- **db/219:** `alter database postgres` + `alter role {authenticator, authenticated, anon, service_role, postgres}` **set timezone
+  to 'Asia/Ho_Chi_Minh'`. Ghi vào 6 scope trong `pg_db_role_setting`.
+- **Đường app THẬT (PostgREST) ĐÃ nhận VN:** REST trả `timestamptz` với offset **+07:00** (test canh vế 2). PostgREST nối TRỰC
+  TIẾP (vai `authenticator`) → session mới nhận role-default VN.
+- ⚠ **Node/script nối qua POOLER Supavisor VẪN thấy UTC** (Supavisor ghim `timezone=UTC` ở startup, `RESET timezone`→UTC). Đây
+  KHÔNG phải đường app — chỉ ảnh hưởng script `ops/*`. Kiểm TZ phải qua REST (offset), không qua node.
+- **An toàn (bước 0):** 0 CHECK/index/generated dùng now()/current_date (không dòng nào vi phạm khi đổi). `to_char(now(),'YY')` mã
+  SP/brand: VN đúng hơn, chỉ lệch ở biên 31/12.
+- ⚠ **NỢ NEO PARTITION:** `su_kien_quet` bound cũ neo `+00` (tuyệt đối, KHÔNG dịch). `tao_phan_manh_thang` (db/081) dùng
+  `make_date` → SAU đổi TZ, partition MỚI tạo ở VN-midnight (+07), **lệch/chồng mốc UTC cũ**. 18 partition sẵn tới ~2028-01 nên
+  chưa cấp bách; **NEO offset '+00' cho hàm ở lệnh sau**.
+- **Test canh `test_tz_vn.mjs` 4/0:** catalog 6 scope VN · PostgREST offset +07 · logic VN đúng (mốc '2026-07-01 00:30+07'→date
+  2026-07-01) · **PROVE-RED**: dưới UTC cùng mốc → 2026-06-30 (lùi 1 ngày — canh biết kêu).
+- **Kiểm mắt:** app Tài chính + Kho boot, **console 0 lỗi**, DevTools thật (ảnh `wp14b_taichinh.png`, `wp14b_kho.png`). Tổng tồn
+  bất biến TZ: SUM(ton.so_luong)=6389,84 khớp app(VN)=node(UTC).
+- **PHẠM VI:** L-2 chỉ sửa DB. **JS trình duyệt vẫn dùng `toISOString().slice()` (15 chỗ nghiệp vụ) → còn lệch, sửa ở L-4.**
+  `chot_don` stamp `ma_ky_ap_dung` → L-3.
+
+**Trạng thái:** db/219 áp prod (dump QD-61). Hồi quy: test_tz_vn 4/0 · wp72 7/0 · 091/099/146 · grant×3 · rpc_tham_so 10/0 ·
+ky_tham_so 5/0 · 116 48/0 · 117 24/0 · so_ba_nguon khớp (0 lệch). 0 đỏ mới. CHƯA commit/tag.
+
+## QD-100 (03/09, WP-14b L-3, db/220) — ma_ky_ap_dung = kỳ tham số THỰC DÙNG, đóng dấu lúc chốt bởi chot_don, bất biến · CHỐT
+
+`don_hang.ma_ky_ap_dung` = kỳ tham số THỰC DÙNG lúc chốt đơn, do `chot_don` ghi (qua `kho.ky_gia_hien_hanh()`), **KHÔNG suy từ
+ngày chốt**. **ĐẢO kết luận WP-11c:** cột này THÔI là ứng viên DROP ở WP-11f — nó là bản ghi lịch sử cần thiết.
+
+- **Lý do:** cổng tra giá (`gia_san_don`·`gia_bao_khach`·`tran_giam_gia` + 7 hàm giá) chọn dòng `tham_so_tai_chinh` bằng
+  `order by ngay_ap_dung desc nulls last, ma_ky desc limit 1` = **kỳ MỚI NHẤT, KHÔNG lọc theo ngày**. Kỳ ra giá KHÔNG phải hàm
+  của ngày chốt → **suy ngược theo ngày là SAI nguyên tắc** (không chỉ vì múi giờ — L-2/QD-99 đã vá TZ). Garrison ch.10: đóng dấu
+  tại thời điểm giao dịch. Đo L-3: 3 cổng giá cùng một biểu thức (không phải ba sự thật) → gộp được.
+- **db/220:** `kho.ky_gia_hien_hanh()` = MỘT nguồn sự thật cho "kỳ giá đang dùng" (04 §A cấm nhân bản); `chot_don` GỌI nó (không
+  inline). ⚠ **10 hàm giá còn inline biểu thức y hệt (nợ CŨ, có trước L-3)** → consolidate cho chúng gọi lại ở lệnh riêng (cần
+  golden byte-identical giá, không đụng pricing sống ở lệnh stamp này) — PHÁT SINH.
+- **chot_don:** ghi `ma_ky_ap_dung = coalesce(ma_ky_ap_dung, ky_gia_hien_hanh())` — **chỉ khi NULL, KHÔNG đè**. Trả cờ
+  `thieu_tham_so=(v_ky is null)`: khi chưa có dòng tham số thì NULL + cờ, **KHÔNG chặn sale chốt** (chặn bán hàng vì thiếu tham số
+  hại hơn). Client không gửi gì thêm; cột ngoài whitelist từ db/214, KHÔNG mở lại.
+- **Trigger `trg_chan_sua_ma_ky_ap_dung`:** đông cứng cột sau khi đóng dấu (họ `chot_luc` QD-50 — nhãn đã đóng là lịch sử).
+- **KHÔNG backfill** đơn cũ (0 dòng có giá trị; đơn chốt trước cơ chế không biết kỳ nào — bịa là sai). COMMENT cột ghi rõ NULL =
+  chốt trước cơ chế này.
+- **Test `test_dong_dau_ky.mjs` 5/0:** 3.1 chốt→ma_ky_ap_dung=ky_gia_hien_hanh (2026-08) · 3.2 **cùng ngày, hai kỳ khác nhau**
+  (A=2026-08, B=2026-09) chứng KHÔNG suy theo ngày · 3.3 sửa đã đóng dấu→CHẶN nguyên văn · 3.4 PROVE-RED (gỡ dòng stamp→NULL) ·
+  3.5 PATCH JWT sale→403/42501 (db/214 chưa hở). Hồi quy: 146/grant_don_hang/rpc_tham_so/ky_tham_so/tz_vn + so_ba_nguon XANH, 0 đỏ mới.
+- **Robot kiểm mắt (giới hạn trung thực):** đi tới MÀN CHỐT thật (nút "Chốt, lên đơn" hiện = luật 03/09), **console 0 lỗi**, ảnh
+  `wp14b_l3_chot.png` (DevTools thật). **Chốt-hoàn-tất qua UI bị chặn vì đơn demo THIẾU MÓN** (validation UI cần món tên/màu/giá) —
+  đây là order-setup, KHÔNG phải cơ chế stamp. Cơ chế đã chứng end-to-end bằng test 5/0 (gọi ĐÚNG rpc `chot_don` mà nút UI
+  sale.js:241 gọi). Full UI end-to-end (đơn có món) để lệnh sau nếu CEO cần.
+
+**Trạng thái:** db/220 áp prod (dump QD-61). CHƯA commit/tag.

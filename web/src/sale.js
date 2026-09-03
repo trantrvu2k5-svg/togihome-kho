@@ -3,11 +3,14 @@
 //   CẤM lùi localStorage. Lỗi mạng/quyền -> hiện banner đỏ, KHÔNG nuốt.
 import { createClient } from '@supabase/supabase-js'
 import SALE_HTML from '../public/togihome_sale.html?raw'   // WP-04: mã app Sale inline vào bundle (hash) thay vì fetch runtime
+import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN), togihome_sale.html gọi window.*
 
 const URL = import.meta.env.VITE_SUPABASE_URL
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
 const sb = createClient(URL, ANON, { db: { schema: 'kho' }, auth: { persistSession: true } })
 window.__sb = sb
+// WP-14b: expose cho togihome_sale.html (React UMD, không import module được) — KHÔNG chép nội dung, chỉ tham chiếu
+window.ngayNghiepVu = ngayNghiepVu; window.kyNghiepVu = kyNghiepVu; window.congNgay = congNgay
 
 // ── hiện lỗi lưu (VIỆC 2: không nuốt) ──
 function bao_loi(msg) {

@@ -1,5 +1,6 @@
 // Togihome Kho — web app. Nối Supabase (schema kho) bằng khoá anon; RLS là cổng.
 import { createClient } from '@supabase/supabase-js'
+import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN)
 
 const URL = import.meta.env.VITE_SUPABASE_URL
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -535,7 +536,7 @@ function vePhieu(loai) {
   const dauXuat = `<div><label>Lý do xuất</label><select ${ro} onchange="P.xuat.ly=this.value">${['Sản xuất', 'Lắp đặt tại nhà khách', 'Hỏng / mất', 'Trả nhà cung cấp'].map(l => `<option${l === p.ly ? ' selected' : ''}>${l}</option>`).join('')}</select></div><div><label>Tổ nhận</label><select ${ro} onchange="P.xuat.to=this.value">${TO.map(t => `<option value="${t.ma_to}"${t.ma_to === p.to ? ' selected' : ''}>${t.ten}</option>`).join('')}</select></div>`
   $('#ph-' + loai).innerHTML = `<div class="ph-dau"><span class="ph-so">${p.so}</span><span class="tt ${khoa ? 'so' : 'nhap-tt'}">${khoa ? 'ĐÃ GHI SỔ' : 'NHÁP'}</span><span style="font-size:13px;color:var(--muted)">Lập lúc ${gio(p.luc)}</span>
     <span class="cach">${khoa ? `<button class="n nho" onclick="moiPhieu('${loai}');vePhieu('${loai}')">Lập phiếu mới</button>` : `<button class="n" onclick="themDong('${loai}')">+ Thêm dòng</button><button class="n chinh" onclick="ghiSo('${loai}')">Ghi sổ</button>`}</span>${khoa ? '' : `<span class="ghi-nhac">Ghi sổ rồi là <b>KHOÁ</b> — muốn sửa phải <b>huỷ phiếu</b> rồi làm lại. (Phiếu chưa ghi sổ sẽ mất nếu tải lại trang.)</span>`}</div>
-    <div class="ph-than"><div class="hang"><div><label>Ngày chứng từ</label><input class="ip" type="date" ${ro} value="${p.luc.toISOString().slice(0, 10)}" onchange="P['${loai}'].luc=new Date(this.value);vePhieu('${loai}')"></div>${loai === 'nhap' ? dauNhap : dauXuat}<div><label>Ghi chú</label><input class="ip" ${ro} value="${p.ghi}" placeholder="Số hoá đơn, người giao…" oninput="P['${loai}'].ghi=this.value"></div></div>
+    <div class="ph-than"><div class="hang"><div><label>Ngày chứng từ</label><input class="ip" type="date" ${ro} value="${ngayNghiepVu(p.luc)}" onchange="P['${loai}'].luc=new Date(this.value);vePhieu('${loai}')"></div>${loai === 'nhap' ? dauNhap : dauXuat}<div><label>Ghi chú</label><input class="ip" ${ro} value="${p.ghi}" placeholder="Số hoá đơn, người giao…" oninput="P['${loai}'].ghi=this.value"></div></div>
     <table><thead><tr><th style="width:30px">#</th><th>Vật tư</th><th class="r" style="width:110px">Số lượng</th><th style="width:56px">ĐVT</th>${loai === 'nhap' ? '<th class="r" style="width:130px">Đơn giá (đ)</th>' : '<th class="r" style="width:100px">Tồn sau</th>'}<th class="r" style="width:130px">${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}</th><th style="width:34px"></th></tr></thead><tbody>
     ${p.dong.map((d, i) => { const v = KHO.find(x => x.ma === d.ma) || { ton: 0, dvt: '', min: 0, gia: 0 }; const sau = v.ton - (loai === 'xuat' ? d.sl : -d.sl); return `<tr><td style="color:#8A8F96;font-size:12.5px">${i + 1}</td><td data-label="Vật tư">${khoa ? `<span style="font-size:13.5px">${v.ma || d.ma} — ${v.ten || ''}</span>` : `<select onchange="datDong('${loai}',${i},'ma',this)">${optVt(d.ma)}</select>`}</td><td class="r" data-label="Số lượng"><input class="ip num r" type="number" ${ro} value="${d.sl}" oninput="datSo('${loai}',${i},'sl',this)"></td><td style="color:#6E7681;font-size:13px" data-label="ĐVT">${v.dvt}</td>${loai === 'nhap' ? `<td class="r" data-label="Đơn giá"><input class="ip num r" ${ro} value="${n(d.gia)}" oninput="datSo('${loai}',${i},'gia',this)" onblur="tien(this)"></td>` : `<td id="ts-${loai}-${i}" class="r num" data-label="Tồn sau" style="color:${sau < 0 ? 'var(--do)' : sau < v.min ? 'var(--amber)' : '#6E7681'}">${n(sau)}</td>`}<td id="ct-${loai}-${i}" class="r num" data-label="${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}">${n(d.sl * (loai === 'nhap' ? d.gia : v.gia))}</td><td>${khoa ? '' : `<button class="xoa" onclick="xoaDong('${loai}',${i})">×</button>`}</td></tr>` }).join('')}</tbody></table></div>
     <div class="tong-ph"><div><span>Số dòng</span><b id="sd-${loai}">${p.dong.length}</b></div><div><span>Tổng số lượng</span><b id="tsl-${loai}">${n(tongSl)}</b></div><div><span>Tổng tiền</span><b id="tt-${loai}" style="color:var(--do)">${n(tongTien)} đ</b></div></div>`
@@ -1109,7 +1110,7 @@ async function dmMoiForm(suaId) {
   $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'
   const box = $('#dm-form'); box.style.display = ''
   const vt = await dmVatTu(), khoList = await dmKho(), gia = await dmGia()
-  const dauCan = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)
+  const dauCan = ngayNghiepVu(congNgay(new Date(), 7))
   const nDong = () => ({ vat_tu_id: '', so_luong: '', don_gia: '', don_vi: '', nguon: '', lead: null, hen: '' })
   let dong = [nDong()], ct = null
   if (suaId) { const r = await sb.rpc('dm_chi_tiet', { p_id: suaId }); if (!r.error) { ct = r.data.dau_don; dong = r.data.dong.map(x => ({ vat_tu_id: x.vat_tu_id, so_luong: x.so_luong, don_gia: x.don_gia, don_vi: x.dvt || '', nguon: '', lead: null, hen: '' })) } }
@@ -1157,7 +1158,7 @@ async function dmMoiForm(suaId) {
     if (ngayCanTay || suaId) return
     const leads = dong.map(d => d.lead).filter(l => l != null)
     if (!leads.length) return
-    const el = $('#dm-f-can'); if (el) el.value = new Date(Date.now() + Math.max(...leads) * 864e5).toISOString().slice(0, 10)
+    const el = $('#dm-f-can'); if (el) el.value = ngayNghiepVu(congNgay(new Date(), Math.max(...leads)))
   }
   async function suyGia(i) {   // WP-23: gọi goi_y_gia_dong_mua → điền giá/đơn vị/nguồn/hẹn
     const v = vById(dong[i].vat_tu_id); if (!v) return
@@ -1298,7 +1299,7 @@ async function dmNhanForm(id) {
     const payload = await dmDongIds(id, dongGhi())
     if (!payload.length) { err.textContent = 'Cần nhập số nhận cho ít nhất 1 dòng.'; return }
     $('#dmn-ghi').disabled = true
-    const res = await sb.rpc('dm_nhan_hang', { p_don_mua_id: id, p_dong: payload, p_ngay: new Date().toISOString().slice(0, 10) })
+    const res = await sb.rpc('dm_nhan_hang', { p_don_mua_id: id, p_dong: payload, p_ngay: ngayNghiepVu() })
     if (res.error) { err.textContent = res.error.message; $('#dmn-ghi').disabled = false; return }
     dmNhanXong(id, res.data, L)
   }
@@ -1334,7 +1335,7 @@ async function dmKhopForm(id) {
   if (rc.error || rd.error) { box.innerHTML = `<div class="rong" style="color:var(--do)">Lỗi: ${(rc.error || rd.error).message}</div>`; return }
   const d = rc.data.dau_don
   if (!['da_nhan', 'da_khop_hd'].includes(d.trang_thai)) { box.innerHTML = `<div class="dm-row"><button class="n" onclick="veDonMua()">← Danh sách</button></div><div class="rong">Đơn ${d.so_don} đang "${DM_TT[d.trang_thai]}" — chỉ khớp hoá đơn khi đã nhận.</div>`; return }
-  const iso = t => new Date(t).toISOString().slice(0, 10)
+  const iso = t => ngayNghiepVu(t)
   const H = { loai: 'hoa_don_vat', so_hd: '', ngay_hd: iso(Date.now()), han: iso(Date.now() + 30 * 864e5), vat: 10, ghi_chu: '' }
   const L = (rd.data || []).map(x => { const rem = Number(x.so_luong_da_nhan) - Number(x.so_luong_da_hd); return { ...x, rem, sl_hd: rem > 0 ? rem : '', dg_hd: Number(x.don_gia) } })
   const parseSL = v => v === '' ? '' : Math.max(0, Number(String(v).replace(/[^\d.]/g, '')) || 0)

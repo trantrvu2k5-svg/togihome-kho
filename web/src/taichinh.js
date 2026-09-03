@@ -1,6 +1,7 @@
 // TRANG BỌC app TÀI CHÍNH: Supabase + đăng nhập + cổng vai trò (CHỈ ceo/ke_toan) + nối 4 phần vào hàm DB.
 // Mọi con số do DB tính (bang_gia, gia_bac_tu_gv, tinh_he_so_m, chot_niem_yet) — giá vốn không rời server.
 import { createClient } from '@supabase/supabase-js'
+import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN)
 import HD_MD from '../../docs/huong_dan_taichinh.md?raw'   // L-52: tài liệu = 1 nguồn (docs/), inline vào bundle
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
@@ -116,7 +117,7 @@ const GD_TEN = { chua_nhan: 'Chưa ai nhận dựng', ban_moi: 'Có bản, chưa
 async function taiDieuHanh() {
   if (!$('dh_tac')) return
   const rpc = (fn, args) => sb.rpc(fn, args).then(r => r.error ? null : r.data).catch(() => null)
-  const d = new Date(), den = new Date(Date.now() + 21 * 864e5), fmtD = x => x.toISOString().slice(0, 10)
+  const d = new Date(), den = new Date(Date.now() + 21 * 864e5), fmtD = x => ngayNghiepVu(x)
   const [dh, bg, dai, tai] = await Promise.all([
     rpc('dieu_hanh_bang', { p_gioi_han: 100 }),
     rpc('sale_bao_gia_ds', { p_gioi_han: 1000 }),
@@ -953,7 +954,7 @@ const DT_VON_L = { vay_moi: 'Vay ngân hàng mới', tra_goc_vay: 'Trả gốc v
 const dmy = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '—'
 async function taiDongTien() {
   // L-52: prefill ngày hôm nay cho các ô date còn trống (đỡ quên) — không đè ô người đã nhập
-  const hnay = new Date().toISOString().slice(0, 10)
+  const hnay = ngayNghiepVu()
   ;['pt_ngay', 'cg_ngay', 'ch_ngay', 'vn_ngay', 'pc_ngay'].forEach(id => { const e = $(id); if (e && !e.value) e.value = hnay })
   const { data: g, error } = await sb.rpc('dong_tien_ky', { p_ky: KY })
   if (error) { $('dt_thu_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
@@ -1461,7 +1462,7 @@ async function luuS6() {
   await taiS6()
 }
 
-const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+const today = () => ngayNghiepVu()  // WP-14b: gộp về MỘT nguồn (trước dùng getter local)
 
 // ── khởi động ──
 sb.auth.getSession().then(({ data }) => { if (data.session) laySauDangNhap(data.session.user); else manDangNhap() })

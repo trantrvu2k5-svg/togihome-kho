@@ -1744,7 +1744,7 @@ const genBank = () => {
     const gg = ACC0.find(x => x.id === v.accId)?.p === "Google";
     out.push({
       id: "bk" + ++n,
-      ky: v.ngay.slice(0, 7),
+      ky: window.kyNghiepVu(v.ngay),
       d: +v.ngay.slice(8),
       dGD: +v.ngay.slice(8),
       cardId: cardOf(v.accId),
@@ -2638,9 +2638,9 @@ function App() {
   const ctCua = id => db.ct.filter(x => x.donId === id);
   const khOf = id => db.khach.find(k => k.id === id);
   const tien = can("xem_tien");
-  const gioNay = () => new Date().toISOString().slice(0, 10) + " " + new Date().toTimeString().slice(0, 5);
+  const gioNay = () => window.ngayNghiepVu() + " " + new Date().toTimeString().slice(0, 5);
   const doiTT = (d, den, lyDo, them) => {
-    const hom = new Date().toISOString().slice(0, 10);
+    const hom = window.ngayNghiepVu();
     up("don", db.don.map(x => x.id === d.id ? {
       ...x,
       tt: den,
@@ -3077,7 +3077,7 @@ function ChonAnh({
    Form RIÊNG, tối giản: KHÔNG cọc/địa chỉ/tài khoản/phí lắp. Lưu qua CÙNG đường luu(...,bao=true) → bao_gia. */
 function BaoGiaForm({ db, onClose, onSave }) {
   const el = React.createElement;
-  const [f, setF] = useState({ sdt: "", ten: "", tinh: "Hà Nội", ngay: new Date().toISOString().slice(0, 10),
+  const [f, setF] = useState({ sdt: "", ten: "", tinh: "Hà Nội", ngay: window.ngayNghiepVu(),
     brand: "", loai: "le_sang", phongCach: "", nganSach: "", tuDung: false, ghiChu: "", link: "", nguonKhach: "" });
   const monMoi = () => ({ id: uid(), ten: "", spId: "", ct: "", vl: db.vl[0].c, kt: "", sl: 1, gia: "", maMau: "", anh: [], dungMoi: false });
   const [ln, setLn] = useState([monMoi()]);
@@ -3337,7 +3337,7 @@ function DonModal({
     ten: "",
     tinh: "Hà Nội",
     diaChi: "",
-    ngay: new Date().toISOString().slice(0, 10),
+    ngay: window.ngayNghiepVu(),
     link: "",
     brand: "",
     loai: "le_sang",
@@ -3412,7 +3412,7 @@ function DonModal({
         noi = "Chưa đủ đơn để đề xuất" + (ltGiao && ltGiao.so_don_can_cu ? " (mới " + ltGiao.so_don_can_cu + " đơn đã xong)" : "") + " — hẹn theo kinh nghiệm.";
       else {
         const tb = Math.round(Number(ltGiao.trung_binh));
-        const dx = new Date(Date.now() + tb * 864e5).toISOString().slice(0, 10);
+        const dx = window.ngayNghiepVu(window.congNgay(new Date(), tb));
         noi = "Loại này " + ltGiao.so_don_can_cu + " đơn gần nhất: trung bình " + tb + " ngày, chậm nhất " + ltGiao.cham_nhat + " ngày. Đề xuất hẹn " + dm(dx) + ".";
         mau = "var(--tx)";
       }
@@ -4507,7 +4507,7 @@ function ThuModal({
     daThu = (+d.coc || 0) + (+d.daTT || 0),
     thieu = Math.max(0, phai - daThu);
   const [them, setThem] = useState(giao && thieu > 0 ? String(thieu) : "");
-  const [ngay, setNgay] = useState(d.ngayGiao || new Date().toISOString().slice(0, 10));
+  const [ngay, setNgay] = useState(d.ngayGiao || window.ngayNghiepVu());
   useEffect(() => {
     const h = e => {
       if (e.key === "Escape") onClose();
@@ -6558,7 +6558,7 @@ function BangViec({
           marginTop: 3
         }
       }, d.ngayDuKien && /*#__PURE__*/React.createElement("span", {
-        className: "bdg " + (d.ngayDuKien < new Date().toISOString().slice(0, 10) ? "rd" : "mut")
+        className: "bdg " + (d.ngayDuKien < window.ngayNghiepVu() ? "rd" : "mut")
       }, "xong ", d.ngayDuKien.slice(8), "/", d.ngayDuKien.slice(5, 7)), d.vanChuyen && /*#__PURE__*/React.createElement("span", {
         className: "bdg c0"
       }, d.vanChuyen), d.lap > 0 && /*#__PURE__*/React.createElement("span", {
@@ -9881,7 +9881,7 @@ function XepXeModal({
 }) {
   const [f, setF] = useState({
     vanChuyen: d.vanChuyen || (kh?.tinh === "Hà Nội" ? "Xe công ty" : ""),
-    ngayDiHang: d.ngayDiHang || new Date().toISOString().slice(0, 10),
+    ngayDiHang: d.ngayDiHang || window.ngayNghiepVu(),
     kg: d.kg || "",
     diaBan: d.diaBan || (["Hà Nội", "Hồ Chí Minh"].includes(kh?.tinh) ? "noi_thanh" : "tinh"),
     ship: d.ship || "",
@@ -10207,7 +10207,7 @@ function DieuVan({
   }, cuocXe), /*#__PURE__*/React.createElement("div", {
     className: "dl"
   }, "trên ", daGiao.length, " đơn đã giao"))), nhom === "ds" ? (() => {
-    const ds2 = dons.filter(d => (d.ngayGiao || "").slice(0, 7) === kyDS && d.tt !== "huy");
+    const ds2 = dons.filter(d => window.kyNghiepVu(d.ngayGiao || "") === kyDS && d.tt !== "huy");
     const g = {};
     ds2.forEach(d => {
       const v = d.vanChuyen || "chưa xếp";
@@ -10230,7 +10230,7 @@ function DieuVan({
     });
     const tHt = Object.values(g).reduce((s2, x) => s2 + x.ship, 0);
     const tBao = Object.keys(g).reduce((s2, v) => s2 + bao(v), 0);
-    const kys2 = [...new Set(dons.map(d => (d.ngayGiao || "").slice(0, 7)).filter(Boolean))].sort().reverse();
+    const kys2 = [...new Set(dons.map(d => window.kyNghiepVu(d.ngayGiao || "")).filter(Boolean))].sort().reverse();
     return /*#__PURE__*/React.createElement("div", {
       className: "card"
     }, /*#__PURE__*/React.createElement("h3", null, "Đối soát cước vận chuyển", /*#__PURE__*/React.createElement("small", null, "hệ thống ghi so với nhà xe báo"), /*#__PURE__*/React.createElement("div", {
@@ -10509,7 +10509,7 @@ function TongQuan({
   can,
   me
 }) {
-  const kyD = d => d.ngay.slice(0, 7);
+  const kyD = d => window.kyNghiepVu(d.ngay);
   const ds = dons.filter(d => kyD(d) === ky && d.tt !== "huy");
   const dsDT = ds.filter(d => loaiOf(d.loai).dt);
   const dt = dsDT.reduce((s2, d) => s2 + dtCua(d, ctCua(d.id)), 0);
@@ -10843,7 +10843,7 @@ function Dong({
   dons,
   ctCua
 }) {
-  const ds = dons.filter(d => d.ngay.slice(0, 7) === ky && d.tt !== "huy" && loaiOf(d.loai).dt);
+  const ds = dons.filter(d => window.kyNghiepVu(d.ngay) === ky && d.tt !== "huy" && loaiOf(d.loai).dt);
   const rows = db.lines.map(l => {
     const g = ds.filter(d => d.dong === l.c);
     return {
@@ -11032,7 +11032,7 @@ function XuatDL({
     a.click();
     URL.revokeObjectURL(u);
   };
-  const ds = dons.filter(d => d.ngay.slice(0, 7) === ky);
+  const ds = dons.filter(d => window.kyNghiepVu(d.ngay) === ky);
   const xDon = () => dl(`don_hang_${ky}.csv`, "ma_don,ngay_chot,sdt_khach,ten_khach,dong,so_mon,gia_goc,chiet_khau,doanh_thu,khoi_luong_kg,dia_ban,ship_thuc_tra,lap_thuc_tra,ngay_giao,ngay_thu,so_tien_thuc_thu,tai_khoan_coc,thuong_hieu,nguoi_chay,trang_thai", ds.map(d => {
     const c = ctCua(d.id),
       k = khOf(d.khachId);
