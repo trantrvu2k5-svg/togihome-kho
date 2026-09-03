@@ -1575,3 +1575,42 @@ Nối tiếp QD-96: **thu quyền UPDATE của client (`authenticated`) trên 22
 **Trạng thái:** db/214 áp prod (dump QD-61). Hồi quy: test_wp72 7/0 · 091 7/0 · 099 20/0 · 146 12/0 · 116 48/0 · 117 24/0 ·
 test_grant_don_hang 3/0 (41 cột) · test_wp11c 16/0. test_118 #2 + test_036 = nợ cũ owner/môi-trường, KHÔNG do revoke. CHƯA
 commit/tag — probe prod + robot + commit gộp + tag ở L-11cC. Nhóm NGỜ đóng xong; còn 41 cột client-ghi thật.
+
+## QD-98 (03/09, WP-11d L-11d, db/215+216+217+218) — 2 BẢNG TIỀN rời danh-sách-CẤM: luong_to đi RPC sẵn, tham_so_tai_chinh mở đúng 20/45 cột (1 RPC màn sống + 1 RPC cửa ngủ) · CHỐT
+
+Nối QD-96/97: thu quyền ghi trực tiếp của client (`authenticated`/`anon`) trên **2 bảng THAM SỐ tiền** — cùng bệnh danh-sách-CẤM
+(grant mọi cột, cột mới tự hở). Hai bảng ra **hai kết luận khác nhau** (đo L-11d-1):
+
+- **`kho.luong_to` [A] — revoke thuần (db/215).** Mọi đường ghi ĐÃ qua RPC `ghi_so_tham_so_xuong` (SECURITY DEFINER, owner
+  postgres, delete+insert 7 cột); client chỉ `.select` thẳng (taichinh.js:1372). Revoke INSERT/UPDATE/DELETE, **GIỮ SELECT 7**.
+  Không đụng UI. Nghiệm thu: probe 2a/2b **403/42501**, RPC ceo **200**; robot app Tài chính tab Sổ tham số xưởng bấm Lưu **3/3**;
+  md5 22 dòng giữ nguyên.
+- **`kho.tham_so_tai_chinh` [B] — dựng RPC + swap UI + revoke, DB+UI CHUNG một lệnh (06 §1c) (db/216 RPC, db/217 revoke).**
+  Đo có 2 call-site `.update` (20/45 cột): app Tài chính `luuKy` (13 cột) + app Sale `c2:cfg` (8 cột, trùng `vat`). Dựng 2 RPC
+  `luu_tham_so_ban_hang`(13) + `luu_cau_hinh_van_hanh`(8) — SECURITY DEFINER, chặn vai ceo/ke_toan, UPDATE theo ma_ky (0 dòng→RAISE),
+  chỉ 20 cột trong chữ ký. Swap 2 call-site `.update`→`rpc`, deploy 2 app, cổng bundle prod xác nhận, rồi revoke → giữ SELECT 45.
+  Đường thẳng nay **403/42501** cả PATCH 13/PATCH 8/POST.
+  - **ĐÍNH CHÍNH (L-11d-5/6):** chỉ **`luu_tham_so_ban_hang` phục vụ MÀN SỐNG** (Định giá bán, tab-ban — robot bấm nút "Lưu tham
+    số kỳ" thật, DOM). **`luu_cau_hinh_van_hanh` CHƯA CÓ MÀN GỌI**: component `ThietLap` (màn c2:cfg, 8 ô) ĐỊNH NGHĨA ở
+    togihome_sale.html:11078 nhưng **chưa từng mount** (không `createElement`, không NAV0, không router) → đường ghi c2:cfg là **cửa
+    ngủ**. Robot L-11d-4 ghi qua `storage.set('c2:cfg')` = đúng tầng persistence nhưng KHÔNG phải màn DOM → khai "2 màn 7/7" là SAI,
+    thực chỉ **1 màn DOM** nghiệm thu được. GIỮ NGUYÊN `luu_cau_hinh_van_hanh` (7 cột gio_mo_cua/ghi_de/n_* được ĐỌC ra cảnh báo thật,
+    không đường ghi khác — luật [3] cấm gỡ cửa ghi duy nhất của tham số đang dùng); **nối màn ở WP-13b/WP-91** (dựng ThietLap).
+  - **25 cột còn lại KHÔNG có đường ghi client** (he_so_m do `tinh_he_so_m`; mốc/ngưỡng/giờ do RPC con quy_ghi/nguong_ghi/dat_ship_du_toan).
+
+- **Lý do:** bảng THAM SỐ (2 dòng / 22 dòng) không phải bảng SỔ → không đo perf (luật 00). Kỳ mới của tham_so_tai_chinh sinh ở
+  **tầng owner** (seed db/028 / SQL owner), KHÔNG qua client (cả 8 app 0 `.insert`) → revoke INSERT không chặn tạo kỳ.
+- **Test canh** (khuôn test_grant_don_hang): `test_grant_luong_to` 4/0 · `test_grant_tham_so` 4/0 — 0 cột ghi client, SELECT đủ,
+  cột MỚI thêm KHÔNG tự mở. **Thêm cột tham số = cho vào RPC theo màn, ĐỪNG grant.**
+- **Kỳ trùng ngày ĐÃ SỬA (db/218, L-11d-7):** kỳ 2026-08 nhập tay lệch `ngay_ap_dung`=2026-07-01 (trùng kỳ 07) → mọi chỗ chọn "kỳ
+  hiện hành" bằng `order by ngay_ap_dung desc limit 1` (2 chỗ sale.js + 12 RPC: gia_san_don/cau_hinh_sale/bang_gia…) trả BẤT ĐỊNH,
+  hôm nay lấy **kỳ 07** cho ngữ cảnh tháng 8. Sửa đúng 1 dòng: 2026-08 → **2026-08-01** (nay chọn đúng kỳ 08). Chặn trùng vĩnh viễn:
+  `tstc_ngay_ap_dung_duy_nhat` (UNIQUE) + `tstc_ngay_khop_ma_ky` (CHECK tháng khớp ma_ky — gốc bệnh nhập tay lệch; CHECK+PK khiến
+  trùng-ngày bất khả, UNIQUE dự phòng). test_ky_tham_so 5/0.
+- **PHÁT SINH (ngoài WP-11d, không sửa):** (1) `ThietLap` code chết trong sale (chưa mount) + 7 cột (gio_mo_cua/ghi_de/n_ads/n_cac/
+  n_kg/n_no/n_giam) được ĐỌC mà không màn sửa → chờ WP dựng màn. (2) `luuKy` rewrite 13 cột từ input mỗi lần Lưu (round-trip
+  input≠DB không bit-identical). (3) tham_so_tai_chinh không có cột vết sửa → RPC không ghi ai/khi. (4) Không có đường tự phục vụ
+  tạo kỳ mới trong app (sinh ở tầng owner).
+
+**Trạng thái:** db/215+216+217+218 áp prod (dump QD-61). md5 luong_to giữ nguyên; tham_so_tai_chinh đổi ĐÚNG 1 cột (ngay_ap_dung
+kỳ 08) — cố ý (db/218). CHƯA commit/tag — commit gộp + tag ở L-11d-8.

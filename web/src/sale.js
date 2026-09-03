@@ -316,9 +316,9 @@ async function _set(k, jsonStr) {
   if (k === 'c2:cfg') {   // vat + giờ + ghi_de + ngưỡng -> cột non-money của kỳ hiện hành (RLS ceo/ke_toan)
     if (v.vat != null) _vatCache = Number(v.vat)
     const { data: ky, error: eKy } = await sb.from('tham_so_tai_chinh').select('ma_ky').order('ngay_ap_dung', { ascending: false }).limit(1).maybeSingle(); if (eKy) throw eKy
-    if (ky) { const { error } = await sb.from('tham_so_tai_chinh').update({
-        vat: v.vat, gio_mo_cua: v.gio, ghi_de: v.ghiDe,
-        n_ads: v.nAds, n_cac: v.nCac, n_kg: v.nKg, n_no: v.nNo, n_giam: v.nGiam }).eq('ma_ky', ky.ma_ky)
+    if (ky) { const { error } = await sb.rpc('luu_cau_hinh_van_hanh', {   // WP-11d: qua RPC (grant .update revoke), bố cục màn KHÔNG đổi
+        p_ma_ky: ky.ma_ky, p_vat: v.vat, p_gio_mo_cua: v.gio, p_ghi_de: v.ghiDe,
+        p_n_ads: v.nAds, p_n_cac: v.nCac, p_n_kg: v.nKg, p_n_no: v.nNo, p_n_giam: v.nGiam })
       if (error) throw error }
     return
   }

@@ -1260,7 +1260,13 @@ async function luuKy() {
     chi_phi_nang_luc: (($('cpnl').value || '').replace(/\D/g, '') || null) && Number($('cpnl').value.replace(/\D/g, '')),   // L-46: trống = NULL (dùng số suy)
     tran_sale: numv('transale'), tran_truong_nhom: numv('trantn'), ghi_chu: $('ghichu').value
   }
-  const { error } = await sb.from('tham_so_tai_chinh').update(row).eq('ma_ky', KY)
+  // WP-11d: đường ghi qua RPC (grant .update bị revoke). Bố cục màn KHÔNG đổi.
+  const { error } = await sb.rpc('luu_tham_so_ban_hang', {
+    p_ma_ky: KY, p_dt_muc_tieu: row.dt_muc_tieu, p_so_don_ke_hoach: row.so_don_ke_hoach, p_vat: row.vat,
+    p_hh_sale: row.hh_sale, p_hh_quan_ly: row.hh_quan_ly, p_hh_thiet_ke: row.hh_thiet_ke,
+    p_phi_don_le: row.phi_don_le, p_phi_don_combo: row.phi_don_combo, p_phi_don_thiet_ke: row.phi_don_thiet_ke,
+    p_chi_phi_nang_luc: row.chi_phi_nang_luc, p_tran_sale: row.tran_sale, p_tran_truong_nhom: row.tran_truong_nhom,
+    p_ghi_chu: row.ghi_chu })
   $('luu_msg').textContent = error ? ('❌ ' + error.message) : '✅ đã lưu — hệ số & bảng giá tính lại theo số mới'
   if (!error) { await refreshHeSoM(); await refreshBang(); await refreshQuick() }
 }

@@ -37,6 +37,9 @@ Nhiều lần câu trả lời nằm sẵn trong báo cáo vừa nhận mà khô
 **Luật ảnh console (02/09, từ WP-11b):** ảnh kiểm mắt có khẳng định về console phải **MỞ DEVTOOLS THẬT** trong ảnh. Badge/nhãn do chính app in ra ("console: 0 lỗi đỏ") là **app tự chấm điểm mình**, không phải bằng chứng — cùng họ luật nghiệm thu bằng dữ liệu (31/08). Bằng chứng console 0 lỗi nằm ở assert của robot (bắt `console.error`), không ở chữ dán lên ảnh.
 - **Dính ở L-51:** shim tự chấm giống v5 BA lần trong khi trang thật sai. **Gốc (L-52):** `.ca button{background:none…}` (đặc thù 0,1,1) đè `.bg-o`/nút (0,1,0) → mọi thẻ/nút mất nền màu trên trang thật; shim không có `.ca button` nên không thấy. Bài học: **CSS của app bao quanh màn — luôn kiểm cascade trên bundle/trang THẬT, không trên bản tách.**
 
+**Luật robot-điều-hướng (03/09, từ WP-11d):** robot có bước GHI phải **assert đã ĐIỀU HƯỚNG TỚI MÀN THẬT** — thấy selector nút thao tác (vd nút "Lưu tham số kỳ") **hiển thị trên DOM** — RỒI mới thao tác và chấm "màn đạt". **CẤM ghi thẳng vào tầng lưu trữ (`storage.set`/`sb.rpc`/PATCH) rồi báo "màn đạt"** — đó là test tầng API, không phải nghiệm thu màn. Ghi tầng lưu trữ chỉ chứng CODE PATH sống, KHÔNG chứng người dùng bấm được.
+- **Dính ở WP-11d (L-11d-4→5):** màn cấu hình Sale (`ThietLap`) **chưa từng mount** (không `createElement`, không trong NAV/router) nhưng robot ghi qua `storage.set('c2:cfg')` rồi chấm **7/7 "2 màn"** — thực ra chỉ 1 màn (Định giá bán) là DOM thật. Màn kia không có nút để bấm. Bài học: **selector nút Lưu phải hiện trước khi chấm; màn không mount = không đạt, dù code path chạy.**
+
 ## KỶ LUẬT MẬT KHẨU — CẤM tự đặt lại mật khẩu
 
 **CẤM tự đặt lại mật khẩu bất kỳ tài khoản nào, kể cả `.local` dùng thử.** Cần đăng nhập để chụp ảnh thì **DỪNG và xin CEO** (như đã làm đúng ở L-19). Muốn tài khoản thử → tạo mới tiền tố `test_`, dùng xong XOÁ và in xác nhận.
