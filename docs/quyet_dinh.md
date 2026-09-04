@@ -1749,3 +1749,28 @@ lớp 3 (cảnh báo) tách WP riêng (xem phạm vi L-6b §C).
    - **Phụ thuộc dữ liệu (A4):** 24 niêm yết đang bán, **0 tính được giá sàn** — `niem_yet.ma_bien_the` ("TA-*", từ nhập
      100 SP) KHÔNG khớp keyspace `san_pham_mau_gia_von` ("UB8D-*/SF-*", 14 dòng) → thiếu giá vốn per SKU. Cảnh báo lớp 3
      ngày đầu bật sẽ kêu **0 mã vì THIẾU GIÁ VỐN**, không phải vì mọi mã trên sàn. Nợ nền: map giá vốn catalog↔niêm yết (db058).
+
+## QD-104 (04/09, WP-15b(2) L-10, db/224) — BÁO GIÁ: đóng dấu kỳ lúc gửi · hết-hạn là NHÃN · báo-lại chỉ khi người bấm · CHỐT
+
+Cài lớp 2 của QD-103 ở tầng DB (UI để lệnh sau). **Hết hạn KHÔNG tự đổi giá — hết hạn là NHÃN; đổi giá CHỈ khi người bấm.**
+
+- **Đóng dấu kỳ lúc gửi:** cột mới `don_hang.ma_ky_bao_gia` (khác `ma_ky_ap_dung` của đơn CHỐT, QD-100). Trigger
+  `moc_bao_gia` stamp `ma_ky_bao_gia = ky_gia_hien_hanh()` khi tạo báo giá (cùng chỗ set `han_tra_loi`). **Cột mới ĐÓNG
+  với client (WP-11b) — chỉ trigger/RPC DEFINER ghi.** (A4: KHÔNG có cột tương đương → cột MỚI, không đẻ trùng.)
+- **Hạn THẬT = `han_tra_loi`** (= `ngay_tao_bao_gia` + `han_bao_gia_so_ngay(dong)`; **lẻ=7 · dự án=21**, phân loại theo cột
+  `dong='du_an'`). `ngay_ket_thuc_bao_gia` = lúc rời báo giá. Set bởi trigger `moc_bao_gia` (WP-72).
+- **Cờ hết-hạn = TRƯỜNG TÍNH, KHÔNG cột trạng thái, KHÔNG job:** `sale_bao_gia_ds` thêm `ma_ky_bao_gia` · `het_han`
+  (bool) · `so_ngay_qua_han`, tính từ `han_tra_loi` so `current_date` (múi giờ DB đã VN, QD-99 — không toISOString).
+- **RPC `bao_gia_lai(p_don_id)`** — báo lại theo kỳ, **CHỈ khi người bấm** (cấm job/tự động):
+  - chặn nếu đơn KHÔNG còn ở báo giá (bao_gia/bao_gia_treo) — không lặp vụ chot_don đơn da_giao; chặn nếu CHƯA quá hạn
+    (còn hạn → giữ giá đã đóng dấu, lớp 2); chặn nếu món thiếu sp_id/giá vốn (không tự tính lại được).
+  - tính lại giá qua `gia_san_don()` (đã theo `ky_gia_hien_hanh()` = kỳ ĐÃ XÁC NHẬN, QD-102); ghi `gia_chot`/`doanh_thu`
+    + `ma_ky_bao_gia` mới; **gia hạn `han_tra_loi` += 7/21 theo dòng**; vết `bao_gia_lai_luc`/`bao_gia_lai_boi` (khuôn
+    nguoi_sua/sua_luc QD-101). Trả JSON **5 trường**: giá cũ · giá mới · kỳ cũ · kỳ mới · hạn mới (người dùng THẤY chênh lệch).
+- **Ràng buộc dữ liệu (thật):** nhiều món **sp_id=null** (món chữ tự do) → server không tự tính lại được → RPC báo lỗi
+  tiếng Việt rõ, KHÔNG đoán. Recompute chỉ chạy cho món có sp_id + giá vốn trong `san_pham_mau_gia_von`.
+- **Test `test_bao_gia_lai.mjs` 11/0** (tx-rollback): 1 còn-hạn+kỳ-đổi→giá giữ nguyên · 2 quá hạn→het_han+số ngày · 3
+  báo-lại đổi giá/kỳ/hạn+JSON 5 trường · 4 còn-hạn chặn · 5 đã-giao chặn · 6 client PATCH cột mới 401/403 · 7 dự án +21.
+  Hồi quy: ky_xac_nhan 9 · mo_ky_moi 17 · grant_don_hang 3 · **dong_dau_ky 5** (vá drift db/221: 2026-09 đã tồn tại → dùng 2026-10).
+
+**Trạng thái:** db/224 áp prod (dump QD-61, backup 7.12MB). UI báo-giá-lại + cờ hết-hạn để lệnh sau. CHƯA commit/deploy.

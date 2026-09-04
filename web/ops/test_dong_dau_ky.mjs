@@ -25,16 +25,16 @@ try {
   ok('3.1 chốt → ma_ky_ap_dung = ky_gia_hien_hanh (' + mk1 + ') · thieu_tham_so=' + res1.thieu_tham_so, mk1 === kyNow && res1.thieu_tham_so === false, JSON.stringify(res1))
   await c.query('rollback to savepoint s1')
 
-  // 3.2 hai đơn CÙNG NGÀY, hai kỳ khác nhau (thêm kỳ 2026-09 mới nhất giữa hai lần chốt)
+  // 3.2 hai đơn CÙNG NGÀY, hai kỳ khác nhau (thêm kỳ 2026-10 mới hơn giữa hai lần chốt (2026-09 đã tồn tại từ db/221))
   await c.query('savepoint s2')
   const idA = await taoBaoGia('DDK-A'); await c.query("select kho.chot_don($1,'khac','khanhconcept')", [idA])
   const mkA = (await c.query('select ma_ky_ap_dung from kho.don_hang where id=$1', [idA])).rows[0].ma_ky_ap_dung
   await reset()  // owner để INSERT tham_so
-  await c.query("insert into kho.tham_so_tai_chinh(ma_ky, ky_tinh, ngay_ap_dung, vat) values('2026-09','ban_hang','2026-09-01',10)")
+  await c.query("insert into kho.tham_so_tai_chinh(ma_ky, ky_tinh, ngay_ap_dung, vat) values('2026-10','ban_hang','2026-10-01',10)")
   await asCeo()
   const idB = await taoBaoGia('DDK-B'); await c.query("select kho.chot_don($1,'khac','khanhconcept')", [idB])
   const mkB = (await c.query('select ma_ky_ap_dung from kho.don_hang where id=$1', [idB])).rows[0].ma_ky_ap_dung
-  ok('3.2 cùng ngày · hai kỳ khác nhau: đơn A=' + mkA + ' · đơn B=' + mkB + ' (chứng KHÔNG suy theo ngày)', mkA !== mkB && mkB === '2026-09', 'A=' + mkA + ' B=' + mkB)
+  ok('3.2 cùng ngày · hai kỳ khác nhau: đơn A=' + mkA + ' · đơn B=' + mkB + ' (chứng KHÔNG suy theo ngày)', mkA !== mkB && mkB === '2026-10', 'A=' + mkA + ' B=' + mkB)
   await c.query('rollback to savepoint s2')
 
   // 3.3 sửa ma_ky_ap_dung đã có → trigger chặn

@@ -2127,7 +2127,17 @@ const BG72_CSS = ".bg72-khoi{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 1
   + ".bg72-han-in{border:1px solid #D3D9E4;border-radius:6px;padding:3px 5px;font-size:12px}"
   + ".bg72-loc{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}"
   + ".bg72-chip{padding:4px 11px;border:1px solid #D3D9E4;border-radius:16px;background:#fff;cursor:pointer;font-size:12.5px}"
-  + ".bg72-chip.on{background:#131A2B;color:#fff;border-color:#131A2B}";
+  + ".bg72-chip.on{background:#131A2B;color:#fff;border-color:#131A2B}"
+  /* [WP-15b] báo giá quá hạn → báo lại theo kỳ */
+  + ".bgl-wrap{margin-top:5px;font-size:12px}"
+  + ".bgl-nhan{color:#C8202E;font-weight:600;margin-bottom:3px}"
+  + ".bgl-nut{background:#131A2B;color:#fff;border:0;border-radius:7px;padding:4px 11px;font-size:12px;cursor:pointer;margin-right:6px}"
+  + ".bgl-nut:disabled{opacity:.6;cursor:default}"
+  + ".bgl-chinh{background:#C8202E}.bgl-huy{background:#fff;color:#3B4356;border:1px solid #D3D9E4}"
+  + ".bgl-hoi{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFF7ED;border:1px solid #F3D9A8;border-radius:8px;padding:6px 9px}"
+  + ".bgl-kq{background:#F5F8FF;border:1px solid #CBD9F2;border-radius:8px;padding:7px 10px}"
+  + ".bgl-phu{color:#6B7488;margin:2px 0 5px}.bgl-tang{color:#C8202E;font-weight:700}.bgl-giam{color:#175E24;font-weight:700}"
+  + ".bgl-loi{color:#C8202E;font-weight:600;margin-top:4px;white-space:pre-wrap}";
 // khối đầu tab: 3 ô hạn (đọc sale_bao_gia_han_dem — chỉ đơn THẬT). 0 đơn thật → trạng thái trống, không vẽ số 0 giả.
 function HanKhoiWP72() {
   const el = React.createElement;
@@ -2166,6 +2176,38 @@ function HanOWP72({ b, reload }) {
     el("span", { className: "bg72-den bg72-den-" + den }),
     el("span", null, "hạn " + dmy(b.han_tra_loi) + conTxt),
     el("button", { className: "bg72-han-sua", onClick: () => setSua(true) }, "sửa"));
+}
+// [WP-15b] báo giá quá hạn → nhãn + nút "Báo lại theo kỳ" (QD-104). Hết hạn là NHÃN; đổi giá CHỈ khi người bấm.
+function BaoLaiWP15b({ b, reload }) {
+  const el = React.createElement;
+  const [buoc, setBuoc] = useState("idle");   // idle · hoi · xong
+  const [kq, setKq] = useState(null), [loi, setLoi] = useState(""), [dang, setDang] = useState(false);
+  if (b.gd === "thua") return null;   // bao_gia_thua = mất, RPC chặn
+  if (!b.het_han) return null;   // B3: chỉ đơn QUÁ HẠN (bao_gia/bao_gia_treo — het_han từ server; RPC cũng chặn, hai tầng khớp)
+  const trn = n => (n == null ? "—" : Number(n).toLocaleString("vi-VN"));
+  const bao = async () => { setDang(true); setLoi("");
+    try { const r = await window.saleApi.baoGiaLai(b.ma_don); setKq(r); setBuoc("xong"); }
+    catch (e) { setLoi(e && e.message ? e.message : String(e)); }   // B4: ĐỎ nguyên văn từ server, KHÔNG chế câu khác
+    finally { setDang(false); } };
+  const nhan = el("div", { className: "bgl-nhan" },
+    "Quá hạn " + (b.so_ngay_qua_han || 0) + " ngày · báo giá theo kỳ " + (b.ma_ky_bao_gia || "—"));
+  if (buoc === "xong" && kq) {
+    const delta = Number(kq.gia_moi) - Number(kq.gia_cu);
+    const pct = Number(kq.gia_cu) ? (delta / Number(kq.gia_cu) * 100) : 0;
+    return el("div", { className: "bgl-wrap" }, nhan, el("div", { className: "bgl-kq" },
+      el("div", null, "Giá ", el("b", null, trn(kq.gia_cu)), " → ", el("b", null, trn(kq.gia_moi)),
+        el("span", { className: delta >= 0 ? "bgl-tang" : "bgl-giam" }, "  (" + (delta >= 0 ? "+" : "") + trn(delta) + "đ · " + (delta >= 0 ? "+" : "") + pct.toFixed(1) + "%)")),
+      el("div", { className: "bgl-phu" }, "kỳ " + (kq.ky_cu || "(chưa)") + " → " + kq.ky_moi + " · hạn mới " + String(kq.han_moi).slice(0, 10)),
+      el("button", { className: "bgl-nut", onClick: () => { setBuoc("idle"); setKq(null); if (reload) reload(); } }, "Đóng")));
+  }
+  if (buoc === "hoi") return el("div", { className: "bgl-wrap" }, nhan,
+    el("div", { className: "bgl-hoi" }, el("span", null, "Báo lại theo kỳ giá hiện hành? (kỳ cũ: " + (b.ma_ky_bao_gia || "—") + ")"),
+      el("button", { className: "bgl-nut", disabled: dang, onClick: bao }, dang ? "đang…" : "Đồng ý"),
+      el("button", { className: "bgl-nut bgl-huy", onClick: () => setBuoc("idle") }, "Huỷ")),
+    loi ? el("div", { className: "bgl-loi" }, loi) : null);
+  return el("div", { className: "bgl-wrap" }, nhan,
+    el("button", { className: "bgl-nut bgl-chinh", onClick: () => { setLoi(""); setBuoc("hoi"); } }, "Báo lại theo kỳ"),
+    loi ? el("div", { className: "bgl-loi" }, loi) : null);
 }
 
 function BaoGiaMan({ data, initFilter, moDon, reload }) {
@@ -2238,6 +2280,7 @@ function BaoGiaMan({ data, initFilter, moDon, reload }) {
     b.ngay_hen ? el("div", { className: "bg-d" }, el("span", null, "hẹn"), el("b", null, dmy(b.ngay_hen))) : el("div", { className: "bg-chua" }, "chưa hẹn ngày giao"),
     xongLine(b),
     el(HanOWP72, { b: b, reload: reload, key: "han72" }),
+    el(BaoLaiWP15b, { b: b, reload: reload, key: "bgl15b" }),
     el("div", { className: "bg-tien" }, tr(b.tien)), el("div", { className: "bg-tien-phu" }, b.tien == null ? "chưa có giá bán" : "giá bán"));
   // ── nút hàng ──
   const nut = b => b.gd === "du_len_don" ? [el("button", { key: 1, className: "bg-n-chinh", onClick: () => moDon("chot:" + b.ma_don) }, "Chuyển thành đơn")]
@@ -5031,7 +5074,12 @@ function SoDon({
     const id = don?.id || uid();
     const d = {
       id,
-      ma: don?.ma || "T" + +f.ngay.slice(5, 7) + "-" + String(db.don.length + 1).padStart(3, "0"),
+      ma: don?.ma || (() => {   /* [WP-15b] mã đơn = MAX seq CÙNG THÁNG + 1 (KHÔNG dùng don.length — sinh trùng mã seed) */
+        const tsPre = "T" + +f.ngay.slice(5, 7) + "-";
+        const tsSeq = (db.don || []).map(o => o.ma).filter(m => typeof m === "string" && m.startsWith(tsPre))
+          .map(m => parseInt(m.slice(tsPre.length), 10)).filter(n => !isNaN(n));
+        return tsPre + String((tsSeq.length ? Math.max(...tsSeq) : 0) + 1).padStart(3, "0");
+      })(),
       ngay: f.ngay,
       khachId: kh.id,
       brand: f.brand,

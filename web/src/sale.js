@@ -149,8 +149,9 @@ async function _get(k) {
     // giá công thức/chốt/chiết khấu lưu CHƯA VAT -> trả app dạng CÓ VAT (cọc/đã thu GIỮ nguyên).
     const arr = data.map(r => { const d = rowToDon(r); d.giam = themVat(d.giam, vat) || 0
       d.giaCongThuc = themVat(d.giaCongThuc, vat); d.giaChot = themVat(d.giaChot, vat); return d })
-    // SNAPSHOT để lúc lưu chỉ upsert đơn ĐANG SỬA (đơn không đổi -> không đụng, tránh ghi đè trạng thái).
-    mem['__donSnap'] = Object.fromEntries(arr.map(d => [d.ma, JSON.stringify(d)]))
+    // SNAPSHOT để lúc lưu chỉ upsert đơn ĐANG SỬA. [WP-15b] KHOÁ theo d.id (KHÔNG theo mã):
+    //   đơn MỚI (id=uid) mã trùng đơn cũ KHÔNG được nhận nhầm là "đang sửa đơn cũ" → tránh chot_don đơn da_giao.
+    mem['__donSnap'] = Object.fromEntries(arr.map(d => [d.id, JSON.stringify(d)]))
     return arr }
   if (k === 'c2:ct') {
     const vat = await getVat()
@@ -213,7 +214,7 @@ async function _set(k, jsonStr) {
     // CHỈ upsert đơn MỚI hoặc ĐÃ ĐỔI (so với snapshot lúc nạp) — KHÔNG đụng đơn khác trong xưởng.
     //   Lỗ cũ: upsert CẢ danh sách -> đơn cho_cat/cho_giao bị ghi về moi_len_don khi sale lưu đơn bất kỳ.
     const snap = mem['__donSnap'] || {}
-    const doiOrMoi = (v || []).filter(d => snap[d.ma] !== JSON.stringify(d))
+    const doiOrMoi = (v || []).filter(d => snap[d.id] !== JSON.stringify(d))   // [WP-15b] khoá theo id
     // ═══ [WP-06 L-06c · WP-07 L-133] TRẠNG THÁI ĐI QUA CỔNG (RPC), KHÔNG upsert cột trang_thai ═══
     //   Đơn ĐANG CÓ đổi trạng thái -> chot_don / doi_trang_thai_don (db/148·149). Đơn MỚI -> tao_don (db/151):
     //   server ÉP trang_thai='bao_gia', "+ Lên đơn" thì tao_don(p_chot=true) gọi chot_don cùng transaction.
@@ -223,14 +224,25 @@ async function _set(k, jsonStr) {
       r.chiet_khau = boVat(r.chiet_khau, vat); r.gia_cong_thuc = boVat(r.gia_cong_thuc, vat); r.gia_chot = boVat(r.gia_chot, vat)
       return r }
     for (const d of doiOrMoi) {
-      const old = snap[d.ma] ? JSON.parse(snap[d.ma]) : null
+      const old = snap[d.id] ? JSON.parse(snap[d.id]) : null   // [WP-15b] đơn CŨ nhận theo id; id=uid (đơn mới) => old=null => tao_don
       const denDB = toDB(d.tt)
       if (!old) {
         // ═══ [WP-07 L-133] ĐƠN MỚI -> RPC tao_don. Server ÉP trang_thai='bao_gia'; "+ Lên đơn" (đích moi_len_don)
         //   -> p_chot=true -> chot_don CÙNG transaction. KHÔNG gửi trang_thai (như đơn cũ WP-06 dòng 237).
         const r = rowCua(d); delete r.trang_thai   // trang_thai do SERVER ép, không phải client gửi
         // [WP-70 L-04] hội thoại nguồn đã chọn → p_lead_id; server tao_don tự đặt nguon_khach theo lead (đè p_don.nguon_khach)
-        const { data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don', p_lead_id: d.leadId || null })
+        // [WP-15b] 2 sale lên đơn cùng lúc có thể trùng mã dù client đã +1 → tự tăng seq, thử lại IM LẶNG ≤3 lần (log console).
+        let tr = null, error = null
+        for (let tsThu = 0; tsThu < 3; tsThu++) {
+          ({ data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don', p_lead_id: d.leadId || null }))
+          if (!error) break
+          const tsTrung = /đã tồn tại — không tạo trùng/.test(error.message || '')
+          const m = String(r.ma_don || '').match(/^(T\d+-)(\d+)$/)
+          if (!tsTrung || !m) break   // lỗi khác (giá=0, thiếu nguồn…) → không thử lại, báo đỏ nguyên văn
+          const tsCu = r.ma_don
+          r.ma_don = m[1] + String(+m[2] + 1).padStart(m[2].length, '0'); d.ma = r.ma_don   // đồng bộ mã mới vào đơn
+          console.warn('[sale WP-15b] tao_don trùng mã ' + tsCu + ' → thử lại ' + r.ma_don + ' (lần ' + (tsThu + 1) + ')')
+        }
         if (error) throw new Error(error.message)   // RAISE nguyên văn -> hiện đỏ tại chỗ (không nuốt)
         const srv = Array.isArray(tr) ? tr[0] : tr
         if (srv && srv.trang_thai) d.tt = toTT(srv.trang_thai)   // vẽ lại theo trạng thái SERVER TRẢ VỀ, không đoán
@@ -253,12 +265,12 @@ async function _set(k, jsonStr) {
     }
     // ĐƠN CŨ: UPDATE cột dữ liệu (KHÔNG upsert — client KHÔNG có INSERT sau QD-66/67, .upsert INSERT-on-conflict → 403).
     //   [WP-72 L-72d] trang_thai/ly_do_thua/ghi_chu_thua là cột CỔNG (doi_trang_thai_don, QD-64/66) — xoá khỏi payload, client không ghi thẳng.
-    for (const d of doiOrMoi.filter(d => snap[d.ma])) {
+    for (const d of doiOrMoi.filter(d => snap[d.id])) {   // [WP-15b] đơn CŨ nhận theo id (đơn mới id=uid không lọt đây)
       const r = rowCua(d); delete r.trang_thai; delete r.ly_do_thua; delete r.ghi_chu_thua; delete r.ma_don
       const { error } = await sb.from('don_hang').update(r).eq('ma_don', d.ma)
       if (error) throw new Error(error.message)   // RAISE nguyên văn -> banner đỏ (không nuốt)
     }
-    mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.ma, JSON.stringify(d)]))   // cập nhật snapshot
+    mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.id, JSON.stringify(d)]))   // cập nhật snapshot [WP-15b] khoá theo id
     // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB
     //   -> đó là ý đồ XOÁ -> BÁO RÕ, không .delete() im lặng. Muốn bỏ đơn thì chuyển trạng thái (huỷ/tạm ngưng).
     const mas = new Set((v || []).map(d => d.ma))
@@ -434,6 +446,8 @@ window.saleApi = {
   leadGoiYTheoSdt: async sdt => { const { data, error } = await sb.rpc('lead_goi_y_theo_sdt', { p_sdt: sdt }); if (error) throw error; return data || [] },
   donGanLead: async (ma, leadId, lyDo = null) => { const id = await donIdCuaMa(ma); if (!id) throw new Error('Đơn chưa lưu trên máy chủ — lưu đơn trước khi gắn lead'); const { data, error } = await sb.rpc('don_gan_lead', { p_don_id: id, p_lead_id: leadId, p_ly_do: lyDo }); if (error) throw error; return data },
   donLeadVet: async ma => { const id = await donIdCuaMa(ma); if (!id) return []; const { data, error } = await sb.rpc('don_lead_vet', { p_don_id: id }); if (error) throw error; return data || [] },
+  // [WP-15b] báo giá quá hạn → báo lại theo kỳ hiện hành (QD-104). RPC gác (còn hạn/đã chốt/thiếu giá vốn) → ném nguyên văn.
+  baoGiaLai: async ma => { const id = await donIdCuaMa(ma); if (!id) throw new Error('Đơn chưa lưu trên máy chủ'); const { data, error } = await sb.rpc('bao_gia_lai', { p_don_id: id }); if (error) throw new Error(error.message); return data },
 }
 
 // ══════════ NÉN ẢNH HAI CỠ trong trình duyệt (WebP, lùi JPEG). KHÔNG lưu ảnh gốc. ══════════
