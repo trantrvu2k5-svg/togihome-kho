@@ -59,10 +59,11 @@ try {
   const j4 = await attempt(() => c.query("select kho.bao_gia_lai($1) g", [id4]))
   ok('4 bao_gia_lai đơn CÒN HẠN → chặn', !j4.ok && /CHƯA quá hạn/.test(j4.msg || ''), j4.msg)
 
-  // ── vế 5: bao_gia_lai trên đơn ĐÃ GIAO có sẵn (T9-008 da_giao) → chặn ──
-  const id5 = (await c.query("select id from kho.don_hang where ma_don='T9-008'")).rows[0].id
+  // ── vế 5: bao_gia_lai trên đơn NGOÀI (bao_gia/bao_gia_treo): dựng bao_gia rồi chuyển bao_gia_thua → chặn ──
+  const id5 = await mkBG('BGLAI-THUA', 'le')
+  await c.query("update kho.don_hang set trang_thai='bao_gia_thua', ly_do_thua='gia_cao' where id=$1", [id5])
   const j5 = await attempt(() => c.query("select kho.bao_gia_lai($1) g", [id5]))
-  ok('5 bao_gia_lai đơn ĐÃ GIAO (T9-008) → chặn (không lặp vụ chot_don đơn da_giao)', !j5.ok && /chỉ báo lại đơn CÒN Ở BÁO GIÁ/.test(j5.msg || ''), j5.msg)
+  ok('5 bao_gia_lai đơn NGOÀI báo giá (bao_gia_thua) → chặn (không lặp vụ chot_don đơn da_giao)', !j5.ok && /chỉ báo lại đơn CÒN Ở BÁO GIÁ/.test(j5.msg || ''), j5.msg)
 
   // ── vế 7: đơn dự án gia hạn +21 ──
   const id7 = await mkBG('BGLAI-7', 'du_an')
@@ -84,7 +85,7 @@ for (const l of readFileSync(new URL('../.env', import.meta.url), 'utf8').split(
   if (l.startsWith('VITE_SUPABASE_ANON_KEY=')) anon = l.split('=')[1].trim()
 }
 try {
-  const res = await fetch(`${url}/rest/v1/don_hang?ma_don=eq.T9-007`, {
+  const res = await fetch(`${url}/rest/v1/don_hang?ma_don=eq.ANY-MA`, {
     method: 'PATCH', headers: { apikey: anon, Authorization: 'Bearer ' + anon, 'Content-Type': 'application/json', 'Content-Profile': 'kho', 'Accept-Profile': 'kho' },
     body: JSON.stringify({ ma_ky_bao_gia: 'HACK' })
   })

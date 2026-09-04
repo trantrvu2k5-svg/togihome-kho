@@ -1774,3 +1774,45 @@ Cài lớp 2 của QD-103 ở tầng DB (UI để lệnh sau). **Hết hạn KH�
   Hồi quy: ky_xac_nhan 9 · mo_ky_moi 17 · grant_don_hang 3 · **dong_dau_ky 5** (vá drift db/221: 2026-09 đã tồn tại → dùng 2026-10).
 
 **Trạng thái:** db/224 áp prod (dump QD-61, backup 7.12MB). UI báo-giá-lại + cờ hết-hạn để lệnh sau. CHƯA commit/deploy.
+
+## QD-105 (04/09, WP-17b(1) L-14, db/225) — xoa_demo dọn ĐỦ: NỚI append-only su_kien_meta ĐÚNG MỘT ĐƯỜNG · CHỐT
+
+Cổng hồi quy phải **xoá sạch được sau mỗi vòng** (nếu không tự bẩn dần, mất tác dụng — L-9/L-12 tích T9-010/T9-011).
+Blocker duy nhất (L-13) = **`su_kien_meta`** (append-only WP-77 + FK NO ACTION, không escape). NỚI luật WP-77 **đúng một đường**:
+
+- **db/225:** `su_kien_meta.don_id` + `don_hang_lead_nhat_ky.don_id` → **ON DELETE CASCADE**; trigger `sm_chan_sua`/`dhlnk_chan_sua`
+  thêm **escape DELETE HẸP NHẤT**: cho xoá CHỈ khi `current_setting('kho.xoa_demo')='1'` **VÀ** dòng thuộc đơn `la_demo=true`.
+  Ngoài đó DELETE vẫn raise nguyên như cũ. **KHÔNG tắt trigger** — đây là policy-theo-la_demo, đúng khuôn `chan_sua_moc_chot`
+  (MOC_CHUAN) đã có → người sau đọc thấy MỘT lối, không hai lối.
+- **Bẫy CASCADE:** escape đòi `exists(don_hang la_demo)`, mà lúc CASCADE cha đã bị xoá → check false → trượt. Vì vậy
+  **`xoa_demo` xoá `su_kien_meta`/`lead_nhat_ky` TƯỜNG MINH TRƯỚC `don_hang`** (lúc cha còn) + bổ sung NO ACTION không-cascade
+  (`tem_ban_ve`, `mon_doi_phien_ban`). Bảng CASCADE khác để nguyên (tự cascade). `xoa_demo` đã set GUC `kho.xoa_demo=1` (L13).
+- **Dữ liệu THẬT vẫn append-only TUYỆT ĐỐI:** chỉ dòng đơn `la_demo` mới xoá được, chỉ qua `xoa_demo`. Đơn thật (dù GUC=1) bị chặn.
+- **`giao_dich`/`su_kien_quet` KHÔNG đụng** (QD-44/45; hai sổ không nối đơn) — cố ý giữ, không sót.
+- **Test `test_xoa_demo.mjs` 6/0:** 1 xoá-sạch T9-010 (su_kien_meta 1→0) · 2 **đơn THẬT REAL-XD1 + con NGUYÊN** (ca quan trọng
+  nhất) · 2b la_demo→0 · 3 DELETE không-GUC chặn · 4 DELETE đơn-thật-có-GUC VẪN chặn (escape đòi la_demo) · 5 giao_dich/su_kien_quet
+  giữ. Hồi quy: bao_gia_lai 11 · ky_xac_nhan 9 · mo_ky_moi 17 · grant_don_hang 3 · dong_dau_ky 5.
+
+**Trạng thái:** db/225 áp prod (dump QD-61, backup 7.14MB). Dọn 9 đơn demo thật (C). CHƯA commit.
+
+## QD-106 (04/09, WP-17b(2) L-15, db/226) — quản đốc MỞ PHIÊN HỘ nhiều trạm (phien_tram/mo_phien) · CHỐT
+
+**ĐÍNH CHÍNH L-13 §C4 (tôi kết luận nhầm):** nguồn "ai làm" của quét (`sq_ghi` → `phien_nguoi`) là **`kho.phien_tram`**
+(mở bởi **`mo_phien`**), **KHÔNG phải `ca_lam`** (mở bởi `mo_ca`). `ca_lam` **KHÔNG hàm giờ-công/sản-lượng nào đọc** (chỉ
+2 hàm hiển thị `tram_man`/`tram_ca_hom_nay` chọn theo `ma_tram` — an toàn) → để nguyên, coi như đóng băng. CEO chốt sửa
+**đúng bảng phien_tram**, không đụng ca_lam/mo_ca.
+
+- **`mo_phien` VỐN đóng phiên theo TRẠM (nhường trạm), KHÔNG theo người** → một người ĐÃ giữ được nhiều trạm sẵn (không cần
+  bỏ auto-close như tưởng ở A2). Nút thắt bước-8 THẬT: demo gọi **nhầm `mo_ca`** (ca_lam, vô dụng với quét) thay `mo_phien`.
+- **db/226:** `phien_tram` +cột **`nguoi_mo`** (ai BẤM; NULL=thợ tự mở; client ĐÓNG WP-11b, chỉ SELECT). `mo_phien` thêm:
+  mở **HỘ** (`p_nguoi ≠ current_ns()`) **chỉ vai xuong/ceo**; ghi `nguoi_mo=người bấm`. **`nguoi_id` vẫn = người LÀM** →
+  giờ công/quét (`phien_nguoi`) gán đúng người làm, KHÔNG bao giờ gán quản đốc. Idempotent (mở trùng → `da_mo=true`).
+- **A3 rà chỗ đọc ca_lam:** 3 hàm (`sq_ghi` dùng phien_tram không ca_lam · `tram_man`/`tram_ca_hom_nay` chọn theo `ma_tram`)
+  — **KHÔNG chỗ nào giả định "một người một ca" theo nguoi_id** → không sửa lan (≤3 chỗ, an toàn).
+- **Không đẻ vai mới:** dùng `tram_gac_vai` (tho/xuong/ceo); chỉ thêm quyền **mở hộ** cho xuong/ceo.
+- **Test `test_mo_phien_ho.mjs` 7/0:** 1 thợ tự mở→nguoi_mo NULL · 2 xuong mở hộ A ở 2 trạm→A giữ ≥2, nguoi_mo=xuong ·
+  3 thợ mở hộ→từ chối · 4 mở hộ trùng→da_mo=true · 5 `phien_nguoi`=A (người LÀM, không quản đốc) · 6 client PATCH nguoi_mo 403.
+  Hồi quy: xoa_demo 6 (vá fixture T9-010 đã xoá L-14) · bao_gia_lai 11 (vá fixture T9-007/008) · ky_xac_nhan 9 · mo_ky_moi 17 ·
+  grant_don_hang 3 · dong_dau_ky 5 · **wp46 (phiên thợ)**.
+
+**Trạng thái:** db/226 áp prod (dump QD-61, backup 7.14MB). Demo bước-8 đổi mo_ca→mo_phien + UI mở-hộ ở L-16. CHƯA commit.

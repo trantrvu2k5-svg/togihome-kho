@@ -481,19 +481,12 @@ def main(pw):
         if not entries:
             RESULT[8] = 'KET'; ket(pg, 8, "không dựng được lượt quét (quy_trinh_buoc/tram rỗng)")
         else:
-            # MỞ CA ở MỌI trạm bằng RPC mo_ca. Dùng CEO nguoi_id — thợ chỉ thuộc 1 tổ nên không mở được trạm khác tổ;
-            # CEO mở được mọi trạm (thấy trong list #tqMocaDs). Kiểm ca thực mở bằng ca_lam.
-            # mo_ca là TOGGLE (gọi trên trạm ĐANG MỞ sẽ ĐÓNG) → CHỈ mở trạm CHƯA có ca. CEO mở được mọi tổ.
-            ceo_ns = sbjs(pg, "const {data}=await sb.from('nguoi_dung').select('id').eq('vai_tro','ceo').eq('dang_hoat_dong',true).limit(1); return (data&&data[0])?data[0].id:null;")
-            need = sorted(set(e["tram"] for e in entries))
-            def ca_open():
-                return set(sbjs(pg, "const {data}=await sb.from('ca_lam').select('ma_tram').is('ket_thuc',null); return (data||[]).map(x=>x.ma_tram);") or [])
-            for tr in need:                      # mở CHẮC từng trạm: retry toggle tới khi ca_lam xác nhận mở
-                for _ in range(3):
-                    if tr in ca_open(): break
-                    rpc(pg, "mo_ca", {"p_tram": tr, "p_nguoi": ceo_ns}); time.sleep(0.6)
-            thieu_ca = [t for t in need if t not in ca_open()]
-            print(f"  ca MỞ đủ: {len(need)-len(thieu_ca)}/{len(need)}" + (f" · THIẾU {thieu_ca}" if thieu_ca else ""))
+            # [WP-17b L-16] MỞ PHIÊN THỢ qua nút "Ai nhận trạm" (#tqPhienDs → mo_phien = NGUỒN quét sq_ghi đọc).
+            #   BỎ mo_ca (đóng-ca-theo-người, KHÔNG phải nguồn quét) + BỎ workaround tien_mon (che mất thứ cần kiểm).
+            #   test_ceo (quản đốc) MỞ HỘ thợ → nguoi_id=thợ, nguoi_mo=ceo → quét gán THỢ (A3).
+            tho_ns = sbjs(pg, "const {data}=await sb.from('nguoi_dung').select('id,ho_ten').eq('vai_tro','tho').eq('dang_hoat_dong',true).limit(1); return (data&&data[0])?data[0]:null;")
+            tho_id = tho_ns["id"] if tho_ns else None
+            print(f"  quản đốc (ceo) MỞ HỘ thợ: {tho_ns['ho_ten'] if tho_ns else '(KHÔNG có tho!)'} ({(tho_id or '')[:8]})")
             quet_ok = 0; got = False; imgn = 0
             b2 = pw.chromium.launch(channel="chrome", headless=True)
             iph = b2.new_context(storage_state=ctx.storage_state(), **pw.devices["iPhone 13"])
@@ -508,16 +501,18 @@ def main(pw):
                     try: pm.locator('[data-man="tram"]:visible').first.click(timeout=4000)   # vào #s-tram (taiTram)
                     except Exception: pass
                     time.sleep(2)
-                    if pm.locator('#tqMocaDs button[data-n]').count():   # 'Chưa ai mở ca' → mở ca
-                        pm.locator('#tqMocaDs button[data-n]').first.click(); time.sleep(1.5)
+                    # [WP-17b L-16] MỞ PHIÊN HỘ thợ qua MÀN: bấm tên thợ trong "Ai nhận trạm" (#tqPhienDs → mo_phien)
+                    if tho_id and pm.locator(f'#tqPhienDs button[data-n="{tho_id}"]').count():
+                        pm.locator(f'#tqPhienDs button[data-n="{tho_id}"]').first.click(); time.sleep(1.5)
                     try: pm.locator('#tqO').wait_for(state="visible", timeout=6000)
                     except PWTimeout: raise AssertionError(f"trạm {tr}: #tqO không hiện (chọn trạm + mở ca?)")
                     o = pm.locator('#tqO')
                     if o.evaluate("el => el.tagName.toLowerCase()") != "input":
                         raise AssertionError(f"trạm {tr}: #tqO không phải input")
-                    # sq_ghi: mỗi trạm cần 2 quét — lần 1 'vào', lần 2 'ra'. Bước chỉ xong (predecessor thoả) khi có 'ra'.
-                    req0 = REQ["n"]; o.fill(ma_tem); o.press("Enter"); time.sleep(1.6)     # vào
-                    o.fill(ma_tem); o.press("Enter"); time.sleep(1.6)                       # ra
+                    # WP-46a: PHẢI chọn việc (Nhận/Xong) TRƯỚC khi quét. vào (Nhận việc) rồi ra (Làm xong).
+                    req0 = REQ["n"]
+                    pm.locator('#tqNhan').click(); time.sleep(0.4); o.fill(ma_tem); o.press("Enter"); time.sleep(1.6)   # vào
+                    pm.locator('#tqXong').click(); time.sleep(0.4); o.fill(ma_tem); o.press("Enter"); time.sleep(1.6)   # ra
                     if imgn < 3: imgn += 1; shot(pm, f"8_quet{imgn}")
                     if REQ["n"] > req0: quet_ok += 1
                     else: KET.append(f"BƯỚC 8 {tr}/{ma_tem}: gõ tem không gọi tram_quet")
@@ -526,22 +521,15 @@ def main(pw):
                 if tt_of(pg, D) == 'cho_giao':
                     got = True; print("  → đơn đã sang cho_giao"); break
             iph.close(); b2.close()
-            print(f"  quét THẬT: {quet_ok} lượt · đơn tới cho_giao (chỉ quét): {got}")
+            # [WP-17b L-16] A3: quét gán ĐÚNG THỢ (không quản đốc) — đọc su_kien_quet mới nhất
+            gan = sbjs(pg, "const {data}=await sb.from('su_kien_quet').select('nguoi_id').order('luc',{ascending:false}).limit(1); return (data&&data[0])?data[0].nguoi_id:null;")
+            A3_OK = (gan == tho_id) and tho_id is not None
+            print(f"  quét THẬT: {quet_ok} lượt · đơn tới cho_giao (CHỈ quét, KHÔNG tien_mon): {got}")
+            print(f"  A3 · quét gán nguoi_id={str(gan)[:8]} · thợ={(tho_id or '')[:8]} → {'✅ ĐÚNG THỢ (không quản đốc)' if A3_OK else '❌ gán sai'}")
             if not got:
-                # QUÉT QR không đưa được tới cho_giao: HẠN CHẾ APP THẬT — mo_ca mở ca cho MỘT NGƯỜI/1 trạm,
-                # demo KHÔNG đủ 5 thợ mở 5 ca đồng thời. → tiến món qua RPC XƯỞNG THẬT tien_mon (cho_cat→da_cat→
-                # dang_lam→xong_sx) → trigger dong_bo đưa đơn sang cho_giao. Đây là đường xưởng hợp lệ (không INSERT tắt).
-                mons = sbjs(pg, f"const o=await sb.from('don_hang').select('id').eq('ma_don','{D}').limit(1); const oid=o.data&&o.data[0]&&o.data[0].id; const m=await sb.from('don_hang_mon').select('id').eq('don_id',oid); return (m.data||[]).map(x=>x.id);")
-                for mon in (mons or []):
-                    for st in ["da_cat", "dang_lam", "xong_sx"]:
-                        rr = rpc(pg, "tien_mon", {"p_mon_id": mon, "p_trang_thai": st, "p_nguoi_id": ceo_ns})
-                        if rr.get("error"): print(f"  ⚠ tien_mon {st}: {rr['error'][:60]}")
-                        time.sleep(0.4)
-                if poll_tt(pg, D, ["cho_giao"], 8) == "cho_giao":
-                    got = True; print("  → đơn sang cho_giao qua tien_mon (RPC xưởng)")
-                KET.append("BƯỚC 8: quét QR không đủ ca (HẠN CHẾ APP: mo_ca 1 người/1 trạm, demo thiếu 5 thợ) → dùng tien_mon (RPC xưởng thật) đưa món xong_sx → cho_giao.")
+                KET.append("BƯỚC 8: quét không đưa đơn tới cho_giao (chỉ quét, KHÔNG workaround).")
             print_tt(pg, D, "(sau quét)")
-            RESULT[8] = 'OK' if quet_ok > 0 else 'KET'
+            RESULT[8] = 'OK' if got else 'KET'
 
     # ── 9 · GIAO → da_giao (Sale: nút "Đã giao xong" ở xong_sx → modal "Xác nhận đã giao", quyền giao_thu) ──
     print(f"\n── BƯỚC 9 · Sale: giao → da_giao ({D}) ──")
