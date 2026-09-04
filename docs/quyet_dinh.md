@@ -1670,3 +1670,82 @@ ngày chốt**. **ĐẢO kết luận WP-11c:** cột này THÔI là ứng viên
   sale.js:241 gọi). Full UI end-to-end (đơn có món) để lệnh sau nếu CEO cần.
 
 **Trạng thái:** db/220 áp prod (dump QD-61). CHƯA commit/tag.
+
+## QD-101 (04/09, WP-13b L-2, db/222) — mở kỳ tham số bằng RPC + vết sửa + 7 tham số vận hành quyền CEO · CHỐT
+
+CEO giao "tự quyết" 5 điểm (Q1–Q5). Tầng DB dựng xong; UI (app Tài chính tab Tham số) để lệnh sau.
+
+- **(a) Mở kỳ mới = RPC `kho.mo_ky_moi(p_ky, p_chep_tu, p_chep_chi_phi, p_chep_luong)`** — vai ceo/ke_toan (khuôn
+  `cpk_chep_ky_truoc`). Chép TOÀN BỘ cột tham_so từ **kỳ liền trước** + `chi_phi_ky` (tái dùng `cpk_chep_ky_truoc`) +
+  `luong_to`/`phan_bo_hoat_dong` (tái dùng `ghi_so_tham_so_xuong`, dựng jsonb từ kỳ nguồn) — mỗi phần MỘT cờ bật/tắt.
+  **Chỉ cho mở kỳ LIỀN SAU kỳ mới nhất** (chặn 3 lỗi tiếng Việt rõ: đã tồn tại · quá khứ · nhảy cóc); muốn khác → SQL tầng
+  owner như db/221. **Lý do (Garrison ch.10):** định mức đặt cho kỳ TỚI, không phải chép lại kỳ cũ — hệ đang đúng bệnh
+  09←08←07. Kỳ vừa chép mang **nhãn CHƯA SOÁT = `xac_nhan_luc IS NULL`** (KHÔNG chặn dùng); `xac_nhan_ky(p_ky)` bỏ nhãn.
+- **(b) `tham_so_tai_chinh` +4 cột vết sửa** (`nguoi_sua·sua_luc·chep_tu_ky·xac_nhan_luc`, đều NULL được). Client **ĐỌC**
+  được (SELECT 45→49) nhưng **KHÔNG ghi** — cột mới mặc định ĐÓNG với write (WP-11b); PATCH thẳng → 401/42501 (test T8 REST).
+- **(c) 7 tham số vận hành sửa ở app TÀI CHÍNH tab Tham số, quyền CEO** (Q5: 7 cột nằm trong `tham_so_tai_chinh` đã kỳ-hoá,
+  app Tài chính có sẵn ô Kỳ + đúng vai; component `ThietLap` ở app Sale để nguyên, không xoá). `luu_cau_hinh_van_hanh`
+  **siết ceo/ke_toan → CEO thôi** (Q3) + ghi thêm `nguoi_sua/sua_luc`. **Nhãn thật 3 ngưỡng (đọc từ chỗ tiêu thụ
+  `togihome_sale.html:10702`, không suy từ tên cột):** `n_ads`="chi quảng cáo trên doanh thu" (%) · `n_kg`="kilogam mỗi
+  triệu" (kg/tr) · `n_giam`="giảm giá" (%). (`n_cac`="chi phí thu hút khách" đ · `n_no`="công nợ đã giao chưa thu" đ.)
+- **2 ĐÍNH CHÍNH đầu bài WP-13b:** ① `gio_mo_cua` chỉ **1 app đọc** (sale.js:190 qua RPC `cau_hinh_sale`), KHÔNG phải 6.
+  ② `n_ads/n_cac/n_kg/n_no/n_giam` **KHÔNG trùng** bảng `ads_nguong` của WP-93 (ads_nguong = 8 ngưỡng báo-động-ad có khoảng
+  hiệu lực: chi_cao_khong_hoi_thoai, den_sat_tran_pct…; khác cả tên lẫn nghĩa) — không phải hai bảng danh mục.
+
+**Test `test_mo_ky_moi.mjs` 17/0** (tx-rollback, không để rác prod): T1 md5 45 cột giá khớp kỳ nguồn + vết đúng · T2 đã-tồn-tại ·
+T3 nhảy-cóc · T4 quá-khứ (2 nhánh) · T5 sale từ-chối · T6 cờ tắt=0/bật=khớp nguồn · T7 xác-nhận + gọi-lại-báo-đã · T8
+authenticated 0-UPDATE/có-SELECT + REST 401/42501 · T9 ke_toan từ-chối/ceo-đổi-7-số+vết. **Hồi quy:** grant_tham_so 4/0
+(SELECT 45→49, ghi vẫn 0) · rpc_tham_so 10/0 · grant_luong_to 4/0 · **ky_tham_so 5/0** (sửa fixture trôi: 2026-09 đã tồn tại
+do db/221 → 5c dùng 2026-11, baseline count động — KHÔNG do db/222).
+
+**Trạng thái:** db/222 áp prod (dump QD-61, backup 7.09MB). CHƯA commit/deploy/tag (L-2 chỉ DB; UI + commit ở lệnh sau).
+
+## QD-102 (04/09, WP-13b L-6, db/223) — ky_gia_hien_hanh() = kỳ ĐÃ XÁC NHẬN mới nhất (chưa có → kỳ mới nhất) · CHỐT
+
+CEO chốt (chat não, D-1): **giá chạy kỳ đã SOÁT, không chạy kỳ vừa chép**. Kỳ mới mở (mo_ky_moi) nằm **CHỜ**
+(`xac_nhan_luc IS NULL`); giá vẫn chạy kỳ cũ tới khi CEO soát số và bấm **Xác nhận số kỳ này**.
+
+- **db/223 · `ky_gia_hien_hanh()`** đổi: `coalesce( (kỳ xac_nhan_luc NOT NULL mới nhất), (kỳ mới nhất) )`.
+  **Dự phòng khi CHƯA kỳ nào xác nhận = kỳ mới nhất** — hệ KHÔNG bao giờ mất giá. Hôm nay 3 kỳ 07/08/09
+  đều chưa xác nhận → trả 2026-09 = **KHÔNG đổi giá lúc deploy** (test vế 1).
+- **Một nguồn sự thật:** **10 hàm giá** THÔI inline `order by ngay_ap_dung desc limit 1`, GỌI `ky_gia_hien_hanh()`:
+  `gia_san_don · gia_san_don_i · gia_bao_khach · gia_bac_tu_gv · bang_gia · tang_1_mon · gio_thiet_ke ·
+  tran_giam_gia · kiem_giam_gia · cau_hinh_sale` (11 chỗ; kiem_giam_gia 2). Vá nợ 00/WP-91 (§QD-100 đã cảnh báo).
+- **GIỮ NGUYÊN (ngoài họ giá):** `ban_giao_xuong` · `vuot_coc_canh_bao` (chọn **cọc%** `coc_toi_thieu_du_an_pct`
+  theo `ma_ky = to_char(current_date,'YYYY-MM')` — chọn theo THÁNG, khác pattern, không phải giá) ·
+  `mo_ky_moi` (cần kỳ-mới-nhất-THẬT để tính "liền sau", không phải kỳ giá). `chot_don` đã gọi sẵn (QD-100).
+- **HỆ QUẢ phải biết:** xác nhận một kỳ **CŨ hơn** thì **giá LÙI về kỳ đó** (test vế 2: xác nhận 08 khi 09 chưa
+  → giá về 2026-08). `chot_don` đóng dấu `ma_ky_ap_dung` theo `ky_gia_hien_hanh()` lúc chốt (test vế 5: kỳ 10
+  chưa xác nhận → stamp 2026-09; xác nhận rồi → 2026-10).
+- **Test `test_ky_xac_nhan.mjs` 9/0** (tx-rollback, 0 rác): 1 chưa-xác-nhận=2026-09 · 2 lùi-2026-08 (ĐỎ-được) ·
+  3 cả hai=2026-09 · 4 mở-10-chưa=09/xác-nhận-10=10 · 5 chot_don stamp theo kỳ. Hồi quy: mo_ky_moi 17 ·
+  ky_tham_so 5 · grant_tham_so 4 · rpc_tham_so 10 — XANH. UI dòng "Kỳ đang áp giá" (D1).
+
+**Trạng thái:** db/223 áp prod (backup 7.11MB). UI + deploy L-6. **DỪNG chờ CEO kiểm mắt.** CHƯA commit/tag (commit ở L-7).
+
+## QD-103 (04/09, WP-13b L-6b) — GIÁ THEO KỲ, BA LỚP TÁCH BẠCH · CHỐT (chỉ ghi sổ, KHÔNG code lớp 2/3 trong WP-13b)
+
+CEO chốt: giá vận hành theo BA lớp độc lập. **RANH GIỚI: QD này KHÔNG được cài trong WP-13b** — lớp 2 (phần thiếu) và
+lớp 3 (cảnh báo) tách WP riêng (xem phạm vi L-6b §C).
+
+1. **Đơn ĐÃ CHỐT — giá bất biến, mang nhãn `ma_ky_ap_dung`** (QD-100). **Trạng thái: ĐANG CHẠY.**
+   Bằng chứng A1: `chot_don` đóng dấu `coalesce(ma_ky_ap_dung, ky_gia_hien_hanh())`; trigger `trg_chan_sua_ma_ky_ap_dung`
+   đông cứng; đơn đã chốt giữ `gia_chot` lưu, KHÔNG gọi lại hàm giá → đổi `ky_gia_hien_hanh()` (QD-102) không đụng đơn cũ
+   (8 đơn qua chốt, 2 có nhãn — số cũ, không backfill).
+
+2. **Báo giá đã gửi khách CHƯA chốt — đóng dấu giá lúc GỬI, giữ tới hết hạn** (7 ngày đơn lẻ / 21 ngày dự án, WP-72);
+   hết hạn thì báo lại theo kỳ hiện hành. Lý do: báo giá là **lời hứa có thời hạn**, không phải con trỏ tới bảng giá.
+   - **Đóng dấu giá: ĐANG CHẠY** — `tao_don` GHI `gia_chot/gia_cong_thuc/doanh_thu` lúc tạo báo giá; `sale_bao_gia_ds`
+     ĐỌC cột lưu (KHÔNG gọi `gia_bao_khach`/`ky_gia_hien_hanh` live) → **báo giá đã gửi KHÔNG tự đổi giá khi kỳ đổi**.
+   - **Hết-hạn-báo-lại-theo-kỳ: CHƯA CÓ CODE** — mốc hạn (`han_tra_loi`·`ngay_ket_thuc_bao_gia`, dùng ở `sale_bao_gia_ds`·
+     `moc_bao_gia`·`sale_bao_gia_han_dem`) chỉ để ĐẾM/HIỂN THỊ; chưa có cơ chế hết hạn → tái định giá theo kỳ hiện hành.
+     Cũng chưa gắn nhãn kỳ lên báo giá (chỉ đóng băng giá trị `gia_chot`, không con trỏ kỳ). → tách WP.
+
+3. **Giá niêm yết (web/sàn) — chỉ đổi khi NGƯỜI sửa; đổi tham số kỳ KHÔNG bao giờ tự sửa `gia_niem_yet`.**
+   - **"Không tự đổi": ĐANG ĐÚNG** — A3: `gia_niem_yet` (bảng `niem_yet`) chỉ ghi bởi `chot_niem_yet`/`tao_niem_yet`
+     (người gọi); **KHÔNG trigger trên `niem_yet`, KHÔNG job/hàm kỳ-driven** nào sửa nó.
+   - **Cảnh báo mã dưới giá sàn khi kỳ được XÁC NHẬN (QD-102): CHƯA CÓ** — A3: không hàm nào so `gia_niem_yet` với giá sàn.
+     Cấm tự đổi giá; chỉ gửi cảnh báo CEO/người phụ trách giá. → tách WP.
+   - **Phụ thuộc dữ liệu (A4):** 24 niêm yết đang bán, **0 tính được giá sàn** — `niem_yet.ma_bien_the` ("TA-*", từ nhập
+     100 SP) KHÔNG khớp keyspace `san_pham_mau_gia_von` ("UB8D-*/SF-*", 14 dòng) → thiếu giá vốn per SKU. Cảnh báo lớp 3
+     ngày đầu bật sẽ kêu **0 mã vì THIẾU GIÁ VỐN**, không phải vì mọi mã trên sàn. Nợ nền: map giá vốn catalog↔niêm yết (db058).

@@ -309,6 +309,37 @@
   #tc .tc-cnt-qh { color:#C8202E; font-weight:700; }
   #tc .tc-cnt-nhan { display:inline-block; padding:1px 7px; border-radius:10px; font-size:11px; }
   #tc .tc-cnt-nhan.luc { background:#E8F6EE; color:#1E8449; } #tc .tc-cnt-nhan.do { background:#FDECEA; color:#C8202E; }
+  /* ── WP-13b L-3 · Mở kỳ mới + nhãn chưa-soát ── */
+  #tc .tsk-banner { display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--amB); border:1px solid #E9CE86;
+    border-left:4px solid var(--am); color:var(--am); border-radius:10px; padding:12px 16px; margin:0 0 16px; font-weight:600; }
+  #tc .tsk-banner .tsk-b-txt { flex:1; min-width:240px; }
+  #tc .tsk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:520px; }
+  #tc .tsk-grid label { display:block; font-size:12.5px; color:var(--mut); margin-bottom:4px; }
+  #tc .tsk-ky { font:600 18px/1 var(--mono); color:var(--tx); background:var(--auto); border:1px solid var(--bd);
+    border-radius:8px; padding:11px 14px; }
+  #tc .tsk-ky.tsk-khoa { color:var(--mut); background:var(--bd2); }
+  #tc .tsk-ticks { display:flex; gap:22px; flex-wrap:wrap; margin:15px 0 6px; }
+  #tc .tsk-ticks label { display:flex; align-items:center; gap:7px; font-size:13.5px; cursor:pointer; }
+  #tc .tsk-canhbao { background:var(--rdB); border:1px solid #F1C0C5; border-left:4px solid var(--pri); color:var(--priH);
+    border-radius:8px; padding:10px 14px; font-size:13px; margin:8px 0 14px; }
+  #tc .tsk-hang { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  #tc .tsk-loi { color:var(--pri); font-size:13px; font-weight:600; white-space:pre-wrap; }
+  #tc .tsk-vet { color:var(--mut); font-size:12.5px; }
+  /* ── WP-13b L-4 · Tham số vận hành (7 tham số, quyền CEO) ── */
+  #tc .tsv-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 22px; max-width:760px; }
+  #tc .tsv-grid label { display:block; font-size:12.5px; color:var(--tx2); margin-bottom:4px; font-weight:600; }
+  #tc .tsv-grid label .tsv-man { color:var(--mut); font-weight:400; }
+  #tc .tsv-grid input { width:100%; padding:9px 12px; border:1px solid var(--bd); border-radius:8px; font-size:14px; background:var(--surface); color:var(--tx); }
+  #tc .tsv-gio { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #tc .tsv-hang { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:16px; }
+  #tc .tsv-loi { color:var(--pri); font-size:13px; font-weight:600; white-space:pre-wrap; }
+  #tc .tsv-vet { color:var(--mut); font-size:12.5px; margin-top:9px; }
+  #tc .tsv-nhac { color:var(--tx2); font-size:12.5px; margin-top:10px; }
+  /* WP-13b L-6 · dòng "Kỳ đang áp giá" */
+  #tc .tsk-apgia { font-size:13px; color:var(--mut); margin:6px 0 14px; }
+  #tc .tsk-apgia.tsk-lech { background:var(--amB); border:1px solid #E9CE86; border-left:4px solid var(--am);
+    color:var(--am); border-radius:8px; padding:9px 14px; font-weight:600; }
+  #tc .tsk-apgia.tsk-loi { color:var(--pri); font-weight:600; }
   #tc .tc-cnt-ct { border:1px solid var(--bd); background:#fff; border-radius:6px; padding:2px 9px; cursor:pointer; font-size:12px; }
   #tc .tc-cnt-hd { background:var(--auto); }
   #tc .tc-cnt-hd td { font-family:var(--mono); font-size:11.5px; color:var(--mut); }
@@ -449,6 +480,53 @@
     <div class="tabp" id="tab-ban">
       <h1>Định giá & niêm yết</h1>
       <div class="subline">Tính thử nhanh, tham số kỳ, hệ số nhân, bảng giá, chốt niêm yết. Mọi số do DB tính.</div>
+      <div id="tsk_apgia" class="tsk-apgia"></div>   <!-- WP-13b L-6 · kỳ đang áp giá (ky_gia_hien_hanh) -->
+
+      <!-- WP-13b L-3 · banner nhãn CHƯA SOÁT (kỳ đang xem chép từ kỳ khác, chưa ai soát) -->
+      <div id="tsk_banner" class="tsk-banner" style="display:none">
+        <span class="tsk-b-txt" id="tsk_banner_txt"></span>
+        <button class="btn" id="tsk_xacnhan" type="button">Xác nhận số kỳ này</button>
+        <span class="tsk-loi" id="tsk_xn_loi"></span>
+      </div>
+
+      <!-- WP-13b L-3 · Mở kỳ mới (chỉ ceo/ke_toan) -->
+      <section class="card" id="tsk_moky" style="display:none">
+        <div class="ch"><h2>Mở kỳ mới</h2><span class="hint">chép số kỳ mới nhất sang kỳ liền sau</span></div>
+        <div class="cb">
+          <div class="tsk-grid">
+            <div><label>Kỳ muốn mở (chỉ được kỳ liền sau)</label><div class="tsk-ky" id="tsk_ky_moi">—</div></div>
+            <div><label>Chép số từ</label><div class="tsk-ky tsk-khoa" id="tsk_ky_nguon">—</div></div>
+          </div>
+          <div class="tsk-ticks">
+            <label><input type="checkbox" id="tsk_cp" checked> Chi phí kỳ (7 loại)</label>
+            <label><input type="checkbox" id="tsk_lt" checked> Lương tổ (7 tổ)</label>
+          </div>
+          <div class="tsk-canhbao">⚠ Mở kỳ = <b>đổi giá NGAY lúc bấm, KHÔNG chờ ngày 01</b>. Đơn <b>đã chốt</b> giữ nguyên kỳ cũ.</div>
+          <div class="tsk-hang"><button class="btn" id="tsk_mo" type="button">Mở kỳ —</button><span class="tsk-loi" id="tsk_loi"></span></div>
+        </div>
+      </section>
+
+      <!-- WP-13b L-4 · Tham số vận hành (7 tham số · CHỈ ceo — QD-101) -->
+      <section class="card" id="tsv_wrap" style="display:none">
+        <div class="ch"><h2>Tham số vận hành</h2><span class="hint">7 tham số cảnh báo & giờ mở cửa — chỉ CEO sửa</span></div>
+        <div class="cb">
+          <div class="tsv-grid">
+            <div>
+              <label>Giờ mở / đóng cửa</label>
+              <div class="tsv-gio"><input type="time" id="tsv_gio_mo"><input type="time" id="tsv_gio_dong"></div>
+            </div>
+            <div><label>Số ngày ghi đè khi đồng bộ chi quảng cáo <span class="tsv-man">(ngày · dùng khi đồng bộ chi ads)</span></label><input type="number" id="tsv_ghide" min="0" step="1"></div>
+            <div><label>Chi quảng cáo trên doanh thu (%) <span class="tsv-man">· cảnh báo màn Tổng quan (Sale)</span></label><input type="number" id="tsv_nads" min="0" step="0.5"></div>
+            <div><label>Chi phí thu hút khách (đ) <span class="tsv-man">· cảnh báo màn Tổng quan (Sale)</span></label><input class="money" id="tsv_ncac" inputmode="numeric"></div>
+            <div><label>Kilogam mỗi triệu (kg/triệu) <span class="tsv-man">· cảnh báo màn Tổng quan (Sale)</span></label><input type="number" id="tsv_nkg" min="0" step="0.5"></div>
+            <div><label>Công nợ đã giao chưa thu (đ) <span class="tsv-man">· cảnh báo màn Tổng quan (Sale)</span></label><input class="money" id="tsv_nno" inputmode="numeric"></div>
+            <div><label>Giảm giá (%) <span class="tsv-man">· cảnh báo màn Tổng quan (Sale)</span></label><input type="number" id="tsv_ngiam" min="0" step="0.5"></div>
+          </div>
+          <div class="tsv-nhac">Đổi ngưỡng làm đổi cảnh báo của <b>kỳ đang xem</b> (<span id="tsv_ky">—</span>), <b>không</b> đổi kỳ đã qua.</div>
+          <div class="tsv-hang"><button class="btn" id="tsv_luu" type="button">Lưu 7 tham số</button><span class="tsv-loi" id="tsv_loi"></span></div>
+          <div class="tsv-vet" id="tsv_vet"></div>
+        </div>
+      </section>
 
       <!-- Tính thử LÊN ĐẦU (dùng nhiều nhất) -->
       <section class="card">
@@ -504,6 +582,7 @@
             <div style="grid-column:2/4"><label>Ghi chú kỳ</label><input type="text" id="ghichu"></div>
           </div></div>
           <div style="margin-top:16px"><button class="btn" id="btn_luu">Lưu tham số kỳ</button> <span id="luu_msg" class="hint" style="margin-left:10px"></span></div>
+          <div class="tsk-vet" id="tsk_vet" style="margin-top:9px"></div>   <!-- WP-13b L-3: ai sửa · lúc nào (nguoi_sua/sua_luc) -->
         </div>
       </section>
 

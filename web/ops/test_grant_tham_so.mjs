@@ -18,7 +18,8 @@ ok('9a: authenticated/anon có 0 cột INSERT/UPDATE/DELETE trên tham_so_tai_ch
 const nSel = (await c.query(
   `select count(*) n from information_schema.column_privileges
     where table_schema='kho' and table_name='tham_so_tai_chinh' and grantee='authenticated' and privilege_type='SELECT'`)).rows[0].n
-ok('9a′: authenticated còn SELECT đủ 45 cột (không mù 2 màn)', nSel === '45', 'SELECT=' + nSel)
+// WP-13b db/222: +4 cột vết sửa (nguoi_sua/sua_luc/chep_tu_ky/xac_nhan_luc) được cấp SELECT (UI đọc vết) → 45→49. Ghi vẫn 0.
+ok('9a′: authenticated còn SELECT đủ 49 cột (45 gốc + 4 vết sửa db/222, không mù 2 màn)', nSel === '49', 'SELECT=' + nSel)
 
 await c.query('begin')
 try {

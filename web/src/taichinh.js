@@ -10,11 +10,13 @@ window.__sb = sb
 const $ = id => document.getElementById(id)
 const fmt = n => (n == null || isNaN(n)) ? '—' : Math.round(Number(n)).toLocaleString('vi-VN')
 const pct = n => (Math.round(Number(n) * 10) / 10).toString().replace('.', ',')
-const money = id => Number(($(id)?.value || '').replace(/\D/g, '')) || 0
+// WP-13b L-4 · TÁCH ĐỊNH DẠNG KHỎI LẤY GIÁ TRỊ (vá bệnh số trôi):
+//   số GỐC lưu ở dataset.raw (state), display chỉ để đọc. money() lấy TỪ dataset.raw, KHÔNG replace chuỗi hiển thị.
+const money = id => { const e = $(id); if (!e) return 0; const r = e.dataset.raw; if (r != null && r !== '') return Number(r); const s = (e.value || '').replace(/\D/g, ''); return s ? Number(s) : 0 }
 const numv = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? null : v }
-const setMoney = (id, v) => { $(id).value = (v == null) ? '' : Number(v).toLocaleString('vi-VN') }
-const fmtMoneyEl = el => { const v = el.value.replace(/\D/g, ''); el.value = v ? Number(v).toLocaleString('vi-VN') : '' }
-let KY = null, USER = null
+const setMoney = (id, v) => { const e = $(id); if (!e) return; const n = (v == null || v === '') ? null : Number(v); e.dataset.raw = n == null ? '' : String(n); e.value = n == null ? '' : n.toLocaleString('vi-VN') }
+const fmtMoneyEl = el => { const d = (el.value || '').replace(/\D/g, ''); el.dataset.raw = d === '' ? '' : String(Number(d)); el.value = d ? Number(d).toLocaleString('vi-VN') : '' }
+let KY = null, USER = null, KY_ROW = {}   // KY_ROW: dòng tham_so_tai_chinh kỳ đang xem (giữ vat để không đè khi lưu 7 tham số)
 
 // ── đăng nhập ──
 function manDangNhap(err) {
@@ -62,6 +64,9 @@ async function napApp() {
   $('btn_luu').onclick = luuKy
   $('btn_tinh').onclick = refreshHeSoM
   $('btn_chot').onclick = chot
+  if ($('tsk_mo')) $('tsk_mo').onclick = moKyMoi           // WP-13b L-3: mở kỳ mới
+  if ($('tsk_xacnhan')) $('tsk_xacnhan').onclick = xacNhanKy // WP-13b L-3: xác nhận nhãn chưa-soát
+  if ($('tsv_luu')) $('tsv_luu').onclick = luuTSV           // WP-13b L-4: lưu 7 tham số vận hành
   $('s6_luu').onclick = luuS6
   $('gv_ghi').onclick = nhapGiaVonTay
   if (USER.vai_tro === 'ceo') $('nav_tk').style.display = 'block'   // tab Quản lý tài khoản CHỈ ceo (RPC cũng guard)
@@ -86,7 +91,7 @@ async function napApp() {
   ;['pt_tien', 'cg_tien', 'vn_tien', 'qy_tien', 'pc_tien'].forEach(id => { const e = $(id); if (e) e.addEventListener('input', () => fmtMoneyEl(e)) })
   document.querySelectorAll('#tc .navi').forEach(b => { if (b.dataset.tab) b.onclick = () => doiTab(b.dataset.tab) })   // bỏ nút KHÔNG có data-tab (vd Đăng xuất) — nếu không sẽ ghi đè handler đăng xuất
   document.querySelectorAll('#tc .tag[data-param]').forEach(el => el.onclick = () => toggleBadge(el.dataset.param))  // badge từng tham số
-  document.querySelectorAll('#tc input.money').forEach(el => el.addEventListener('input', () => fmtMoneyEl(el)))
+  document.querySelectorAll('#tc input.money').forEach(el => { el.addEventListener('input', () => fmtMoneyEl(el)); fmtMoneyEl(el) })   // WP-13b L-4: seed dataset.raw từ giá trị tĩnh (qc_gv…) để money() đọc số gốc
   ;['qc_gv', 'qc_loai', 'qc_nhom', 'qc_dx'].forEach(id => $(id).addEventListener('input', refreshQuick))
   await loadKy()
   // L-52: default tab THEO VAI — kế toán đáp thẳng "Dòng tiền" (nơi nhập chính), còn lại đáp "Điều hành".
@@ -1230,6 +1235,117 @@ async function toggleBadge(param) {
   BADGE[param] = moi; if (el) veBadge(el, moi)
 }
 
+// ── WP-13b L-3 · Mở kỳ mới + nhãn chưa-soát (app Tài chính, tab Định giá bán) ──
+// Kỳ liền sau (số học tháng thuần, KHÔNG qua Date/UTC — chỉ +1 tháng trên số nguyên).
+function kyLienSau(ky) { let [y, m] = String(ky).split('-').map(Number); m++; if (m > 12) { m = 1; y++ } return y + '-' + String(m).padStart(2, '0') }
+// Định dạng HIỂN THỊ mốc thời gian (ghim VN) — không sinh ngày nghiệp vụ, chỉ để đọc "lúc nào".
+const fmtLuc = ts => { try { return new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(ts)) } catch (e) { return String(ts) } }
+// uid người sửa → tên (đọc được thì hiện tên, không thì hiện uid — CẤM bịa)
+async function tenTheoUid(uid) {
+  if (!uid) return ''
+  try { const { data } = await sb.from('nguoi_dung').select('ho_ten').eq('auth_uid', uid).maybeSingle(); return (data && data.ho_ten) || uid } catch (e) { return uid }
+}
+
+// Cập nhật: khối Mở kỳ mới (kỳ liền sau + nguồn) · banner chưa-soát · dòng vết sửa. `t` = dòng tham_so_tai_chinh kỳ đang xem.
+async function capNhatMoKy(t) {
+  // khối Mở kỳ mới — chỉ ceo/ke_toan
+  const box = $('tsk_moky')
+  if (box) {
+    if (USER && ['ceo', 'ke_toan'].includes(USER.vai_tro)) {
+      const opts = [...$('ky').options].map(o => o.value)   // #ky sắp desc → [0] = kỳ mới nhất
+      const nguon = opts[0], moi = kyLienSau(nguon)
+      $('tsk_ky_nguon').textContent = nguon
+      $('tsk_ky_moi').textContent = moi
+      const btn = $('tsk_mo'); btn.textContent = 'Mở kỳ ' + moi; btn.dataset.ky = moi
+      $('tsk_loi').textContent = ''
+      box.style.display = ''
+    } else box.style.display = 'none'
+  }
+  // banner chưa-soát: chép từ kỳ khác (chep_tu_ky) và chưa xác nhận (xac_nhan_luc NULL)
+  const bn = $('tsk_banner')
+  if (bn) {
+    const chuaSoat = !!(t && t.chep_tu_ky && !t.xac_nhan_luc)
+    bn.style.display = chuaSoat ? '' : 'none'
+    if (chuaSoat) $('tsk_banner_txt').textContent = `Kỳ ${KY} đang dùng số chép từ ${t.chep_tu_ky}, chưa ai soát.`
+    $('tsk_xn_loi').textContent = ''
+  }
+  // dòng vết sửa (nguoi_sua/sua_luc) — chưa có thì để trống
+  const vet = $('tsk_vet')
+  if (vet) {
+    if (t && t.nguoi_sua) { const ten = await tenTheoUid(t.nguoi_sua); vet.textContent = 'Sửa gần nhất: ' + ten + (t.sua_luc ? ' · ' + fmtLuc(t.sua_luc) : '') }
+    else vet.textContent = ''
+  }
+}
+
+async function moKyMoi() {
+  const btn = $('tsk_mo'), moi = btn.dataset.ky
+  $('tsk_loi').textContent = ''; btn.disabled = true
+  const { data, error } = await sb.rpc('mo_ky_moi', { p_ky: moi, p_chep_chi_phi: $('tsk_cp').checked, p_chep_luong: $('tsk_lt').checked })
+  btn.disabled = false
+  if (error) { $('tsk_loi').textContent = '❌ ' + error.message; return }   // ĐỎ nguyên văn, không alert, không nuốt
+  // chuyển ô Kỳ dùng chung sang kỳ mới rồi nạp lại tab
+  const opt = document.createElement('option'); opt.value = moi; opt.textContent = moi
+  $('ky').insertBefore(opt, $('ky').firstChild); $('ky').value = moi
+  await loadKy()
+}
+
+async function xacNhanKy() {
+  $('tsk_xn_loi').textContent = ''
+  const { error } = await sb.rpc('xac_nhan_ky', { p_ky: KY })
+  if (error) { $('tsk_xn_loi').textContent = '❌ ' + error.message; return }
+  $('tsk_banner').style.display = 'none'   // biến mất ngay, không cần F5
+  await loadKy()
+}
+
+// ── WP-13b L-4 · 7 tham số vận hành (CHỈ ceo — QD-101). `t` = dòng tham_so_tai_chinh kỳ đang xem. ──
+async function taiTSV(t) {
+  const box = $('tsv_wrap'); if (!box) return
+  if (!(USER && USER.vai_tro === 'ceo')) { box.style.display = 'none'; return }   // B1: vai khác CEO KHÔNG hiện khối (RPC cũng từ chối — hai tầng cùng chuyện)
+  box.style.display = ''
+  $('tsv_ky').textContent = KY
+  const gio = Array.isArray(t && t.gio_mo_cua) ? t.gio_mo_cua : ['', '']
+  $('tsv_gio_mo').value = gio[0] || ''; $('tsv_gio_dong').value = gio[1] || ''
+  $('tsv_ghide').value = (t && t.ghi_de != null) ? t.ghi_de : ''
+  $('tsv_nads').value = (t && t.n_ads != null) ? t.n_ads : ''
+  setMoney('tsv_ncac', t ? t.n_cac : null)
+  $('tsv_nkg').value = (t && t.n_kg != null) ? t.n_kg : ''
+  setMoney('tsv_nno', t ? t.n_no : null)
+  $('tsv_ngiam').value = (t && t.n_giam != null) ? t.n_giam : ''
+  $('tsv_loi').textContent = ''
+  if (t && t.nguoi_sua) { const ten = await tenTheoUid(t.nguoi_sua); $('tsv_vet').textContent = 'Sửa gần nhất: ' + ten + (t.sua_luc ? ' · ' + fmtLuc(t.sua_luc) : '') }
+  else $('tsv_vet').textContent = ''
+}
+
+async function luuTSV() {
+  $('tsv_loi').textContent = ''; const btn = $('tsv_luu'); btn.disabled = true
+  const { error } = await sb.rpc('luu_cau_hinh_van_hanh', {
+    p_ma_ky: KY,
+    p_vat: KY_ROW.vat,                                   // GIỮ NGUYÊN vat (sửa ở khối Tham số kỳ, không đụng ở đây)
+    p_gio_mo_cua: [$('tsv_gio_mo').value, $('tsv_gio_dong').value],
+    p_ghi_de: numv('tsv_ghide'),
+    p_n_ads: numv('tsv_nads'), p_n_cac: money('tsv_ncac'), p_n_kg: numv('tsv_nkg'),
+    p_n_no: money('tsv_nno'), p_n_giam: numv('tsv_ngiam')   // money() lấy số GỐC (dataset.raw), KHÔNG strip chuỗi hiển thị
+  })
+  btn.disabled = false
+  if (error) { $('tsv_loi').textContent = '❌ ' + error.message; return }   // ĐỎ nguyên văn, không alert
+  $('tsv_loi').textContent = '✅ đã lưu'
+  await loadKy()   // B4: nạp lại từ DB rồi mới vẽ (không tin state)
+}
+
+// WP-13b L-6 · dòng "Kỳ đang áp giá" (đọc ky_gia_hien_hanh — kỳ đã xác nhận mới nhất). Lệch kỳ đang xem → vàng.
+async function capNhatApGia() {
+  const el = $('tsk_apgia'); if (!el) return
+  const { data: apGia, error } = await sb.rpc('ky_gia_hien_hanh')
+  if (error) { el.className = 'tsk-apgia tsk-loi'; el.textContent = '❌ Lỗi đọc kỳ áp giá: ' + error.message; return }
+  if (apGia && apGia !== KY) {
+    el.className = 'tsk-apgia tsk-lech'
+    el.textContent = `⚠ Kỳ đang áp giá: ${apGia} — kỳ ${KY} này chưa xác nhận nên giá vẫn chạy kỳ ${apGia}.`
+  } else {
+    el.className = 'tsk-apgia'
+    el.textContent = 'Kỳ đang áp giá: ' + (apGia || '—')
+  }
+}
+
 async function loadKy() {
   KY = $('ky').value; $('ky_chot').textContent = KY
   const { data } = await sb.from('tham_so_tai_chinh').select('*').eq('ma_ky', KY).maybeSingle()
@@ -1239,6 +1355,10 @@ async function loadKy() {
   setMoney('phile', t.phi_don_le); setMoney('phicombo', t.phi_don_combo); setMoney('phitk', t.phi_don_thiet_ke)
   setMoney('cpnl', t.chi_phi_nang_luc)   // L-46: chi phí năng lực xưởng (để trống = dùng số suy)
   $('transale').value = t.tran_sale ?? ''; $('trantn').value = t.tran_truong_nhom ?? ''; $('ghichu').value = t.ghi_chu ?? ''
+  KY_ROW = t   // WP-13b L-4: giữ dòng kỳ (vat pass-through)
+  await capNhatApGia()   // WP-13b L-6: dòng "Kỳ đang áp giá"
+  await capNhatMoKy(t)   // WP-13b L-3: banner chưa-soát + vết sửa + khối Mở kỳ mới
+  await taiTSV(t)        // WP-13b L-4: 7 tham số vận hành (CEO)
   await taiBadges()   // badge TẠM/ĐÃ CHỐT theo từng tham số (thay 1 cột ghi_chu chung)
   await refreshHeSoM(); await refreshBang(); await refreshQuick(); await refreshChotInfo()
   await taiS6().catch(e => { const m = $('s6_msg'); if (m) { m.style.color = '#C8202E'; m.textContent = 'Lỗi tải màn C: ' + (e.message || e) } })  // xưởng hỏng KHÔNG kéo màn cũ
@@ -1258,7 +1378,7 @@ async function luuKy() {
     dt_muc_tieu: money('dt'), so_don_ke_hoach: numv('sodon'), vat: numv('vat'),
     hh_sale: numv('hhs'), hh_quan_ly: numv('hhq'), hh_thiet_ke: numv('hht'),
     phi_don_le: money('phile'), phi_don_combo: money('phicombo'), phi_don_thiet_ke: money('phitk'),
-    chi_phi_nang_luc: (($('cpnl').value || '').replace(/\D/g, '') || null) && Number($('cpnl').value.replace(/\D/g, '')),   // L-46: trống = NULL (dùng số suy)
+    chi_phi_nang_luc: money('cpnl') || null,   // L-46 trống = NULL · WP-13b L-4: đọc số GỐC (dataset.raw), không strip chuỗi
     tran_sale: numv('transale'), tran_truong_nhom: numv('trantn'), ghi_chu: $('ghichu').value
   }
   // WP-11d: đường ghi qua RPC (grant .update bị revoke). Bố cục màn KHÔNG đổi.
