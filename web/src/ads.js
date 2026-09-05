@@ -81,7 +81,7 @@ function datPreset(n) {
 // ══════════ NẠP (nguồn số DUY NHẤT là RPC) ══════════
 async function nap() {
   $('noi').innerHTML = '<div class="trong">Đang tải…</div>'
-  const [bk, ss, vl, ad, dp, ng, tk, th] = await Promise.all([
+  const [bk, ss, vl, ad, dp, ng, tk, th, ttk] = await Promise.all([
     sb.rpc('ads_bang_ky', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN }),
@@ -89,7 +89,8 @@ async function nap() {
     sb.rpc('ads_do_phu', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.from('ads_nguong').select('gia_tri,hieu_luc_tu,hieu_luc_den').eq('ma', 'chi_so_ty_le_dang_ngo'),
     sb.from('ads_tai_khoan_brand').select('act_id,brand_id,ten_hien_thi').is('hieu_luc_den', null),
-    sb.from('thuong_hieu_ban').select('ma,ten')
+    sb.from('thuong_hieu_ban').select('ma,ten'),
+    sb.rpc('ads_tinh_trang_keo')   // [WP-91] đèn ĐỘ PHỦ + trễ-giờ (RPC thứ 5). Hỏng/rỗng → dải xám, KHÔNG ẩn.
   ])
   const loi = [bk, ss, vl].find(x => x.error)
   if (loi) { $('noi').innerHTML = '<div class="ads-loi">Lỗi tải dữ liệu: ' + esc(loi.error.message) + '</div>'; return }
@@ -98,13 +99,13 @@ async function nap() {
   const homNay = DEN
   const ngRow = (ng.data || []).find(r => r.hieu_luc_tu <= homNay && (r.hieu_luc_den == null || homNay <= r.hieu_luc_den))
   const tyLeNgo = ngRow ? Number(ngRow.gia_tri) === 1 : false
-  DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo }
+  DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo, ttk: (ttk && ttk.error) ? null : (ttk && ttk.data) }
   render()
 }
 
 // ══════════ RENDER (thứ tự v2b) ══════════
 function render() {
-  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo } = DL
+  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk } = DL
   let dong = (bk.dong || []).slice()
   const anCount = dong.filter(d => d.co_an).length
   if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
@@ -118,6 +119,7 @@ function render() {
   h.push(khoiTrungThuc(dp, vl))
   h.push(khoiViec(vl))
   h.push(khoiSoSanh(ss, tyLeNgo))
+  h.push(khoiDenPhu(ttk))   // [WP-91] đèn độ phủ NGAY TRÊN khối tổng
   h.push(khoiBang(dong, bk.tong, anCount))
   h.push(khoiMucAd(ad, DL.adErr))
   h.push(khoiChuGiai())
@@ -210,6 +212,29 @@ function khoiSoSanh(ss, tyLeNgo) {
     '<div class="ads-so2-card"><div class="k">' + r.k + '</div><div class="now">' + r.f(r.now) + '</div><div class="prev">trước: ' + r.f(r.prev) + ' · ' + lechTxt(r.lv) + '</div></div>').join('') + '</div>'
   const note = tyLeNgo ? '<div class="ads-bang-note">CTR · CPM · CPC tạm ẩn: nguồn "bấm vào link" đang được rà lại, sẽ hiện lại khi xong.</div>' : ''
   return sec('2', 'So với kỳ liền trước', dd + ' ngày mỗi kỳ · theo ngày chi', tbl + cards + note)
+}
+
+// [WP-91] ĐÈN ĐỘ PHỦ — dải mỏng NGAY TRÊN khối tổng. Nguồn: ads_tinh_trang_keo() (KHÔNG tính lại ở FE).
+//   Màu KHÔNG đứng một mình: mỗi dải có icon hình + chữ nói rõ nghĩa (người mù màu vẫn đọc được).
+function khoiDenPhu(tt) {
+  const hm = s => { const d = new Date(s); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
+  const dm = s => { const d = new Date(s); return isNaN(d) ? '' : String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') }
+  // B · RPC hỏng/rỗng → dải XÁM, KHÔNG ẩn (ẩn khi hỏng = quay lại bệnh cũ im lặng)
+  if (!tt || !tt.do_phu) return '<div class="ads-dophu ads-dophu-xam"><span class="ads-dophu-ic">○</span><b>Không đọc được tình trạng kéo số.</b></div>'
+  const dp = tt.do_phu, kh = (dp.khoang_thieu || []).join(', ')
+  let cls, txt
+  if (dp.dai_du_so === 'chua_co_du_lieu') { cls = 'xam'; txt = 'Chưa kéo lần nào.' }
+  else if (dp.dai_du_so === 'xanh') { cls = 'xanh'; txt = 'Số ads đủ tới ' + dm(dp.ngay_du_lieu_moi_nhat) + '.' }
+  else if (dp.dai_du_so === 'vang') { cls = 'vang'; txt = 'Thiếu ' + dp.thieu_so_ngay + ' ngày: ' + kh + '. Số dưới đây đang thấp hơn thực tế.' }
+  else { cls = 'do'; txt = 'Thiếu ' + dp.thieu_so_ngay + ' ngày: ' + kh + '. ĐỪNG dùng số dưới đây để quyết.' }
+  const ic = { xanh: '●', vang: '▲', do: '■', xam: '○' }[cls]
+  // vế lượt kéo gần nhất bị lỗi (hiện DÙ dải đủ-số đang xanh)
+  const loi = (tt.nguon || []).map(n => n.loi_gan_nhat).find(Boolean)
+  const veLoi = loi ? ' <span class="ads-dophu-loi">Lần kéo lúc ' + hm(loi.luc) + ' bị lỗi.</span>' : ''
+  // dòng phụ nhỏ: cập nhật lúc (lượt xong mới nhất)
+  const xong = (tt.nguon || []).map(n => n.lan_xong_luc).filter(Boolean).sort().pop()
+  const phu = xong ? '<div class="ads-dophu-sub">cập nhật lúc ' + hm(xong) + ' ngày ' + dm(xong) + '</div>' : ''
+  return '<div class="ads-dophu ads-dophu-' + cls + '"><div class="ads-dophu-hang"><span class="ads-dophu-ic">' + ic + '</span><b>' + esc(txt) + '</b>' + veLoi + '</div>' + phu + '</div>'
 }
 
 function objCell(o) {
