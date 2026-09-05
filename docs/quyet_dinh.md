@@ -1867,6 +1867,30 @@ Test `test_dong_phien.mjs` 5/0: 1 thợ tự đóng ✓ · 2 thợ đóng ngư�
 (`xuong.js:461 xongBuoc→tien_mon`) — đó là BƯỚC NGƯỜI LÀM. L-16 bỏ đường-RPC-tắt là đúng; L-21 thay
 bằng cú bấm trên màn (không đảo quyết định CEO).
 
+## QD-109 (05/09, WP-91 (i)+(ii) L-91.1, db/229) — SỔ MỐC KÉO ADS dùng chung + khoá tự hết hạn + đèn trễ · CHỐT
+
+Bảng `ads_moc_keo` — một dòng mỗi lượt chạy, DÙNG CHUNG cho MỌI bộ kéo ads (`nguon` ∈
+`meta_chi_ad·meta_chi_chien_dich·gop_ky`; chỗ cho `google_*` SAU — chưa token thì chưa thêm, tránh nhãn chết).
+
+**Lý do:** bộ kéo Meta dừng 30/08, hôm nay 05/09 — KHÔNG có lịch chạy, số chỉ tươi khi có người gõ tay. Bộ kéo
+chết IM LẶNG thì số cũ trông y hệt số mới (đúng bệnh WP-70/QD-80: cron "xanh" mà mốc đứng 8h). Sắp có bộ kéo
+Google → phải có sổ mốc + đèn TRƯỚC, không thì hai bộ cùng chết im.
+
+- **Khoá TỰ HẾT HẠN (khuôn QD-80):** cột `khoa_het_han_luc`. `ads_moc_keo_ghi('mo',nguon)` chặn lượt trùng khi
+  khoá CÒN hạn; khoá QUÁ hạn (lượt chết giữa chừng, `finally` KHÔNG đáng tin) → thu hồi lượt treo (→`loi`) rồi
+  cho lượt mới chạy. TTL mặc định 10′ (dài hơn 1 lượt kéo thật, đủ ngắn để thu hồi).
+- **Đèn đọc NGƯỠNG TỪ BẢNG (khuôn QD-93):** `ads_nguong` thêm `keo_tre_vang_gio=8` · `keo_tre_do_gio=26` [TẠM]
+  (kéo 1 lần/ngày + đệm 2h). Sửa qua bảng, KHÔNG đụng code. `ads_tinh_trang_keo()` mỗi nguồn trả: lần xong gần
+  nhất · trễ mấy giờ · dải xanh/vàng/đỏ · ngày mới nhất ĐANG CÓ ở `chi_ads_ngay`+`chi_chien_dich_ngay` · lỗi gần
+  nhất. Nguồn **CHƯA CHẠY LẦN NÀO → nhãn riêng `chua_chay`**, KHÔNG trả trễ vô hạn, KHÔNG bịa 0 (bài học đèn mù).
+- **GRANT (khuôn QD-96):** `ads_moc_keo` mặc định ĐÓNG với client — revoke all khỏi public/anon/authenticated +
+  RLS bật không policy; client chỉ đọc qua RPC `ads_tinh_trang_keo` (DEFINER). `ads_moc_keo_ghi` chỉ `service_role`
+  (bộ kéo) gọi — client KHÔNG ghi thẳng được (403).
+- **Chưa nối:** bộ kéo hiện tại CHƯA gọi `ads_moc_keo_ghi`; scheduler + backfill ở lệnh sau. Lệnh này chỉ dựng cổng DB.
+
+Test `test_ads_moc_keo.mjs` 8/0: trễ 1h→xanh·10h→vàng·40h→đỏ · chưa-chạy→chua_chay(không đỏ/0) · khoá còn hạn chặn
+lượt 2 · **khoá quá hạn → lượt mới chạy được + thu hồi lượt treo** · lượt lỗi→RPC trả lỗi gần nhất · client INSERT→403.
+
 ## QD-110 (05/09, WP-90 mở lại L-23) — NGHIỆM THU DỮ LIỆU KÉO BẰNG CHÍNH NGUỒN NGOÀI + kiểm ĐỘ PHỦ · CHỐT
 
 **Luật:** Số kéo từ nguồn ngoài (Meta, Pancake, ngân hàng…) chỉ coi là ĐẠT khi đối chiếu với **CHÍNH nguồn
