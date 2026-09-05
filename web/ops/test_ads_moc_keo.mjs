@@ -94,6 +94,39 @@ try {
     x1.ok && !x2.ok && /đang chạy|chặn lượt trùng/.test(x2.msg || '') && dc === 1, `dc=${dc} · x2=${x2.msg}`)
   await c.query('rollback to savepoint v10')
 
+  // ── ĐÈN ĐỦ-SỐ (35 ngày) — tách khỏi dải trễ-giờ ──
+  const doPhu = async () => (await c.query("select kho.ads_tinh_trang_keo() j")).rows[0].j.do_phu
+  const monKeo = async (tu, den) => c.query("insert into kho.ads_moc_keo(nguon,bat_dau_luc,ket_thuc_luc,trang_thai,khoang_tu,khoang_den) values('meta_chi_ad',now(),now(),'xong',$1,$2)", [tu, den])
+
+  // ── vế 11: đủ 35/35 ngày → dải đủ-số XANH ──
+  await c.query('savepoint v11'); await c.query('delete from kho.ads_moc_keo')
+  await monKeo('2026-08-02', '2026-09-05')   // phủ trọn cửa sổ 35 ngày (current_date=2026-09-05)
+  const p11 = await doPhu()
+  ok('11 đủ 35/35 → dải đủ-số XANH · thiếu 0', p11.dai_du_so === 'xanh' && p11.so_ngay_co === 35 && p11.thieu_so_ngay === 0, JSON.stringify(p11))
+  await c.query('rollback to savepoint v11')
+
+  // ── vế 12: thiếu ĐÚNG 2 ngày → VÀNG ──
+  await c.query('savepoint v12'); await c.query('delete from kho.ads_moc_keo')
+  await monKeo('2026-08-04', '2026-09-05')   // bỏ 02,03/08 = thiếu 2 ngày
+  const p12 = await doPhu()
+  ok('12 thiếu đúng 2 ngày → VÀNG', p12.dai_du_so === 'vang' && p12.thieu_so_ngay === 2, JSON.stringify(p12))
+  await c.query('rollback to savepoint v12')
+
+  // ── vế 13: tình trạng THẬT-cũ (chỉ 22/08–31/08) → ĐỎ · khoảng thiếu GỘP đúng 2 (không 25 rời) ──
+  await c.query('savepoint v13'); await c.query('delete from kho.ads_moc_keo')
+  await monKeo('2026-08-22', '2026-08-31')
+  const p13 = await doPhu()
+  ok('13 chỉ 22–31/08 → ĐỎ · khoảng thiếu gộp đúng 2 (02–21/08 + 01–05/09)',
+    p13.dai_du_so === 'do' && Array.isArray(p13.khoang_thieu) && p13.khoang_thieu.length === 2, JSON.stringify(p13.khoang_thieu))
+  await c.query('rollback to savepoint v13')
+
+  // ── vế 14: sổ mốc RỖNG → "chua_co_du_lieu" (KHÔNG thiếu 35, KHÔNG chia 0) ──
+  await c.query('savepoint v14'); await c.query('delete from kho.ads_moc_keo')
+  const p14 = await doPhu()
+  ok('14 sổ mốc RỖNG → dải "chua_co_du_lieu" · thiếu=null · so_ngay_co=null',
+    p14.dai_du_so === 'chua_co_du_lieu' && p14.thieu_so_ngay === null && p14.so_ngay_co === null, JSON.stringify(p14))
+  await c.query('rollback to savepoint v14')
+
 } finally { await c.query('rollback') }
 // xác nhận sạch: 0 dòng ads_moc_keo còn lại do test (đã rollback)
 const con = +(await c.query("select count(*) n from kho.ads_moc_keo")).rows[0].n

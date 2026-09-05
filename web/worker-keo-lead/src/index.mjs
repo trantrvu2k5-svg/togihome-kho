@@ -4,6 +4,7 @@
 //     5 lỗi LIÊN TIẾP → ngủ 15' · 1 dòng log/lượt (giờ · lead mới · lỗi) · KHÔNG in token.
 import postgres from 'postgres'
 import { keoMotPage, MET, metReset } from '../../ops/keo_lead_core.mjs'
+import { keoChiAdsMetaNhip } from '../../ops/keo_chi_ads_meta.mjs'   // [WP-91 L-91.3] kéo chi ads (cron daily)
 
 // [L-70r7 ĐO] đếm câu SQL + thời-gian-trôi-qua DB mỗi lượt (KHÔNG phải CPU). Reset đầu mỗi chayLuot.
 const MET_DB = { ms: 0, n: 0 }
@@ -95,6 +96,30 @@ async function chayLuot(env) {
   } finally { try { await sql.end() } catch {} }
 }
 
+// [WP-91 L-91.3] KÉO CHI ADS (cron daily). Dùng lại keoChiAdsMetaNhip (auto-backfill ngày trống + cửa sổ 7 ngày
+//   + gộp kỳ). tx = sql.begin ghim backend cho GUC meta_he_thong (Hyperdrive multiplex rơi cờ — khuôn L-09).
+//   KHÔNG nuốt lỗi: lỗi → mốc ads đã ghi trang_thai='loi' (trong keoChiAdsMetaCoSo) + trả {loi_ads} để log.
+async function chayLuotAds(env) {
+  const token = env.META_CAPI_TOKEN
+  if (!token) return { skip_ads: 'thieu-token' }
+  const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, prepare: false, fetch_types: false })
+  const client = makeClient(sql)
+  const tx = (fn) => sql.begin(txs => fn(makeClient(txs)))
+  const t0 = Date.now()
+  try {
+    const r = await keoChiAdsMetaNhip(client, { token, tx })
+    return { ok_ads: true, so_dong: (r && r.tongDong) || 0, ms: Date.now() - t0 }
+  } catch (e) {
+    return { loi_ads: (e && e.message || String(e)).slice(0, 120), ms: Date.now() - t0 }
+  } finally { try { await sql.end() } catch {} }
+}
+function logAds(r) {
+  const gio = new Date().toISOString().slice(11, 19)
+  if (r.skip_ads) console.log(`${gio} · ADS bỏ (${r.skip_ads})`)
+  else if (r.ok_ads) console.log(`${gio} · ADS ok · ${r.so_dong} dòng · ${r.ms}ms`)
+  else console.log(`${gio} · ADS LỖI: ${r.loi_ads} (${r.ms}ms)`)   // KHÔNG nuốt — hét ra
+}
+
 function log(r) {
   const gio = new Date().toISOString().slice(11, 19)
   if (r.skip === 'ngu') console.log(`${gio} · đang ngủ tới ${String(r.ngu_toi).slice(11, 19)} — bỏ lượt`)
@@ -105,11 +130,20 @@ function log(r) {
 }
 
 export default {
-  async scheduled(event, env, ctx) { ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })()) },
+  async scheduled(event, env, ctx) {
+    // [WP-91 L-91.3] rẽ theo cron: "0 19 * * *" = kéo CHI ADS (1 lần/ngày); còn lại (mỗi phút) = kéo LEAD.
+    if (event.cron === '0 19 * * *') ctx.waitUntil((async () => { const r = await chayLuotAds(env); logAds(r) })())
+    else ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })())
+  },
   // GET / = KÉO TAY (nút "Kéo ngay" app Sale) hoặc smoke-test. CORS mở để app gọi được. Khoá + GUC như cron.
   async fetch(req, env) {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,OPTIONS', 'Access-Control-Allow-Headers': 'content-type' }
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
+    // [WP-91 L-91.4] ?job=ads → kích nhánh ADS thủ công (chạy QUA worker+Hyperdrive để nghiệm thu vá GUC). Mặc định = lead.
+    if (new URL(req.url).searchParams.get('job') === 'ads') {
+      const r = await chayLuotAds(env); logAds(r)
+      return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
+    }
     const r = await chayLuot(env); log(r)
     return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
   }

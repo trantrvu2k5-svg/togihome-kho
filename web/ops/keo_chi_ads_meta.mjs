@@ -104,14 +104,16 @@ export async function keoChiAdsMeta(client, opts = {}) {
   }
   let upsert = 0, upsertCd = 0
   if (rows.length || cdRows.length) {
-    // MỘT transaction ghim GUC meta_he_thong cho cả 2 cửa ghi (set_config local mất ở autocommit — khuôn L-09). Một nguồn số.
-    await client.query('begin')
-    try {
-      await client.query(`select set_config('kho.meta_he_thong','1',true)`)
-      if (rows.length) upsert = (await client.query(`select kho.chi_ads_ngay_ghi($1::jsonb) n`, [JSON.stringify(rows)])).rows[0].n
-      if (cdRows.length) upsertCd = (await client.query(`select kho.chi_chien_dich_ngay_ghi($1::jsonb) n`, [JSON.stringify(cdRows)])).rows[0].n
-      await client.query('commit')
-    } catch (e) { try { await client.query('rollback') } catch {} throw e }
+    // MỘT transaction ghim GUC meta_he_thong (set_config rơi ở multiplex — khuôn L-09). opts.tx = sql.begin ghim
+    //   backend (Cloudflare Hyperdrive); vắng tx = begin/commit (pg local). j: Hyperdrive shim sql.json object, local JSON.stringify.
+    const j = v => opts.tx ? v : JSON.stringify(v)
+    const ghiWrite = async (cl) => {
+      await cl.query(`select set_config('kho.meta_he_thong','1',true)`)
+      if (rows.length) upsert = (await cl.query(`select kho.chi_ads_ngay_ghi($1::jsonb) n`, [j(rows)])).rows[0].n
+      if (cdRows.length) upsertCd = (await cl.query(`select kho.chi_chien_dich_ngay_ghi($1::jsonb) n`, [j(cdRows)])).rows[0].n
+    }
+    if (opts.tx) await opts.tx(ghiWrite)
+    else { await client.query('begin'); try { await ghiWrite(client); await client.query('commit') } catch (e) { try { await client.query('rollback') } catch {} throw e } }
   }
   return { taiKhoan: ketQua, upsert, upsertCd, tongDong: rows.length, tongDongCd: cdRows.length, skip: null }
 }
@@ -148,15 +150,14 @@ export async function keoChiAdsMetaCoSo(client, opts = {}) {
     let idGop, soGop = 0
     try {
       idGop = (await ghi('mo', 'gop_ky')).rows[0].g.id
-      // chi_ads_gop_meta đòi GUC kho.meta_he_thong (tiến trình hệ thống) — set_config local mất ở autocommit → bọc tx
-      await client.query('begin')
-      await client.query(`select set_config('kho.meta_he_thong','1',true)`)
-      const g = (await client.query('select kho.chi_ads_gop_meta() j')).rows[0].j
-      await client.query('commit')
+      // chi_ads_gop_meta đòi GUC kho.meta_he_thong — tx ghim (Hyperdrive) hoặc begin/commit (pg local)
+      const doGop = async (cl) => { await cl.query(`select set_config('kho.meta_he_thong','1',true)`); return (await cl.query('select kho.chi_ads_gop_meta() j')).rows[0].j }
+      let g
+      if (opts.tx) g = await opts.tx(doGop)
+      else { await client.query('begin'); try { g = await doGop(client); await client.query('commit') } catch (e) { await client.query('rollback').catch(() => {}); throw e } }
       soGop = g && g.so_dong_gop != null ? g.so_dong_gop : 0
       await ghi('xong', null, idGop, soGop)
     } catch (e) {
-      await client.query('rollback').catch(() => {})
       if (idGop) await ghi('loi', null, idGop, null, String(e.message).slice(0, 200)).catch(() => {})
       throw e
     }

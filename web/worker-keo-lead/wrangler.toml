@@ -13,5 +13,8 @@ id = "1feb21b95d0840859d902e6d4b142f60"
 [limits]
 cpu_ms = 30000
 
+# [WP-91 L-91.3] Hai cron TRÊN CÙNG worker (không đẻ worker/cơ chế thứ hai):
+#   "* * * * *" = kéo LEAD mỗi phút (cũ). "0 19 * * *" = kéo CHI ADS 1 lần/ngày (19:00 UTC = 02:00 VN, off-peak).
+#   scheduled() rẽ theo event.cron. Ads cần secret META_CAPI_TOKEN (wrangler secret put) TRƯỚC khi deploy.
 [triggers]
-crons = ["* * * * *"]
+crons = ["* * * * *", "0 19 * * *"]
