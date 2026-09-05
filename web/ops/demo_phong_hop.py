@@ -526,10 +526,46 @@ def main(pw):
             A3_OK = (gan == tho_id) and tho_id is not None
             print(f"  quét THẬT: {quet_ok} lượt · đơn tới cho_giao (CHỈ quét, KHÔNG tien_mon): {got}")
             print(f"  A3 · quét gán nguoi_id={str(gan)[:8]} · thợ={(tho_id or '')[:8]} → {'✅ ĐÚNG THỢ (không quản đốc)' if A3_OK else '❌ gán sai'}")
+            print_tt(pg, D, "(sau quét — chỉ tiến độ tem)")
+            # [WP-18b L-21] BƯỚC NGƯỜI LÀM: bấm "Xong bước" (#pXong) TRÊN MÀN Xưởng (xuong.js:461 xongBuoc).
+            #   ĐÂY LÀ bước người làm (thợ xác nhận món xong), KHÔNG phải đi-tắt-RPC (luật 00). CẤM gọi tien_mon qua sb.rpc.
+            #   Mỗi bấm advance 1 nấc (cho_cat→da_cat→dang_lam→xong_sx); panel đóng sau bấm → mở lại. Món→xong_sx
+            #   → trigger trang_thai_don_tu_mon đẩy đơn→cho_giao.
+            pg.goto(f"{URLS['xuong']}/xuong.html", wait_until="domcontentloaded"); time.sleep(3)
+            xong_nac = 0
+            mon_tt_js = "const {data}=await sb.rpc('xuong_mon_cua_don',{p_ma_don:'%s'}); return (data&&data[0])?data[0].trang_thai:null;" % D
+            for nac in range(4):   # thực 3 nấc; dừng khi món rời danh sách việc (đã xong_sx)
+                mon_btn = pg.locator(f'#dsViec .mon[data-don="{D}"]')
+                try: mon_btn.first.wait_for(state="visible", timeout=7000)
+                except PWTimeout: break   # món không còn trong việc = đã xong_sx (hoặc chưa vào việc)
+                mt0 = sbjs(pg, mon_tt_js)
+                mon_btn.first.click(); time.sleep(1.2)
+                px = pg.locator('#pXong')
+                try: px.wait_for(state="visible", timeout=5000)   # luật 03/09: THẤY nút trước khi bấm
+                except PWTimeout:
+                    KET.append(f"BƯỚC 8 Xong-bước: panel mở nhưng KHÔNG thấy #pXong (món={mt0})"); shot(pg, "8_xongbuoc_LOI"); break
+                req0, dom0 = snap(pg); px.click(timeout=5000); acted(pg, req0, dom0); time.sleep(1.5)
+                if pg.locator('#bao.loi.hien').count() and pg.locator('#bao.loi.hien').first.is_visible():
+                    KET.append(f"BƯỚC 8 Xong-bước: BANNER ĐỎ sau bấm (nấc {nac}, món={mt0})"); shot(pg, "8_xongbuoc_LOI"); break
+                if nac == 0: shot(pg, "8_xong_buoc")   # ảnh lúc bấm (C6-1)
+                mt1 = sbjs(pg, mon_tt_js)
+                print(f"  ▸ bấm 'Xong bước' (MÀN) · món {mt0} → {mt1}")
+                if mt1 != mt0: xong_nac += 1   # món ĐỔI trạng thái đúng (A3)
+                if mt1 == 'xong_sx': break
+            # F5 đọc lại khớp (A3): reload rồi so trạng thái đơn
+            pg.reload(wait_until="domcontentloaded"); time.sleep(2)
+            got = tt_of(pg, D) == 'cho_giao'
+            print(f"  Xong-bước qua MÀN: {xong_nac} nấc · đơn (F5)={tt_of(pg, D)} · tới cho_giao={got}")
+            if got: shot(pg, "8_cho_giao")   # ảnh đơn đã sang cho_giao (C6-2)
             if not got:
-                KET.append("BƯỚC 8: quét không đưa đơn tới cho_giao (chỉ quét, KHÔNG workaround).")
-            print_tt(pg, D, "(sau quét)")
+                KET.append("BƯỚC 8: sau quét + Xong-bước qua màn, đơn CHƯA tới cho_giao.")
             RESULT[8] = 'OK' if got else 'KET'
+            # [WP-18b L-20] ĐÓNG PHIÊN cuối vòng qua RPC nghiệp vụ dong_phien (KHÔNG ghi thẳng bảng, không đụng ca_lam)
+            #   → phiên treo=0, chạy vòng lần 2 không kẹt uq_phien_tram_mo. pg đang là quản đốc (xuong) → đóng HỘ được.
+            trams_mo = sorted({e["tram"] for e in entries})
+            dong_ok = sbjs(pg, "const ts=%s; let ok=0; for(const t of ts){const r=await sb.rpc('dong_phien',{p_tram:t}); if(!r.error && r.data && r.data.da_dong) ok++;} return ok;" % json.dumps(trams_mo))
+            con_treo = sbjs(pg, "const ts=%s; const m=await sb.from('phien_tram').select('id',{count:'exact',head:true}).is('ket_thuc',null).in('ma_tram',ts); return m.count||0;" % json.dumps(trams_mo))
+            print(f"  đóng phiên (dong_phien) {dong_ok}/{len(trams_mo)} trạm · phiên treo (5 trạm demo) còn: {con_treo}")
 
     # ── 9 · GIAO → da_giao (Sale: nút "Đã giao xong" ở xong_sx → modal "Xác nhận đã giao", quyền giao_thu) ──
     print(f"\n── BƯỚC 9 · Sale: giao → da_giao ({D}) ──")

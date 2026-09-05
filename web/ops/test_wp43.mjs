@@ -18,8 +18,23 @@ async function as(uid, sql, args = [], keep = false) {
 const uid = async v => (await one(`select auth_uid a from kho.nguoi_dung where vai_tro=$1 and auth_uid is not null order by ho_ten limit 1`, [v]))?.a
 const U = { ceo: await uid('ceo'), thiet_ke: await uid('thiet_ke'), tho: await uid('tho') }
 const TK_NS = (await one(`select id from kho.nguoi_dung where auth_uid=$1`, [U.thiet_ke])).id
-const T8 = (await one(`select id from kho.don_hang where ma_don='T8-001'`)).id
+let T8   // [L-20] fixture TỰ-SEED trong tx (T8-001 đã xoá lúc dọn demo L-14) — gán sau begin
 const TH = (await one(`select ma from kho.thuong_hieu limit 1`)).ma
+const KE_SP = 'CAN-A-KE-TIVI-BT'   // lõi KE-HO-MELAMINE → quy trình cat,dan,cam,thung,goi
+// dựng đơn TEMPLATE tự-chứa (thay T8-001): 1 món SP có quy trình + số 'chuan' + BOM 'chuan'
+async function seedTemplate(ma) {
+  await c.query(`set local session_replication_role='replica'`)
+  const did = (await one(`insert into kho.don_hang(ma_don,ten_khach,la_demo,dong,trang_thai) values($1,'seed template',true,'le','moi_len_don') returning id`, [ma])).id
+  const nm = (await one(`insert into kho.don_hang_mon(don_id,ten,sp_id,so_luong,gia,dung_moi) values($1,'Món seed',$2,1,1000000,false) returning id`, [did, KE_SP])).id
+  for (const hd of ['cat', 'dan', 'cam', 'thung', 'goi'])
+    await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon,moc) values($1,$2,10,'go_tay','chuan')`, [nm, hd])
+  // BOM CHỐT (he_so_ap_dung=1 → không cho_he_so) trên vật tư CÓ tồn (để bàn giao giữ-chỗ được)
+  const vt = (await one(`select vat_tu_id from kho.v_ton_kha_dung where kha_dung > 6 limit 1`)).vat_tu_id
+  await c.query(`insert into kho.don_hang_mon_bom(mon_id,vat_tu_id,so_luong,don_vi,nguon,moc,hoat_dong,hao_hut_pct,so_luong_co_so,he_so_ap_dung)
+    values($1,$2,5,'tam','go_tay','chuan','cat',0,5,1)`, [nm, vt])
+  await c.query(`set local session_replication_role='origin'`)
+  return did
+}
 const FILE = JSON.stringify([{ loai_file: 'dxf', duong_dan: 'wp43/cat.dxf', ten_goc: 'cat.dxf', co_byte: 100 }])
 
 // clone đơn demo scheduleable từ T8-001 (số về 'chuan' chưa chốt, BOM 'du_kien')
@@ -49,6 +64,7 @@ async function xepDong(ma) { return (await one(`select count(*)::int n from kho.
 
 await c.query('begin')
 const before = (await one(`select count(*)::int n from kho.don_hang`)).n
+T8 = await seedTemplate('DEMO-WP43-SEED')   // [L-20] template trong tx (rollback sạch, không đọng)
 const homNay = (await one(`select current_date d`)).d
 
 // ═══ 6.1 · bàn giao đơn hẹn XA → 5 việc + xep_lich + da_xep=true ═══

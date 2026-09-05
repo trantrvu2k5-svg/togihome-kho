@@ -22,6 +22,15 @@ console.log('vai test có auth_uid:', JSON.stringify({ ceo: !!U.ceo, xuong: !!U.
 
 await c.query('begin')
 
+// [L-20] SEED tự-chứa thay T8-001 (đã xoá lúc dọn demo L-14): đơn có món+số+quy trình cho atp/xep_lich.
+const SEED = 'DEMO-WP47-SEED'
+{ await c.query(`set local session_replication_role='replica'`)
+  const did = (await one(`insert into kho.don_hang(ma_don,ten_khach,la_demo,dong,trang_thai) values($1,'seed template',true,'le','moi_len_don') returning id`, [SEED])).id
+  const nm = (await one(`insert into kho.don_hang_mon(don_id,ten,sp_id,so_luong,gia,dung_moi) values($1,'Món seed','CAN-A-KE-TIVI-BT',1,1000000,false) returning id`, [did])).id
+  for (const hd of ['cat', 'dan', 'cam', 'thung', 'goi'])
+    await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon,moc) values($1,$2,10,'go_tay','chuan')`, [nm, hd])
+  await c.query(`set local session_replication_role='origin'`) }
+
 // ═══ 4.1 · nl_ghi Sơn PU 4→6 từ NGÀY MAI (bọc savepoint c41, rollback sau khi soi) ═══
 await c.query('savepoint c41')
 { const r = await as(U.xuong, `select kho.nl_ghi('son_pu',6,8,7,0.88,current_date+1,'thêm 2 người ca 2') j`, [], true)
@@ -54,7 +63,7 @@ await c.query('rollback to savepoint c41')
     kho.tai_theo_to_tuan(kho.tuan_cua(current_date), kho.tuan_cua(current_date)+28) tai,
     kho.vung_cua_tuan(kho.tuan_cua(current_date)) vung,
     (select gio_nen from kho.nang_luc_to_tuan('son_pu', kho.tuan_cua(current_date), kho.tuan_cua(current_date)+7) limit 1) nl,
-    kho.atp('T8-001') atp`
+    kho.atp('DEMO-WP47-SEED') atp`
   const goi = async () => { const r = await as(U.ceo, SQL); return r.e ? { err: r.e } : r.r[0] }
   const onRLS = await goi()
   await c.query('savepoint r6')
@@ -71,9 +80,9 @@ await c.query('rollback to savepoint c41')
 // ═══ 4.7 · BẪY: DEFINER(owner) vẫn GHI xep_lich sau khi bật RLS; nếu FORCE thì chết ═══
 { let eGhi = null
   await c.query('savepoint w7')
-  try { await c.query(`insert into kho.xep_lich(ma_don,buoc_thu_tu,tuan_bat_dau,gio,kieu_xep) values('T8-001',1,kho.tuan_cua(current_date),3,'xuoi')`) }
+  try { await c.query(`insert into kho.xep_lich(ma_don,buoc_thu_tu,tuan_bat_dau,gio,kieu_xep) values('DEMO-WP47-SEED',1,kho.tuan_cua(current_date),3,'xuoi')`) }
   catch (x) { eGhi = x.message }
-  const co = await one(`select count(*)::int n from kho.xep_lich where ma_don='T8-001'`)
+  const co = await one(`select count(*)::int n from kho.xep_lich where ma_don='DEMO-WP47-SEED'`)
   await c.query('rollback to savepoint w7')
   ok('4.7 DEFINER(owner) GHI xep_lich khi RLS bật (KHÔNG force) → ĐƯỢC', eGhi === null && co.n >= 1, eGhi || `n=${co?.n}`)
   // Bẫy đầu bài (FORCE giết DEFINER) KHÔNG xảy ra ở DB này: owner xep_lich là postgres có BYPASSRLS

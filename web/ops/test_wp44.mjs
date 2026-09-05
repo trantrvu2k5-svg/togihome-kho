@@ -16,8 +16,25 @@ async function as(uid, sql, args = []) {
 const uid = async v => (await one(`select auth_uid a from kho.nguoi_dung where vai_tro=$1 and auth_uid is not null order by ho_ten limit 1`, [v]))?.a
 const U = { ceo: await uid('ceo'), thiet_ke: await uid('thiet_ke'), sale: await uid('sale') }
 const TK_NS = (await one(`select id from kho.nguoi_dung where auth_uid=$1`, [U.thiet_ke])).id
-const T8 = (await one(`select id from kho.don_hang where ma_don='T8-001'`)).id
+let T8   // [L-20] fixture TỰ-SEED trong tx (T8-001 đã xoá lúc dọn demo L-14) — gán sau begin
 const TH = (await one(`select ma from kho.thuong_hieu limit 1`)).ma
+const KE_SP = 'CAN-A-KE-TIVI-BT'   // lõi KE-HO-MELAMINE → quy trình cat,dan,cam,thung,goi
+async function seedTemplate(ma) {
+  await c.query(`set local session_replication_role='replica'`)
+  const did = (await one(`insert into kho.don_hang(ma_don,ten_khach,la_demo,dong,trang_thai) values($1,'seed template',true,'le','moi_len_don') returning id`, [ma])).id
+  const nm = (await one(`insert into kho.don_hang_mon(don_id,ten,sp_id,so_luong,gia,dung_moi) values($1,'Món seed',$2,1,1000000,false) returning id`, [did, KE_SP])).id
+  for (const hd of ['cat', 'dan', 'cam', 'thung', 'goi'])
+    await c.query(`insert into kho.so_don_vi_mon(mon_id,hoat_dong,so_don_vi,nguon,moc) values($1,$2,10,'go_tay','chuan')`, [nm, hd])
+  const vt = (await one(`select vat_tu_id from kho.v_ton_kha_dung where kha_dung > 6 limit 1`)).vat_tu_id
+  await c.query(`insert into kho.don_hang_mon_bom(mon_id,vat_tu_id,so_luong,don_vi,nguon,moc,hoat_dong,hao_hut_pct,so_luong_co_so,he_so_ap_dung)
+    values($1,$2,5,'tam','go_tay','chuan','cat',0,5,1)`, [nm, vt])
+  // vật tư thứ 2 KHÔNG gia_ncc (T8-001 có vật tư trộn) — cho vế thiếu-lead-mặc-định (12.4)
+  const vt2 = (await one(`select v.id from kho.vat_tu v where not exists(select 1 from kho.gia_ncc g where g.vat_tu_id=v.id) limit 1`)).id
+  await c.query(`insert into kho.don_hang_mon_bom(mon_id,vat_tu_id,so_luong,don_vi,nguon,moc,hoat_dong,hao_hut_pct,so_luong_co_so,he_so_ap_dung)
+    values($1,$2,3,'tam','go_tay','chuan','dan',0,3,1)`, [nm, vt2])
+  await c.query(`set local session_replication_role='origin'`)
+  return did
+}
 const KHO = (await one(`select id from kho.kho where la_mac_dinh limit 1`)).id
 const NCC = (await one(`select id from kho.nha_cung_cap limit 1`)).id
 const FILE = JSON.stringify([{ loai_file: 'dxf', duong_dan: 'wp44/cat.dxf', ten_goc: 'cat.dxf', co_byte: 100 }])
@@ -49,6 +66,7 @@ const goi = async ma => { const r = await as(U.ceo, `select kho.ngay_giao_hua($1
 
 await c.query('begin')
 const before = (await one(`select count(*)::int n from kho.don_hang`)).n
+T8 = await seedTemplate('DEMO-WP44-SEED')   // [L-20] template trong tx (rollback sạch)
 
 // ═══ 11.1 · ĐỦ vật tư → ngày = tải · vat_tu_dang_doan rỗng ═══
 { const D = await mkDon('A', null); await duHet(D.did, 'chuan')

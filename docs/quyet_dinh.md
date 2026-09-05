@@ -1816,3 +1816,53 @@ Blocker duy nhất (L-13) = **`su_kien_meta`** (append-only WP-77 + FK NO ACTION
   grant_don_hang 3 · dong_dau_ky 5 · **wp46 (phiên thợ)**.
 
 **Trạng thái:** db/226 áp prod (dump QD-61, backup 7.14MB). Demo bước-8 đổi mo_ca→mo_phien + UI mở-hộ ở L-16. CHƯA commit.
+
+## QD-107 (04/09, WP-18b(1) L-19, db/227) — MỘT NGUỒN cho "món của lượt quét" = tem_ban_ve.mon_id · CHỐT
+
+Gốc lỗi (L-18, chẩn lại tận gốc): `day_tem_ban_ve` — hàm DUY NHẤT tạo tem — **không ghi `tem_ban_ve.mon_id`**
+(WP-08 thêm cột + versioning nhưng đường đẩy tem không nối dây). `sq_ghi`/`sq_tem_mon` resolve món của
+lượt quét **CHỈ** qua `tem.mon_id`, nên luôn nhận NULL → SAI_TRAM (`"quy trình không có bước cho trạm này"`)
+**mọi** lượt quét, BẤT KỂ quy trình. Nhãn L-16/L-17 "SP demo thiếu quy_trinh_buoc" là đọc nhầm thông báo —
+mã đó nổ cả khi mon_id=NULL.
+
+CEO chốt **phương án (a)** (CẤM (b) — không fallback "đơn 1 món" ở `sq_ghi`, kể cả tạm):
+
+- **NGUỒN DUY NHẤT resolve món lượt quét = `tem_ban_ve.mon_id`.** `plan_don`/`trams_don.mjs` đọc `don_hang_mon`
+  **CHỈ** để LẬP KẾ HOẠCH (liệt kê trạm cần quét), **CẤM** dùng resolve lượt quét (họ bệnh hai-bản atp/neo_xuoi).
+  A3 xác nhận: mọi đường quét (sq_ghi · sq_tem_mon · tram_quet · viec_dang_giu · chay_lai_back_flush) đều đi
+  qua `tem.mon_id`; `don_hang_mon` chỉ JOIN lấy TÊN/BOM SAU khi có mon_id → không có nguồn thứ hai (không sửa sq_ghi).
+- **Luật gán mon_id ở `day_tem_ban_ve` (3 nhánh, CEO chốt):**
+  1. Nguồn ĐẨY gửi `t->>'mon_id'` (plugin WP-31 đã biết món qua `gan_mon`) → validate thuộc ĐƠN NÀY → ghi thẳng.
+  2. Nguồn không gửi + đơn **đúng 1 món** → gán món duy nhất đó.
+  3. Nguồn không gửi + đơn **nhiều món** (hoặc 0) → **RAISE** (nói rõ mấy món + cần gửi `mon_id`). CẤM đoán/gán bừa.
+  Gửi mon_id của đơn KHÁC → RAISE (không gán chéo đơn).
+- **FK `tem_ban_ve.mon_id` → `don_hang_mon` ON DELETE CASCADE** (họ bài học WP-17b: cha xoá → tem con xoá theo,
+  xoa_demo dọn được, không tái lập blocker). Client **ĐÓNG** cột (bỏ table-level ghi + column-grant mon_id, mẫu don_hang).
+- **KHÔNG backfill tem cũ mon_id NULL** — đều là demo, `xoa_demo` dọn.
+- **Plugin gửi mon_id qua `meta_tam` + đóng vòng robot = việc (2)(3), lô sau (L-20).** L-19 chỉ nối tầng DB.
+
+Test `test_tem_mon_id.mjs` 10/0: 1 nguồn gửi→ghi đúng · 2 một-món→gán duy nhất · 3 nhiều-món→RAISE · 3b gán-chéo-đơn→RAISE ·
+4 chuỗi thật (quét trạm trong quy trình KHÔNG SAI_TRAM · trạm ngoài vẫn chặn) · 5 hai món mỗi tem đúng món · 6 xoa_demo CASCADE ·
+7 client PATCH mon_id chặn. Hồi quy 10 cổng xanh; wp43/44/45/47 vẫn đỏ (nợ fixture T8-001, xử L-20).
+
+## QD-108 (05/09, WP-18b(2)(3) L-20/21, db/228) — dong_phien: NỬA CÒN THIẾU của cặp mo_phien/dong_phien · CHỐT
+
+`dong_phien(p_tram)` — đóng phiên trạm qua ĐƯỜNG NGHIỆP VỤ. **Guard KHỚP mo_phien:** thợ đóng phiên
+CỦA MÌNH; đóng HỘ người khác chỉ quản đốc (xuong/ceo). Đóng phiên đã đóng → `da_dong=false`, KHÔNG raise
+(không lỗi lặp). Client **KHÔNG** ghi thẳng `phien_tram.ket_thuc` (chỉ qua RPC — cột đóng WP-11b).
+
+**Lý do sinh ra:** trước đó KHÔNG có đường đóng phiên (chỉ `mo_phien` đóng-khi-mở-mới; UI "Không phải tôi"
+= nhượng, vẫn để mở). Không có nó thì phiên treo lại sau mỗi vòng demo → cổng hồi quy tự bẩn
+(uq_phien_tram_mo, họ bài học WP-17b). Robot (L-20/21) gọi `dong_phien` cuối vòng → phiên treo=0.
+
+**KHAI THẲNG PHẠM VI:** `db/228` sinh trong lô WP-18b(2)(3) ở **L-20** — **NGOÀI phạm vi lệnh L-20**
+("plugin + 4 test + robot"). Tạo vì C/D cần đường-nghiệp-vụ-đóng-phiên mà lệnh C2 chỉ tới ("gọi RPC");
+không giấu. Hợp thức ở QD này (L-21), đóng gói commit ở L-22.
+
+Test `test_dong_phien.mjs` 5/0: 1 thợ tự đóng ✓ · 2 thợ đóng người khác ✗ (chỉ quản đốc) · 3 xuong đóng hộ ✓ ·
+4 đóng phiên đã đóng → da_dong=false không lỗi lặp · 5 client KHÔNG UPDATE ket_thuc.
+
+**Nối dây robot (QD-107 họ hàng):** bước GHI của quét đi qua MÀN thật; đẩy đơn cho_giao KHÔNG bằng
+`tien_mon` qua RPC (đi-tắt = KẸT theo luật 00) mà bằng **bấm nút "Xong bước" (#pXong) trên màn Xưởng**
+(`xuong.js:461 xongBuoc→tien_mon`) — đó là BƯỚC NGƯỜI LÀM. L-16 bỏ đường-RPC-tắt là đúng; L-21 thay
+bằng cú bấm trên màn (không đảo quyết định CEO).
