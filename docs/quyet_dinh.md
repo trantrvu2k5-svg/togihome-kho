@@ -1866,3 +1866,31 @@ Test `test_dong_phien.mjs` 5/0: 1 thợ tự đóng ✓ · 2 thợ đóng ngư�
 `tien_mon` qua RPC (đi-tắt = KẸT theo luật 00) mà bằng **bấm nút "Xong bước" (#pXong) trên màn Xưởng**
 (`xuong.js:461 xongBuoc→tien_mon`) — đó là BƯỚC NGƯỜI LÀM. L-16 bỏ đường-RPC-tắt là đúng; L-21 thay
 bằng cú bấm trên màn (không đảo quyết định CEO).
+
+## QD-110 (05/09, WP-90 mở lại L-23) — NGHIỆM THU DỮ LIỆU KÉO BẰNG CHÍNH NGUỒN NGOÀI + kiểm ĐỘ PHỦ · CHỐT
+
+**Luật:** Số kéo từ nguồn ngoài (Meta, Pancake, ngân hàng…) chỉ coi là ĐẠT khi đối chiếu với **CHÍNH nguồn
+ngoài đó**. So bảng này với bảng khác TRONG hệ là **nghiệm thu VÒNG TRÒN**: kéo thiếu thì hai bên vẫn khớp và
+vẫn sai. Và phải kiểm **ĐỘ PHỦ** (đủ ngày, đủ đối tượng) — KHÔNG chỉ kiểm tổng.
+
+**Sự cố gốc (L-21→L-22):** L-21 nghiệm thu "chi_ads khớp chi_ads_ngay tuyệt đối" — hai chỗ CÙNG hệ, cùng nguồn.
+Nhưng cả hai cùng thiếu 22/31 ngày tháng 8 (cửa sổ kéo 7 ngày chưa chạy đều, chỉ chạm 08-23→08-31). Hỏi Meta
+mới lộ: **sổ thiếu 77% chi ads tháng 8** (9,79tr / 42,64tr thật). Cùng họ WP-79: nghiệm thu bằng ĐỊNH NGHĨA,
+không bằng dữ liệu chạy.
+
+**Hệ quả bắt buộc:** mọi WP kéo dữ liệu ngoài từ nay, trong điều kiện XONG phải có **một phép đối chiếu với
+nguồn ngoài** + kiểm **độ phủ** (đủ ngày × đủ đối tượng), không chỉ tổng.
+
+- **RPC `chi_ads_kiem_do_phu(p_tu,p_den)`** (db/230): đo coverage theo **mốc đã kéo** (`ads_moc_keo.khoang`),
+  KHÔNG theo row — ngày KHÔNG-tiêu-tiền không có row nhưng VẪN đã kéo → không tính trống (nếu đếm row thì
+  auto-backfill kéo lại vô hạn ngày-0-đồng). Coverage là TOÀN-tài-khoản (một lượt kéo cả 6 TK) → báo theo THÁNG;
+  gap per-account (một TK Meta lỗi riêng) nghiệm thu bằng Meta, không bằng đếm row.
+- **Bộ kéo tự kéo bù:** `keoChiAdsMetaNhip` đọc do_phu 90 ngày → kéo bù ngày CHƯA KÉO rồi cửa sổ 7 ngày
+  (GIỮ NGUYÊN, bắt số Meta chốt muộn). Idempotent. Lịch chạy đều = khuôn worker sẵn có (scheduler ở L-91.3),
+  KHÔNG đẻ cron thứ hai.
+- **Nạp lịch sử 90 ngày (L-23):** chi_ads_ngay 44→604 dòng (89 ngày, 06-07→09-05); tháng 8 **Meta=Sổ=42.643.934 · chênh 0%** (từ 77%
+  thiếu); 90 ngày Meta 117,62tr vs sổ 117,62tr (chênh 2.216 ≈ 0%, Meta chốt muộn 2 TK). do_phu sau nạp: mọi
+  tháng ĐỦ. CAC tháng 8 vẫn vô hạn — vì **0 đơn** (chuyện thiếu đơn), KHÔNG phải chuyện chi ads (số chi nay đúng).
+
+Test: `test_chi_ads_do_phu.mjs` 3/0 (do_phu phát hiện đúng ngày trống · ngày-0-đồng-đã-kéo KHÔNG tính trống ·
+nạp 2 lần không nhân đôi). Nền sổ mốc: `test_ads_moc_keo.mjs` 10/0 (QD-109).

@@ -115,3 +115,80 @@ export async function keoChiAdsMeta(client, opts = {}) {
   }
   return { taiKhoan: ketQua, upsert, upsertCd, tongDong: rows.length, tongDongCd: cdRows.length, skip: null }
 }
+
+// [WP-91 L-91.2] Kéo CÓ GHI SỔ MỐC (khoá tự hết hạn) + GỘP KỲ tự động ngay sau — MỘT tiến trình.
+//   3 chỗ nối: 'mo' trước Meta (chặn trùng → thoát êm), 'xong' sau kéo (so_dong THẬT), 'loi' ở catch (ném lại).
+//   Hai cửa ad/campaign = HAI nguồn (meta_chi_ad · meta_chi_chien_dich). Gộp kỳ = nguồn gop_ky.
+export async function keoChiAdsMetaCoSo(client, opts = {}) {
+  const t0 = Date.now()
+  const range = opts.range
+  // GHI khoang THẬT đã kéo (kể cả last_7d) → chi_ads_kiem_do_phu đo coverage theo mốc, KHÔNG theo row
+  //   (ngày không-tiêu-tiền không có row nhưng VẪN đã kéo → không tính là trống).
+  const den = (range && range.until) || new Date().toISOString().slice(0, 10)
+  const tu = (range && range.since) || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  const ghi = (hd, nguon = null, id = null, so = null, loi = null) =>
+    client.query('select kho.ads_moc_keo_ghi($1,$2,$3,$4,$5::date,$6::date,$7) g', [hd, nguon, id, so, tu, den, loi])
+  // 1) MỞ lượt (khoá). Bị chặn (khoá còn hạn) → thoát ÊM (mã 0), scheduler không kêu giả.
+  let idAd
+  try { idAd = (await ghi('mo', 'meta_chi_ad')).rows[0].g.id }
+  catch (e) {
+    if (/đang chạy|chặn lượt trùng/.test(e.message)) { console.log('ads-keo: đang có lượt chạy, bỏ qua.'); return { skip: 'khoa' } }
+    throw e
+  }
+  const idCd = (await ghi('mo', 'meta_chi_chien_dich')).rows[0].g.id
+  try {
+    const kq = await keoChiAdsMeta(client, opts)     // kéo Meta + upsert chi_ads_ngay + chi_chien_dich_ngay
+    if (kq.skip) {   // hiếm: keoChiAdsMeta tự skip (thiếu token) → đóng lượt xong với 0 dòng, không coi là lỗi
+      await ghi('xong', null, idAd, 0); await ghi('xong', null, idCd, 0)
+      console.log(`ads-keo: SKIP (${kq.skip})`); return kq
+    }
+    await ghi('xong', null, idAd, kq.tongDong)
+    await ghi('xong', null, idCd, kq.tongDongCd)
+    // 2) GỘP KỲ tự động (idempotent QD-90 — KHÔNG đè nhập tay), CÙNG tiến trình
+    let idGop, soGop = 0
+    try {
+      idGop = (await ghi('mo', 'gop_ky')).rows[0].g.id
+      // chi_ads_gop_meta đòi GUC kho.meta_he_thong (tiến trình hệ thống) — set_config local mất ở autocommit → bọc tx
+      await client.query('begin')
+      await client.query(`select set_config('kho.meta_he_thong','1',true)`)
+      const g = (await client.query('select kho.chi_ads_gop_meta() j')).rows[0].j
+      await client.query('commit')
+      soGop = g && g.so_dong_gop != null ? g.so_dong_gop : 0
+      await ghi('xong', null, idGop, soGop)
+    } catch (e) {
+      await client.query('rollback').catch(() => {})
+      if (idGop) await ghi('loi', null, idGop, null, String(e.message).slice(0, 200)).catch(() => {})
+      throw e
+    }
+    const s = ((Date.now() - t0) / 1000).toFixed(1)
+    const kho = tu ? `${tu}→${den}` : 'last_7d'
+    console.log(`ads-keo XONG · meta_chi_ad ${kho}: ${kq.tongDong} dòng · meta_chi_chien_dich: ${kq.tongDongCd} dòng · gop_ky: ${soGop} dòng · ${s}s`)
+    return { ...kq, soGop }
+  } catch (e) {
+    await ghi('loi', null, idAd, null, String(e.message).slice(0, 200)).catch(() => {})
+    await ghi('loi', null, idCd, null, String(e.message).slice(0, 200)).catch(() => {})
+    throw e
+  }
+}
+
+// gom mảng ngày 'YYYY-MM-DD' LIÊN TỤC thành [[since,until],...]
+function gomKhoangNgay(days) {
+  if (!days.length) return []
+  const next = d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10) }
+  const out = []; let s = days[0], p = days[0]
+  for (let i = 1; i < days.length; i++) { if (days[i] === next(p)) { p = days[i]; continue } out.push([s, p]); s = days[i]; p = days[i] }
+  out.push([s, p]); return out
+}
+
+// [WP-90 L-23] NHỊP THƯỜNG (cho scheduler L-91.3 gọi): kéo BÙ ngày CHƯA KÉO (do_phu 90 ngày) rồi cửa sổ 7 ngày.
+//   Cửa sổ 7 ngày GIỮ NGUYÊN (bắt số Meta chốt muộn). Auto-backfill idempotent — chạy nhiều lần không hại.
+export async function keoChiAdsMetaNhip(client, opts = {}) {
+  const den = new Date().toISOString().slice(0, 10)
+  const tu90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
+  const dp = (await client.query('select kho.chi_ads_kiem_do_phu($1,$2) j', [tu90, den])).rows[0].j
+  const trong = [...new Set((dp || []).flatMap(r => r.ngay_chua_keo || []))].sort()
+  const khoang = gomKhoangNgay(trong)
+  for (const [s, e] of khoang) { console.log(`ads-nhip: kéo bù ngày chưa kéo ${s}→${e}`); await keoChiAdsMetaCoSo(client, { ...opts, range: { since: s, until: e } }) }
+  if (!khoang.length) console.log('ads-nhip: 90 ngày đã đủ, không có ngày trống.')
+  return keoChiAdsMetaCoSo(client, { ...opts, range: null })   // cửa sổ 7 ngày (bắt số chốt muộn)
+}
