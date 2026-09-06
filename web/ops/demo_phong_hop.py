@@ -360,7 +360,12 @@ def main(pw):
         if not mon_ids: raise AssertionError("không thấy món nào ở #nsMonDs")
         print(f"  {len(mon_ids)} món: {mon_ids}")
         for mid in mon_ids:            # lặp TỪNG món (mỗi món 1 quy trình, nhiều hoạt động)
-            pg.locator(f'#nsMonDs button.mon[data-mon="{mid}"]').click(timeout=5000); time.sleep(1)
+            pg.locator(f'#nsMonDs button.mon[data-mon="{mid}"]').click(timeout=5000)
+            # renderNsPhai ASYNC (nhap_so_chi_tiet_mon + quy_trinh_ds) — CHỜ #nsQt hiện thật, KHÔNG đoán bằng sleep cứng.
+            #   (sleep(1) cũ thua đua khi RPC chậm → #nsQt chưa render → bỏ gán IM LẶNG → món không routing → BƯỚC 8 rỗng.)
+            try: pg.locator('#nsQt').wait_for(state="visible", timeout=8000)
+            except PWTimeout: pass
+            time.sleep(0.4)
             # gán quy trình nếu chưa (chưa gán → không có .dong-nhom[data-hd])
             if pg.locator('#nsPhai .dong-nhom[data-hd]').count() == 0 and pg.locator('#nsQt').count():
                 qt = pg.eval_on_selector('#nsQt', "el => { for(const o of el.options){ if(o.value) return o.value } return '' }")
