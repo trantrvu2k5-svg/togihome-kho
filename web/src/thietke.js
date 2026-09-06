@@ -3,6 +3,7 @@
 //   ceo/trưởng nhóm KHÔNG nhận việc — chỉ GIAO/CHUYỂN. Gửi bản 3D làm ngay ở đây (gui_ban_thiet_ke).
 import { createClient } from '@supabase/supabase-js'
 import { nutNhapSo } from './nut_nhap_so.js'
+import { ghiAnToan, banner } from './ghi_an_toan.js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 window.__sb = sb   // L-73: phơi client (như app sale/tài chính) cho kiểm chéo RPC
@@ -224,9 +225,9 @@ async function taiViec() {
         ? `${r.buoc_thiet_ke === 'dang_dung' ? `<button class="nut-nho" data-dungxong="${esc(r.ma_don)}">Đã dựng xong</button>` : ''}<button class="nut-nho nut-xam" data-guiban="${esc(r.ma_don)}">Gửi bản 3D cho sale</button>`
         : (nsN ? `<button class="nut-nho nut-xam" data-nhapso="${esc(r.ma_don)}">${nsN.text}</button>` : '')}</div>`
   }).join('') : `<div class="trong-rong"><h3>${laTruong() ? 'Bạn không cầm đơn — chỉ giao/chuyển' : 'Chưa cầm đơn nào'}</h3><p>${laTruong() ? 'Giao đơn cho thiết kế ở khối "Chờ nhận" bên dưới.' : 'Nhận việc từ khối "Chờ nhận" bên dưới.'}</p></div>`
-  $('dsDangLam').querySelectorAll('[data-ghi]').forEach(b => b.onclick = () => ghiGio(b.dataset.ghi))
+  $('dsDangLam').querySelectorAll('[data-ghi]').forEach(b => b.onclick = () => ghiGio(b.dataset.ghi, b))
   $('dsDangLam').querySelectorAll('[data-guiban]').forEach(b => b.onclick = () => moGuiBan(b.dataset.guiban))
-  $('dsDangLam').querySelectorAll('[data-dungxong]').forEach(b => b.onclick = () => danhDauDungXong(b.dataset.dungxong))
+  $('dsDangLam').querySelectorAll('[data-dungxong]').forEach(b => b.onclick = () => danhDauDungXong(b.dataset.dungxong, b))
   $('dsDangLam').querySelectorAll('[data-nhapso]').forEach(b => b.onclick = () => moNhapSo(b.dataset.nhapso))
   // Chờ nhận (RPC đã lọc theo vai: thiet_ke chỉ SX · tk_ban_hang chỉ báo giá · ceo/trưởng cả hai)
   DS_CHO = dsCho; veChoNhan()
@@ -257,26 +258,26 @@ function veChoNhan() {
   }).join('') : '<div class="trong-rong"><p>Không có đơn nào đang chờ nhận.</p></div>'
   $('dsChoNhan').innerHTML = loc + body
   if ($('choLoc')) $('choLoc').onchange = () => { CHO_NHOM = $('choLoc').value; veChoNhan() }
-  $('dsChoNhan').querySelectorAll('[data-nhan]').forEach(b => b.onclick = () => nhanViec(b.dataset.nhan))
+  $('dsChoNhan').querySelectorAll('[data-nhan]').forEach(b => b.onclick = () => nhanViec(b.dataset.nhan, b))
   $('dsChoNhan').querySelectorAll('[data-giao]').forEach(b => b.onclick = () => moGiao(b.dataset.giao))
 }
-async function ghiGio(maDon) {
+async function ghiGio(maDon, nut) {
   const inp = document.querySelector(`[data-gio="${CSS.escape(maDon)}"]`)
   const so = Number(inp && inp.value)
   if (!so || so <= 0) { bao('Nhập số giờ trước đã', true); return }
-  const { error } = await sb.rpc('ghi_gio_thiet_ke', { p_ma_don: maDon, p_so_gio: so })
-  if (error) { bao(error.message, true); return }
+  const r = await ghiAnToan(nut || null, () => sb.rpc('ghi_gio_thiet_ke', { p_ma_don: maDon, p_so_gio: so }))
+  if (!r.ok) return
   bao(`Đã ghi ${g1(so)} giờ cho ${maDon}`); taiViec()
 }
-async function nhanViec(maDon) {
-  const { error } = await sb.rpc('nhan_viec_thiet_ke', { p_ma_don: maDon })
-  if (error) { bao(error.message, true); return }
+async function nhanViec(maDon, nut) {
+  const r = await ghiAnToan(nut || null, () => sb.rpc('nhan_viec_thiet_ke', { p_ma_don: maDon }))
+  if (!r.ok) return
   bao(`Đã nhận ${maDon}`); taiViec()
 }
 // "Đã dựng xong" — đánh dấu dựng xong 3D nhưng chưa gửi (dang_dung → dung_xong). Không bắt buộc: vẫn gửi thẳng được.
-async function danhDauDungXong(maDon) {
-  const { error } = await sb.rpc('danh_dau_dung_xong', { p_ma_don: maDon })
-  if (error) { bao(error.message, true); return }
+async function danhDauDungXong(maDon, nut) {
+  const r = await ghiAnToan(nut || null, () => sb.rpc('danh_dau_dung_xong', { p_ma_don: maDon }))
+  if (!r.ok) return
   bao(`${maDon}: đã đánh dấu dựng xong`)
   taiViec(); if ($('s-bang') && $('s-bang').style.display !== 'none') taiBang()
 }
@@ -567,8 +568,9 @@ async function moGiao(maDon) {
     `<button class="nut-vien" id="giaoHuy">Huỷ</button><button class="nut-chinh" id="giaoOk">Giao việc</button>`)
   $('giaoHuy').onclick = dongModal
   $('giaoOk').onclick = async () => {
-    const { data, error } = await sb.rpc('giao_viec_thiet_ke', { p_ma_don: maDon, p_ma_ns_nhan: $('giaoAi').value, p_ly_do: $('giaoLy').value || null })
-    if (error) { bao(error.message, true); return }
+    const r = await ghiAnToan($('giaoOk'), () => sb.rpc('giao_viec_thiet_ke', { p_ma_don: maDon, p_ma_ns_nhan: $('giaoAi').value, p_ly_do: $('giaoLy').value || null }))
+    if (!r.ok) return
+    const data = r.data
     bao(data && data.vuot_tran ? 'Đã giao — CẢNH BÁO: ' + data.canh_bao : 'Đã giao việc'); dongModal(); taiViec(); if ($('s-bang').style.display !== 'none') taiBang()
   }
 }
@@ -582,8 +584,9 @@ async function moChuyen(maDon, aiCam) {
   $('chHuy').onclick = dongModal
   $('chOk').onclick = async () => {
     if (!$('chLy').value.trim()) { bao('Phải ghi lý do chuyển', true); return }
-    const { data, error } = await sb.rpc('chuyen_viec', { p_ma_don: maDon, p_ma_ns_moi: $('chAi').value, p_ly_do: $('chLy').value })
-    if (error) { bao(error.message, true); return }
+    const r = await ghiAnToan($('chOk'), () => sb.rpc('chuyen_viec', { p_ma_don: maDon, p_ma_ns_moi: $('chAi').value, p_ly_do: $('chLy').value }))
+    if (!r.ok) return
+    const data = r.data
     bao(data && data.vuot_tran ? 'Đã chuyển — người mới đang cầm >5 đơn' : 'Đã chuyển việc'); dongModal(); dongPanel(); taiBang()
   }
 }

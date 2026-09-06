@@ -1,6 +1,7 @@
 // Togihome Kho — web app. Nối Supabase (schema kho) bằng khoá anon; RLS là cổng.
 import { createClient } from '@supabase/supabase-js'
 import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN)
+import { ghiAnToan, banner } from './ghi_an_toan.js'   // WP-107 L-107.3: khuôn ghi an toàn (chống bấm đúp + banner NGUYÊN VĂN + không báo xong khi lỗi)
 
 const URL = import.meta.env.VITE_SUPABASE_URL
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -288,8 +289,8 @@ async function luuVatTu(ma) {
     ton_toi_thieu: Number($('#e-min').value) || 0, can_kiem_tra: $('#e-cktr').checked,
     sua_luc: new Date().toISOString(), nguoi_thao_tac: ME_ID
   }
-  const { error } = await sb.from('vat_tu').update(upd).eq('ma', ma)
-  if (error) { err.textContent = 'Lưu lỗi: ' + error.message; return }
+  const r = await ghiAnToan(null, () => sb.from('vat_tu').update(upd).eq('ma', ma))
+  if (!r.ok) return
   await taiDuLieu(); veChips(); veBang(); bao(`Đã lưu ${ma}.`); moThe(ma)
 }
 const _idCache = {}
@@ -353,10 +354,9 @@ async function veDat() {
     box.querySelectorAll('.cdh-ck').forEach(c => c.onchange = capNhat); capNhat()
     tao.onclick = async () => { const ck = tao._dong || []; if (!ck.length) return
       const dong = ck.map(r => ({ vat_tu_id: r.vat_tu_id, so_luong: Number(r.so_dat), ncc_id: r.ncc_id, don_gia: Number(r.don_gia) }))
-      tao.disabled = true
-      const { data, error } = await sb.rpc('tao_po_tu_canh_bao', { p_dong: dong })
-      if (error) { $('#cdh-msg').innerHTML = `<span class="cdh-err">${esc(error.message)}</span>`; tao.disabled = false; return }
-      $('#cdh-msg').textContent = `Đã tạo ${data.so_po} PO nháp — sửa/gửi ở tab Đơn mua.` }
+      const res = await ghiAnToan(tao, () => sb.rpc('tao_po_tu_canh_bao', { p_dong: dong }))
+      if (!res.ok) return
+      $('#cdh-msg').textContent = `Đã tạo ${res.data.so_po} PO nháp — sửa/gửi ở tab Đơn mua.`; tao.disabled = true }
   }
   box.querySelectorAll('.cdh-bs').forEach(b => b.onclick = () => { bao(`Thêm mã ${b.dataset.ma} vào bảng giá 1 NCC (kèm lead time) rồi ↻ Tính lại.`); chuyenMan('ncc') })
   box.querySelectorAll('.cdh-luu').forEach(b => b.onclick = () => luuMuc(b))
@@ -367,16 +367,16 @@ async function luuMuc(btn) {
   const minV = tr.querySelector('.cdh-min').value.trim(), maxV = tr.querySelector('.cdh-max').value.trim()
   if (minV === '') { err.textContent = 'Nhập mức tối thiểu (gõ 0 nếu không cần dự trữ).'; return }
   const p_min = Number(minV.replace(/[^\d.]/g, '')), p_max = maxV === '' ? null : Number(maxV.replace(/[^\d.]/g, ''))
-  const { error } = await sb.rpc('dat_muc_ton', { p_vat_tu_id: tr.dataset.vt, p_min, p_max })
-  if (error) { err.textContent = error.message; return }
+  const r = await ghiAnToan(btn, () => sb.rpc('dat_muc_ton', { p_vat_tu_id: tr.dataset.vt, p_min, p_max }))
+  if (!r.ok) return
   tr.style.opacity = .5; btn.textContent = '✓ đã lưu'; btn.disabled = true
 }
 
 // ── nhà cung cấp ──
 async function themNcc() {
   const t = $('#ncc-ten').value.trim(); if (!t) { bao('Nhập tên nhà cung cấp đã.'); return }
-  const { error } = await sb.from('nha_cung_cap').insert({ ten: t, dien_thoai: $('#ncc-dt').value.trim() || null, dia_chi: null })
-  if (error) { bao('Không thêm được: ' + error.message); return }
+  const r = await ghiAnToan(null, () => sb.from('nha_cung_cap').insert({ ten: t, dien_thoai: $('#ncc-dt').value.trim() || null, dia_chi: null }))
+  if (!r.ok) return
   $('#ncc-ten').value = ''; $('#ncc-dt').value = ''; $('#ncc-mh').value = ''
   await taiDuLieu(); veNcc(); bao(`Đã thêm ${t}.`)
 }
@@ -432,8 +432,10 @@ async function nccPanel(ncc_id, ncc) {
     <div id="ncc-gia-form"></div><div id="ncc-ls"></div><div class="ncc-err" id="ncc-panel-err"></div></div>`
   if (laQL) {
     const hi = $('#ncc-han'); hi.onchange = async () => {
-      const v = Number(hi.value) || 30; const r = await sb.from('nha_cung_cap').update({ han_thanh_toan_ngay: v }).eq('id', ncc_id)
-      if (r.error) { $('#ncc-panel-err').textContent = r.error.message; return } $('#ncc-han-x').textContent = v; bao('Đã lưu hạn thanh toán ' + v + ' ngày'); if (ncc) ncc.han_thanh_toan_ngay = v
+      const v = Number(hi.value) || 30
+      const r = await ghiAnToan(null, () => sb.from('nha_cung_cap').update({ han_thanh_toan_ngay: v }).eq('id', ncc_id))
+      if (!r.ok) return
+      $('#ncc-han-x').textContent = v; bao('Đã lưu hạn thanh toán ' + v + ' ngày'); if (ncc) ncc.han_thanh_toan_ngay = v
     }
     $('#ncc-them-gia').onclick = () => nccGiaForm(ncc_id, null)
     box.querySelectorAll('.ncc-sua-gia').forEach(s => s.onclick = () => nccGiaForm(ncc_id, { vat_tu_id: s.dataset.vt, don_vi: s.dataset.dv, don_gia: s.dataset.gia, lead: s.dataset.lt }))
@@ -483,8 +485,8 @@ async function nccGiaForm(ncc_id, sua) {
       if (!dv) { err.textContent = 'Vật tư chưa có đơn vị cơ sở — nhập ở tab "Đơn vị & hao hụt" trước.'; return }
       const ltRaw = box.querySelector('.ncc-gia-lt').value.trim()
       const lt = ltRaw === '' ? null : Number(ltRaw)
-      const r = await sb.rpc('gia_ncc_ghi', { p_ncc_id: ncc_id, p_vat_tu_id: vtId, p_don_vi: dv, p_don_gia: dg, p_lead_time_ngay: lt })
-      if (r.error) { err.textContent = r.error.message; return }
+      const r = await ghiAnToan($('#ncc-gia-luu'), () => sb.rpc('gia_ncc_ghi', { p_ncc_id: ncc_id, p_vat_tu_id: vtId, p_don_vi: dv, p_don_gia: dg, p_lead_time_ngay: lt }))
+      if (!r.ok) return
       bao('Đã lưu giá NCC'); box.innerHTML = ''; veNcc()
     } catch (e) { if (err) err.textContent = 'Lỗi: ' + (e.message || e); else console.error('gia_ncc luu:', e) }
   }
@@ -535,7 +537,7 @@ function vePhieu(loai) {
   const dauNhap = `<div><label>Nhà cung cấp</label><select id="p-ncc" ${ro} onchange="P.nhap.ncc=this.value">${NCC.map(c => `<option value="${c.id}"${c.id === p.ncc ? ' selected' : ''}>${c.ten}</option>`).join('')}</select></div>`
   const dauXuat = `<div><label>Lý do xuất</label><select ${ro} onchange="P.xuat.ly=this.value">${['Sản xuất', 'Lắp đặt tại nhà khách', 'Hỏng / mất', 'Trả nhà cung cấp'].map(l => `<option${l === p.ly ? ' selected' : ''}>${l}</option>`).join('')}</select></div><div><label>Tổ nhận</label><select ${ro} onchange="P.xuat.to=this.value">${TO.map(t => `<option value="${t.ma_to}"${t.ma_to === p.to ? ' selected' : ''}>${t.ten}</option>`).join('')}</select></div>`
   $('#ph-' + loai).innerHTML = `<div class="ph-dau"><span class="ph-so">${p.so}</span><span class="tt ${khoa ? 'so' : 'nhap-tt'}">${khoa ? 'ĐÃ GHI SỔ' : 'NHÁP'}</span><span style="font-size:13px;color:var(--muted)">Lập lúc ${gio(p.luc)}</span>
-    <span class="cach">${khoa ? `<button class="n nho" onclick="moiPhieu('${loai}');vePhieu('${loai}')">Lập phiếu mới</button>` : `<button class="n" onclick="themDong('${loai}')">+ Thêm dòng</button><button class="n chinh" onclick="ghiSo('${loai}')">Ghi sổ</button>`}</span>${khoa ? '' : `<span class="ghi-nhac">Ghi sổ rồi là <b>KHOÁ</b> — muốn sửa phải <b>huỷ phiếu</b> rồi làm lại. (Phiếu chưa ghi sổ sẽ mất nếu tải lại trang.)</span>`}</div>
+    <span class="cach">${khoa ? `<button class="n nho" onclick="moiPhieu('${loai}');vePhieu('${loai}')">Lập phiếu mới</button>` : `<button class="n" onclick="themDong('${loai}')">+ Thêm dòng</button><button class="n chinh" id="btn-ghiso-${loai}" onclick="ghiSo('${loai}')">Ghi sổ</button>`}</span>${khoa ? '' : `<span class="ghi-nhac">Ghi sổ rồi là <b>KHOÁ</b> — muốn sửa phải <b>huỷ phiếu</b> rồi làm lại. (Phiếu chưa ghi sổ sẽ mất nếu tải lại trang.)</span>`}</div>
     <div class="ph-than"><div class="hang"><div><label>Ngày chứng từ</label><input class="ip" type="date" ${ro} value="${ngayNghiepVu(p.luc)}" onchange="P['${loai}'].luc=new Date(this.value);vePhieu('${loai}')"></div>${loai === 'nhap' ? dauNhap : dauXuat}<div><label>Ghi chú</label><input class="ip" ${ro} value="${p.ghi}" placeholder="Số hoá đơn, người giao…" oninput="P['${loai}'].ghi=this.value"></div></div>
     <table><thead><tr><th style="width:30px">#</th><th>Vật tư</th><th class="r" style="width:110px">Số lượng</th><th style="width:56px">ĐVT</th>${loai === 'nhap' ? '<th class="r" style="width:130px">Đơn giá (đ)</th>' : '<th class="r" style="width:100px">Tồn sau</th>'}<th class="r" style="width:130px">${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}</th><th style="width:34px"></th></tr></thead><tbody>
     ${p.dong.map((d, i) => { const v = KHO.find(x => x.ma === d.ma) || { ton: 0, dvt: '', min: 0, gia: 0 }; const sau = v.ton - (loai === 'xuat' ? d.sl : -d.sl); return `<tr><td style="color:#8A8F96;font-size:12.5px">${i + 1}</td><td data-label="Vật tư">${khoa ? `<span style="font-size:13.5px">${v.ma || d.ma} — ${v.ten || ''}</span>` : `<select onchange="datDong('${loai}',${i},'ma',this)">${optVt(d.ma)}</select>`}</td><td class="r" data-label="Số lượng"><input class="ip num r" type="number" ${ro} value="${d.sl}" oninput="datSo('${loai}',${i},'sl',this)"></td><td style="color:#6E7681;font-size:13px" data-label="ĐVT">${v.dvt}</td>${loai === 'nhap' ? `<td class="r" data-label="Đơn giá"><input class="ip num r" ${ro} value="${n(d.gia)}" oninput="datSo('${loai}',${i},'gia',this)" onblur="tien(this)"></td>` : `<td id="ts-${loai}-${i}" class="r num" data-label="Tồn sau" style="color:${sau < 0 ? 'var(--do)' : sau < v.min ? 'var(--amber)' : '#6E7681'}">${n(sau)}</td>`}<td id="ct-${loai}-${i}" class="r num" data-label="${loai === 'nhap' ? 'Thành tiền' : 'Giá trị'}">${n(d.sl * (loai === 'nhap' ? d.gia : v.gia))}</td><td>${khoa ? '' : `<button class="xoa" onclick="xoaDong('${loai}',${i})">×</button>`}</td></tr>` }).join('')}</tbody></table></div>
@@ -544,9 +546,9 @@ function vePhieu(loai) {
 async function ghiSo(loai) {
   const p = P[loai]; if (!p.dong.some(d => d.sl > 0)) { bao('Chưa dòng nào có số lượng.'); return }
   const dong = []; for (const d of p.dong) { if (d.sl <= 0) continue; const id = await maToId(d.ma); dong.push({ vat_tu_id: id, so_luong: d.sl, don_gia: loai === 'nhap' ? d.gia : null }) }
-  const { data, error } = await sb.rpc('ghi_so_phieu', { p_loai: loai, p_ncc: loai === 'nhap' ? p.ncc : null, p_ly_do: loai === 'xuat' ? p.ly : null, p_ghi_chu: p.ghi, p_dong: dong, p_ma_to: loai === 'xuat' ? p.to : null })
-  if (error) { bao('Ghi sổ lỗi: ' + error.message); return }
-  p.tt = 'so'; p.so = data?.so_phieu || p.so; vePhieu(loai); await taiDuLieu(); veBang(); veDsPhieu(loai)
+  const res = await ghiAnToan($('#btn-ghiso-' + loai), () => sb.rpc('ghi_so_phieu', { p_loai: loai, p_ncc: loai === 'nhap' ? p.ncc : null, p_ly_do: loai === 'xuat' ? p.ly : null, p_ghi_chu: p.ghi, p_dong: dong, p_ma_to: loai === 'xuat' ? p.to : null }))
+  if (!res.ok) return
+  p.tt = 'so'; p.so = res.data?.so_phieu || p.so; vePhieu(loai); await taiDuLieu(); veBang(); veDsPhieu(loai)
   bao(`Đã ghi sổ ${p.so}. Tồn + thẻ kho đã cập nhật.`)
 }
 
@@ -632,11 +634,10 @@ function moXacNhanHuy(loai, id) {
 }
 async function xacNhanHuy(loai, id, so) {
   const ta = document.getElementById('huy-lydo'), ly = (ta.value || '').trim(); if (!ly) return
-  const btn = document.getElementById('huy-ok'), err = document.getElementById('huy-err')
-  btn.disabled = true; btn.textContent = 'Đang huỷ…'; err.textContent = ''
-  const { data, error } = await sb.rpc('huy_phieu', { p_so_phieu: so, p_ly_do: ly })
-  if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Xác nhận huỷ'; return }   // hiện NGUYÊN VĂN lỗi máy chủ (gồm ca xuất một phần)
-  bao(`Đã huỷ ${so}. Phiếu ngược: ${data}`)
+  const btn = document.getElementById('huy-ok'), err = document.getElementById('huy-err'); err.textContent = ''
+  const r = await ghiAnToan(btn, () => sb.rpc('huy_phieu', { p_so_phieu: so, p_ly_do: ly }))   // hiện NGUYÊN VĂN lỗi máy chủ (gồm ca xuất một phần)
+  if (!r.ok) return
+  bao(`Đã huỷ ${so}. Phiếu ngược: ${r.data}`)
   await taiDuLieu(); veBang(); await veDsPhieu(loai); moPhieuXem(loai, id)
 }
 
@@ -841,16 +842,17 @@ async function gmChon(id, mo_ta) {
   const g = GHEP.find(x => x.mo_ta === mo_ta), row = g && g.rows.find(r => r.id === id)
   // BỎ CHỌN: bấm lại ứng viên đang chọn -> về CHUA_DUYET, không mặc định (để đổi / xoá được).
   if (row && row.la_mac_dinh && row.trang_thai === 'DA_DUYET') {
-    const { error } = await sb.from('plugin_ma_map').update({ la_mac_dinh: false, trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('id', id)
-    if (error) { bao('Bỏ chọn lỗi: ' + error.message); return }
+    const r0 = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ la_mac_dinh: false, trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('id', id))
+    if (!r0.ok) return
     bao('Đã BỎ CHỌN mã kho cho mô tả này.'); return gmReload(mo_ta)
   }
   // CHỌN: revert DA_DUYET cũ về CHUA_DUYET + bỏ MỌI cờ mặc định TRƯỚC (ràng buộc 1-mặc-định) rồi đặt cờ mới.
-  const eR = (await sb.from('plugin_ma_map').update({ trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('mo_ta_thiet_ke', mo_ta).eq('trang_thai', 'DA_DUYET')).error
-  const eC = (await sb.from('plugin_ma_map').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta)).error
-  if (eR || eC) { bao('Bỏ cờ mặc định cũ lỗi: ' + (eR || eC).message); return }
-  const { error } = await sb.from('plugin_ma_map').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id)
-  if (error) { bao('Chốt lỗi: ' + error.message); return }   // hiện NGUYÊN VĂN lỗi (gồm lỗi ràng buộc)
+  // Giữ nguyên trình tự: CHẠY cả hai update rồi mới xét lỗi (không rẽ nhánh giữa chừng).
+  const rR = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ trang_thai: 'CHUA_DUYET', nguoi_duyet: null, duyet_luc: null }).eq('mo_ta_thiet_ke', mo_ta).eq('trang_thai', 'DA_DUYET'))
+  const rC = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ la_mac_dinh: false }).eq('mo_ta_thiet_ke', mo_ta))
+  if (!rR.ok || !rC.ok) return
+  const r2 = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ la_mac_dinh: true, trang_thai: 'DA_DUYET', nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', id))   // hiện NGUYÊN VĂN lỗi (gồm lỗi ràng buộc)
+  if (!r2.ok) return
   bao('Đã chốt mã kho mặc định cho mô tả này.')
   await gmReload(mo_ta)
 }
@@ -867,14 +869,15 @@ async function gmThemUngVien(mo_ta, ma) {
   const g = GHEP.find(x => x.mo_ta === mo_ta); if (!g) return
   if (g.rows.some(r => r.ma_kho === ma)) { bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`); return }
   const khac = GHEP.filter(x => x.mo_ta !== mo_ta && x.rows.some(r => r.ma_kho === ma)).map(x => x.mo_ta)
-  const { error } = await sb.from('plugin_ma_map').insert({
+  const r = await ghiAnToan(null, () => sb.from('plugin_ma_map').insert({
     mo_ta_thiet_ke: mo_ta, ten_mo_ta: g.ten, ma_plugin: g.mp, dvt_plugin: g.dvt, gia_plugin: g.gia,
     nhom_dinh_muc: g.nhom, ma_kho: ma, he_so_quy_doi: 1, muc_tin_cay: 'CHUA_RO', la_mac_dinh: false,
     trang_thai: 'CHUA_DUYET', ghi_chu: 'CEO thêm tay từ giao diện'
-  })
-  if (error) {
-    if (error.code === '23505' || /duplicate|unique/i.test(error.message)) { bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`); return }
-    bao('Thêm lỗi: ' + error.message); return   // hiện nguyên văn lỗi khác
+  }))
+  if (!r.ok) {
+    // giữ thông điệp "trùng" thân thiện (backstop sau precheck) — lỗi khác đã hiện NGUYÊN VĂN qua banner
+    if (r.error && (r.error.code === '23505' || /duplicate|unique/i.test(r.error.message || ''))) bao(`Mã ${ma} ĐÃ là ứng viên của mô tả này — không thêm trùng.`)
+    return
   }
   bao(`Đã thêm ${ma} vào mô tả${khac.length ? ` (LƯU Ý: mã này cũng đang dùng ở: ${khac.join(', ')})` : ''}.`)
   await gmReload(mo_ta); gmCanhBao()
@@ -933,8 +936,8 @@ async function gmXoaUngVien(id, mo_ta) {
   if (!row) return
   if (row.la_mac_dinh || row.trang_thai === 'DA_DUYET') { bao('Ứng viên đang là MẶC ĐỊNH / đã duyệt — BỎ CHỌN trước khi xoá (bấm lại nút Đã chọn).'); return }
   gmModal(`Xoá hẳn ứng viên <b>${row.ma_kho}</b> khỏi mô tả này? Không hoàn tác được.`, 'Xoá', async () => {
-    const { error } = await sb.from('plugin_ma_map').delete().eq('id', id)
-    if (error) { bao('Xoá lỗi: ' + error.message); return }
+    const r = await ghiAnToan($('#gm-modal-ok'), () => sb.from('plugin_ma_map').delete().eq('id', id))
+    if (!r.ok) return
     bao(`Đã xoá ứng viên ${row.ma_kho}.`)
     await gmReload(mo_ta); gmCanhBao()
   })
@@ -945,8 +948,8 @@ async function gmKhongGhep(mo_ta) {
   const ghiInp = $(`#gm-k-${mo_ta} [data-ghi]`), ly = (ghiInp ? ghiInp.value : '').trim()
   if (!ly) { bao('Nhập LÝ DO vào ô ghi chú trước khi bấm Không ghép.'); if (ghiInp) ghiInp.focus(); return }
   const primary = gmActive(g)
-  const { error } = await sb.from('plugin_ma_map').update({ trang_thai: 'KHONG_GHEP', ma_kho: null, la_mac_dinh: false, ghi_chu: ly, nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', primary.id)
-  if (error) { bao('Lưu Không ghép lỗi: ' + error.message); return }
+  const r = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ trang_thai: 'KHONG_GHEP', ma_kho: null, la_mac_dinh: false, ghi_chu: ly, nguoi_duyet: ME_ID, duyet_luc: new Date().toISOString() }).eq('id', primary.id))
+  if (!r.ok) return
   bao(`Đã đánh dấu KHÔNG GHÉP: ${g.mp}.`)
   await gmReload(mo_ta)
 }
@@ -968,14 +971,14 @@ function gmGanSuKien() {
       const val = t.value.trim()
       if (val !== '' && !(parseFloat(val) > 0)) { bao('Hệ số quy đổi phải là số DƯƠNG.'); t.value = ''; return }
       const so = val === '' ? 1 : parseFloat(val)
-      const { error } = await sb.from('plugin_ma_map').update({ he_so_quy_doi: so }).eq('id', t.dataset.hs)
-      if (error) { bao('Lưu hệ số lỗi: ' + error.message); return }
+      const rH = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ he_so_quy_doi: so }).eq('id', t.dataset.hs))
+      if (!rH.ok) return
       const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.hs); if (row) row.he_so_quy_doi = so
       const slot = $(`#gm-k-${t.dataset.mota} .gm-cbao-slot`); if (slot && g) slot.innerHTML = gmWarnHtml(g)
       gmDem(); gmLoc(); bao('Đã lưu hệ số quy đổi.')
     } else if (t.dataset.ghi != null && t.dataset.ghi !== '') {
-      const { error } = await sb.from('plugin_ma_map').update({ ghi_chu: t.value }).eq('id', t.dataset.ghi)
-      if (error) { bao('Lưu ghi chú lỗi: ' + error.message); return }
+      const rG = await ghiAnToan(null, () => sb.from('plugin_ma_map').update({ ghi_chu: t.value }).eq('id', t.dataset.ghi))
+      if (!rG.ok) return
       const g = GHEP.find(x => x.mo_ta === t.dataset.mota), row = g && g.rows.find(r => r.id === t.dataset.ghi); if (row) row.ghi_chu = t.value
       bao('Đã lưu ghi chú.')
     }
@@ -1006,9 +1009,10 @@ const dmTien = v => Math.round(v || 0).toLocaleString('vi-VN')
 const dmNgay = s => s ? new Date(s).toLocaleDateString('vi-VN') : '—'
 const dmTre = (hen, can) => hen && can && new Date(hen) > new Date(can)
 
-async function dmVatTu() { if (!DM.vt) { const { data } = await sb.from('vat_tu').select('id,ma,ten,dvt').eq('ngung_dung', false).order('ma'); DM.vt = data || [] } return DM.vt }
+// FIX ĐÍCH DANH (WP-107): đọc CẢ error — rỗng-vì-lỗi mạng ≠ rỗng-thật. Lỗi → banner + KHÔNG cache rỗng (để thử lại) + trả null cho nơi gọi khoá nút.
+async function dmVatTu() { if (!DM.vt) { const { data, error } = await sb.from('vat_tu').select('id,ma,ten,dvt').eq('ngung_dung', false).order('ma'); if (error) { banner('Không nạp được danh sách vật tư, thử lại'); return null } DM.vt = data || [] } return DM.vt }
 // LƯU Ý: global KHO trong app này là danh sách VẬT TƯ (không phải kho hàng). Kho hàng phải fetch riêng.
-async function dmKho() { if (!DM.kho) { const { data } = await sb.from('kho').select('id,ten,la_mac_dinh').order('ten'); DM.kho = data || [] } return DM.kho }
+async function dmKho() { if (!DM.kho) { const { data, error } = await sb.from('kho').select('id,ten,la_mac_dinh').order('ten'); if (error) { banner('Không nạp được danh sách kho, thử lại'); return null } DM.kho = data || [] } return DM.kho }
 
 // tiến độ nhận: thanh + chip n/m dòng (còn thiếu / đủ)
 function dmProg(d) {
@@ -1083,8 +1087,8 @@ async function dmXem(id) {
   box.querySelectorAll('.kho-hd-xoa').forEach(b => b.onclick = async () => {
     const err = box.querySelector('#kho-hd-err'); err.textContent = ''
     if (!confirm(`Xoá hoá đơn ${b.dataset.so}? (đảo giá lô nếu còn sống; đơn có thể lùi về "đã nhận")`)) return
-    const r = await sb.rpc('hd_ncc_xoa', { p_id: b.dataset.hid })
-    if (r.error) { err.textContent = r.error.message.replace(/^.*HD_CO_PHIEU_CHI: */, 'Không xoá được: '); return }
+    const r = await ghiAnToan(b, () => sb.rpc('hd_ncc_xoa', { p_id: b.dataset.hid }))
+    if (!r.ok) return
     bao('Đã xoá hoá đơn ' + b.dataset.so); dmXem(id)
   })
 }
@@ -1097,19 +1101,21 @@ async function dmNutCt(id, act, errEl) {
   let toi = act, ngay = null, lyDo = null
   if (act === 'xac_nhan') { const cur = DM.ds.find(x => x.id === id); const def = cur ? cur.ngay_can : ''; ngay = prompt('Ngày NCC hẹn giao (YYYY-MM-DD), mặc định = ngày cần:', def || ''); if (ngay === null) return; ngay = ngay.trim() || null }
   if (act === 'huy') { lyDo = prompt('Lý do huỷ (bắt buộc):', ''); if (lyDo === null) return; if (!lyDo.trim()) { errEl.textContent = 'Huỷ phải có lý do.'; return } }
-  const r = await sb.rpc('dm_chuyen_trang_thai', { p_id: id, p_toi: toi, p_ngay_ncc_hen: ngay, p_ly_do: lyDo })
-  if (r.error) { errEl.textContent = r.error.message; return }
+  const r = await ghiAnToan(null, () => sb.rpc('dm_chuyen_trang_thai', { p_id: id, p_toi: toi, p_ngay_ncc_hen: ngay, p_ly_do: lyDo }))
+  if (!r.ok) return
   dmXem(id)
 }
 
-async function dmGia() { if (!DM.gia) { const { data } = await sb.from('v_gia_tham_khao').select('vat_tu_id,gia_tham_khao'); DM.gia = Object.fromEntries((data || []).map(r => [r.vat_tu_id, r.gia_tham_khao])) } return DM.gia }
+async function dmGia() { if (!DM.gia) { const { data, error } = await sb.from('v_gia_tham_khao').select('vat_tu_id,gia_tham_khao'); if (error) { banner('Không nạp được bảng giá tham khảo, thử lại'); return null } DM.gia = Object.fromEntries((data || []).map(r => [r.vat_tu_id, r.gia_tham_khao])) } return DM.gia }
 const dmFmt = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Math.round(Number(v)).toLocaleString('vi-VN')
 
 // Form tạo/sửa đơn mua — ô GÕ TÌM vật tư + bảng dòng 7 cột. suaId → sửa dòng (cùng bảng, không bản thứ hai).
 async function dmMoiForm(suaId) {
+  // FIX ĐÍCH DANH (WP-107): nạp nền TRƯỚC khi mở form; lỗi mạng (banner đã hiện) → KHOÁ nút tạo đơn mua + KHÔNG mở form trên nền rỗng.
+  const vt = await dmVatTu(), khoList = await dmKho(), gia = await dmGia()
+  if (!vt || !khoList || !gia) { const mb = $('#dm-moi-btn'); if (mb) mb.disabled = true; return }
   $('#dm-list').style.display = 'none'; $('#dm-ct').style.display = 'none'
   const box = $('#dm-form'); box.style.display = ''
-  const vt = await dmVatTu(), khoList = await dmKho(), gia = await dmGia()
   const dauCan = ngayNghiepVu(congNgay(new Date(), 7))
   const nDong = () => ({ vat_tu_id: '', so_luong: '', don_gia: '', don_vi: '', nguon: '', lead: null, hen: '' })
   let dong = [nDong()], ct = null
@@ -1224,9 +1230,9 @@ async function dmMoiForm(suaId) {
     const err = $('#dm-form-err'); err.textContent = ''
     const ds = goiDong()
     if (!ds.length) { err.textContent = 'Cần ít nhất 1 dòng vật tư có số lượng.'; return }
-    if (suaId) { const r = await sb.rpc('dm_sua_dong', { p_id: suaId, p_dong: ds }); if (r.error) { err.textContent = r.error.message; return } dmXem(suaId); return }
-    const r = await sb.rpc('dm_tao', { p_ncc: $('#dm-f-ncc2').value, p_kho: $('#dm-f-kho').value, p_ngay_can: $('#dm-f-can').value, p_ghi_chu: $('#dm-f-gc').value || null, p_dong: ds, p_gui_ngay: !!gui })
-    if (r.error) { err.textContent = r.error.message; return }
+    if (suaId) { const r = await ghiAnToan($('#dm-luu-sua'), () => sb.rpc('dm_sua_dong', { p_id: suaId, p_dong: ds })); if (!r.ok) return; dmXem(suaId); return }
+    const r = await ghiAnToan($(gui ? '#dm-luu-gui' : '#dm-luu'), () => sb.rpc('dm_tao', { p_ncc: $('#dm-f-ncc2').value, p_kho: $('#dm-f-kho').value, p_ngay_can: $('#dm-f-can').value, p_ghi_chu: $('#dm-f-gc').value || null, p_dong: ds, p_gui_ngay: !!gui }))
+    if (!r.ok) return
     if (r.data.canh_bao_gia) { err.style.color = 'var(--am,#9A6412)'; err.textContent = r.data.canh_bao_gia; setTimeout(() => { err.style.color = '' }, 50) }
     dmXem(r.data.id)
   }
@@ -1298,9 +1304,8 @@ async function dmNhanForm(id) {
     // dm_chi_tiet trả stt (không trả id dòng) → map stt→id để ghép dong_id cho RPC
     const payload = await dmDongIds(id, dongGhi())
     if (!payload.length) { err.textContent = 'Cần nhập số nhận cho ít nhất 1 dòng.'; return }
-    $('#dmn-ghi').disabled = true
-    const res = await sb.rpc('dm_nhan_hang', { p_don_mua_id: id, p_dong: payload, p_ngay: ngayNghiepVu() })
-    if (res.error) { err.textContent = res.error.message; $('#dmn-ghi').disabled = false; return }
+    const res = await ghiAnToan($('#dmn-ghi'), () => sb.rpc('dm_nhan_hang', { p_don_mua_id: id, p_dong: payload, p_ngay: ngayNghiepVu() }))
+    if (!res.ok) return
     dmNhanXong(id, res.data, L)
   }
   render()
@@ -1408,14 +1413,8 @@ async function dmKhopForm(id) {
     const err = $('#k-err'); err.textContent = ''
     const dong = L.filter(x => x.rem > 0 && num(x.sl_hd) > 0 && !vuot(x)).map(x => ({ don_mua_dong_id: x.don_mua_dong_id, so_luong: num(x.sl_hd), don_gia_hd: num(x.dg_hd) }))
     if (!dong.length) { err.textContent = 'Cần nhập SL trên HĐ cho ít nhất 1 dòng.'; return }
-    $('#k-ghi-btn').disabled = true
-    const r = await sb.rpc('hd_ncc_ghi', { p_don_mua_id: id, p_so_hd: H.so_hd.trim(), p_loai: H.loai, p_ngay_hd: H.ngay_hd, p_han: H.han, p_vat_pct: H.loai === 'bang_ke' ? 0 : H.vat, p_ghi_chu: H.ghi_chu || null, p_dong: dong })
-    if (r.error) {
-      let m = r.error.message
-      if (/HD_VUOT_NHAN/.test(m)) m = 'Số lượng trên hoá đơn vượt số đã nhận — ' + m.replace(/^.*HD_VUOT_NHAN: */, '')
-      else if (/HD_TRUNG/.test(m)) m = 'NCC này đã có hoá đơn cùng số. ' + m.replace(/^.*HD_TRUNG: */, '')
-      err.textContent = m; $('#k-ghi-btn').disabled = false; return
-    }
+    const r = await ghiAnToan($('#k-ghi-btn'), () => sb.rpc('hd_ncc_ghi', { p_don_mua_id: id, p_so_hd: H.so_hd.trim(), p_loai: H.loai, p_ngay_hd: H.ngay_hd, p_han: H.han, p_vat_pct: H.loai === 'bang_ke' ? 0 : H.vat, p_ghi_chu: H.ghi_chu || null, p_dong: dong }))
+    if (!r.ok) return
     const g = r.data
     bao(`Đã ghi HĐ ${g.so_hd} · công nợ ${dmTien(g.tong_gom_vat)}đ${g.lech_gia_so_dong ? ' · lệch giá ' + g.lech_gia_so_dong + ' dòng' : ''} · đơn ${DM_TT[g.trang_thai_don] || g.trang_thai_don}`)
     dmXem(id)
@@ -1483,7 +1482,7 @@ function tsvtChon(id, giuHtml) {
       <tr id="ts-dv-add"><td colspan="4"><span class="tsvt-dvlink" onclick="tsvtThemDv()">+ thêm đơn vị</span> <span class="tsvt-chugiai">(đơn vị mua NCC, đơn vị bản vẽ…)</span></td></tr>
     </table>
     <div class="tsvt-ktra" id="ts-ktra"><span class="mo">Đang tính kiểm thử…</span></div>
-    <div class="tsvt-nut"><button onclick="tsvtChon('${id}')">Huỷ</button><button class="chinh" onclick="tsvtLuu('${id}')">Lưu tham số</button></div>
+    <div class="tsvt-nut"><button onclick="tsvtChon('${id}')">Huỷ</button><button class="chinh" id="ts-luu-btn" onclick="tsvtLuu('${id}')">Lưu tham số</button></div>
     <div class="tsvt-chugiai">Lưu qua <code>luu_tham_so_vat_tu</code> (vai kho/ceo). Đổi hệ số KHÔNG sửa BOM đã snapshot — chỉ áp cho bàn giao sau; mỗi lần lưu ghi lịch sử.</div>`
   tsvtDienTich(); tsvtKtra(id)
 }
@@ -1538,8 +1537,8 @@ async function tsvtLuu(id) {
     if (don_vi === 'm2' && v.la_van && dai > 0 && rong > 0) continue   // m² suy từ khổ → RPC tự ghi, khỏi gửi tay
     dv.push({ don_vi, he_so })
   }
-  const r = await sb.rpc('luu_tham_so_vat_tu', { p_vat_tu_id: id, p_kho_dai_mm: dai, p_kho_rong_mm: rong, p_hao_hut_pct: hao, p_don_vi: dv })
-  if (r.error) { bao('Lưu lỗi: ' + r.error.message); return }
+  const r = await ghiAnToan($('#ts-luu-btn'), () => sb.rpc('luu_tham_so_vat_tu', { p_vat_tu_id: id, p_kho_dai_mm: dai, p_kho_rong_mm: rong, p_hao_hut_pct: hao, p_don_vi: dv }))
+  if (!r.ok) return
   const bu = r.data?.tem_xuat_bu || 0
   bao(bu > 0 ? `Đã lưu · đã xuất bù ${bu} tem` : 'Đã lưu tham số')
   await veTsvt()

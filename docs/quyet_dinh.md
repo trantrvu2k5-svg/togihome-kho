@@ -1962,3 +1962,23 @@ vết WP-92: 6 báo động giả đã lên tới mắt người dùng vì lên 
 
 Tác động (số thật 11 mẫu): phân bố ket_luan từ [đang tốt 5 · CPM cao hơn nền 6] → [đang tốt 9 · bắt đầu xem tụt 1 ·
 xếp hạng dưới TB 1], ghi_chu 1/11 — sparse và có nghĩa thay vì dồn cục. Test `test_suc_khoe_mau` 15 ca (thêm 11–15).
+
+## QD-113 (06/09, WP-107 L-107.2, src/ghi_an_toan.js) — MỌI ĐƯỜNG GHI TỪ GIAO DIỆN QUA MỘT KHUÔN CHUNG · THIẾU DỮ LIỆU THÌ KHÔNG GHI · CHỐT
+
+Bằng chứng gốc bệnh: L-107.1 đếm **104 đường ghi front-end, chỉ ~19 có khoá nút** → bấm đúp = 2 ghi, nuốt lỗi,
+báo "đã lưu" khi chưa biết máy chủ trả gì rải khắp 6 app. Vá tay 104 chỗ = 104 cơ hội quên; người sau thêm đường
+105 lại quên. Sửa GỐC = một khuôn dùng chung, áp dần.
+
+- **Khuôn `ghiAnToan(nut, viec)` (src/ghi_an_toan.js, mọi app import).** Làm ĐÚNG 5 việc: (1) nút đang khoá → thoát
+  (chặn bấm hai lần); (2) khoá nút + đổi chữ "Đang lưu…"; (3) chạy viec() nhận {error}/ném; (4) lỗi → banner NGUYÊN
+  VĂN, KHÔNG báo thành công; (5) finally → mở khoá + trả chữ cũ (kể cả lỗi/ném). **Khuôn TỰ kiểm error → hàm gọi
+  không phải nhớ** (thiếu kiểm ở hàm gọi thì lỗi vẫn lọt lên banner).
+- **Thiếu dữ liệu thì KHÔNG ghi và NÓI RA — CẤM lấy 0/null làm mặc định.** `luuKy`/`luuTSV` chặn khi kỳ chưa nạp xong
+  (cờ `KY_NAP_XONG`): nút Lưu khoá tới khi loadKy() seed xong + hàm tự kiểm (chặn mọi đường gọi, kể cả không qua nút),
+  báo "Chưa nạp xong kỳ, thử lại". Vế tự-kiểm-trong-hàm QUAN TRỌNG hơn khoá nút (khoá nút chỉ chặn tay người).
+- **Thêm đường ghi MỚI không qua khuôn = lỗi.** Đây là luật, không phải gợi ý.
+
+Áp lệnh này: 3 chỗ nguy nhất của taichinh (**5/27 đường ghi**) — `von_xoa` (đường ghi DUY NHẤT toàn hệ từng nuốt
+trọn lỗi), `luuKy`+`luuTSV` (ghi 0/null đè tham số giá kỳ khi chưa nạp), `pc_ghi`+`pt_ghi` (bấm đúp = 2 phiếu tiền).
+Nghiệm thu Playwright bản local 5/5 ca xanh (bấm đúp=1 · lưu-kỳ-sớm chặn cả nút lẫn gọi thẳng · von_xoa lỗi hiện
+banner · RPC chưa về nút khoá rồi mở). 22 đường taichinh còn lại + kho + xưởng: L-107.3.

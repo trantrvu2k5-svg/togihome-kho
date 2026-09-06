@@ -111,7 +111,13 @@ const KEYLESS = new Set(['people','acc','cards','conn','bank','users_extra'])
 let _vatCache = null
 async function getVat() {
   if (_vatCache != null) return _vatCache
-  try { const { data } = await sb.rpc('cau_hinh_sale'); _vatCache = Number(data?.vat) || 10 } catch { _vatCache = 10 }
+  // KHÔNG bịa VAT=10 khi lỗi/thiếu cấu hình: giá ghi sai âm thầm nguy hơn là dừng.
+  //   null (đưa vào boVat) -> 1 + null/100 = 1 -> VAT=0 vẫn là số BỊA -> phải THROW cho lỗi nổi lên.
+  const { data, error } = await sb.rpc('cau_hinh_sale')
+  if (error) throw new Error('Không đọc được VAT (cau_hinh_sale): ' + (error.message || error))
+  const vat = Number(data?.vat)
+  if (!Number.isFinite(vat)) throw new Error('Cấu hình VAT thiếu/không hợp lệ — không thể quy đổi giá (không tự mặc định 10%).')
+  _vatCache = vat
   return _vatCache
 }
 const themVat = (n, vat) => n == null ? n : Math.round(Number(n) * (1 + vat / 100))   // pre-VAT -> CÓ VAT
@@ -290,7 +296,8 @@ async function _set(k, jsonStr) {
     for (const m of (v || [])) { const ma = maCuaAppId(m.donId); (byMa[ma] = byMa[ma] || []).push(m) }
     for (const ma of Object.keys(byMa)) {
       const did = await donIdCuaMa(ma); if (!did) continue
-      const { data: exist } = await sb.from('don_hang_mon').select('id').eq('don_id', did)
+      const { data: exist, error: eEx } = await sb.from('don_hang_mon').select('id').eq('don_id', did)
+      if (eEx) throw eEx   // KHÔNG ghi trên nền rỗng: lỗi đọc -> exist rỗng -> mọi món coi là "mới" -> INSERT trùng toàn bộ
       const exSet = new Set((exist || []).map(x => x.id)); const giu = new Set()
       for (const m of byMa[ma]) {
         if (exSet.has(m.id)) {   // món CŨ -> UPDATE (giữ id + trang_thai + nhật ký)
@@ -309,7 +316,8 @@ async function _set(k, jsonStr) {
     for (const l of (v || [])) {
       const did = await donIdCuaMa(maCuaAppId(l.donId)); if (!did) continue
       const den = toDB(l.den)
-      const { data: co } = await sb.from('don_hang_nhat_ky').select('id').eq('don_id', did).eq('den', den).eq('luc', l.luc).limit(1)
+      const { data: co, error: eCo } = await sb.from('don_hang_nhat_ky').select('id').eq('don_id', did).eq('den', den).eq('luc', l.luc).limit(1)
+      if (eCo) throw eCo   // lỗi đọc -> co rỗng -> coi là "chưa có" -> INSERT trùng dòng nhật ký; dừng thay vì ghi mù
       if (co && co.length) continue
       const { error } = await sb.from('don_hang_nhat_ky').insert({ don_id: did, tu: l.tu ? toDB(l.tu) : null, den,
         nguoi_id: (window.__saleUser && window.__saleUser.id) || null, luc: l.luc || undefined, ly_do: nz(l.lyDo) }); if (error) throw error
@@ -401,7 +409,7 @@ window.saleApi = {
   leadGoiY: async (tim = null, ngay = 7) => { const { data, error } = await sb.rpc('lead_goi_y', { p_tim: tim || null, p_ngay: ngay }); if (error) throw error; return data || [] },
   // [WP-70 L-09] "Kéo ngay": gọi Worker Cloudflare kéo một lượt (không chờ nhịp). Sale KHÔNG ghi thẳng — Worker ghi
   //   qua lead_ghi + GUC như cron. Khoá chống chồng ở Worker; app tự chặn bấm lại 30s.
-  keoNgay: async () => { const r = await fetch('https://togihome-keo-lead.togihome-keo-lead.workers.dev/', { method: 'GET' }); return await r.json().catch(() => ({})) },
+  keoNgay: async () => { const r = await fetch('https://togihome-keo-lead.togihome-keo-lead.workers.dev/', { method: 'GET' }); if (!r.ok) throw new Error('Kéo lead lỗi: HTTP ' + r.status); return await r.json() },
   // [WP-44] ngày XONG XƯỞNG (dự kiến) cho MỘT đơn — nay dùng ngay_giao_hua (CTP: tải + thiếu vật tư + lead),
   //   KHÔNG còn atp thẳng. Gọi TỪNG đơn (temp table/lần → không gộp). Map ngay_hua→ngay_hua_duoc để render cũ chạy;
   //   kèm căn cứ/độ tin: {ok,ngay_hua_duoc,ngay_hua,do_tin,can_cu,vat_tu_dang_doan,so_vat_tu_dang_doan,cac_gia_dinh,...}.

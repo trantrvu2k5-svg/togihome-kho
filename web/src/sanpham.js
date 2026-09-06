@@ -2,6 +2,7 @@
 //   Vào: ceo · ke_toan (có giá vốn). Vai khác CHẶN. Đọc qua RPC curated (sp_danh_sach / sp_cay / sp_loc_options).
 //   Nhãn vàng ở Danh sách = cần soát: vật liệu ĐOÁN chưa xác nhận · kích thước chưa có số. Bấm nhãn → sửa (sp_sua_bien_the).
 import { createClient } from '@supabase/supabase-js'
+import { ghiAnToan, banner } from './ghi_an_toan.js'
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 window.__sb = sb   // L-74: phơi client cho kiểm chéo RPC
@@ -299,10 +300,8 @@ async function luuSua() {
     p_vl: $('sVl').value.trim() || null, p_ma_vt: $('sMaVt').value.trim() || null,
     p_xac_nhan: $('sXn').checked
   }
-  $('sLuu').disabled = true
-  const { error } = await sb.rpc('sp_sua_bien_the', p)
-  $('sLuu').disabled = false
-  if (error) { bao('Lưu lỗi: ' + error.message, true); return }
+  const r = await ghiAnToan($('sLuu'), () => sb.rpc('sp_sua_bien_the', p))
+  if (!r.ok) return
   bao('Đã lưu biến thể ' + SUA.ma_bien_the)
   dongSua()
   if (TAB === 'ds') veDanhSach(); else veCay()
@@ -412,7 +411,7 @@ function renderQtPhai() {
   if ($('qt08XemCu')) $('qt08XemCu').onclick = e => { e.preventDefault(); xemBanCu(c) }
   $('qtPhai').querySelectorAll('[data-phut]').forEach(inp => inp.onchange = () => xacNhanRoiLuu(() => luuBuoc(Number(inp.closest('[data-b]').dataset.b))))
   $('qtPhai').querySelectorAll('[data-btmo]').forEach(btn => btn.onclick = () => moChonTruoc(Number(btn.dataset.btmo)))
-  $('qtPhai').querySelectorAll('[data-xoa]').forEach(b => b.onclick = () => xoaBuoc(Number(b.dataset.xoa)))
+  $('qtPhai').querySelectorAll('[data-xoa]').forEach(b => b.onclick = () => xoaBuoc(Number(b.dataset.xoa), b))
 }
 // WP-08: sửa TÊN mẫu (qt_doi_ten)
 function moSuaTen(c) {
@@ -425,8 +424,8 @@ function moSuaTen(c) {
     const ten = $('stTen').value.trim()
     if (!ten) { bao('Tên không được rỗng', true); return }
     dongSua()
-    const { error } = await sb.rpc('qt_doi_ten', { p_ma: c.ma_quy_trinh, p_ten: ten })
-    if (error) { bao(error.message, true); return }
+    const r = await ghiAnToan($('stOk'), () => sb.rpc('qt_doi_ten', { p_ma: c.ma_quy_trinh, p_ten: ten }))
+    if (!r.ok) return
     bao('Đã đổi tên'); await veQuyTrinh()
   }
 }
@@ -457,10 +456,11 @@ function moChonTruoc(thu_tu) {
     `<p style="font-size:12.5px;color:var(--chu-nhat);margin-bottom:6px">Bỏ chọn hết = bước đầu tiên.</p>${rows}`,
     `<button class="nut-vien" id="ctHuy">Huỷ</button><button class="nut-chinh" id="ctOk">Xong</button>`)
   $('ctHuy').onclick = dongSua
-  $('ctOk').onclick = () => {
+  $('ctOk').onclick = () => ghiAnToan($('ctOk'), async () => {
     const bt = [...$('hopMThan').querySelectorAll('input:checked')].map(i => Number(i.value))
-    dongSua(); xacNhanRoiLuu(() => luuBuocTruoc(thu_tu, bt))
-  }
+    dongSua(); await luuBuocTruoc(thu_tu, bt)
+    return {}
+  })
 }
 async function luuBuocTruoc(thu_tu, bt) {
   const b = QT.ct.buoc.find(x => x.thu_tu === thu_tu); if (!b) return
@@ -492,15 +492,20 @@ async function luuBuoc(thu_tu) {
   if (inp && (!isFinite(phut) || phut < 0)) { bao('Phút phải là số ≥ 0', true); veQuyTrinh(); return }
   const sel = row.querySelector('[data-bt]')
   const bt = sel ? [...sel.selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n)) : (b.buoc_truoc || [])
-  const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: phut, p_ly_do: qtLyDo() })
-  if (qtSave(r) === 'inline') return   // thiếu lý do → giữ ô, KHÔNG tải lại
-  await veQuyTrinh()                    // ok: dải xanh · loi: tải lại số cũ (fail-đóng)
+  await ghiAnToan(inp, async () => {
+    const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_hoat_dong: b.hoat_dong, p_buoc_truoc: bt, p_nhanh: b.nhanh || 'chung', p_phut: phut, p_ly_do: qtLyDo() })
+    if (qtSave(r) === 'inline') return {}   // thiếu lý do → giữ ô, KHÔNG tải lại
+    await veQuyTrinh()                       // ok: dải xanh · loi: tải lại số cũ (fail-đóng)
+    return {}
+  })
 }
-function xoaBuoc(thu_tu) {
-  xacNhanRoiLuu(async () => {
+function xoaBuoc(thu_tu, nut) {
+  if (!confirm('Xoá bước này?')) return
+  ghiAnToan(nut, async () => {
     const r = await sb.rpc('qt_xoa_buoc', { p_qt: QT.sel, p_thu_tu: thu_tu, p_ly_do: qtLyDo() })
-    if (qtSave(r) === 'inline') return
+    if (qtSave(r) === 'inline') return {}
     await veQuyTrinh()
+    return {}
   })
 }
 function moThemBuoc() {
@@ -519,14 +524,15 @@ function moThemBuoc() {
      <select id="tbTruoc" multiple size="${Math.min(Math.max(c.buoc.length, 1), 5)}" style="width:100%;border:1px solid var(--vien);border-radius:7px;padding:6px">${btOpts || '<option disabled>— chưa có bước —</option>'}</select>`,
     `<button class="nut-vien" id="tbHuy">Huỷ</button><button class="nut-chinh" id="tbOk">Thêm bước</button>`)
   $('tbHuy').onclick = dongSua
-  $('tbOk').onclick = () => xacNhanRoiLuu(async () => {
+  $('tbOk').onclick = () => ghiAnToan($('tbOk'), async () => {
     const phut = docPhut($('tbPhut').value)
-    if (!isFinite(phut) || phut < 0) { bao('Phút phải là số ≥ 0', true); return }
+    if (!isFinite(phut) || phut < 0) { bao('Phút phải là số ≥ 0', true); return {} }
     const bt = [...$('tbTruoc').selectedOptions].map(o => Number(o.value)).filter(n => !isNaN(n))
     dongSua()
     const r = await sb.rpc('qt_luu_buoc', { p_qt: QT.sel, p_thu_tu: maxTt + 100, p_hoat_dong: $('tbHd').value, p_buoc_truoc: bt, p_nhanh: $('tbNhanh').value, p_phut: phut, p_ly_do: qtLyDo() })
-    if (qtSave(r) === 'inline') return
+    if (qtSave(r) === 'inline') return {}
     await veQuyTrinh()
+    return {}
   })
 }
 function moChep(nguon) {
@@ -544,9 +550,12 @@ function moChep(nguon) {
     const ma = $('cpMa').value.trim().toUpperCase(), ten = $('cpTen').value.trim(), ng = $('cpNguon').value
     if (!ma || !ten) { bao('Cần mã và tên mới', true); return }
     dongSua()
-    const { error } = await sb.rpc('qt_chep', { p_ma_moi: ma, p_ten_moi: ten, p_nguon: ng })
-    if (error) { bao(qtLoiText(error.message), true); return }
-    bao('Đã tạo quy trình ' + ma); QT.sel = ma; await veQuyTrinh()
+    await ghiAnToan($('cpOk'), async () => {
+      const { error } = await sb.rpc('qt_chep', { p_ma_moi: ma, p_ten_moi: ten, p_nguon: ng })
+      if (error) { bao(qtLoiText(error.message), true); return {} }
+      bao('Đã tạo quy trình ' + ma); QT.sel = ma; await veQuyTrinh()
+      return {}
+    })
   }
 }
 async function xemMon() {
@@ -652,15 +661,15 @@ function veBuocDebounce() { clearTimeout(_dbTimer); _dbTimer = setTimeout(veBuoc
 async function kiemTrung(ten) {
   try { const { data } = await sb.rpc('sp_kiem_ten_trung', { p_ten: ten }); const n = $('f_trung'); if (!n) return
     if (data && (data.trung_niem_yet || data.trung_mon_tu_do > 0)) n.innerHTML = '⚠ Trùng: ' + (data.trung_niem_yet ? 'đã có niêm yết cùng tên. ' : '') + (data.trung_mon_tu_do > 0 ? 'món tự do lặp ' + data.trung_mon_tu_do + ' lần (ứng viên đã có).' : '')
-    else n.textContent = '' } catch (e) {}
+    else n.textContent = '' } catch (e) { const n = $('f_trung'); if (n) n.textContent = '⚠ Không kiểm được trùng tên' }
 }
 async function luuSP() {
   const t = genTen(), errs = selfCheck(t)
   if (errs.length) return bao('Tên còn ' + errs.length + ' lỗi nguyên tắc — sửa ở bước 1', true)
   if (!SP.bt.some(v => v.ten.trim())) return bao('Cần ≥1 biến thể có tên', true)
   if (!SP.ny.some(v => v.brand && v.gia)) return bao('Cần ≥1 niêm yết (brand + giá)', true)
-  bao('Đang lưu…')
-  try {
+  // BỌC CẢ CHUỖI 3 pha ghi trong MỘT ghiAnToan → nút f_luu khoá suốt 3 pha, chống bấm đúp nhân đôi lõi+biến thể+niêm yết
+  await ghiAnToan($('f_luu'), async () => {
     const rl = await sb.rpc('sp_tao_loi_moi', { p_dong: SP.dong, p_ten_ky_thuat: SP.tenKyThuat || t.web, p_nhom: SP.loai || null, p_kich_thuoc: null, p_ghi_chu: null })
     if (rl.error) throw rl.error
     const maLoi = rl.data.ma_loi, skus = []
@@ -675,5 +684,8 @@ async function luuSP() {
     }
     dongSua(); bao('✓ Đã tạo ' + maLoi + ' (' + skus.length + ' biến thể)')
     if (typeof veCay === 'function') veCay()
-  } catch (e) { bao('Lỗi: ' + (e.message || e), true) }
+  })
 }
+
+// WP-107 test seam (cổng hồi quy ca12): phơi luuSP + setter SP để kiểm bấm-đúp không nhân đôi lõi. KHÔNG đổi nghiệp vụ.
+if (import.meta.env.VITE_WP107_TEST) { window.luuSP = luuSP; window.__setSP = v => { SP = v } }   // WP-107 L-107.4: seam test, prod = undefined

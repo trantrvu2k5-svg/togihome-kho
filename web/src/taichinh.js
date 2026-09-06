@@ -2,6 +2,7 @@
 // Mọi con số do DB tính (bang_gia, gia_bac_tu_gv, tinh_he_so_m, chot_niem_yet) — giá vốn không rời server.
 import { createClient } from '@supabase/supabase-js'
 import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN)
+import { ghiAnToan, banner } from './ghi_an_toan.js'   // WP-107: khuôn chung mọi đường ghi (khoá nút · kiểm lỗi · báo thật)
 import HD_MD from '../../docs/huong_dan_taichinh.md?raw'   // L-52: tài liệu = 1 nguồn (docs/), inline vào bundle
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
@@ -17,6 +18,9 @@ const numv = id => { const v = parseFloat($(id)?.value); return isNaN(v) ? null 
 const setMoney = (id, v) => { const e = $(id); if (!e) return; const n = (v == null || v === '') ? null : Number(v); e.dataset.raw = n == null ? '' : String(n); e.value = n == null ? '' : n.toLocaleString('vi-VN') }
 const fmtMoneyEl = el => { const d = (el.value || '').replace(/\D/g, ''); el.dataset.raw = d === '' ? '' : String(Number(d)); el.value = d ? Number(d).toLocaleString('vi-VN') : '' }
 let KY = null, USER = null, KY_ROW = {}   // KY_ROW: dòng tham_so_tai_chinh kỳ đang xem (giữ vat để không đè khi lưu 7 tham số)
+let KY_NAP_XONG = false   // WP-107: loadKy() đã seed xong chưa. Nút Lưu kỳ khoá + hàm lưu chặn khi false (bệnh ghi 0/null khi chưa nạp)
+// WP-107: khoá/mở nút Lưu kỳ + Lưu 7-tham-số theo trạng thái nạp (không dùng setTimeout — theo cờ thật)
+function capKhoaLuuKy() { const a = $('btn_luu'), b = $('tsv_luu'); if (a) a.disabled = !KY_NAP_XONG; if (b) b.disabled = !KY_NAP_XONG }
 
 // ── đăng nhập ──
 function manDangNhap(err) {
@@ -277,29 +281,31 @@ async function taiTaiKhoan() {
       + '<button class="btn ghost tk_mk" data-id="' + u.id + '">Đặt lại MK</button></td></tr>'
   }).join('') || '<tr><td colspan="5">Chưa có người dùng.</td></tr>'
   document.querySelectorAll('.tk_vai_sel').forEach(s => s.onchange = () => doiVai(s.dataset.id, s.value))
-  document.querySelectorAll('.tk_bat').forEach(b => b.onclick = () => batTat(b.dataset.id, b.dataset.on === '1'))
-  document.querySelectorAll('.tk_mk').forEach(b => b.onclick = () => datMatKhau(b.dataset.id))
+  document.querySelectorAll('.tk_bat').forEach(b => b.onclick = () => batTat(b.dataset.id, b.dataset.on === '1', b))
+  document.querySelectorAll('.tk_mk').forEach(b => b.onclick = () => datMatKhau(b.dataset.id, b))
 }
 async function themNguoi() {
-  $('tk_msg').textContent = 'Đang thêm…'
-  const { error } = await sb.rpc('qly_them_nguoi', { p_email: $('tk_email').value.trim(), p_ho_ten: $('tk_ten').value.trim(), p_vai: $('tk_vai').value, p_mat_khau: $('tk_mk').value })
-  if (error) { $('tk_msg').textContent = 'Lỗi: ' + error.message; return }
+  const r = await ghiAnToan($('tk_them'), () => sb.rpc('qly_them_nguoi', { p_email: $('tk_email').value.trim(), p_ho_ten: $('tk_ten').value.trim(), p_vai: $('tk_vai').value, p_mat_khau: $('tk_mk').value }))
+  if (!r.ok) return
   $('tk_msg').textContent = 'Đã thêm ' + $('tk_email').value.trim()
   $('tk_email').value = ''; $('tk_ten').value = ''; $('tk_mk').value = ''
   taiTaiKhoan()
 }
 async function doiVai(id, vai) {
-  const { error } = await sb.rpc('qly_doi_vai', { p_ns_id: id, p_vai: vai })
-  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : ('Đã đổi vai → ' + vai); if (!error) taiTaiKhoan()
+  const r = await ghiAnToan(null, () => sb.rpc('qly_doi_vai', { p_ns_id: id, p_vai: vai }))
+  if (!r.ok) return
+  $('tk_msg').textContent = 'Đã đổi vai → ' + vai; taiTaiKhoan()
 }
-async function batTat(id, on) {
-  const { error } = await sb.rpc('qly_bat_tat', { p_ns_id: id, p_on: on })
-  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : (on ? 'Đã bật hoạt động' : 'Đã tắt hoạt động'); if (!error) taiTaiKhoan()
+async function batTat(id, on, nut) {
+  const r = await ghiAnToan(nut, () => sb.rpc('qly_bat_tat', { p_ns_id: id, p_on: on }))
+  if (!r.ok) return
+  $('tk_msg').textContent = on ? 'Đã bật hoạt động' : 'Đã tắt hoạt động'; taiTaiKhoan()
 }
-async function datMatKhau(id) {
+async function datMatKhau(id, nut) {
   const mk = prompt('Mật khẩu mới (tối thiểu 6 ký tự):'); if (!mk) return
-  const { error } = await sb.rpc('qly_dat_mat_khau', { p_ns_id: id, p_mat_khau: mk })
-  $('tk_msg').textContent = error ? ('Lỗi: ' + error.message) : 'Đã đặt lại mật khẩu'
+  const r = await ghiAnToan(nut, () => sb.rpc('qly_dat_mat_khau', { p_ns_id: id, p_mat_khau: mk }))
+  if (!r.ok) return
+  $('tk_msg').textContent = 'Đã đặt lại mật khẩu'
 }
 
 // ── Giá vốn theo đơn (nhập tay cho đơn plugin không dựng được) ──
@@ -335,9 +341,8 @@ async function nhapGiaVonTay() {
   const msg = $('gv_msg')
   if (!maDon) { msg.textContent = 'Chọn đơn trước.'; return }
   if (!ly_do) { msg.textContent = 'Phải nhập lý do.'; return }
-  msg.textContent = 'Đang ghi…'
-  const { error } = await sb.rpc('ghi_gia_von_tay', { ma_don: maDon, khoi_1: money('gv_k1'), khoi_2: money('gv_k2'), khoi_3: money('gv_k3'), ly_do })
-  if (error) { msg.textContent = 'Lỗi: ' + error.message; return }
+  const r = await ghiAnToan($('gv_ghi'), () => sb.rpc('ghi_gia_von_tay', { ma_don: maDon, khoi_1: money('gv_k1'), khoi_2: money('gv_k2'), khoi_3: money('gv_k3'), ly_do }))
+  if (!r.ok) return
   msg.textContent = '✓ Đã ghi giá vốn tay cho ' + maDon
   ;['gv_k1', 'gv_k2', 'gv_k3', 'gv_lydo'].forEach(id => $(id).value = '')
   taiGiaVonDon()
@@ -494,15 +499,14 @@ async function cpkLuu() {
     phan_khuc: tr.querySelector('.cpk-pk').value || null,
     ghi_chu: tr.querySelector('.cpk-ghichu').value.trim(), nguoi_nhap: tr.querySelector('.cpk-nguoi').value.trim()
   }))
-  $('cpk_msg').style.color = 'var(--mut)'; $('cpk_msg').textContent = 'Đang lưu…'
-  const { data, error } = await sb.rpc('cpk_ghi', { p_ky: KY, p_dong: rows })
-  if (error) { $('cpk_msg').style.color = '#C8202E'; $('cpk_msg').textContent = 'Lỗi: ' + error.message; return }
-  $('cpk_msg').style.color = 'var(--gn)'; $('cpk_msg').textContent = `✓ Đã lưu ${data.so_dong} dòng cho kỳ ${KY}`
+  const r = await ghiAnToan($('cpk_luu'), () => sb.rpc('cpk_ghi', { p_ky: KY, p_dong: rows }))
+  if (!r.ok) return
+  $('cpk_msg').style.color = 'var(--gn)'; $('cpk_msg').textContent = `✓ Đã lưu ${r.data.so_dong} dòng cho kỳ ${KY}`
 }
 async function cpkChepKyTruoc() {
-  $('cpk_msg').style.color = 'var(--mut)'; $('cpk_msg').textContent = 'Đang chép…'
-  const { data, error } = await sb.rpc('cpk_chep_ky_truoc', { p_ky: KY })
-  if (error) { $('cpk_msg').style.color = '#C8202E'; $('cpk_msg').textContent = 'Lỗi: ' + error.message; return }
+  const r = await ghiAnToan($('cpk_chep'), () => sb.rpc('cpk_chep_ky_truoc', { p_ky: KY }))
+  if (!r.ok) return
+  const data = r.data
   if (!data.ok) { $('cpk_msg').style.color = 'var(--am)'; $('cpk_msg').textContent = data.msg || 'Không chép được'; return }
   $('cpk_msg').style.color = 'var(--gn)'; $('cpk_msg').textContent = `✓ Chép ${data.so_dong} dòng từ kỳ ${data.ma_ky_truoc}`
   await taiChiPhiKy()
@@ -671,10 +675,9 @@ async function kcLuu() {
     so_tien_nhap: String(Number((d.querySelector('.kc-tien').value || '').replace(/\D/g, '')) || 0),
     ghi_chu: d.querySelector('.kc-ghi').value.trim(), nguoi_nhap: d.querySelector('.kc-ng').value.trim()
   }))
-  $('kc_msg').style.color = 'var(--mut)'; $('kc_msg').textContent = 'Đang lưu…'
-  const { data, error } = await sb.rpc('ads_ghi', { p_ky: KY, p_dong: rows })
-  if (error) { $('kc_msg').style.color = '#C8202E'; $('kc_msg').textContent = 'Lỗi: ' + error.message; return }
-  $('kc_msg').style.color = 'var(--gn)'; $('kc_msg').textContent = `✓ Đã lưu ${data.so_dong} dòng ads cho kỳ ${KY}`
+  const r = await ghiAnToan($('kc_luu'), () => sb.rpc('ads_ghi', { p_ky: KY, p_dong: rows }))
+  if (!r.ok) return
+  $('kc_msg').style.color = 'var(--gn)'; $('kc_msg').textContent = `✓ Đã lưu ${r.data.so_dong} dòng ads cho kỳ ${KY}`
   await taiKenhCac()
 }
 
@@ -1014,7 +1017,7 @@ async function taiDongTien() {
     : '<tr><td class="dt-l" style="color:var(--mut)">Chưa có giao dịch vốn trong kỳ</td></tr>'
   const rn = n(g.ngoai_kd.rong)
   $('dt_von_foot').innerHTML = `<tr><td class="dt-l">RÒNG NGOÀI KINH DOANH</td><td colspan="3">${(rn >= 0 ? '+' : '') + fmt(rn)}</td><td></td></tr>`
-  $('dt_von_body').querySelectorAll('button[data-von]').forEach(b => b.onclick = () => vonXoa(b.dataset.von))
+  $('dt_von_body').querySelectorAll('button[data-von]').forEach(b => b.onclick = () => vonXoa(b.dataset.von, b))   // WP-107: truyền nút để khuôn khoá
   // KHỐI 7 — quỹ
   const qy = g.quy
   $('dt_quy').innerHTML = `<div class="dt-qb">Quỹ đầu kỳ<br><b>${fmt(qy.dau_ky)}</b></div>`
@@ -1074,50 +1077,50 @@ async function taiPhieuChi() {   // sổ pc_ds theo kỳ + đếm cho dòng ph�
     + `<td class="tc-pc-x"><button class="tc-pc-del" data-pc="${x.id}" title="Xoá phiếu chi">×</button></td></tr>`).join('')
     : '<tr><td class="dt-l" style="color:var(--mut)">Chưa có phiếu chi NCC trong kỳ</td></tr>'
   $('pc_foot').innerHTML = `<tr><td class="dt-l" colspan="3">TỔNG CHI NCC</td><td>${fmt(g.tong)}</td><td colspan="3"></td></tr>`
-  body.querySelectorAll('button[data-pc]').forEach(b => b.onclick = () => pcXoa(b.dataset.pc))
+  body.querySelectorAll('button[data-pc]').forEach(b => b.onclick = () => pcXoa(b.dataset.pc, b))
 }
 async function pcLuu() {
   const ncc = $('pc_ncc').value; if (!ncc) { $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Chọn nhà cung cấp'; return }
-  $('pc_msg').style.color = 'var(--mut)'; $('pc_msg').textContent = 'Đang ghi…'
-  const { error } = await sb.rpc('pc_ghi', { p_ngay: $('pc_ngay').value || null, p_ncc_id: ncc,
-    p_hoa_don_ncc_id: $('pc_hd').value || null, p_so_tien: dtNum('pc_tien'), p_hinh_thuc: $('pc_ht').value, p_ghi_chu: $('pc_gc').value.trim() || null })
-  if (error) {
-    let m = error.message
-    if (/CHI_VUOT_HD/.test(m)) m = 'Số tiền chi vượt phần còn lại của hoá đơn — ' + m.replace(/^.*CHI_VUOT_HD: */, '')
-    $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Lỗi: ' + m; return
-  }
+  // WP-107: qua khuôn — khoá nút suốt lúc gửi (bấm đúp = 1 phiếu) + banner lỗi NGUYÊN VĂN, không báo "đã ghi" khi lỗi.
+  const r = await ghiAnToan($('pc_luu'), () => sb.rpc('pc_ghi', { p_ngay: $('pc_ngay').value || null, p_ncc_id: ncc,
+    p_hoa_don_ncc_id: $('pc_hd').value || null, p_so_tien: dtNum('pc_tien'), p_hinh_thuc: $('pc_ht').value, p_ghi_chu: $('pc_gc').value.trim() || null }))
+  if (!r.ok) return
   $('pc_msg').style.color = 'var(--gn)'; $('pc_msg').textContent = '✓ Đã ghi phiếu chi'
   $('pc_tien').value = ''; $('pc_gc').value = ''
   await taiDongTien(); await pcNccDoi()   // cập nhật khối Trả NCC + còn nợ + HĐ còn lại
 }
-async function pcXoa(id) {
+async function pcXoa(id, nut) {
   if (!confirm('Xoá phiếu chi này? (xoá mềm, công nợ NCC hồi lại)')) return
-  const { error } = await sb.rpc('pc_xoa', { p_id: Number(id) })
-  if (error) { $('pc_msg').style.color = '#C8202E'; $('pc_msg').textContent = 'Lỗi: ' + error.message; return }
+  const r = await ghiAnToan(nut, () => sb.rpc('pc_xoa', { p_id: Number(id) }))
+  if (!r.ok) return
   await taiDongTien(); await pcNccDoi()
 }
 const dtNum = id => String(Number(($(id).value || '').replace(/\D/g, '')) || 0)
-async function dtRpc(msgId, fn, args, reload = true) {
-  $(msgId).style.color = 'var(--mut)'; $(msgId).textContent = 'Đang ghi…'
-  const { error } = await sb.rpc(fn, args)
-  if (error) { $(msgId).style.color = '#C8202E'; $(msgId).textContent = 'Lỗi: ' + error.message; return false }
+async function dtRpc(msgId, fn, args, reload = true, nutId = null) {
+  // WP-107: qua khuôn (khoá nút chống bấm đúp + banner lỗi NGUYÊN VĂN). Giữ nguyên msg thành công + reload.
+  const r = await ghiAnToan(nutId ? $(nutId) : null, () => sb.rpc(fn, args))
+  if (!r.ok) return false
   $(msgId).style.color = 'var(--gn)'; $(msgId).textContent = '✓ Đã ghi'
   if (reload) await taiDongTien()
   return true
 }
 async function ptLuu() {
   const ma = $('pt_ma').value.trim(); if (!ma) { $('pt_msg').style.color = '#C8202E'; $('pt_msg').textContent = 'Thiếu mã đơn'; return }
-  const okr = await dtRpc('pt_msg', 'pt_ghi', { p_phieu: { ma_don: ma, ngay: $('pt_ngay').value || null, so_tien: dtNum('pt_tien'), loai: $('pt_loai').value, ghi_chu: $('pt_gc').value.trim() } })
-  if (okr) { $('pt_ma').value = ''; $('pt_tien').value = ''; $('pt_gc').value = '' }
+  // WP-107: qua khuôn (thay dtRpc cho riêng phiếu THU) — khoá nút chống bấm đúp = 2 phiếu thu.
+  const r = await ghiAnToan($('pt_luu'), () => sb.rpc('pt_ghi', { p_phieu: { ma_don: ma, ngay: $('pt_ngay').value || null, so_tien: dtNum('pt_tien'), loai: $('pt_loai').value, ghi_chu: $('pt_gc').value.trim() } }))
+  if (!r.ok) return
+  $('pt_msg').style.color = 'var(--gn)'; $('pt_msg').textContent = '✓ Đã ghi'
+  $('pt_ma').value = ''; $('pt_tien').value = ''; $('pt_gc').value = ''
+  await taiDongTien()
 }
 async function cgLuu() {
   const ma = $('cg_ma').value.trim(); if (!ma) { $('cg_msg').style.color = '#C8202E'; $('cg_msg').textContent = 'Thiếu mã đơn'; return }
-  const okr = await dtRpc('cg_msg', 'cod_ghi', { p_dong: { ma_don: ma, ngay_xuat: $('cg_ngay').value || null, so_tien_thu_ho: dtNum('cg_tien'), don_vi_vc: $('cg_vc').value.trim() } })
+  const okr = await dtRpc('cg_msg', 'cod_ghi', { p_dong: { ma_don: ma, ngay_xuat: $('cg_ngay').value || null, so_tien_thu_ho: dtNum('cg_tien'), don_vi_vc: $('cg_vc').value.trim() } }, true, 'cg_luu')
   if (okr) { $('cg_ma').value = ''; $('cg_tien').value = ''; $('cg_vc').value = '' }
 }
 async function chLuu() {
   const ma = $('ch_ma').value.trim(); if (!ma) { $('ch_msg').style.color = '#C8202E'; $('ch_msg').textContent = 'Thiếu mã đơn'; return }
-  const okr = await dtRpc('ch_msg', 'cod_hoan', { p_don: ma, p_ngay: $('ch_ngay').value || null, p_ghi_chu: $('ch_gc').value.trim() || null })
+  const okr = await dtRpc('ch_msg', 'cod_hoan', { p_don: ma, p_ngay: $('ch_ngay').value || null, p_ghi_chu: $('ch_gc').value.trim() || null }, true, 'ch_luu')
   if (okr) { $('ch_ma').value = ''; $('ch_gc').value = '' }
 }
 async function csLuu() {
@@ -1126,16 +1129,22 @@ async function csLuu() {
     return { ma_don: p[0], so_tien: String(Number((p[1] || '').replace(/\D/g, '')) || 0), ngay: p[2] || null }
   })
   if (!dot.length) { $('cs_msg').style.color = '#C8202E'; $('cs_msg').textContent = 'Chưa dán dòng nào'; return }
-  const okr = await dtRpc('cs_msg', 'cod_doi_soat', { p_dot: dot })
+  const okr = await dtRpc('cs_msg', 'cod_doi_soat', { p_dot: dot }, true, 'cs_luu')
   if (okr) { $('cs_msg').textContent = `✓ Đối soát ${dot.length} đơn`; $('cs_txt').value = '' }
 }
 async function vnLuu() {
-  const okr = await dtRpc('vn_msg', 'von_ghi', { p_gd: { ngay: $('vn_ngay').value || null, loai: $('vn_loai').value, so_tien: dtNum('vn_tien'), ghi_chu: $('vn_gc').value.trim() } })
+  const okr = await dtRpc('vn_msg', 'von_ghi', { p_gd: { ngay: $('vn_ngay').value || null, loai: $('vn_loai').value, so_tien: dtNum('vn_tien'), ghi_chu: $('vn_gc').value.trim() } }, true, 'vn_luu')
   if (okr) { $('vn_tien').value = ''; $('vn_gc').value = '' }
 }
-async function vonXoa(id) { await sb.rpc('von_xoa', { p_id: Number(id) }); await taiDongTien() }
+async function vonXoa(id, nut) {   // WP-107: đường ghi DUY NHẤT toàn hệ từng nuốt trọn lỗi — nay qua khuôn (kiểm lỗi + banner)
+  const r = await ghiAnToan(nut, () => sb.rpc('von_xoa', { p_id: Number(id) }))
+  if (r.ok) await taiDongTien()   // lỗi → khuôn đã banner, KHÔNG nạp lại như thể đã xoá
+}
+// WP-107 L-107.4: SEAM TEST — chỉ gắn khi build có cờ VITE_WP107_TEST (bản prod: window.luuKy… = undefined).
+//   Cửa ghi qua console là chính hình dạng bệnh WP-107 → KHÔNG để mở trên prod. Cờ là biến BUILD (không phải hostname).
+if (import.meta.env.VITE_WP107_TEST) { window.luuKy = luuKy; window.luuTSV = luuTSV; window.vonXoa = vonXoa }
 async function qyLuu() {
-  await dtRpc('qy_msg', 'quy_ghi', { p_ky: KY, p_so_tien: dtNum('qy_tien'), p_ly_do: $('qy_gc').value.trim() || null })
+  await dtRpc('qy_msg', 'quy_ghi', { p_ky: KY, p_so_tien: dtNum('qy_tien'), p_ly_do: $('qy_gc').value.trim() || null }, true, 'qy_luu')
 }
 
 // ══════════ TAB NHẬN XÉT THEO LUẬT (L-50): nhan_xet_ky (meta-màn, Σ 6 RPC nguồn); bảng ngưỡng sửa tại chỗ ══════════
@@ -1176,9 +1185,8 @@ async function taiNhanXet() {
 }
 async function nxNguongLuu() {
   const body = {}; $('nx_ng_body').querySelectorAll('input[data-k]').forEach(i => { const v = i.value.trim(); if (v !== '') body[i.dataset.k] = v })
-  $('nx_ng_msg').style.color = 'var(--mut)'; $('nx_ng_msg').textContent = 'Đang lưu…'
-  const { error } = await sb.rpc('nguong_ghi', { p_ky: KY, p_nguong: body })
-  if (error) { $('nx_ng_msg').style.color = '#C8202E'; $('nx_ng_msg').textContent = 'Lỗi: ' + error.message; return }
+  const r = await ghiAnToan($('nx_ng_luu'), () => sb.rpc('nguong_ghi', { p_ky: KY, p_nguong: body }))
+  if (!r.ok) return
   $('nx_ng_msg').style.color = 'var(--gn)'; $('nx_ng_msg').textContent = `✓ Đã lưu ngưỡng cho kỳ ${KY} (áp từ kỳ này, kỳ cũ giữ nguyên)`
   await taiNhanXet()
 }
@@ -1231,7 +1239,7 @@ async function toggleBadge(param) {
   const moi = (BADGE[param] === 'da_chot') ? 'tam' : 'da_chot'
   const el = document.querySelector(`#tc .tag[data-param="${param}"]`)
   const { error } = await sb.rpc('dat_trang_thai_tham_so', { p_ma_ky: KY, p_ten: param, p_trang_thai: moi })
-  if (error) { if (el) el.title = 'Lỗi: ' + error.message; return }
+  if (error) { banner(error.message); return }   // WP-107 FIX: lỗi trước chỉ vào el.title (tooltip) = IM; nay nói ra qua banner
   BADGE[param] = moi; if (el) veBadge(el, moi)
 }
 
@@ -1279,10 +1287,9 @@ async function capNhatMoKy(t) {
 
 async function moKyMoi() {
   const btn = $('tsk_mo'), moi = btn.dataset.ky
-  $('tsk_loi').textContent = ''; btn.disabled = true
-  const { data, error } = await sb.rpc('mo_ky_moi', { p_ky: moi, p_chep_chi_phi: $('tsk_cp').checked, p_chep_luong: $('tsk_lt').checked })
-  btn.disabled = false
-  if (error) { $('tsk_loi').textContent = '❌ ' + error.message; return }   // ĐỎ nguyên văn, không alert, không nuốt
+  $('tsk_loi').textContent = ''
+  const r = await ghiAnToan(btn, () => sb.rpc('mo_ky_moi', { p_ky: moi, p_chep_chi_phi: $('tsk_cp').checked, p_chep_luong: $('tsk_lt').checked }))
+  if (!r.ok) return   // khuôn khoá nút + banner lỗi NGUYÊN VĂN, không nuốt
   // chuyển ô Kỳ dùng chung sang kỳ mới rồi nạp lại tab
   const opt = document.createElement('option'); opt.value = moi; opt.textContent = moi
   $('ky').insertBefore(opt, $('ky').firstChild); $('ky').value = moi
@@ -1291,8 +1298,8 @@ async function moKyMoi() {
 
 async function xacNhanKy() {
   $('tsk_xn_loi').textContent = ''
-  const { error } = await sb.rpc('xac_nhan_ky', { p_ky: KY })
-  if (error) { $('tsk_xn_loi').textContent = '❌ ' + error.message; return }
+  const r = await ghiAnToan($('tsk_xacnhan'), () => sb.rpc('xac_nhan_ky', { p_ky: KY }))
+  if (!r.ok) return
   $('tsk_banner').style.display = 'none'   // biến mất ngay, không cần F5
   await loadKy()
 }
@@ -1317,17 +1324,18 @@ async function taiTSV(t) {
 }
 
 async function luuTSV() {
-  $('tsv_loi').textContent = ''; const btn = $('tsv_luu'); btn.disabled = true
-  const { error } = await sb.rpc('luu_cau_hinh_van_hanh', {
+  // WP-107: chưa nạp xong kỳ → KHÔNG gửi (KY_ROW.vat pass-through sẽ rỗng nếu chưa seed → ghi VAT sai). Cấm 0/null mặc định.
+  if (!KY_NAP_XONG) { banner('Chưa nạp xong kỳ, thử lại'); return }
+  $('tsv_loi').textContent = ''
+  const r = await ghiAnToan($('tsv_luu'), () => sb.rpc('luu_cau_hinh_van_hanh', {
     p_ma_ky: KY,
     p_vat: KY_ROW.vat,                                   // GIỮ NGUYÊN vat (sửa ở khối Tham số kỳ, không đụng ở đây)
     p_gio_mo_cua: [$('tsv_gio_mo').value, $('tsv_gio_dong').value],
     p_ghi_de: numv('tsv_ghide'),
     p_n_ads: numv('tsv_nads'), p_n_cac: money('tsv_ncac'), p_n_kg: numv('tsv_nkg'),
     p_n_no: money('tsv_nno'), p_n_giam: numv('tsv_ngiam')   // money() lấy số GỐC (dataset.raw), KHÔNG strip chuỗi hiển thị
-  })
-  btn.disabled = false
-  if (error) { $('tsv_loi').textContent = '❌ ' + error.message; return }   // ĐỎ nguyên văn, không alert
+  }))
+  if (!r.ok) return   // khuôn đã hiện banner; không báo "đã lưu"
   $('tsv_loi').textContent = '✅ đã lưu'
   await loadKy()   // B4: nạp lại từ DB rồi mới vẽ (không tin state)
 }
@@ -1347,6 +1355,7 @@ async function capNhatApGia() {
 }
 
 async function loadKy() {
+  KY_NAP_XONG = false; capKhoaLuuKy()   // WP-107: đang nạp → khoá nút Lưu (chặn ghi 0/null khi chưa seed)
   KY = $('ky').value; $('ky_chot').textContent = KY
   const { data } = await sb.from('tham_so_tai_chinh').select('*').eq('ma_ky', KY).maybeSingle()
   const t = data || {}
@@ -1370,10 +1379,14 @@ async function loadKy() {
   if ($('tab-dongtien') && $('tab-dongtien').classList.contains('on')) { DT_TRANG = 1; await taiDongTien() }
   if ($('tab-nhanxet') && $('tab-nhanxet').classList.contains('on')) await taiNhanXet()
   if ($('tab-chiphi') && $('tab-chiphi').classList.contains('on')) await taiChiPhiKy()
+  KY_NAP_XONG = true; capKhoaLuuKy()   // WP-107: seed xong → mở nút Lưu
 }
 
 // ① Lưu
 async function luuKy() {
+  // WP-107 (vế QUAN TRỌNG hơn khoá nút): chưa nạp xong kỳ → KHÔNG gửi. Chặn MỌI đường gọi, kể cả không qua nút.
+  //   CẤM lấy 0/null làm mặc định khi thiếu — thiếu thì không ghi, nói ra.
+  if (!KY_NAP_XONG) { banner('Chưa nạp xong kỳ, thử lại'); return }
   const row = {
     dt_muc_tieu: money('dt'), so_don_ke_hoach: numv('sodon'), vat: numv('vat'),
     hh_sale: numv('hhs'), hh_quan_ly: numv('hhq'), hh_thiet_ke: numv('hht'),
@@ -1381,15 +1394,16 @@ async function luuKy() {
     chi_phi_nang_luc: money('cpnl') || null,   // L-46 trống = NULL · WP-13b L-4: đọc số GỐC (dataset.raw), không strip chuỗi
     tran_sale: numv('transale'), tran_truong_nhom: numv('trantn'), ghi_chu: $('ghichu').value
   }
-  // WP-11d: đường ghi qua RPC (grant .update bị revoke). Bố cục màn KHÔNG đổi.
-  const { error } = await sb.rpc('luu_tham_so_ban_hang', {
+  // WP-11d: đường ghi qua RPC (grant .update bị revoke). WP-107: qua khuôn ghiAnToan (khoá nút · kiểm lỗi · báo thật).
+  const r = await ghiAnToan($('btn_luu'), () => sb.rpc('luu_tham_so_ban_hang', {
     p_ma_ky: KY, p_dt_muc_tieu: row.dt_muc_tieu, p_so_don_ke_hoach: row.so_don_ke_hoach, p_vat: row.vat,
     p_hh_sale: row.hh_sale, p_hh_quan_ly: row.hh_quan_ly, p_hh_thiet_ke: row.hh_thiet_ke,
     p_phi_don_le: row.phi_don_le, p_phi_don_combo: row.phi_don_combo, p_phi_don_thiet_ke: row.phi_don_thiet_ke,
     p_chi_phi_nang_luc: row.chi_phi_nang_luc, p_tran_sale: row.tran_sale, p_tran_truong_nhom: row.tran_truong_nhom,
-    p_ghi_chu: row.ghi_chu })
-  $('luu_msg').textContent = error ? ('❌ ' + error.message) : '✅ đã lưu — hệ số & bảng giá tính lại theo số mới'
-  if (!error) { await refreshHeSoM(); await refreshBang(); await refreshQuick() }
+    p_ghi_chu: row.ghi_chu }))
+  if (!r.ok) return   // khuôn đã hiện banner NGUYÊN VĂN; KHÔNG báo "đã lưu"
+  $('luu_msg').textContent = '✅ đã lưu — hệ số & bảng giá tính lại theo số mới'
+  await refreshHeSoM(); await refreshBang(); await refreshQuick()
 }
 
 // ② he_so_m
@@ -1472,11 +1486,11 @@ async function refreshChotInfo() {
 }
 async function chot() {
   if (!confirm('Chốt niêm yết cho kỳ ' + KY + '? Ghi giá hiện tại vào gia_niem_yet (bất biến cho kỳ này).')) return
-  const { data, error } = await sb.rpc('chot_niem_yet', { p_ma_ky: KY })
-  if (error) { $('chot_info').textContent = '❌ ' + error.message; $('chot_info').style.color = '#C8202E'; return }
+  const r = await ghiAnToan($('btn_chot'), () => sb.rpc('chot_niem_yet', { p_ma_ky: KY }))
+  if (!r.ok) return
   $('chot_info').style.color = '#175E24'
   await refreshChotInfo()
-  $('chot_info').textContent = '✅ Đã chốt ' + data + ' mẫu cho kỳ ' + KY + '. ' + $('chot_info').textContent
+  $('chot_info').textContent = '✅ Đã chốt ' + r.data + ' mẫu cho kỳ ' + KY + '. ' + $('chot_info').textContent
 }
 
 // ══════════ ⑤ SỔ THAM SỐ XƯỞNG ══════════
@@ -1576,8 +1590,8 @@ async function luuS6() {
   if (bad.length) { $('s6_msg').style.color = '#C8202E'; $('s6_msg').textContent = '⚠ Chưa lưu — tổ ' + bad.map(([, t]) => t).join(', ') + ' tổng % ≠ 100%.'; return }
   const luong = S6_TO.map(([ma]) => ({ ma_to: ma, so_nguoi: s6int(ma, 'nguoi'), luong_to: s6money(ma, 'luong'), overhead_phan_bo: s6money(ma, 'oh'), bao_hiem: s6money(ma, 'bh') }))
   const phan_bo = S6_HD.map(([hd, , to]) => ({ ma_to: to, hoat_dong: hd, phan_tram_thoi_gian: s6pct(hd) }))
-  const { error } = await sb.rpc('ghi_so_tham_so_xuong', { p_ma_ky: KY, p_luong: luong, p_phan_bo: phan_bo })
-  if (error) { $('s6_msg').style.color = '#C8202E'; $('s6_msg').textContent = '❌ ' + error.message; return }
+  const r = await ghiAnToan($('s6_luu'), () => sb.rpc('ghi_so_tham_so_xuong', { p_ma_ky: KY, p_luong: luong, p_phan_bo: phan_bo }))
+  if (!r.ok) return
   $('s6_msg').style.color = '#175E24'; $('s6_msg').textContent = '✅ Đã lưu — ③ là đơn giá tính từ số vừa lưu.'
   await taiS6()
 }

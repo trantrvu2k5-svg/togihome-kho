@@ -3432,6 +3432,7 @@ function DonModal({
   }]);
   const [foc, setFoc] = useState(null);
   const [thu, setThu] = useState(false); /* đã bấm Lưu chưa */
+  const [dangGui, setDangGui] = useState(false); /* [WP-107 L-107.4] chống bấm-đúp: khoá nút lúc ghi đơn (luu/chuyen) */
   const [mode, setMode] = useState(null); /* nút đang xét: 'don' (Lưu đơn/Chuyển) | 'bao' (Lưu báo giá) — banner/border đổi theo */
   const first = useRef(null);
   // ── "Bao giờ giao được" (curated qua sale_lead_time) + ô Hẹn giao khách (chuyển từ XuongModal về màn chốt) ──
@@ -3508,6 +3509,9 @@ function DonModal({
   } : null;
   const THIEU = [["tkCoc", "Tài khoản cọc", rTk], ["brand", "Thương hiệu", rBr], ["donGoc", "Mã đơn gốc", rTk], ["sdt", "Số điện thoại khách", rSdt], ["diaChi", "Địa chỉ giao", rDc], ["hd", "Tên công ty và mã số thuế", rHd], ["mon", "Mỗi món phải có tên, mã màu, đơn giá", rMon]].filter(([k]) => E[k]);
   const luu = () => {
+    if (dangGui) return;              /* [WP-107 L-107.4] chặn lần bấm thứ hai */
+    setDangGui(true);
+    try {
     setThu(true);
     setMode("don");
     if (!ok) {
@@ -3545,12 +3549,20 @@ function DonModal({
       giaChot: tong - giam
     }, ln, ln.length > 1 || giam > 0);
     onClose();
+    } catch (e) {                     /* [WP-107 L-107.4] lỗi ghi → báo nguyên văn, KHÔNG coi như đã lưu */
+      window.alert("Lỗi khi lưu đơn: " + (e && e.message || e));
+    } finally {
+      setDangGui(false);             /* luôn mở khoá */
+    }
   };
   /* L-55: form Lên đơn KHÔNG còn nút/nhánh "Lưu báo giá" — báo giá tách sang BaoGiaForm.
      Banner "Còn thiếu" chỉ theo THIEU (đủ trường lên đơn). */
   const THIEU_ACTIVE = THIEU;
   /* CHUYỂN thành đơn hàng: đòi ĐỦ giá món (thiếu -> chỉ rõ món), rồi lưu ở moi_len_don. */
   const chuyen = () => {
+    if (dangGui) return;              /* [WP-107 L-107.4] chặn lần bấm thứ hai */
+    setDangGui(true);
+    try {
     setThu(true);
     setMode("don");
     /* Chuyển đơn = đủ đầu đơn (kể cả ô đã hoãn lúc báo giá: TK cọc, địa chỉ…) + món đủ màu + đơn giá. */
@@ -3584,6 +3596,11 @@ function DonModal({
       giaChot: tong - giam
     }, ln, ln.length > 1 || giam > 0, false, "moi");
     onClose();
+    } catch (e) {                     /* [WP-107 L-107.4] lỗi ghi → báo nguyên văn, KHÔNG coi như đã chốt */
+      window.alert("Lỗi khi chốt, lên đơn: " + (e && e.message || e));
+    } finally {
+      setDangGui(false);             /* luôn mở khoá */
+    }
   };
   const upL = (i, p) => setLn(ln.map((x, k) => k === i ? {
     ...x,
@@ -4530,12 +4547,14 @@ function DonModal({
   }, "Đóng"), don && don.tt === "bao_gia" ? [/*#__PURE__*/React.createElement("button", {
     className: "btn pri",
     key: "ch",
+    disabled: dangGui,
     onClick: chuyen
-  }, "Chốt, lên đơn")] : [/*#__PURE__*/React.createElement("button", {
+  }, dangGui ? "Đang lưu…" : "Chốt, lên đơn")] : [/*#__PURE__*/React.createElement("button", {
     className: "btn pri",
     key: "lu",
+    disabled: dangGui,
     onClick: luu
-  }, don ? "Lưu thay đổi" : "Lưu đơn")])));
+  }, dangGui ? "Đang lưu…" : (don ? "Lưu thay đổi" : "Lưu đơn"))])));
 }
 
 /* ---------------- GIAO HÀNG VÀ THU TIỀN ---------------- */
@@ -6787,6 +6806,7 @@ function LyDoModal({
   onOk
 }) {
   const [r, setR] = useState("");
+  const [dangGui, setDangGui] = useState(false); /* [WP-107 L-107.4] chống bấm-đúp đổi trạng thái (huỷ/tạm ngưng) */
   const goi = ["Khách đổi mẫu", "Khách đổi màu", "Thiếu vật tư", "Chờ khách xác nhận", "Chờ thanh toán", "Khách hoãn ngày giao"];
   return /*#__PURE__*/React.createElement("div", {
     className: "ovl",
@@ -6836,12 +6856,20 @@ function LyDoModal({
     onClick: onClose
   }, "Đóng"), /*#__PURE__*/React.createElement("button", {
     className: "btn pri",
-    disabled: !r.trim(),
+    disabled: !r.trim() || dangGui,
     onClick: () => {
-      onOk(r.trim());
-      onClose();
+      if (dangGui) return;           /* [WP-107 L-107.4] chặn lần bấm thứ hai */
+      setDangGui(true);
+      try {
+        onOk(r.trim());
+        onClose();
+      } catch (e) {                  /* lỗi ghi → báo nguyên văn, KHÔNG coi như đã đổi */
+        window.alert("Lỗi khi đổi trạng thái: " + (e && e.message || e));
+      } finally {
+        setDangGui(false);           /* luôn mở khoá */
+      }
     }
-  }, "Xác nhận"))));
+  }, dangGui ? "Đang lưu…" : "Xác nhận"))));
 }
 
 /* ---------------- KHÁCH KHÔNG LẤY (báo giá thua) ---------------- */

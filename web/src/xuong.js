@@ -1,6 +1,7 @@
 // App XƯỞNG bản đầy đủ — bố cục theo mẫu CEO. 5 màn responsive + panel chi tiết món. Đăng nhập xuong/tho/ceo.
 //   Đọc qua RPC curated (tho không đọc bảng). KHÔNG hiện giá bán/giá vốn/tên khách. Quản đốc: chỉ xuong/ceo.
 import { createClient } from '@supabase/supabase-js'
+import { ghiAnToan, banner } from './ghi_an_toan.js'   // WP-107 L-107.3: khuôn chung cho mọi đường ghi
 const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY,
   { db: { schema: 'kho' }, auth: { persistSession: true } })
 window.__sb = sb   // L-74: phơi client cho kiểm chéo RPC (như sale/tài chính/thiết kế)
@@ -11,7 +12,7 @@ const KE = { cho_cat: 'da_cat', da_cat: 'dang_lam', dang_lam: 'xong_sx' }
 const TO_BUOC = { cho_cat: 'CNC (cắt)', da_cat: 'Dán cạnh / khoan', dang_lam: 'Lắp ráp' }
 const DEM_TO = { pu: 'son_pu', lot: 'cha_lot', giuong_lap: 'giuong' }
 let USER = null, KHO_TEM = '70x40', TEM = { ma_don: null, pb: null, lan: 0, tam: [], tick: {} }
-let THO_LIST = [], PANEL = { monId: null, ke: null, nguoi: null }
+let THO_LIST = [], THO_LOI = false, PANEL = { monId: null, ke: null, nguoi: null }   // THO_LOI: xuong_tho_list lỗi → khoá ghi công (WP-107)
 const $ = id => document.getElementById(id)
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const fmt = n => { n = Number(n); return Number.isFinite(n) ? (n === Math.round(n) ? String(n) : n.toFixed(1)) : '?' }
@@ -70,7 +71,10 @@ async function capApp() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') dongPanel() })
   setupTram()
   datKho('70x40')
-  const { data: tl } = await sb.rpc('xuong_tho_list'); THO_LIST = tl || []
+  // WP-107 FIX: đọc CẢ error. Lỗi → THO_LIST rỗng làm tien_mon ghi công NHẦM chủ (mặc định USER) → khoá.
+  const { data: tl, error: eTho } = await sb.rpc('xuong_tho_list')
+  if (eTho) { banner('Không nạp được danh sách thợ, thử lại'); THO_LOI = true; THO_LIST = [] }
+  else { THO_LIST = tl || []; THO_LOI = false }
   await taiTo(); await taiDon(); await taiViec()
 }
 function di(m) {
@@ -192,8 +196,9 @@ async function inTem(che) {
   const chon = che === 'bo' ? TEM.tam : TEM.tam.filter((_, i) => TEM.tick[i])
   if (!chon.length) return bao('Chưa tick tấm nào', true)
   const maTam = chon.map(t => t.ma_tam)
-  const { data, error } = await sb.rpc('ghi_lan_in_tem', { p_ma_don: TEM.ma_don, p_phien_ban: TEM.pb, p_ma_tam: maTam })
-  if (error) return bao('Ghi lượt in lỗi: ' + error.message, true)
+  const r = await ghiAnToan(che === 'bo' ? $('btInBo') : $('btInChon'), () => sb.rpc('ghi_lan_in_tem', { p_ma_don: TEM.ma_don, p_phien_ban: TEM.pb, p_ma_tam: maTam }))
+  if (!r.ok) return
+  const data = r.data
   const trang = Math.ceil(maTam.length / (KHO_TEM === '70x40' ? 12 : 24))
   bao((data.cat_lai ? '⚠ CẮT LẠI · ' : '✓ ') + 'Lượt in ' + data.lan_thu + ' · ' + maTam.length + ' tem · ' + trang + ' trang')
   await moInTem(chon); taiTem(TEM.ma_don)
@@ -215,8 +220,8 @@ async function luuDem() {
   const rows = [{ hoat_dong: 'pu', so_luong: +$('demPu').value || 0 }, { hoat_dong: 'lot', so_luong: +$('demLot').value || 0 }, { hoat_dong: 'giuong_lap', so_luong: +$('demGiuong').value || 0 }].filter(r => r.so_luong > 0)
   if (!rows.length) return bao('Chưa nhập số nào', true)
   const ma_ns = $('demAi').value === 'toi' ? USER.id : null
-  const { error } = await sb.from('phieu_dem_ngay').insert(rows.map(r => ({ ma_to: DEM_TO[r.hoat_dong], hoat_dong: r.hoat_dong, so_luong: r.so_luong, ma_ns })))
-  if (error) return bao('Lưu đếm lỗi: ' + error.message, true)
+  const r = await ghiAnToan($('btDem'), () => sb.from('phieu_dem_ngay').insert(rows.map(x => ({ ma_to: DEM_TO[x.hoat_dong], hoat_dong: x.hoat_dong, so_luong: x.so_luong, ma_ns }))))
+  if (!r.ok) return
   bao('✔️ Đã lưu ' + rows.length + ' dòng đếm' + (ma_ns ? ' (riêng bạn)' : ' (cả tổ)'))
   $('demPu').value = ''; $('demLot').value = ''; $('demGiuong').value = ''
 }
@@ -234,8 +239,9 @@ async function taiMonLoi(maDon) {
 }
 async function luuLoi() {
   const ma_don = $('loiDon').value; if (!ma_don) return bao('Chưa chọn đơn', true)
-  const { error } = await sb.from('loi_lam_lai').insert({ ma_to: $('loiTo').value || null, ma_don, mon_id: $('loiMon').value || null, loai_loi: $('loiLoai').value, so_luong: +$('loiSo').value || 1, ma_ns_ghi: USER.id })
-  if (error) return bao('Ghi lỗi thất bại: ' + error.message, true)
+  if (!$('loiTo').value) { banner('Chọn tổ trước'); return }   // WP-107 FIX: select chưa nạp → đừng ghi phiếu vô chủ
+  const r = await ghiAnToan($('btLoi'), () => sb.from('loi_lam_lai').insert({ ma_to: $('loiTo').value, ma_don, mon_id: $('loiMon').value || null, loai_loi: $('loiLoai').value, so_luong: +$('loiSo').value || 1, ma_ns_ghi: USER.id }))
+  if (!r.ok) return
   bao('⚠️ Đã ghi lỗi: ' + $('loiLoai').value); $('loiSo').value = ''
 }
 
@@ -254,9 +260,8 @@ async function taiChoVaoChuyen() {
   list.querySelectorAll('.cho-don').forEach(row => {
     const btn = row.querySelector('.cd-nut')
     btn.onclick = async () => {
-      btn.disabled = true; btn.textContent = 'Đang đưa…'
-      const { error: e } = await sb.rpc('dua_vao_chuyen', { p_ma_don: row.dataset.don })
-      if (e) { bao('Không đưa được vào chuyền: ' + e.message, true); btn.disabled = false; btn.textContent = 'Đưa vào chuyền'; return }
+      const r = await ghiAnToan(btn, () => sb.rpc('dua_vao_chuyen', { p_ma_don: row.dataset.don }))
+      if (!r.ok) return
       bao('✓ ' + row.dataset.don + ' đã vào chuyền (chờ cắt)')
       await taiDon(); await taiViec(); await taiQuanDoc(); if ($('qd-kb').style.display === 'block') taiKanban()
     }
@@ -414,6 +419,7 @@ function vePanel(d, vet, tem, files, gc, pk) {
     $('chonTho').innerHTML = list.length ? list.map((t, i) => `<button class="${i === 0 ? 'chon' : ''}" data-ns="${t.id}">${esc(t.ho_ten)}</button>`).join('') : '<span style="font-size:12.5px;color:var(--chu-mo)">Ghi cho: ' + esc(USER.ten || '') + '</span>'
     $('chonTho').querySelectorAll('button').forEach(b => b.onclick = () => { PANEL.nguoi = b.dataset.ns; $('chonTho').querySelectorAll('button').forEach(x => x.classList.toggle('chon', x === b)) })
     $('pXong').onclick = xongBuoc
+    if (THO_LOI) { $('pXong').disabled = true; $('pXong').title = 'Chưa nạp được danh sách thợ — không ghi công được' }   // WP-107
   }
   // p-than: thông số · ghi chú · ảnh · tấm · phụ kiện · vết
   const anhArr = Array.isArray(d.anh) ? d.anh : []
@@ -460,8 +466,9 @@ function xuPkCss() {
 }
 async function xongBuoc() {
   if (!PANEL.ke) return
-  const { error } = await sb.rpc('tien_mon', { p_mon_id: PANEL.monId, p_trang_thai: PANEL.ke, p_nguoi_id: PANEL.nguoi })
-  if (error) return bao('Không đẩy được bước: ' + error.message, true)
+  if (THO_LOI) { banner('Không nạp được danh sách thợ, thử lại'); return }   // WP-107: danh sách thợ rỗng-vì-lỗi → cấm ghi công nhầm chủ
+  const r = await ghiAnToan($('pXong'), () => sb.rpc('tien_mon', { p_mon_id: PANEL.monId, p_trang_thai: PANEL.ke, p_nguoi_id: PANEL.nguoi }))
+  if (!r.ok) return
   bao('✓ Đã sang bước "' + (BUOC[PANEL.ke] || PANEL.ke) + '"'); dongPanel()
   await taiDon(); await taiViec(); if ($('s-qd').style.display === 'block') { taiQuanDoc(); if ($('qd-kb').style.display === 'block') taiKanban() }
 }
@@ -531,8 +538,8 @@ async function veMoca(loi) {
   box.innerHTML = (loi ? '<p style="color:var(--do)">' + esc(loi) + '</p>' : '') +
     (data || []).map(n => `<button data-n="${esc(n.id)}"><span style="font-weight:700;color:var(--chu)">${esc(n.ho_ten)}</span><span>${esc(TEN_VAI[n.vai_tro] || n.vai_tro)}</span></button>`).join('')
   box.querySelectorAll('button[data-n]').forEach(b => b.onclick = async () => {
-    const { error } = await sb.rpc('mo_ca', { p_tram: TRAM, p_nguoi: b.dataset.n })
-    if (error) return veMoca(error.message)
+    const r = await ghiAnToan(b, () => sb.rpc('mo_ca', { p_tram: TRAM, p_nguoi: b.dataset.n }))
+    if (!r.ok) return
     taiTram()
   })
 }
@@ -569,11 +576,12 @@ async function vePhienChon(nhuongText) {
   box.innerHTML = `<div class="tq-phien-chon"><p>Ai nhận trạm này? Bấm tên để bắt đầu.</p><div class="tq-phien-ds" id="tqPhienDs">Đang tải…</div>${nhuongText ? `<p class="tq-phien-nhuong">${nhuongText}</p>` : ''}</div>`
   const { data } = await sb.rpc('tram_ds_nguoi')   // PHÁT SINH: chưa có bảng người↔tổ → liệt kê toàn bộ tho/xuong/ceo
   $('tqPhienDs').innerHTML = (data || []).map(n => `<button data-n="${esc(n.id)}">${esc(n.ho_ten)}</button>`).join('') || '<span>Không có thợ nào.</span>'
-  document.querySelectorAll('#tqPhienDs button').forEach(b => b.onclick = () => moPhienChon(b.dataset.n))
+  document.querySelectorAll('#tqPhienDs button').forEach(b => b.onclick = () => moPhienChon(b.dataset.n, b))
 }
-async function moPhienChon(nguoiId) {
-  const { data, error } = await sb.rpc('mo_phien', { p_nguoi: nguoiId, p_tram: TRAM })
-  if (error) { bao(error.message, true); return }
+async function moPhienChon(nguoiId, nut) {
+  const r = await ghiAnToan(nut, () => sb.rpc('mo_phien', { p_nguoi: nguoiId, p_tram: TRAM }))
+  if (!r.ok) return
+  const data = r.data
   PHIEN = { nguoi_id: data.nguoi_nhan_id, ho_ten: data.nguoi_nhan }
   $('tqNguoi').textContent = PHIEN.ho_ten || '—'
   const nhuong = data.nguoi_nhuong ? `Đã chuyển trạm từ <b>${esc(data.nguoi_nhuong)}</b> sang <b>${esc(data.nguoi_nhan)}</b>.` : ''
@@ -754,8 +762,8 @@ function veChonTt() {
 async function luuTt() {
   const lyDo = TT_CHON === 'chay' ? '' : $('tqTtLyDo').value
   if (TT_CHON !== 'chay' && !lyDo) { bao('Chọn lý do dừng trước.', true); return }
-  const { error } = await sb.rpc('doi_trang_thai_tram', { p_tram: TRAM, p_trang_thai: TT_CHON, p_ly_do: lyDo || null })
-  if (error) return bao('Không đổi được: ' + error.message, true)
+  const r = await ghiAnToan($('tqTtLuu'), () => sb.rpc('doi_trang_thai_tram', { p_tram: TRAM, p_trang_thai: TT_CHON, p_ly_do: lyDo || null }))
+  if (!r.ok) return
   TRAM_INFO.trang_thai = TT_CHON; veDen(TT_CHON)
   $('tqTtPhu').style.display = 'none'; bao('✓ Đã ghi trạng thái trạm'); focusO()
 }
@@ -768,8 +776,9 @@ function moHopBu() {
 async function luuBu() {
   const tem = $('tqBuTem').value.trim(), loai = $('tqBuLoai').value, luc = $('tqBuLuc').value, lyDo = $('tqBuLyDo').value.trim()
   if (!tem || !luc) { bao('Cần mã tem và lúc thật.', true); return }
-  const { data, error } = await sb.rpc('ghi_bu', { p_tem: tem, p_tram: TRAM, p_loai: loai, p_luc_that: new Date(luc).toISOString(), p_ly_do: lyDo || 'ghi bù tại trạm' })
-  if (error) return bao('Ghi bù lỗi: ' + error.message, true)
+  const r = await ghiAnToan($('tqBuLuu'), () => sb.rpc('ghi_bu', { p_tem: tem, p_tram: TRAM, p_loai: loai, p_luc_that: new Date(luc).toISOString(), p_ly_do: lyDo || 'ghi bù tại trạm' }))
+  if (!r.ok) return
+  const data = r.data
   if (data && data.ok === false) { bao('Ghi bù bị chặn: ' + (data.ly_do || data.loi), true); return }
   $('tqBuPhu').style.display = 'none'; bao('✓ Đã ghi bù'); taiCho(); taiCa(); taiLuot(); focusO()
 }
@@ -858,24 +867,29 @@ function veNLBang() {
     $('nl-tong-ng').textContent = tp; $('nl-tong-gt').textContent = tongGtTho()
     nlCapNhatLuu()
   })
-  $('nl-bang').querySelectorAll('.nl-xn').forEach(b => b.onclick = () => nlXacNhan(b.dataset.mt))
+  $('nl-bang').querySelectorAll('.nl-xn').forEach(b => b.onclick = () => nlXacNhan(b.dataset.mt, b))
 }
 // "Số này đúng" — đồng ý số đang có (nl_xac_nhan, KHÔNG tách khoảng). Reload → chip+nút dòng đó biến mất.
-async function nlXacNhan(ma_to) {
+async function nlXacNhan(ma_to, nut) {
   $('nl-loi-luu').style.display = 'none'
-  const { error } = await sb.rpc('nl_xac_nhan', { p_ma_to: ma_to })
-  if (error) { $('nl-loi-luu').style.display = ''; $('nl-loi-luu').textContent = 'Xác nhận ' + ma_to + ': ' + error.message; return }
+  const r = await ghiAnToan(nut, () => sb.rpc('nl_xac_nhan', { p_ma_to: ma_to }))
+  if (!r.ok) return
   bao('Đã xác nhận số của tổ'); await taiNangLuc()
 }
 function nlBo() { NL.rows.forEach(r => { const g = NL.goc[r.ma_to]; if (g) Object.assign(r, g) }); veNLBang(); $('nl-ly-do').value = ''; $('nl-loi-luu').style.display = 'none'; nlCapNhatLuu() }
 async function nlLuu() {
   const doi = nlDoi(), tu = $('nl-tu-ngay').value, ly = ($('nl-ly-do').value || '').trim()
   if (!doi.length || ly.length < 5 || !tu) return
-  $('nl-luu').disabled = true; $('nl-loi-luu').style.display = 'none'
-  for (const r of doi) {
-    const { error } = await sb.rpc('nl_ghi', { p_ma_to: r.ma_to, p_so_nguoi: r.so_nguoi, p_gio_moi_ngay: r.gio_moi_ngay, p_ngay_moi_tuan: r.ngay_moi_tuan, p_he_so: r.he_so, p_tu_ngay: tu, p_ly_do: ly })
-    if (error) { $('nl-loi-luu').style.display = ''; $('nl-loi-luu').textContent = 'Tổ ' + r.ma_to + ': ' + error.message; nlCapNhatLuu(); return }
-  }
+  $('nl-loi-luu').style.display = 'none'
+  // WP-107: bọc CẢ vòng lặp trong MỘT khuôn (giữ 1-khoá cho toàn thao tác, banner lỗi đầu tiên NGUYÊN VĂN).
+  const kq = await ghiAnToan($('nl-luu'), async () => {
+    for (const r of doi) {
+      const { error } = await sb.rpc('nl_ghi', { p_ma_to: r.ma_to, p_so_nguoi: r.so_nguoi, p_gio_moi_ngay: r.gio_moi_ngay, p_ngay_moi_tuan: r.ngay_moi_tuan, p_he_so: r.he_so, p_tu_ngay: tu, p_ly_do: ly })
+      if (error) return { error }
+    }
+    return {}
+  })
+  if (!kq.ok) { nlCapNhatLuu(); return }
   bao('Đã lưu năng lực mới cho ' + doi.length + ' tổ'); await taiNangLuc()
 }
 function veNLVung() {
@@ -903,8 +917,8 @@ function veNLDai(db, vc) {
 }
 async function nlLuuVung() {
   $('nl-vung-loi').style.display = 'none'
-  const { error } = await sb.rpc('moc_lich_ghi', { p_dong_bang: +$('nl-db').value || 0, p_vung_chac: +$('nl-vc').value || 0 })
-  if (error) { $('nl-vung-loi').style.display = ''; $('nl-vung-loi').textContent = error.message; return }
+  const r = await ghiAnToan($('nl-vung-luu'), () => sb.rpc('moc_lich_ghi', { p_dong_bang: +$('nl-db').value || 0, p_vung_chac: +$('nl-vc').value || 0 }))
+  if (!r.ok) return
   bao('Đã lưu vùng khoá lịch'); await taiNangLuc()
 }
 async function veNLLichSu() {
@@ -1141,21 +1155,21 @@ function tlKetLoi(msg) {
   }
 }
 async function tlKetXep() {
-  $('tl-ket-xep').disabled = true
-  const { data: r, error } = await tlKetGoi(false, null)
-  if (error) return tlKetLoi(error.message)
+  // WP-107: khuôn lo double-click + khoá; giữ NGUYÊN nhánh CEO-mở-ngoại-lệ của tlKetLoi (đóng băng).
+  const kq = await ghiAnToan($('tl-ket-xep'), () => tlKetGoi(false, null))
+  if (!kq.ok) return tlKetLoi(kq.error.message)
+  const r = kq.data
   if (r && r.ok) return tlKetXong(r)
   tlKetLoi((r && r.loi) || 'máy không xếp nổi')
 }
 async function tlKetEp() {
   const ly = $('tl-ket-lydo').value.trim()
   if (ly.length < 5) return
-  $('tl-ket-ep').disabled = true
-  const { data: r, error } = await tlKetGoi(true, ly)
-  if (error) { $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Không ép được</b>' + esc(String(error.message).replace(/^luu_xep_lich:\s*/, '')) + '</div>'; $('tl-ket-ep').disabled = false; return }
+  const kq = await ghiAnToan($('tl-ket-ep'), () => tlKetGoi(true, ly))
+  if (!kq.ok) { $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Không ép được</b>' + esc(String(kq.error.message).replace(/^luu_xep_lich:\s*/, '')) + '</div>'; return }
+  const r = kq.data
   if (r && r.ok) return tlKetXong(r)
   $('tl-ket-canh').innerHTML = '<div class="tl-canh"><b>Không ép được</b>' + esc((r && r.loi) || 'máy không xếp nổi') + '</div>'
-  $('tl-ket-ep').disabled = false
 }
 
 // ══════════ XẾP LẠI CẢ ĐƠN (WP-45 · thay dời-lẻ) — kiểu theo dữ liệu + hai hàng rào ══════════
@@ -1208,9 +1222,9 @@ async function tlXlXep() {
   const kieu = TL.xlHen ? 'nguoc' : 'xuoi'
   const lyDo = TL.xlSX ? $('tl-xl-lydo').value.trim() : null
   if (TL.xlSX && (!lyDo || lyDo.length < 5)) return
-  $('tl-xl-xep').disabled = true
-  const { data: r, error } = await sb.rpc('luu_xep_lich', { p_ma_don: TL.xlDon, p_kieu: kieu, p_ngoai_le: false, p_ly_do: lyDo })
-  if (error) { $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Chưa xếp được</b>' + esc(String(error.message).replace(/^.*luu_xep_lich:\s*/, '')) + '</div>'; tlXlDoiNut(); return }
+  const kq = await ghiAnToan($('tl-xl-xep'), () => sb.rpc('luu_xep_lich', { p_ma_don: TL.xlDon, p_kieu: kieu, p_ngoai_le: false, p_ly_do: lyDo }))
+  if (!kq.ok) { $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Chưa xếp được</b>' + esc(String(kq.error.message).replace(/^.*luu_xep_lich:\s*/, '')) + '</div>'; tlXlDoiNut(); return }
+  const r = kq.data
   if (r && r.ok === false) { $('tl-xl-canh').innerHTML = '<div class="tl-canh"><b>Máy không xếp nổi</b>' + esc(r.ly_do || r.loi || '') + '</div>'; tlXlDoiNut(); return }
   // ■2 · so tuần bắt đầu ĐÃ LƯU (đọc xep_lich) với tuần XEM TRƯỚC
   const { data: rows } = await sb.from('xep_lich').select('tuan_bat_dau').eq('ma_don', TL.xlDon).order('tuan_bat_dau', { ascending: true }).limit(1)
@@ -1232,4 +1246,5 @@ async function tlXlXep() {
 function tlDong(id) { $(id).classList.remove('tl-mo') }
 
 // WP-32: phơi mở màn đơn cho robot/kiểm mắt (như __sb) — không đổi hành vi người dùng.
-window.moDon = moDon; window.moMon = moMon; window.veBfToast = veBfToast;
+window.moDon = moDon; window.moMon = moMon; window.veBfToast = veBfToast;   // exposes sẵn có (mở panel, không ghi)
+if (import.meta.env.VITE_WP107_TEST) window.xongBuoc = xongBuoc;   // WP-107 L-107.4: seam test (đường GHI), prod = undefined
