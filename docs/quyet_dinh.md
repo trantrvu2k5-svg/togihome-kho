@@ -1918,3 +1918,47 @@ nguồn ngoài** + kiểm **độ phủ** (đủ ngày × đủ đối tượng)
 
 Test: `test_chi_ads_do_phu.mjs` 3/0 (do_phu phát hiện đúng ngày trống · ngày-0-đồng-đã-kéo KHÔNG tính trống ·
 nạp 2 lần không nhân đôi). Nền sổ mốc: `test_ads_moc_keo.mjs` 10/0 (QD-109).
+
+## QD-111 (05/09, WP-100 L-100.2, db/232) — SỨC KHOẺ MẪU ADS: THƯỚC THAY THẾ (Meta bỏ 3 giây) · TÁCH NỀN TẢNG LÀ ƯỚC TÍNH · DƯỚI NGƯỠNG HIỂN THỊ KHÔNG KẾT LUẬN · CHỐT
+
+Gộp ba quyết định của tầng DB sức khoẻ mẫu (RPC `ads_suc_khoe_mau`, nơi DUY NHẤT tính; front-end không tính lại):
+
+- **(1) Thước theo cái Meta CÒN TRẢ — KHÔNG cùng thước với brief.** Brief ads đòi *hook rate 3 giây · hold rate · phản hồi
+  tiêu cực*. Nhưng **Meta đã BỎ chỉ số xem-3-giây**, và *phản hồi tiêu cực* không mở ở mức mẫu. Thay bằng cái đo được:
+  **lượt phát ÷ hiển thị** (bắt đầu xem) + **xem-hết ÷ lượt phát** (giữ xem) — đo được 8/10 mẫu, **2 mẫu ảnh để NULL =
+  "không đo được", KHÔNG phải 0** (0 sẽ kéo nền video xuống → báo động giả); và **3 thước xếp hạng của Meta**
+  (chất lượng · tương tác · chuyển đổi) là **CHỮ** (nhãn `ABOVE_AVERAGE`/`AVERAGE`/`BELOW_AVERAGE_*`), thay phản hồi
+  tiêu cực, phủ 10/10 mẫu. Nền hai thước video CHỈ tính trên mẫu video.
+- **(2) Số TÁCH FACEBOOK/INSTAGRAM là ƯỚC TÍNH — CẤM dùng tính tổng.** Breakdown `publisher_platform` nhân dòng lên nên
+  để **bảng RIÊNG** `chi_ads_nen_tang_ngay` (`la_uoc_tinh` mặc định true); tài liệu Meta ghi rõ số theo breakdown là ước
+  tính. **Tổng chi luôn lấy từ bảng chính** `chi_ads_ngay`; RPC nào đọc bảng tách cũng trả kèm cờ `la_uoc_tinh` để màn nói
+  được "số tách nền tảng là ước tính, tổng vẫn theo bảng chính". CHỈ MỘT chiều breakdown, cấm chồng.
+- **(3) Dưới ngưỡng hiển thị thì KHÔNG kết luận.** `hien_thi_toi_thieu_doc=1000` [TẠM]: dưới mức này ket_luan =
+  "chưa đủ số để đọc" (mẫu mới chạy một ngày luôn trông tệ — chặn báo động giả), tách hẳn khỏi "không đo được" (mẫu ảnh,
+  hai cột video) và khỏi câu lỗi cụ thể. Kết luận chạy **thang ngoại lệ, DỪNG ở tầng ĐẦU đỏ**: bắt đầu xem tụt → CTR dưới
+  nền → CPM tăng → xếp hạng dưới TB → tần suất vượt (`tan_suat_do=3.5`). Nền = trung bình 7 ngày CỦA CHÍNH các tài khoản
+  này (không benchmark ngoài).
+
+Ngưỡng [TẠM] (ads_nguong, khoảng hiệu lực QD-93): `tan_suat_do=3.5 · ctr_duoi_nen_phan_tram=50 · hien_thi_toi_thieu_doc=1000`.
+Test: `test_suc_khoe_mau.mjs` 8 ca THẬT (migration+fixtures trong transaction rồi ROLLBACK — prod nguyên vẹn). CHƯA áp prod,
+CHƯA kéo Meta (L-100.3 kéo thật).
+
+## QD-112 (06/09, WP-100 L-100.4, db/234) — THANG ĐỌC MỎI MẪU PHẢI CÓ NGƯỠNG CHO MỌI TẦNG · CHỈ SỐ KHÔNG-DẪN-TỚI-HÀNH-ĐỘNG LÀ GHI CHÚ, KHÔNG PHẢI KẾT LUẬN · CHỐT
+
+Số thật (F5, L-100.3) lộ hai lỗi trong `ads_suc_khoe_mau` — cả hai làm màn nói SAI, phải vá TRƯỚC khi lên màn (đúng
+vết WP-92: 6 báo động giả đã lên tới mắt người dùng vì lên màn trước, sửa sau).
+
+- **Tầng nào không có ngưỡng thì tầng đó KHÔNG BAO GIỜ BẮN, và tầng dưới sẽ nói thay — sai chỗ VÀ sai câu.**
+  Tầng "bắt đầu xem tụt" trước đây mượn ngưỡng CTR (dưới 50% nền). Bằng chứng số thật: nền bắt-đầu-xem 73,2%, mẫu
+  "BÀN ĐẢO GỖ GẤP 4/9" chỉ 47% (tụt rõ) nhưng ket_luan trả "CPM cao hơn nền" — tầng 1 im, tầng dưới nói thay. Đây
+  chính là cái thang v77 cấm (phải DỪNG ở tầng đầu tiên đỏ). SỬA: mỗi tầng MỘT ngưỡng riêng —
+  `bat_dau_xem_duoi_nen_phan_tram=80` [TẠM] (dưới 80% nền = tầng 1 đỏ). Sau vá, mẫu đó về đúng tầng 1.
+- **Chỉ số KHÔNG dẫn tới hành động (CPM) không được làm KẾT LUẬN — chỉ làm GHI CHÚ.** "CPM cao hơn nền" không có
+  biên → ~nửa số mẫu đỏ vĩnh viễn (theo cấu tạo), bất kể tài khoản tốt hay xấu; VÀ chính v77 định nghĩa CPM là
+  "đấu giá đắt lên, KHÔNG phải lỗi mẫu" → câu này không bảo người ta làm gì mà lại chiếm chỗ kết luận hành động.
+  SỬA: (a) biên `cpm_tren_nen_phan_tram=130` [TẠM] (chỉ >130% nền mới coi là đắt); (b) CPM RỜI thang kết luận,
+  thành **ghi_chu** đính kèm. Trả về HAI cột riêng `ket_luan` ⟂ `ghi_chu`; front-end KHÔNG ghép hộ. Mẫu mọi tầng tốt
+  mà CPM đắt → ket_luan vẫn "đang tốt", ghi_chu "giá đấu đang đắt hơn nền".
+
+Tác động (số thật 11 mẫu): phân bố ket_luan từ [đang tốt 5 · CPM cao hơn nền 6] → [đang tốt 9 · bắt đầu xem tụt 1 ·
+xếp hạng dưới TB 1], ghi_chu 1/11 — sparse và có nghĩa thay vì dồn cục. Test `test_suc_khoe_mau` 15 ca (thêm 11–15).

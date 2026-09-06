@@ -81,7 +81,7 @@ function datPreset(n) {
 // ══════════ NẠP (nguồn số DUY NHẤT là RPC) ══════════
 async function nap() {
   $('noi').innerHTML = '<div class="trong">Đang tải…</div>'
-  const [bk, ss, vl, ad, dp, ng, tk, th, ttk] = await Promise.all([
+  const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt] = await Promise.all([
     sb.rpc('ads_bang_ky', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN }),
@@ -90,7 +90,10 @@ async function nap() {
     sb.from('ads_nguong').select('gia_tri,hieu_luc_tu,hieu_luc_den').eq('ma', 'chi_so_ty_le_dang_ngo'),
     sb.from('ads_tai_khoan_brand').select('act_id,brand_id,ten_hien_thi').is('hieu_luc_den', null),
     sb.from('thuong_hieu_ban').select('ma,ten'),
-    sb.rpc('ads_tinh_trang_keo')   // [WP-91] đèn ĐỘ PHỦ + trễ-giờ (RPC thứ 5). Hỏng/rỗng → dải xám, KHÔNG ẩn.
+    sb.rpc('ads_tinh_trang_keo'),   // [WP-91] đèn ĐỘ PHỦ + trễ-giờ (RPC thứ 5). Hỏng/rỗng → dải xám, KHÔNG ẩn.
+    sb.rpc('ads_suc_khoe_mau', { p_tu_ngay: TU, p_den_ngay: DEN }),   // [WP-100] sức khoẻ mẫu
+    sb.rpc('ads_thay_doi_gan_day', { p_so_dong: 15 }),                // [WP-100] sổ thay đổi Meta
+    sb.rpc('chi_ads_nen_tang_tong', { p_tu_ngay: TU, p_den_ngay: DEN }) // [WP-100] tách FB/IG
   ])
   const loi = [bk, ss, vl].find(x => x.error)
   if (loi) { $('noi').innerHTML = '<div class="ads-loi">Lỗi tải dữ liệu: ' + esc(loi.error.message) + '</div>'; return }
@@ -99,13 +102,15 @@ async function nap() {
   const homNay = DEN
   const ngRow = (ng.data || []).find(r => r.hieu_luc_tu <= homNay && (r.hieu_luc_den == null || homNay <= r.hieu_luc_den))
   const tyLeNgo = ngRow ? Number(ngRow.gia_tri) === 1 : false
-  DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo, ttk: (ttk && ttk.error) ? null : (ttk && ttk.data) }
+  const okD = r => (r && r.error) ? null : (r && r.data)   // RPC lỗi/rỗng → null (khối tự hiện dải xám, KHÔNG ẩn)
+  DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo,
+    ttk: okD(ttk), sk: okD(sk), std: okD(std), nt: okD(nt) }
   render()
 }
 
 // ══════════ RENDER (thứ tự v2b) ══════════
 function render() {
-  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk } = DL
+  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk, sk, std, nt } = DL
   let dong = (bk.dong || []).slice()
   const anCount = dong.filter(d => d.co_an).length
   if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
@@ -121,6 +126,9 @@ function render() {
   h.push(khoiSoSanh(ss, tyLeNgo))
   h.push(khoiDenPhu(ttk))   // [WP-91] đèn độ phủ NGAY TRÊN khối tổng
   h.push(khoiBang(dong, bk.tong, anCount))
+  h.push(khoiSucKhoe(sk))       // [WP-100] sức khoẻ mẫu
+  h.push(khoiNenTang(nt))       // [WP-100] Facebook / Instagram
+  h.push(khoiSoThayDoi(std))    // [WP-100] sổ thay đổi Meta
   h.push(khoiMucAd(ad, DL.adErr))
   h.push(khoiChuGiai())
   h.push(khoiDeSau())
@@ -292,6 +300,71 @@ function khoiBang(dong, tong, anCount) {
   return sec('3', 'Bảng chiến dịch', 'gộp theo loại chiến dịch', tbl + cards + duoi)
 }
 
+// D · khối RPC hỏng/rỗng → dải xám, KHÔNG ẩn khối (ẩn khi hỏng = bệnh im lặng cũ).
+function xamKhoi(msg) { return '<div class="ads-xam">' + esc(msg) + '</div>' }
+
+// [WP-100 A] SỨC KHOẺ MẪU — nguồn ads_suc_khoe_mau (RPC tính HẾT; FE không tính lại). ket_luan ⟂ ghi_chu = 2 cột.
+function khoiSucKhoe(sk) {
+  if (!sk || !sk.mau) return sec('4', 'Sức khoẻ mẫu quảng cáo', '', xamKhoi('Không đọc được sức khoẻ mẫu.'))
+  const mau = sk.mau, nn = sk.nen_7ngay || {}
+  const pf = x => (x == null) ? '—' : (Number(x) * 100).toFixed(0) + '%'
+  const pf2 = x => (x == null) ? '—' : String((Number(x) * 100).toFixed(2)).replace('.', ',') + '%'
+  const tsF = x => (x == null) ? '—' : String(Number(x).toFixed(2)).replace('.', ',')
+  // video NULL → chữ "không đo được" mờ (KHÔNG 0, KHÔNG trống). Số → %.
+  const vidCell = v => (typeof v === 'number') ? pf(v) : '<span class="ads-kodo">không đo được</span>'
+  const tot = mau.filter(m => m.ket_luan === 'đang tốt').length
+  const dongTren = '<div class="ads-sk-tom">' + tot + '/' + mau.length + ' đang tốt · ' + (mau.length - tot) + ' cần xem lại</div>'
+  let rows = ''
+  for (const m of mau) {
+    const xau = m.ket_luan !== 'đang tốt'
+    rows += '<tr class="' + (xau ? 'ads-sk-canxem' : '') + '"><td>' + esc(m.ten || m.ad_id) + '</td>' +
+      '<td class="num">' + tien(m.chi) + '</td><td class="num">' + so(m.hien_thi) + '</td>' +
+      '<td class="num">' + tsF(m.tan_suat) + '</td><td class="num">' + vidCell(m.ty_le_bat_dau_xem) + '</td>' +
+      '<td class="num">' + vidCell(m.ty_le_giu_xem) + '</td><td class="num">' + pf2(m.ctr_link) + '</td>' +
+      '<td class="num">' + tien(m.cpm) + '</td>' +
+      '<td>' + (xau ? '<b>' + esc(m.ket_luan) + '</b>' : esc(m.ket_luan)) + '</td>' +
+      '<td class="ads-sk-gc">' + (m.ghi_chu ? esc(m.ghi_chu) : '') + '</td></tr>'
+  }
+  const foot = '<tr class="ads-sk-nen"><td>Nền 7 ngày</td><td></td><td></td><td></td>' +
+    '<td class="num">' + pf(nn.bat_dau_xem) + '</td><td class="num">' + pf(nn.giu_xem) + '</td>' +
+    '<td class="num">' + pf2(nn.ctr_link) + '</td><td class="num">' + tien(nn.cpm) + '</td><td colspan="2"></td></tr>'
+  const tbl = '<div class="tblwrap"><table class="ads-sk-tbl"><thead><tr><th>Mẫu</th><th class="r">Chi</th><th class="r">Hiển thị</th>' +
+    '<th class="r">Tần suất</th><th class="r">Bắt đầu xem</th><th class="r">Giữ xem</th><th class="r">CTR</th><th class="r">CPM</th><th>Kết luận</th><th>Ghi chú</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="10" class="trong2">Chưa có mẫu nào trong khoảng này.</td></tr>') + '</tbody>' +
+    '<tfoot>' + foot + '</tfoot></table></div>' +
+    '<div class="ads-bang-note">Nền bắt-đầu-xem tính trên ' + so(nn.so_mau_video_trong_nen) + ' mẫu video / ' + so(nn.so_mau_trong_nen) + ' mẫu.</div>'
+  return sec('4', 'Sức khoẻ mẫu quảng cáo', 'thứ tự đọc mỏi: bắt đầu xem → CTR → xếp hạng → tần suất', dongTren + tbl)
+}
+
+// [WP-100 C] FACEBOOK / INSTAGRAM — chi_ads_nen_tang_tong. Dòng ước tính đọc cờ + câu TỪ RPC (không gõ cứng HTML).
+function khoiNenTang(nt) {
+  if (!nt || !nt.dong) return sec('5', 'Facebook / Instagram', '', xamKhoi('Không đọc được tách nền tảng.'))
+  const TEN = { facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', audience_network: 'Audience Network', messenger: 'Messenger' }
+  const pct1 = x => (x == null) ? '—' : String(x).replace('.', ',') + '%'
+  let rows = ''
+  for (const r of nt.dong) rows += '<tr><td>' + esc(TEN[r.nen_tang] || r.nen_tang) + '</td>' +
+    '<td class="num">' + tien(r.chi) + '</td><td class="num">' + so(r.hien_thi) + '</td>' +
+    '<td class="num">' + pct1(r.ctr) + '</td><td class="num">' + pct1(r.phan_tram_chi) + '</td></tr>'
+  const tbl = '<div class="tblwrap"><table class="ads-nt-tbl"><thead><tr><th>Nền tảng</th><th class="r">Chi</th><th class="r">Hiển thị</th><th class="r">CTR</th><th class="r">% chi</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="5" class="trong2">Chưa có số tách nền tảng.</td></tr>') + '</tbody></table></div>'
+  const note = nt.la_uoc_tinh ? '<div class="ads-uoctinh">⚠ ' + esc(nt.ghi_chu) + '</div>' : ''
+  return sec('5', 'Facebook / Instagram', 'chi theo nền tảng (một chiều breakdown)', tbl + note)
+}
+
+// [WP-100 B] SỔ THAY ĐỔI META — ads_thay_doi_gan_day. Tên người ĐÃ che ở RPC ("N.V.A"). 0 bản ghi → nói rõ, KHÔNG ẩn.
+function khoiSoThayDoi(std) {
+  if (!std || !std.dong) return sec('6', 'Sổ thay đổi Meta', '', xamKhoi('Không đọc được sổ thay đổi.'))
+  if (!std.dong.length) return sec('6', 'Sổ thay đổi Meta', '', xamKhoi('Không ai sửa trong 30 ngày.'))
+  const hm = s => { const x = new Date(s); if (isNaN(x)) return '—'; const p = n => String(n).padStart(2, '0'); return p(x.getDate()) + '/' + p(x.getMonth() + 1) + ' ' + p(x.getHours()) + ':' + p(x.getMinutes()) }
+  const tkTxt = r => r.ten_tk ? esc(r.ten_tk) : '<span class="adid">…' + esc(String(r.act_id).slice(-4)) + '</span>'
+  let rows = ''
+  for (const r of std.dong) rows += '<tr><td class="ads-td-luc">' + hm(r.luc) + '</td>' +
+    '<td>' + tkTxt(r) + ' <span class="ads-td-ng">' + esc(r.nguoi) + '</span></td>' +
+    '<td>' + esc(r.viec) + '</td><td>' + esc(r.doi_tuong || '—') + '</td></tr>'
+  const tbl = '<div class="ads-std-cuon"><table class="ads-std-tbl"><thead><tr><th>Lúc</th><th>Tài khoản</th><th>Việc</th><th>Đối tượng</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+  return sec('6', 'Sổ thay đổi Meta', std.tong + ' bản ghi · ' + std.so_tai_khoan + ' tài khoản (30 ngày · tên đã che)', tbl)
+}
+
 function khoiMucAd(ad, adErr) {
   let inner = ''
   if (KHOI_AD_MO) {
@@ -311,7 +384,7 @@ function khoiMucAd(ad, adErr) {
         (body || '<tr><td colspan="6" class="trong2">Không có hội thoại quảng cáo trong khoảng này.</td></tr>') + '</tbody></table></div>'
     }
   }
-  const h2 = '<h2><span class="n">4</span> <button class="mo-khoi" id="btKhoiAd">' + (KHOI_AD_MO ? '▾' : '▸') + ' Mức từng quảng cáo (ad)</button> <span class="h2sub">chỉ đúng cho quảng cáo tin nhắn — thu gọn</span></h2>'
+  const h2 = '<h2><span class="n">7</span> <button class="mo-khoi" id="btKhoiAd">' + (KHOI_AD_MO ? '▾' : '▸') + ' Mức từng quảng cáo (ad)</button> <span class="h2sub">chỉ đúng cho quảng cáo tin nhắn — thu gọn</span></h2>'
   return '<div class="sec">' + h2 + inner + '</div>'
 }
 
@@ -319,11 +392,11 @@ function khoiChuGiai() {
   const item = (k) => '<span class="ads-cg"><span class="ads-den ads-den-' + DEN_TT[k][1] + '"></span>' + DEN_TT[k][0] + '</span>'
   const g = '<div class="ads-cg-wrap">' + item('con_du') + item('sat_tran') + item('vuot_tran') + item('chua_du_so') + item('khong_do_duoc') + '</div>' +
     '<div class="ads-cg-note">"Chi phí có khách" so tiền bỏ ra với mức trần theo cỡ đơn khách mua. Còn dư / Sát mức / Vượt mức chỉ hiện khi đã có đơn thật quy về chiến dịch; hiện các chiến dịch dẫn web nên phần lớn là "Chưa đo được".</div>'
-  return sec('5', 'Chú giải đèn', '', g)
+  return sec('8', 'Chú giải đèn', '', g)
 }
 
 function khoiDeSau() {
-  return '<div class="sec"><h2><span class="n">6</span> Chỗ để sau</h2>' +
+  return '<div class="sec"><h2><span class="n">9</span> Chỗ để sau</h2>' +
     '<div class="placeholder">🔒 <b>Tắt / nhân bản quảng cáo</b> — cần đơn theo chiến dịch để có ngưỡng quyết định. <b>Sẽ mở khi bật đường nối đơn hàng.</b>' +
     '<div class="ph2">Vẽ chỗ trống có tên còn hơn để người dùng tưởng app quên việc chính. Nút không ra quyết định được là nút lừa.</div></div></div>'
 }

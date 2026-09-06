@@ -93,3 +93,11 @@ Hệ Togihome **trải cả cấp 4 lẫn cấp 3**. KHÔNG có ERP tách rời 
 - **Cấp 2/1/0 (SCADA/PLC/cảm biến):** KHÔNG CẦN — CNC không nối mạng, xưởng thủ công.
 
 **LỖ LỚN NHẤT = Lập lịch sản xuất** (giữa Quy trình và Theo vết). Bốn bài toán đang treo đều thuộc ô này: **ngày giao · tải theo tổ · nhu cầu vật tư · bước tiếp theo**. (Phần ngày giao đang được nối lại — xem file `02`.)
+
+## F. BÍ MẬT & TOKEN — token Meta ở **ROOT** `.env`, KHÔNG phải `web/.env`
+
+Token Meta (`META_CAPI_TOKEN`, dùng cho Conversions API + kéo chi ads) nằm ở **`.env` GỐC repo**
+(`/Users/vuquanghai/Documents/togihome-kho/.env`), **KHÔNG** ở `web/.env`. Đã dính L-91.4:
+`wrangler secret put` chạy trong `web/` đọc `../.env` (= `web/.env`, RỖNG) → nạp secret rỗng, worker
+ads trả `{skip_ads:"thieu-token"}`. Nạp secret phải trỏ ĐÚNG file gốc, và **KHÔNG in giá trị token
+ra terminal**.

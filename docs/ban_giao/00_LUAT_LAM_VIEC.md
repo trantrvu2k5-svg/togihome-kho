@@ -78,6 +78,15 @@ File import `?raw` (`togihome_sale.html`, `togihome_taichinh.html`…) là **CHU
 
 Đã dính: 29/08 lệch 1 dấu `)` làm **chết app Sale trên prod**, robot kẹt boot bị đọc nhầm thành lỗi harness.
 
+## KỶ LUẬT DEPLOY `worker-keo-lead` — CHỤP MỐC LEAD TRƯỚC & SAU
+
+`worker-keo-lead` gánh **HAI** bộ kéo trong MỘT worker: cron mỗi phút (lead Pancake) + cron
+`0 19 * * *` (chi ads, = 02:00 giờ VN). Deploy sai một nhánh **giết cron lead mà không ai biết** —
+suýt xảy ra ở L-91.4. Vì vậy **mỗi lần deploy worker này** bắt buộc:
+1. **TRƯỚC deploy:** đọc `kho.keo_lead_runner.so_luot` (mốc lead) — ghi lại con số.
+2. **SAU deploy:** đợi vài phút, đọc lại `so_luot` — phải **TĂNG**. Không tăng = cron lead đã chết,
+   **rollback ngay**, chẩn đoán sau.
+
 ## RANH GIỚI HOẠT ĐỘNG = chỗ BÀN GIAO VẬT LÝ (QD-02)
 
 Một hoạt động = một lần món RỜI TAY THỢ và tới trạm khác. Máy làm ba việc trong một lần gá = MỘT hoạt động. Hai tổ, hai lần bàn giao = PHẢI hai hoạt động. Danh mục 13 hoạt động = một bảng duy nhất `don_gia_baseline`. **CẤM đẻ bảng danh mục công đoạn thứ hai.**

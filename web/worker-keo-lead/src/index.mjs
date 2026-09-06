@@ -4,7 +4,7 @@
 //     5 lỗi LIÊN TIẾP → ngủ 15' · 1 dòng log/lượt (giờ · lead mới · lỗi) · KHÔNG in token.
 import postgres from 'postgres'
 import { keoMotPage, MET, metReset } from '../../ops/keo_lead_core.mjs'
-import { keoChiAdsMetaNhip } from '../../ops/keo_chi_ads_meta.mjs'   // [WP-91 L-91.3] kéo chi ads (cron daily)
+import { keoAdsLuot } from '../../ops/keo_chi_ads_meta.mjs'   // [WP-100 L-100.3] một lượt cron = B chi+thước · C sổ thay đổi · D tách nền tảng
 
 // [L-70r7 ĐO] đếm câu SQL + thời-gian-trôi-qua DB mỗi lượt (KHÔNG phải CPU). Reset đầu mỗi chayLuot.
 const MET_DB = { ms: 0, n: 0 }
@@ -107,8 +107,9 @@ async function chayLuotAds(env) {
   const tx = (fn) => sql.begin(txs => fn(makeClient(txs)))
   const t0 = Date.now()
   try {
-    const r = await keoChiAdsMetaNhip(client, { token, tx })
-    return { ok_ads: true, so_dong: (r && r.tongDong) || 0, ms: Date.now() - t0 }
+    const r = await keoAdsLuot(client, { token, tx })   // B + C + D, mỗi việc bọc riêng
+    // Bất kỳ việc lỗi → ok_ads=false (worker hét ra + không nuốt). Số dòng B để log.
+    return { ok_ads: r.loi.length === 0, so_dong: (r.b && r.b.tongDong) || 0, loi_viec: r.loi, ms: Date.now() - t0 }
   } catch (e) {
     return { loi_ads: (e && e.message || String(e)).slice(0, 120), ms: Date.now() - t0 }
   } finally { try { await sql.end() } catch {} }
@@ -116,8 +117,9 @@ async function chayLuotAds(env) {
 function logAds(r) {
   const gio = new Date().toISOString().slice(11, 19)
   if (r.skip_ads) console.log(`${gio} · ADS bỏ (${r.skip_ads})`)
+  else if (r.loi_ads) console.log(`${gio} · ADS LỖI: ${r.loi_ads} (${r.ms}ms)`)   // KHÔNG nuốt — hét ra
   else if (r.ok_ads) console.log(`${gio} · ADS ok · ${r.so_dong} dòng · ${r.ms}ms`)
-  else console.log(`${gio} · ADS LỖI: ${r.loi_ads} (${r.ms}ms)`)   // KHÔNG nuốt — hét ra
+  else console.log(`${gio} · ADS có việc LỖI: ${JSON.stringify(r.loi_viec)} (${r.ms}ms)`)   // B/C/D một việc đỏ
 }
 
 function log(r) {
