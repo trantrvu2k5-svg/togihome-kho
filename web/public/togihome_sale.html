@@ -150,6 +150,13 @@ td .c{padding:7px 12px;min-height:33px;display:flex;align-items:center;gap:7px}
 td .c.r{justify-content:flex-end}
 tbody tr:hover td{background:var(--raise)}
 tbody tr.sel td{background:var(--priS)}
+/* [D-25 việc 2] xác nhận lưu đơn — màu lấy từ bộ màu app (--gn/--gnB xanh, --pri đỏ), không chế mới */
+.sd-toast{display:flex;align-items:center;gap:6px;background:var(--gnB);color:var(--gn);border:1px solid #B6E6CE;border-radius:8px;padding:8px 13px;margin-bottom:12px;font-size:13.5px;font-weight:600}
+.sd-toast-ma{font-family:ui-monospace,Menlo,monospace;font-weight:700}
+.sd-toast-x{color:var(--fnt);font-weight:400;font-size:11.5px}
+tbody tr.sd-moi td{background:var(--priS)}
+tbody tr.sd-moi:hover td{background:var(--priS)}
+.sd-vualuu{display:inline-block;margin-left:7px;background:var(--pri);color:#fff;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle}
 tr.off td .c{color:var(--fnt)}
 td.auto{background:var(--auto)}
 tbody tr:hover td.auto{background:#EBEFF6}
@@ -2693,9 +2700,18 @@ function App() {
     }).finally(() => setDangLuu(p => ({ ...p, [k]: Math.max(0, (p[k] || 1) - 1) })));   /* [WP-108] -1 khi máy chủ trả về (dù ok/lỗi) */
   };
   /* [WP-109 D-1] Cầu nhận MÃ ĐƠN do DB cấp: sale.js (sau tao_don) gọi window.__capMaDon(id, ma) → vá mã THẬT vào đơn lạc quan
-     để HIỆN LÊN MÀN. KHÔNG phải up() (không ghi lại DB, không rollback) — chỉ đồng bộ hiển thị. */
+     để HIỆN LÊN MÀN. KHÔNG phải up() (không ghi lại DB, không rollback) — chỉ đồng bộ hiển thị.
+     [D-25 việc 2] Kèm xác nhận lưu: toast "✓ Đã lưu đơn T9-xxx" (mã DB, tự tắt 5s) + ghim đơn vừa lưu lên ĐẦU Sổ đơn
+     (nhãn "vừa lưu" + tô sáng). CẢ HAI là trạng thái SỐNG TRONG PHIÊN màn — mất khi F5, KHÔNG ghi vào tầng lưu trữ nào (Q3). */
+  const [daLuu, setDaLuu] = useState(null);   // {id, ma} — toast, tự tắt 5s
+  const [vuaLuu, setVuaLuu] = useState([]);   // [id,…] đơn lưu trong phiên → ghim đầu + nhãn
   useEffect(() => {
-    window.__capMaDon = (id, ma) => setDb(p => p ? ({ ...p, don: (p.don || []).map(o => o.id === id ? { ...o, ma } : o) }) : p);
+    window.__capMaDon = (id, ma) => {
+      setDb(p => p ? ({ ...p, don: (p.don || []).map(o => o.id === id ? { ...o, ma } : o) }) : p);
+      setDaLuu({ id, ma });
+      setVuaLuu(v => v.includes(id) ? v : [id, ...v]);
+      setTimeout(() => setDaLuu(cur => (cur && cur.id === id) ? null : cur), 5000);   // tắt toast NÀY sau 5s (toast mới hơn không bị xoá sớm)
+    };
     return () => { try { delete window.__capMaDon; } catch (e) { window.__capMaDon = undefined; } };
   }, []);
   const user = (db?.users || []).find(u => u.id === uid2 && u.on) || null;
@@ -2794,6 +2810,8 @@ function App() {
     active: okTab === "don",   // L-57: SoDon LUÔN mount (giữ tầng modal cho mọi tab); chỉ hiện NỘI DUNG khi active
     db,
     up,
+    vuaLuu,       // [D-25] id đơn lưu trong phiên → ghim đầu + nhãn
+    daLuu,        // [D-25] toast "Đã lưu đơn"
     user,
     can,
     dons,
@@ -5007,6 +5025,8 @@ function XuongModal({
 function SoDon({
   db,
   up,
+  vuaLuu,
+  daLuu,
   user,
   can,
   dons,
@@ -5230,7 +5250,11 @@ function SoDon({
     const k = khOf(d.khachId),
       s = q.toLowerCase();
     return d.ma.toLowerCase().includes(s) || (k?.ten || "").toLowerCase().includes(s) || sdtChuan(k?.sdt).includes(sdtChuan(q)) || ctCua(d.id).some(x => x.ten.toLowerCase().includes(s));
-  }).sort((a, b) => b.ngay.localeCompare(a.ngay));
+  }).sort((a, b) => {
+    const av = (vuaLuu || []).includes(a.id), bv = (vuaLuu || []).includes(b.id);   // [D-25] đơn vừa lưu (trong phiên) lên ĐẦU — sale thấy ngay, không phải cuộn
+    if (av !== bv) return av ? -1 : 1;
+    return b.ngay.localeCompare(a.ngay) || String(b.ma || "").localeCompare(String(a.ma || ""));   // mới nhất trước; cùng ngày thì mã seq lớn hơn (mới hơn) trước
+  });
   const q2 = v => '"' + String(v == null ? "" : v).split('"').join('""') + '"';
   const xuatDon = () => {
     const hd = "ma_don,ngay,khach,dien_thoai,dia_chi,loai_don,tai_khoan_coc,thuong_hieu,san_pham,so_mon,trang_thai,van_chuyen,du_kien_xong,ngay_di_hang,ngay_giao" + (tien ? ",khach_thanh_toan,phi_lap_dat,ai_thu_phi_lap,da_thu,con_phai_thu,tinh_trang_thu,doanh_thu" : "");
@@ -5323,7 +5347,13 @@ function SoDon({
     }, "Lọc ra xem"))));
   })(), /*#__PURE__*/React.createElement("div", {
     className: "card"
-  }, /*#__PURE__*/React.createElement("h3", null, "Danh sách", /*#__PURE__*/React.createElement("small", null, rows.length, " đơn", tien ? " · doanh thu " + vnd(sDt) : ""), /*#__PURE__*/React.createElement("div", {
+  }, daLuu && /*#__PURE__*/React.createElement("div", {
+    className: "sd-toast"
+  }, "✓ Đã lưu đơn ", /*#__PURE__*/React.createElement("span", {
+    className: "sd-toast-ma"
+  }, daLuu.ma), /*#__PURE__*/React.createElement("span", {
+    className: "sd-toast-x"
+  }, " — tự tắt sau 5 giây")), /*#__PURE__*/React.createElement("h3", null, "Danh sách", /*#__PURE__*/React.createElement("small", null, rows.length, " đơn", tien ? " · doanh thu " + vnd(sDt) : ""), /*#__PURE__*/React.createElement("div", {
     className: "sp"
   }), /*#__PURE__*/React.createElement("input", {
     value: q,
@@ -5521,6 +5551,7 @@ function SoDon({
       b = db.brands.find(x => x.c === d.brand);
     return /*#__PURE__*/React.createElement("tr", {
       key: d.id,
+      className: (vuaLuu || []).includes(d.id) ? "sd-moi" : undefined,   // [D-25] tô sáng đơn vừa lưu (phiên)
       style: {
         cursor: "pointer"
       },
@@ -5532,7 +5563,9 @@ function SoDon({
       style: {
         fontWeight: 600
       }
-    }, d.ma)), hi("ngay") && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
+    }, d.ma, (vuaLuu || []).includes(d.id) && /*#__PURE__*/React.createElement("span", {
+      className: "sd-vualuu"
+    }, "vừa lưu"))), hi("ngay") && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
       className: "c n fnt"
     }, d.ngay.slice(8), "/", d.ngay.slice(5, 7))), hi("khach") && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("div", {
       className: "c"

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MẪU — Sổ đơn ▸ mặc định bộ lọc (WP-109 D-25 việc 2)</title>
+<style>
+  /* Bảng màu CHÉP TỪ app Sale (public/togihome_sale.html :root) — CẤM chế màu mới */
+  :root{
+    --bd:#E4E8F0; --bd2:#EFF2F7; --bdS:#D3D9E4;
+    --tx:#151B2C; --tx2:#3B4356; --mut:#6B7488; --fnt:#98A1B3;
+    --pri:#C8202E; --priH:#A6141F; --priS:#FCECEE; --priB:#F1C0C5;
+    --gn:#0B7A4B; --gnB:#DCF5E9; --rd:#C42B4B; --rdB:#FDE8ED; --am:#8A5A00; --amB:#FDF3DC;
+    --surface:#fff; --bg:#F4F6FA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px}
+  .sd-wrap{max-width:1080px;margin:0 auto;padding:22px}
+  .sd-banner{background:var(--amB);border:1px solid #F0D9A0;border-radius:8px;padding:10px 14px;margin-bottom:18px;
+             font-size:12.5px;color:#7A5200;line-height:1.55}
+  .sd-banner b{color:#5E3F00}
+  .sd-card{background:var(--surface);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;margin-bottom:18px;
+           box-shadow:0 1px 3px rgba(21,27,44,.06)}
+  .sd-card>h2{font-size:15px;margin:0 0 12px;font-weight:700}
+  .sd-card>h2 .sd-sub{font-weight:400;color:var(--mut);font-size:12.5px;margin-left:8px}
+
+  /* ---- (3) THÔNG BÁO "Đã lưu đơn" — đặt NGAY DƯỚI nút Lưu của form lên đơn ---- */
+  .sd-formfoot{display:flex;flex-direction:column;gap:9px;align-items:flex-start}
+  .sd-luu{background:var(--pri);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14.5px;
+          font-weight:600;cursor:default}
+  .sd-daluu{display:inline-flex;align-items:center;gap:7px;background:var(--gnB);color:var(--gn);
+            border:1px solid #B6E6CE;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600}
+  .sd-daluu .sd-ma{font-family:ui-monospace,Menlo,monospace;font-weight:700}
+  .sd-fade{color:var(--fnt);font-weight:400;font-size:11.5px;margin-left:2px}
+
+  /* ---- Sổ đơn ▸ Danh sách ---- */
+  .sd-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .sd-bar input,.sd-bar select{border:1px solid var(--bdS);border-radius:7px;padding:7px 9px;font-size:13px;
+       background:#fff;color:var(--tx);height:34px}
+  .sd-bar input{width:250px}
+  .sd-def{position:relative}
+  .sd-def::after{content:"mặc định";position:absolute;top:-8px;right:6px;background:var(--gn);color:#fff;
+       font-size:9px;font-weight:700;letter-spacing:.03em;padding:1px 5px;border-radius:6px;text-transform:uppercase}
+  .sd-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .sd-tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--fnt);
+       font-weight:600;padding:8px 10px;border-bottom:1px solid var(--bd)}
+  .sd-tbl td{padding:11px 10px;border-bottom:1px solid var(--bd2);vertical-align:top}
+  .sd-tbl tr:hover td{background:#FAFBFC}
+  .sd-madon{font-family:ui-monospace,Menlo,monospace;font-weight:600;color:var(--tx)}
+  .sd-moi td{background:var(--priS)}
+  .sd-moi:hover td{background:var(--priS)}
+  .sd-moi-tag{display:inline-block;margin-left:7px;background:var(--pri);color:#fff;font-size:9.5px;font-weight:700;
+       padding:1px 6px;border-radius:6px;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle}
+  .sd-nofile{color:var(--am);font-size:11px;font-weight:600}
+  .sd-hasfile{color:var(--mut);font-size:11px}
+  .sd-mut{color:var(--mut)}
+
+  .sd-note{background:#fff;border:1px dashed var(--bdS);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.7}
+  .sd-note h3{margin:0 0 8px;font-size:13px;font-weight:700;color:var(--tx2)}
+  .sd-note ol{margin:0 0 6px;padding-left:20px}
+  .sd-note li{margin-bottom:3px}
+  .sd-note .sd-key{background:var(--gnB);color:var(--gn);font-weight:600;padding:0 5px;border-radius:4px}
+  .sd-note .sd-warn{color:var(--am);font-weight:600}
+</style>
+</head>
+<body>
+<div class="sd-wrap">
+
+  <div class="sd-banner">
+    <b>MẪU DUYỆT MẮT — không phải app thật.</b> Mô phỏng màn <b>Sổ đơn hàng ▸ Danh sách</b> của app Sale sau khi
+    áp 3 quyết định D-25 việc 2 (CEO đã gật: Q1 mọi thương hiệu + mọi trạng thái file · Q2 dòng "Đã lưu đơn" · Q3 không nhớ bộ lọc).
+    Nhãn ô, tên cột, bảng màu chép từ <code>public/togihome_sale.html</code>. Dữ liệu là GIẢ cắm cứng.
+  </div>
+
+  <!-- (3) Thông báo Đã lưu đơn — vị trí: ngay dưới nút Lưu của FORM LÊN ĐƠN -->
+  <div class="sd-card">
+    <h2>Form lên đơn <span class="sd-sub">(cuối form — nút Lưu &amp; xác nhận)</span></h2>
+    <div class="sd-formfoot">
+      <button class="sd-luu">Lưu đơn</button>
+      <div class="sd-daluu">✓ Đã lưu đơn <span class="sd-ma">T9-009</span> <span class="sd-fade">— tự tắt sau 5 giây</span></div>
+    </div>
+  </div>
+
+  <!-- Sổ đơn ▸ Danh sách -->
+  <div class="sd-card">
+    <h2>Danh sách <span class="sd-sub">6 đơn</span></h2>
+
+    <div class="sd-bar">
+      <input type="text" placeholder="Tìm mã đơn, khách, số điện thoại, tên món…" value="">
+      <span class="sd-def"><select><option>Mọi loại đơn</option><option>Lẻ · có file sẵn</option><option>Lẻ · thiết kế riêng</option><option>Combo · toàn món có sẵn</option><option>Combo · có món dựng mới</option><option>Full căn · dựng lại toàn bộ</option></select></span>
+      <select><option>Mọi tài khoản cọc</option></select>
+      <span class="sd-def"><select><option>Mọi thương hiệu</option><option>khanhconcept</option><option>hkdhuan</option></select></span>
+      <select><option>Mọi thợ</option></select>
+    </div>
+
+    <table class="sd-tbl">
+      <thead>
+        <tr><th>Mã đơn</th><th>Ngày</th><th>Khách</th><th>Điện thoại</th><th>Món</th><th>Loại đơn</th><th>Thương hiệu</th></tr>
+      </thead>
+      <tbody>
+        <tr class="sd-moi">
+          <td><span class="sd-madon">T9-009</span><span class="sd-moi-tag">vừa lưu</span></td>
+          <td class="sd-mut">07/09</td>
+          <td>Chị Lan</td>
+          <td class="sd-mut">0903 792 333</td>
+          <td>Tủ áo 3 buồng sâu 60</td>
+          <td><span class="sd-nofile">Lẻ · thiết kế riêng · chưa có file</span></td>
+          <td>khanhconcept</td>
+        </tr>
+        <tr>
+          <td><span class="sd-madon">T9-008</span></td>
+          <td class="sd-mut">07/09</td>
+          <td>Anh Dũng</td>
+          <td class="sd-mut">0912 004 118</td>
+          <td>Kệ tivi 180</td>
+          <td><span class="sd-hasfile">Lẻ · có file sẵn</span></td>
+          <td>hkdhuan</td>
+        </tr>
+        <tr>
+          <td><span class="sd-madon">T9-007</span></td>
+          <td class="sd-mut">06/09</td>
+          <td>Chị Hoa</td>
+          <td class="sd-mut">0988 771 250</td>
+          <td>Combo phòng ngủ</td>
+          <td><span class="sd-hasfile">Combo · toàn món có sẵn</span></td>
+          <td>khanhconcept</td>
+        </tr>
+        <tr>
+          <td><span class="sd-madon">T9-006</span></td>
+          <td class="sd-mut">06/09</td>
+          <td>Anh Nam</td>
+          <td class="sd-mut">0903 118 660</td>
+          <td>Tủ bếp chữ L</td>
+          <td><span class="sd-nofile">Combo · có món dựng mới · chưa có file</span></td>
+          <td>togihome</td>
+        </tr>
+        <tr>
+          <td><span class="sd-madon">T9-005</span></td>
+          <td class="sd-mut">05/09</td>
+          <td>Chị Mai</td>
+          <td class="sd-mut">0977 240 019</td>
+          <td>Full căn hộ 2PN</td>
+          <td><span class="sd-nofile">Full căn · dựng lại toàn bộ · chưa có file</span></td>
+          <td>hkdhuan</td>
+        </tr>
+        <tr>
+          <td><span class="sd-madon">T9-004</span></td>
+          <td class="sd-mut">05/09</td>
+          <td>Anh Sơn</td>
+          <td class="sd-mut">0908 550 771</td>
+          <td>Bàn học 160</td>
+          <td><span class="sd-hasfile">Lẻ · có file sẵn</span></td>
+          <td>khanhconcept</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- (4) Khối chú thích -->
+  <div class="sd-note">
+    <h3>3 mặc định mới (đối chiếu khi nhìn mẫu)</h3>
+    <ol>
+      <li>Bộ lọc <b>thương hiệu</b> mở ở <span class="sd-key">Mọi thương hiệu</span> (không khoá vào một hiệu).</li>
+      <li>Bộ lọc <b>loại đơn / trạng thái file</b> mở ở <span class="sd-key">Mọi loại đơn</span> (gồm cả đơn <b>chưa có file</b>).</li>
+      <li>Có dòng <span class="sd-key">✓ Đã lưu đơn T9-xxx</span> ngay dưới nút Lưu, tự tắt sau 5 giây.</li>
+    </ol>
+    <div class="sd-warn">Bộ lọc người dùng đổi tay KHÔNG nhớ sang lần sau — mỗi lần mở lại Sổ đơn đều về 3 mặc định trên (không lưu lựa chọn cũ).</div>
+    <div style="margin-top:8px;color:var(--mut);font-size:12px">
+      Nhờ mặc định "Mọi…", đơn <b>T9-009</b> (khanhconcept, chưa có file) nằm ngay dòng đầu — <b>không bị ẩn</b> như khi lọc khoá vào "có file sẵn" / một thương hiệu.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

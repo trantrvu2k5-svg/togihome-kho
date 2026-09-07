@@ -2046,3 +2046,22 @@ mã** (họ lỗi WP-15b: sinh mã từ độ dài/nội dung mảng). Bộ đ�
 được 1 request quét toàn bảng `don_hang?select=ma_don` mỗi cú Lưu (guard xoá phía client — RLS đã chặn xoá ở DB nên thừa).
 
 **Trạng thái:** hiệu lực.
+
+## QD-119 (07/09, D-25 việc 1, ops/test_overload_rpc.mjs) — MỘT HÀM RPC = MỘT CHỮ KÝ · HIỆU LỰC
+
+**Nội dung:** Một hàm RPC trong schema `kho` chỉ được có **MỘT chữ ký**. Đổi tham số thì **sửa tại chỗ** (`create or replace`
+cùng ký) hoặc **drop bản cũ TRONG CÙNG migration** — **cấm để hai bản song song**. Cổng thi hành: `ops/test_overload_rpc.mjs`
+quét `pg_proc` schema `kho`, **ĐỎ** khi có hàm >1 chữ ký ngoài **danh sách miễn trừ VIẾT TAY** (mỗi mục kèm BỘ ký đầy đủ +
+lý do; thêm ký thứ 3 vào hàm đã miễn trừ cũng đỏ). Danh sách viết tay, **KHÔNG sinh tự động** từ hiện trạng (sinh tự động =
+đóng băng đúng cái bệnh, họ QD-96 grant 63 cột).
+
+**Lý do:** PostgREST chọn overload theo PAYLOAD, nên **vá nhầm ký KHÔNG báo lỗi — app chạy body cũ, sai âm thầm**. Đã cắn BA
+lần: `atp()` (2 bản, db/086) · `neo_xuoi` (3 bản, WP-43) · `tao_don` (WP-109: vá ký 2-tham-số trong khi app gọi ký 3-tham-số →
+ambiguous → đo ra 0 đơn). Nguy nhất là hai ký chỉ khác nhau ở tham số **CÓ DEFAULT** (PostgREST dễ chọn nhầm khi payload thiếu).
+
+**Miễn trừ hiện tại (3 hàm, D-25 rà 07/09, KHÔNG có ký CHẾT để drop):** `kiem_quy_trinh` + `quy_trinh_cua_loi` (1-arg legacy
+đọc-mọi-phiên-bản còn test_061 dùng qua RAW INSERT không phiên bản, 2-arg phiên-bản-aware WP-08; **0 rpc caller nên chưa cắn**)
+· `tien_mon` (2-arg test-only `ndef=0` + 3-arg prod `ndef=0` → arg-count phân định, không phải cặp default). **PHÁT SINH:** dọn
+1-arg kiem/qtcl khi test_061 chuyển sang `qt_luu_buoc`; dọn 2-arg `tien_mon` khi test_042 chuyển sang ký 3-tham-số.
+
+**Trạng thái:** hiệu lực.
