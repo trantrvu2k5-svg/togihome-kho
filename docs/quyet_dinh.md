@@ -1982,3 +1982,14 @@ báo "đã lưu" khi chưa biết máy chủ trả gì rải khắp 6 app. Vá t
 trọn lỗi), `luuKy`+`luuTSV` (ghi 0/null đè tham số giá kỳ khi chưa nạp), `pc_ghi`+`pt_ghi` (bấm đúp = 2 phiếu tiền).
 Nghiệm thu Playwright bản local 5/5 ca xanh (bấm đúp=1 · lưu-kỳ-sớm chặn cả nút lẫn gọi thẳng · von_xoa lỗi hiện
 banner · RPC chưa về nút khoá rồi mở). 22 đường taichinh còn lại + kho + xưởng: L-107.3.
+
+## QD-114 (06/09, WP-110 + D-1) — THẺ CDN NẠP ĐỦ PEER DEPENDENCY HOẶC GỠ HẲN · HÀM/MÀN 0 CALLER THÌ XOÁ · HIỆU LỰC
+
+**Nội dung:** Thẻ CDN phải nạp ĐỦ peer dependency, hoặc gỡ hẳn — cấm để thẻ chết trong `<head>`. Hàm/màn 0 caller thì
+XOÁ, không giữ dead-code.
+
+**Lý do:** recharts 2.12.7 nạp qua cdnjs thiếu `prop-types` → `PropTypes.oneOfType` nổ ngay trong `<head>`, đứng nguyên
+nhiều tháng trong console app Sale và bị chat não hiểu nhầm là "harness không boot được Sale" → 41 đường ghi WP-108
+phải nghiệm thu TAY. Thẻ chết đó chỉ phục vụ `DoiSoat` — component 0 caller. Tiền lệ: khai tử `quet_giao_dich` (QD-45).
+
+**Trạng thái:** hiệu lực.

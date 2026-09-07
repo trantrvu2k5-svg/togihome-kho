@@ -210,7 +210,7 @@ async function taiCongNoNCC() {
   const box = $('dh_ncc'); if (!box) return
   const { data: g, error } = await sb.rpc('con_phai_tra', { p_ky: KY })
   if (error) { box.innerHTML = `<div class="dh-empty" style="color:#C8202E">Lỗi: ${escH(error.message)}</div>`; return }
-  const ds = g.ds || []
+  const ds = (g && g.ds) || []
   if (!ds.length) { box.innerHTML = '<div class="dh-empty">Chưa có công nợ phải trả NCC.</div>'; return }
   box.innerHTML = `<table class="tc-cnt-tbl"><thead><tr><th class="l">Nhà cung cấp</th><th>Σ hoá đơn</th><th>Σ đã trả</th><th>Còn phải trả</th><th>Quá hạn</th><th class="l">HĐ gần nhất</th><th></th></tr></thead><tbody>`
     + ds.map((x, i) => {
@@ -355,6 +355,7 @@ async function taiPL() {
   const body = $('pl_body')
   const { data: pl, error } = await sb.rpc('pl_ky', { p_ky: KY })
   if (error) { body.innerHTML = `<tr><td class="pl-lbl" colspan="11" style="color:#C8202E">${escH(error.message)}</td></tr>`; $('pl_canhbao').style.display = 'none'; $('pl_donlist').style.display = 'none'; return }
+  if (!pl || !pl.dong) { body.innerHTML = `<tr><td class="pl-lbl ky-rong" colspan="11">Kỳ này chưa có số liệu lãi/lỗ — chưa có đơn giao trong kỳ.</td></tr>`; $('pl_canhbao').style.display = 'none'; $('pl_donlist').style.display = 'none'; return }   /* [WP-110 D-1] kỳ rỗng: BÁO chưa có số, KHÔNG lấy 0 làm mặc định */
   const D = pl.dong, vat = Number(pl.vat)
   const showKhac = Number(D.doanh_thu_thuan.khac || 0) !== 0
   document.querySelectorAll('#tc .pl-colkhac').forEach(e => e.style.display = showKhac ? '' : 'none')
@@ -523,12 +524,13 @@ async function taiCM() {
   const body = $('cmd_body'), foot = $('cmd_foot'), pg = $('cmd_pager')
   const { data: g, error } = await sb.rpc('cm_don_ky', { p_ky: KY, p_trang: CM_TRANG, p_sap: CM_SAP })
   if (error) { body.innerHTML = `<tr><td class="ten" colspan="9" style="color:#C8202E">${escH(error.message)}</td></tr>`; foot.innerHTML = ''; pg.innerHTML = ''; $('cmd_batbien').textContent = ''; $('cmd_tongcm').textContent = '—'; $('cmd_cmtb').textContent = '—'; $('cmd_sodon').textContent = '—'; return }
+  if (!g || !g.tong) { body.innerHTML = `<tr><td class="ten ky-rong" colspan="9">Kỳ này chưa có đơn để tính chênh lợi nhuận.</td></tr>`; foot.innerHTML = ''; pg.innerHTML = ''; $('cmd_batbien').textContent = ''; $('cmd_tongcm').textContent = '—'; $('cmd_cmtb').textContent = '—'; $('cmd_sodon').textContent = '—'; return }   /* [WP-110 D-1] kỳ rỗng */
   CM_DATA = g
   const t = g.tong, hhPct = (Number(g.hh) * 100).toFixed(1).replace(/\.0$/, '').replace('.', ',')
   $('cmd_tongcm').textContent = fmt(t.cm); $('cmd_tongcm').classList.toggle('cmd-am', Number(t.cm) < 0)
   $('cmd_cmtb').textContent = cmPct(t.cm_pct_tb)
   $('cmd_sodon').textContent = t.so_don + (t.so_thieu > 0 ? ' · ' + t.so_thieu + ' chưa trọn' : '')
-  const ds = g.ds || []
+  const ds = (g && g.ds) || []
   if (!ds.length) {
     body.innerHTML = '<tr><td colspan="9"><div class="cmd-trong"><b>Kỳ này chưa có đơn đã giao</b>Đơn vào trạng thái ĐÃ GIAO trong kỳ mới xuất hiện ở đây.</div></td></tr>'
     foot.innerHTML = ''; pg.innerHTML = ''; $('cmd_batbien').textContent = ''; return
@@ -855,6 +857,7 @@ async function taiCacLuong() {
   const box = $('cl_root'); if (!box) return
   const { data: j, error } = await sb.rpc('cac_theo_luong_loai', { p_ky: KY })
   if (error) { box.innerHTML = `<div class="hint" style="padding:20px;color:#C8202E">Lỗi tải luồng/chủ đề: ${escH(error.message)}</div>`; return }
+  if (!j || !j.chat_luong) { box.innerHTML = `<div class="hint ky-rong" style="padding:20px">Kỳ này chưa có dữ liệu luồng/chủ đề.</div>`; return }   /* [WP-110 D-1] kỳ rỗng */
   const c = j.chat_luong, tong = c.tong || 0, keo = j.bo_keo || {}
   const pct = n => tong > 0 ? (n / tong * 100) : 0
   const kbPct = pct(c.khong_biet)
@@ -966,6 +969,12 @@ async function taiDongTien() {
   ;['pt_ngay', 'cg_ngay', 'ch_ngay', 'vn_ngay', 'pc_ngay'].forEach(id => { const e = $(id); if (e && !e.value) e.value = hnay })
   const { data: g, error } = await sb.rpc('dong_tien_ky', { p_ky: KY })
   if (error) { $('dt_thu_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
+  if (!g || !g.thu) {   /* [WP-110 D-1] kỳ rỗng: BÁO chưa có số + XOÁ số cũ (đổi tab giữ DOM), KHÔNG lấy 0 làm mặc định */
+    $('dt_thu_body').innerHTML = `<tr><td class="dt-l ky-rong" colspan="3">Kỳ này chưa có số liệu dòng tiền — chưa có đơn/phiếu trong kỳ.</td></tr>`;
+    ['dt_thu', 'dt_chi', 'dt_rong', 'dt_ncvc'].forEach(id => { const e = $(id); if (e) e.textContent = '—'; });
+    ['dt_thu_foot', 'dt_thu_cb', 'dt_chi_body', 'dt_chi_foot', 'dt_vc_body', 'dt_vc_hoan', 'dt_von_body', 'dt_von_foot', 'dt_quy', 'dt_quy_note'].forEach(id => { const e = $(id); if (e) e.innerHTML = ''; });
+    DT_TRANG = 1; await taiConPhaiThu(); return;
+  }
   const n = (x) => Number(x) || 0
   await taiPcNcc(); await taiPhieuChi()   // WP-22: nạp select NCC (1 lần) + sổ phiếu chi + PC_CNT.n (dòng phụ CHI)
   // tóm tắt
@@ -1033,6 +1042,7 @@ async function taiDongTien() {
 async function taiConPhaiThu() {
   const { data: g, error } = await sb.rpc('con_phai_thu', { p_trang: DT_TRANG })
   if (error) { $('dt_no_body').innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; return }
+  if (!g || !g.bac) { $('dt_no_body').innerHTML = `<tr><td class="dt-l ky-rong">Kỳ này chưa có công nợ phải thu.</td></tr>`; const tu = $('dt_no_tuoi'); if (tu) tu.innerHTML = ''; const td = $('dt_no_tieude'); if (td) td.textContent = 'Còn phải thu (khách nợ thật)'; DT_SOTRANG = 1; return }   /* [WP-110 D-1] kỳ rỗng */
   DT_SOTRANG = g.so_trang
   $('dt_no_tieude').textContent = `Còn phải thu (khách nợ thật) — ${fmt(g.tong)} đ (${g.so_don} đơn)`
   const b = g.bac, w = x => Math.max(Number(x.tien) || 0, 1)
@@ -1070,7 +1080,7 @@ async function taiPhieuChi() {   // sổ pc_ds theo kỳ + đếm cho dòng ph�
   const { data: g, error } = await sb.rpc('pc_ds', { p_ky: KY })
   const body = $('pc_body'); if (!body) return
   if (error) { body.innerHTML = `<tr><td class="dt-l" style="color:#C8202E">Lỗi: ${escH(error.message)}</td></tr>`; PC_CNT.n = 0; return }
-  const ds = g.ds || []; PC_CNT.n = ds.length
+  const ds = (g && g.ds) || []; PC_CNT.n = ds.length
   body.innerHTML = ds.length ? ds.map(x => `<tr><td class="dt-l">${dmy(x.ngay_chi)}</td><td class="dt-l">${escH(x.ncc)}</td>`
     + `<td class="dt-l">${x.so_hd ? escH(x.so_hd) : '<span style="color:var(--mut)">— trả trước —</span>'}</td>`
     + `<td>${fmt(x.so_tien)}</td><td>${HT_TEN[x.hinh_thuc] || x.hinh_thuc}</td><td class="dt-l">${escH(x.ghi_chu || '')}</td>`
@@ -1161,6 +1171,7 @@ async function taiNhanXet() {
   const box = $('nx_list'); if (!box) return
   const { data: g, error } = await sb.rpc('nhan_xet_ky', { p_ky: KY })
   if (error) { box.innerHTML = `<div class="hint" style="color:#C8202E">Lỗi: ${escH(error.message)}</div>`; return }
+  if (!g || !g.dem) { box.innerHTML = `<div class="hint ky-rong">Kỳ này chưa có nhận xét.</div>`; ['nx_canh', 'nx_soi', 'nx_im'].forEach(id => { const e = $(id); if (e) e.textContent = '—'; }); return }   /* [WP-110 D-1] kỳ rỗng */
   $('nx_canh').textContent = g.dem.canh_bao; $('nx_soi').textContent = g.dem.dang_soi; $('nx_im').textContent = g.dem.im_lang
   const items = g.nhan_xet || []
   box.innerHTML = items.length ? items.map(x => {
