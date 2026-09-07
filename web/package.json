@@ -5,19 +5,30 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5180",
+    "cong:raw": "python3 ops/wp111_trich_raw.py",
+    "prebuild": "python3 ops/wp111_trich_raw.py src/main.js",
     "build": "vite build",
+    "prebuild:kho": "python3 ops/wp111_trich_raw.py src/main.js",
     "build:kho": "vite build",
+    "prebuild:sale": "python3 ops/wp111_trich_raw.py src/sale.js",
     "build:sale": "vite build --config vite.config.sale.js",
+    "prebuild:taichinh": "python3 ops/wp111_trich_raw.py src/taichinh.js",
     "build:taichinh": "vite build --config vite.config.taichinh.js",
+    "prebuild:xuong": "python3 ops/wp111_trich_raw.py src/xuong.js",
     "build:xuong": "vite build --config vite.config.xuong.js",
     "preview": "vite preview",
+    "prebuild:thietke": "python3 ops/wp111_trich_raw.py src/thietke.js",
     "build:thietke": "vite build --config vite.config.thietke.js",
+    "prebuild:sanpham": "python3 ops/wp111_trich_raw.py src/sanpham.js",
     "build:sanpham": "vite build --config vite.config.sanpham.js",
+    "prebuild:ads": "python3 ops/wp111_trich_raw.py src/ads.js",
     "build:ads": "vite build --config vite.config.ads.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "vite": "^5.4.8"

@@ -45,6 +45,12 @@ trong báo cáo là đã sửa gì và khôi phục chưa**.
 - Số/giờ/tồn/giá trong ảnh là **con số THẬT** — sai một con số là sai cả bản kiểm mắt. Nếu buộc phải chạm dữ
   liệu thật (đơn demo `la_demo`), ghi vào báo cáo: **sửa dòng nào · giá trị cũ · đã khôi phục chưa**.
 
+**Luật bằng chứng CDP (07/09):** bằng chứng về console và network phải lấy từ **CDP với profile SẠCH (không
+tiện ích)**. Ảnh panel DevTools chỉ để tham khảo — nó chỉ thấy khung đang cuộn, và tiện ích của máy người dùng
+trộn vào. Vết WP-111: ảnh CEO chụp tay có 3 request + 6 dòng console là của Futoo/Pinterest/Fatkun, không phải
+của app. **Cấm bắt CEO chụp panel để nghiệm thu; dựng script tự đọc tự chụp** (`web/ops/wp111_bang_chung.py` là
+khuôn: Playwright `--disable-extensions`, CDP Network/Console, xuất txt + ảnh tổng).
+
 ## KỶ LUẬT MẬT KHẨU / ĐĂNG NHẬP — CẤM tự đặt lại mật khẩu
 
 **CẤM tự đặt lại mật khẩu bất kỳ tài khoản nào, kể cả tài khoản `.local` dùng thử.** Cần đăng nhập để chụp ảnh

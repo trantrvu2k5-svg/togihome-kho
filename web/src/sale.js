@@ -1,9 +1,15 @@
 // TRANG BỌC app lên đơn: nạp Supabase + đăng nhập + CẤP window.storage (nối Supabase) RỒI MỚI nạp mã file sale.
 //   Thứ tự sống còn: window.storage được gán TRƯỚC khi mã file sale chạy -> file dùng của ta (dòng 48 `if(!window.storage)`).
 //   CẤM lùi localStorage. Lỗi mạng/quyền -> hiện banner đỏ, KHÔNG nuốt.
+import React from 'react'                          // WP-111: React vào BUNDLE (thôi CDN cdnjs — cdnjs hỏng là cửa hàng chết)
+import * as ReactDOMClient from 'react-dom/client'  // 18.2.0, có createRoot
 import { createClient } from '@supabase/supabase-js'
 import SALE_HTML from '../public/togihome_sale.html?raw'   // WP-04: mã app Sale inline vào bundle (hash) thay vì fetch runtime
 import { ngayNghiepVu, kyNghiepVu, congNgay } from './ngay.js'   // WP-14b: MỘT nguồn sinh ngày (ghim TZ VN), togihome_sale.html gọi window.*
+
+// WP-111: cấp React/ReactDOM lên global TRƯỚC khi napApp() chèn mã Sale (mã Sale đọc window.React/window.ReactDOM ở phạm vi toàn cục)
+window.React = React
+window.ReactDOM = ReactDOMClient
 
 const URL = import.meta.env.VITE_SUPABASE_URL
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -481,7 +487,10 @@ async function napApp() {
   // WP-04: INLINE togihome_sale.html vào bundle qua ?raw (như tab Hướng dẫn Tài chính) — KHÔNG fetch runtime.
   //   Lý do: file tĩnh fetch lúc chạy bị CDN cache/minify → sửa UI KHÔNG tới prod. Đi qua bundle có HASH thì chắc.
   const html = SALE_HTML
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])   // 2 script inline (không src)
+  // WP-111 D-2: trích bằng PARSER thật, KHÔNG regex — comment chứa chữ mở-thẻ-script làm matchAll nuốt nhầm khối → chèn mã rác (QD-116).
+  //   DOMParser KHÔNG tự chạy script → vẫn phải createElement('script')+appendChild để mã chạy; giữ NGUYÊN thứ tự khối, bỏ script có src.
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const scripts = [...doc.querySelectorAll('script:not([src])')].map(s => s.textContent)
   for (const code of scripts) { const s = document.createElement('script'); s.textContent = code; document.body.appendChild(s) }
 }
 

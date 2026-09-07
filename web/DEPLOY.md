@@ -18,6 +18,9 @@ node web/ops/cong_bi_mat.mjs <thư mục>
 Quét regex: `sb_secret_<≥8 ký tự>` · `eyJ<JWT>` · `service_role` · `SERVICE_ROLE` · `DB_PASS` · `DB_USER` · `DB_HOST`.
 Khớp bất kỳ → in `CỔNG CẮN: <mã> tại <file>` + thoát mã ≠0. Sạch → `CỔNG SẠCH`, thoát 0.
 
+## Cổng `?raw` — YÊU CẦU PYTHON 3 (WP-111 D-3)
+`prebuild:<app>` gọi `python3 ops/wp111_trich_raw.py` — máy build (kể cả CI / Cloudflare) **PHẢI có Python 3 trong PATH, thiếu là gãy build**.
+
 ## Deploy lại (chạy trong thư mục `web/`)
 ```
 rm -rf dist && npx wrangler@latest ... # (dùng vite)

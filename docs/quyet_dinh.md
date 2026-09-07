@@ -1993,3 +1993,29 @@ nhiều tháng trong console app Sale và bị chat não hiểu nhầm là "harn
 phải nghiệm thu TAY. Thẻ chết đó chỉ phục vụ `DoiSoat` — component 0 caller. Tiền lệ: khai tử `quet_giao_dich` (QD-45).
 
 **Trạng thái:** hiệu lực.
+
+## QD-115 (07/09, WP-111) — THƯ VIỆN CHẠY ĐƯỢC APP PHẢI NẰM TRONG LOCKFILE · CẤM NẠP TỪ CDN NGOÀI · HIỆU LỰC
+
+**Nội dung:** Mọi thư viện mà app KHÔNG CHẠY ĐƯỢC nếu thiếu (React, react-dom…) **phải nằm trong `package.json` + lockfile**,
+vào bundle có hash. **Cấm nạp từ CDN ngoài.** CDN ngoài chỉ được dùng cho **tài nguyên KHÔNG chí mạng** (vd font — hỏng chỉ
+FOUT, app vẫn sống). Peer-dependency của thứ nạp CDN phải **đủ, hoặc gỡ hẳn** (nối QD-114).
+
+**Lý do:** app Sale (cửa hàng lên đơn) nạp react + react-dom từ cdnjs — **cdnjs hỏng là app chết**, không rollback được vì
+không có bản trong repo. WP-111 đưa React vào bundle (18.2.0 khớp bản CDN cũ); nghiệm thu **chặn mạng cdnjs trên prod app VẪN
+BOOT** (0 request cdnjs). Font Google còn CDN thì chấp nhận (xếp WP-91) vì không chí mạng.
+
+**Trạng thái:** hiệu lực.
+
+## QD-116 (07/09, WP-111 D-2, src/sale.js napApp) — TRÍCH MÃ ?raw BẰNG PARSER, KHÔNG REGEX · `</script>` INLINE LÀ LỖI CHẶN BUILD · HIỆU LỰC
+
+**Nội dung:** Mã Sale nạp qua `?raw` phải trích bằng **PARSER thật** (`new DOMParser().querySelectorAll('script:not([src])')`),
+**KHÔNG dùng regex** `matchAll(/<script>…<\/script>/)`. Có **cổng canh trước build** (`ops/wp111_trich_raw.py`): HTML comment
+chứa `<script`/`</script>` → **ĐỎ, chặn build** (in file:dòng, không nuốt im, không tự sửa hộ). DOMParser không tự chạy script
+nên vẫn giữ cơ chế `createElement('script')+appendChild` để mã chạy.
+
+**Lý do:** hai bệnh KHÁC nhau: (a) comment chứa thẻ MỞ `<script>` — trình duyệt không gãy nhưng regex `matchAll` **mở nhầm
+khối → chèn mã rác** (đã suýt chết prod ở WP-111 khi comment tôi viết chứa chữ `<script>`); PARSER bỏ qua comment nên trị được.
+(b) comment/nội dung chứa thẻ ĐÓNG `</script>` — **gãy HTML thật**, mọi parser đều cắt, KHÔNG vá được → phải **báo đỏ trước
+build**. Vá (a) bằng parser, canh (b) bằng cổng. Test hai vế `ops/test_wp111_trich.py` (regex cũ ĐỎ được, parser mới xanh).
+
+**Trạng thái:** hiệu lực.

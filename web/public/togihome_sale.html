@@ -7,8 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<!-- WP-111: gỡ 2 thẻ CDN react/react-dom (thẻ CHẾT — file này vào bundle qua ?raw, chỉ trích khối mã inline không-src). React nay do src/sale.js cấp lên window. -->
 <style>html,body,#root{height:100%;margin:0}
 #boot{font-family:system-ui;padding:40px;color:#6B7488}
 #boot b{color:#C8202E}</style>
