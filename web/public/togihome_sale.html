@@ -2692,6 +2692,12 @@ function App() {
       setLoiLuu({ k: k, msg: (e && e.message) ? e.message : String(e) });
     }).finally(() => setDangLuu(p => ({ ...p, [k]: Math.max(0, (p[k] || 1) - 1) })));   /* [WP-108] -1 khi máy chủ trả về (dù ok/lỗi) */
   };
+  /* [WP-109 D-1] Cầu nhận MÃ ĐƠN do DB cấp: sale.js (sau tao_don) gọi window.__capMaDon(id, ma) → vá mã THẬT vào đơn lạc quan
+     để HIỆN LÊN MÀN. KHÔNG phải up() (không ghi lại DB, không rollback) — chỉ đồng bộ hiển thị. */
+  useEffect(() => {
+    window.__capMaDon = (id, ma) => setDb(p => p ? ({ ...p, don: (p.don || []).map(o => o.id === id ? { ...o, ma } : o) }) : p);
+    return () => { try { delete window.__capMaDon; } catch (e) { window.__capMaDon = undefined; } };
+  }, []);
   const user = (db?.users || []).find(u => u.id === uid2 && u.on) || null;
   const can = c => qOf(user, c);
   const out = () => {
@@ -5141,12 +5147,7 @@ function SoDon({
     const id = don?.id || uid();
     const d = {
       id,
-      ma: don?.ma || (() => {   /* [WP-15b] mã đơn = MAX seq CÙNG THÁNG + 1 (KHÔNG dùng don.length — sinh trùng mã seed) */
-        const tsPre = "T" + +f.ngay.slice(5, 7) + "-";
-        const tsSeq = (db.don || []).map(o => o.ma).filter(m => typeof m === "string" && m.startsWith(tsPre))
-          .map(m => parseInt(m.slice(tsPre.length), 10)).filter(n => !isNaN(n));
-        return tsPre + String((tsSeq.length ? Math.max(...tsSeq) : 0) + 1).padStart(3, "0");
-      })(),
+      ma: don?.ma || "",   /* [WP-109 D-1] ĐƠN MỚI: client KHÔNG sinh mã — DB cấp qua cap_so_phieu('DON') (đếm atomic, hết trùng khi 2 sale lưu cùng lúc). sale.js nhận mã DB trả về rồi window.__capMaDon đẩy về HIỆN LÊN MÀN. Đơn CŨ giữ nguyên mã DB đã có. */
       ngay: f.ngay,
       khachId: kh.id,
       brand: f.brand,

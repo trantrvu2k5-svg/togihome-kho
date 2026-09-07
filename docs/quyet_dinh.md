@@ -2019,3 +2019,30 @@ khối → chèn mã rác** (đã suýt chết prod ở WP-111 khi comment tôi 
 build**. Vá (a) bằng parser, canh (b) bằng cổng. Test hai vế `ops/test_wp111_trich.py` (regex cũ ĐỎ được, parser mới xanh).
 
 **Trạng thái:** hiệu lực.
+
+## QD-117 (07/09, WP-109 L-3, src/sale.js `_gopRefresh`) — GỘP REFRESH NỀN KHOÁ THEO TRUY VẤN, KHÔNG THEO TÊN HÀM · HIỆU LỰC
+
+**Nội dung:** Cửa sổ gộp 4s cho refresh nền (`sale_bao_gia_ds`, `sale_ban_cho_gui`) khoá theo **KEY = tên hàm + THAM SỐ**
+(`baoGiaDs:1000` ≠ `baoGiaDs:2000`), KHÔNG khoá theo mỗi tên hàm. Refresh của **cú lưu** (`baoGiaDs(1000)`) và refresh do
+**điều hướng người dùng** (`baoGiaDs(2000)` ở màn Nhóm) là hai key khác → nav ĐI THẲNG, không bị cú lưu nuốt.
+
+**Lý do:** khoá theo tên hàm gộp nhầm hai lời gọi khác giới hạn → bấm sang màn Nhóm trong 4s sau khi Lưu thì màn Nhóm nhận
+bản chụp của tập 1000 (nuốt), dữ liệu sai. Nghiệm thu bằng cú **BẤM THẬT** (ca C-am, làm ấm mount rồi đo mount thứ hai):
+`baoGiaDs(2000)` bắn ~1,87s sau nav, trong 4s kể từ Lưu, là request RIÊNG (không bị nuốt) — 2/2 lần ĐẠT.
+
+**Trạng thái:** hiệu lực.
+
+## QD-118 (07/09, WP-109 D-1, db/235+236 · cap_so_phieu · src/sale.js) — MÃ ĐƠN CẤP Ở TẦNG DB, CLIENT KHÔNG SINH/KHÔNG GỬI · HIỆU LỰC
+
+**Nội dung:** Mã đơn (`don_hang.ma_don`, `T{tháng}-{NNN}`, reset theo THÁNG) do **DB cấp** qua **`cap_so_phieu('DON')`**
+(bộ đếm `chuoi_so` + `UPDATE..RETURNING` — ATOMIC, khoá dòng theo `nam=YYYYMM`). Client (`sale.js`) **KHÔNG sinh, KHÔNG gửi**
+`ma_don`; gọi `tao_don(p_ma_don=null)`, **lấy mã DB trả về** rồi đẩy về màn qua `window.__capMaDon` (bridge, không đụng `up()`).
+`tao_don` (ký 3-tham-số, MỘT bản) **TỪ CHỐI** `p_ma_don` khác NULL (db/236). Cấp số dùng lại `cap_so_phieu` — **MỞ RỘNG** nó
+(thêm nhánh 'DON'), CẤM đẻ hàm cấp số thứ hai (tinh thần QD-02/03). Tháng lấy giờ VN (QD-99).
+
+**Lý do:** client sinh `ma_don = MAX(seq cùng tháng)+1` từ `db.don` LOCAL → **hai sale lưu cùng lúc cùng thấy seq cũ → TRÙNG
+mã** (họ lỗi WP-15b: sinh mã từ độ dài/nội dung mảng). Bộ đếm DB atomic cho hai phiên đồng thời seq KHÁC nhau (test cắn hai vế
+`ops/wp109_ma_don_dong_thoi.mjs`: cap_so_phieu → T9-001/T9-002 riêng; max+1 cùng bài → cùng T9-001 → UNIQUE). Đồng thời bỏ
+được 1 request quét toàn bảng `don_hang?select=ma_don` mỗi cú Lưu (guard xoá phía client — RLS đã chặn xoá ở DB nên thừa).
+
+**Trạng thái:** hiệu lực.

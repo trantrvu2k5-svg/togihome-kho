@@ -130,10 +130,16 @@ const themVat = (n, vat) => n == null ? n : Math.round(Number(n) * (1 + vat / 10
 const boVat   = (n, vat) => n == null ? n : Math.round(Number(n) / (1 + vat / 100))   // CÓ VAT -> pre-VAT
 
 // ── resolve ma_don + id(uuid) ──
+// [WP-109 L-2] cache ma_don -> id, SỐNG TRONG MỘT CÚ LƯU (xoá đầu mỗi _set('c2:don')). Biến thường (không React/useState).
+let _idLuu = {}
 async function donIdCuaMa(ma) {
+  if (!ma) return null                              // [WP-109] bỏ truy vấn ma rỗng (appId/uid chưa có mã) — trước đây dò null lãng phí
+  if (_idLuu[ma] != null) return _idLuu[ma]         // [WP-109] dùng lại — 9x dò cùng một mã còn 1
   const { data, error } = await sb.from('don_hang').select('id').eq('ma_don', ma).maybeSingle()
   if (error) throw error
-  return data ? data.id : null
+  const id = data ? data.id : null
+  if (id) _idLuu[ma] = id                           // dò lần đầu thì nhớ luôn
+  return id
 }
 function maCuaAppId(appId) { return donKeyMap[appId] || appId }   // sau reload appId=ma nên fallback chính nó
 
@@ -216,6 +222,7 @@ async function _get(k) {
 async function _set(k, jsonStr) {
   const v = JSON.parse(jsonStr)
   if (k === 'c2:don') {
+    _idLuu = {}   // [WP-109 L-2] mở đầu MỘT cú lưu: xoá cache id (phạm vi sống trong cú lưu này, không qua đơn/không toàn app)
     const vat = await getVat()
     donKeyMap = Object.fromEntries((v || []).map(d => [d.id, d.ma]))
     const { data: kd } = await sb.from('khach').select('*')
@@ -241,23 +248,18 @@ async function _set(k, jsonStr) {
       if (!old) {
         // ═══ [WP-07 L-133] ĐƠN MỚI -> RPC tao_don. Server ÉP trang_thai='bao_gia'; "+ Lên đơn" (đích moi_len_don)
         //   -> p_chot=true -> chot_don CÙNG transaction. KHÔNG gửi trang_thai (như đơn cũ WP-06 dòng 237).
-        const r = rowCua(d); delete r.trang_thai   // trang_thai do SERVER ép, không phải client gửi
+        // [WP-109 D-1] Mã đơn cấp ở TẦNG DB: KHÔNG gửi ma_don → tao_don gọi cap_so_phieu('DON') (bộ đếm atomic).
+        const r = rowCua(d); delete r.trang_thai; r.ma_don = null   // client hết sinh/gửi mã (client trang_thai vẫn do SERVER ép)
         // [WP-70 L-04] hội thoại nguồn đã chọn → p_lead_id; server tao_don tự đặt nguon_khach theo lead (đè p_don.nguon_khach)
-        // [WP-15b] 2 sale lên đơn cùng lúc có thể trùng mã dù client đã +1 → tự tăng seq, thử lại IM LẶNG ≤3 lần (log console).
-        let tr = null, error = null
-        for (let tsThu = 0; tsThu < 3; tsThu++) {
-          ({ data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don', p_lead_id: d.leadId || null }))
-          if (!error) break
-          const tsTrung = /đã tồn tại — không tạo trùng/.test(error.message || '')
-          const m = String(r.ma_don || '').match(/^(T\d+-)(\d+)$/)
-          if (!tsTrung || !m) break   // lỗi khác (giá=0, thiếu nguồn…) → không thử lại, báo đỏ nguyên văn
-          const tsCu = r.ma_don
-          r.ma_don = m[1] + String(+m[2] + 1).padStart(m[2].length, '0'); d.ma = r.ma_don   // đồng bộ mã mới vào đơn
-          console.warn('[sale WP-15b] tao_don trùng mã ' + tsCu + ' → thử lại ' + r.ma_don + ' (lần ' + (tsThu + 1) + ')')
-        }
+        // [WP-109 D-1] Mã do DB cấp (đếm atomic) → 2 sale lưu cùng lúc KHÔNG còn trùng → BỎ vòng thử-lại WP-15b (không còn mã client để +1).
+        const { data: tr, error } = await sb.rpc('tao_don', { p_don: r, p_chot: denDB === 'moi_len_don', p_lead_id: d.leadId || null })
         if (error) throw new Error(error.message)   // RAISE nguyên văn -> hiện đỏ tại chỗ (không nuốt)
         const srv = Array.isArray(tr) ? tr[0] : tr
         if (srv && srv.trang_thai) d.tt = toTT(srv.trang_thai)   // vẽ lại theo trạng thái SERVER TRẢ VỀ, không đoán
+        // [WP-109 D-1] MÃ THẬT do DB trả về: đồng bộ vào đơn (snapshot) + donKeyMap (món/nhật ký tra mã này) + _idLuu (khỏi dò id) +
+        //   đẩy về React qua window.__capMaDon để HIỆN LÊN MÀN (không đụng up(); bridge vắng thì món/nhật ký vẫn đúng nhờ donKeyMap).
+        if (srv && srv.ma_don) { d.ma = srv.ma_don; donKeyMap[d.id] = srv.ma_don; if (window.__capMaDon) window.__capMaDon(d.id, srv.ma_don) }
+        if (srv && srv.id) _idLuu[srv.ma_don || maCuaAppId(d.id)] = srv.id
         continue
       }
       const tuDB = toDB(old.tt)
@@ -283,12 +285,8 @@ async function _set(k, jsonStr) {
       if (error) throw new Error(error.message)   // RAISE nguyên văn -> banner đỏ (không nuốt)
     }
     mem['__donSnap'] = Object.fromEntries((v || []).map(d => [d.id, JSON.stringify(d)]))   // cập nhật snapshot [WP-15b] khoá theo id
-    // KHÔNG xoá đơn (sale/tk_ban_hang không có quyền). Nếu danh sách app thiếu đơn đang có trong DB
-    //   -> đó là ý đồ XOÁ -> BÁO RÕ, không .delete() im lặng. Muốn bỏ đơn thì chuyển trạng thái (huỷ/tạm ngưng).
-    const mas = new Set((v || []).map(d => d.ma))
-    const { data: hienCo, error: eList } = await sb.from('don_hang').select('ma_don'); if (eList) throw eList
-    const thieu = (hienCo || []).map(r => r.ma_don).filter(ma => !mas.has(ma))
-    if (thieu.length) throw new Error('Không được phép xoá đơn hàng (' + thieu.join(', ') + ') — hãy chuyển trạng thái (huỷ/tạm ngưng) thay vì xoá.')
+    // [WP-109 D-1] BỎ quét toàn bảng don_hang?select=ma_don (mỗi cú Lưu 1 request O(toàn đơn)). Nó chỉ CẢNH BÁO
+    //   ý đồ xoá phía client — mà sale/tk_ban_hang KHÔNG có quyền .delete() (RLS chặn ở DB), nên guard client này thừa.
     return
   }
   if (k === 'c2:ct') {
@@ -384,6 +382,17 @@ window.storage = {
 
 // ══════════ RPC curated cho sale (bọc HẾT — cột trả về do RPC chọn, KHÔNG phụ thuộc RLS) ══════════
 //   Trả {data, error} thô để React tự xử. dong: app (ban_le…) -> DB (le…) qua DONG_W.
+// [WP-109 L-2/L-3] GỘP refresh nền theo TRUY VẤN (key = hàm + gioiHan), cửa sổ ngắn. Chỉ gộp refresh do CHÍNH cú lưu
+//   sinh ra: L-2580 (React) bắn baoGiaDs(1000) HAI lần (ngay + sau 3s) cho một db.don đổi → cùng key → còn 1.
+//   Refresh do NGƯỜI ĐIỀU HƯỚNG (mở màn Báo giá = baoGiaDs(2000), L-2058) là TRUY VẤN KHÁC → key khác → ĐI THẲNG,
+//   không bị nuốt (bịt lỗ L-3: cửa sổ theo thời-gian-thuần từng nuốt refresh của thao tác khác). 2 màn nền KHÔNG chứa
+//   đơn vừa lưu (đơn mới vào Sổ đơn qua up() lạc quan) nên dùng lại kết quả cùng-truy-vấn trong cửa sổ là an toàn.
+const _refCache = {}
+function _gopRefresh(key, fn, win = 4000) {
+  const c = _refCache[key]
+  if (c && Date.now() - c.t < win) return c.p
+  const p = fn(); _refCache[key] = { t: Date.now(), p }; return p
+}
 window.saleApi = {
   monTrangThai: maDon => sb.rpc('sale_mon_cua_don', { p_ma_don: maDon }),
   // [WP-75 L-2a] Đợt lịch thu ĐẾN HẠN (mốc đã đạt, chưa thu đủ) — {ok, ngay, dot:[...]}. Tiền TỪ DB.
@@ -397,9 +406,9 @@ window.saleApi = {
   // [WP-75 L-2b] đẩy/lùi mốc bàn giao. moc∈{chua_giao,da_giao_chua_lap,da_lap_xong}. Lùi cần lý do (server gác).
   datMocBanGiao: async (donId, moc, lyDo = null) => { const { data, error } = await sb.rpc('dat_moc_ban_giao', { p_don_id: donId, p_moc: moc, p_ly_do: lyDo }); if (error) throw error; return data },
   // chuông "bản chờ gửi" (db/087) — trả {tong, ds} cùng một điều kiện; badge=tong, danh sách=ds (≤ gioi_han)
-  banChoGui: async (gioiHan = 50) => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data },
+  banChoGui: (gioiHan = 50) => _gopRefresh('banChoGui:' + gioiHan, async () => { const { data, error } = await sb.rpc('sale_ban_cho_gui', { p_gioi_han: gioiHan }); if (error) throw error; return data }),
   // màn báo giá (db/091) — {tong, ds:[đơn báo giá + gd]}. App tự tính ô/lọc như v5. Sale KHÔNG thấy giá vốn.
-  baoGiaDs: async (gioiHan = 1000) => { const { data, error } = await sb.rpc('sale_bao_gia_ds', { p_gioi_han: gioiHan }); if (error) throw error; return data },
+  baoGiaDs: (gioiHan = 1000) => _gopRefresh('baoGiaDs:' + gioiHan, async () => { const { data, error } = await sb.rpc('sale_bao_gia_ds', { p_gioi_han: gioiHan }); if (error) throw error; return data }),
   // [WP-72] đếm 3 nhóm hạn (quá hạn / sắp hết hạn ≤3 ngày / còn hạn) + tiền, cho khối đầu màn. Chỉ đơn thật (loại demo).
   baoGiaHanDem: async () => { const { data, error } = await sb.rpc('sale_bao_gia_han_dem'); if (error) throw error; return data },
   // [WP-72] Đánh dấu THUA (cổng bản mới bắt lý do trong 5 giá trị) — cửa "Đánh dấu thua" gọi thẳng, không qua batch upsert.
