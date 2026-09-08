@@ -6,6 +6,7 @@ import pg from 'pg'
 import { readFileSync } from 'node:fs'
 import { docConfig } from './conn.mjs'
 import { keoAdsLuot, keoChiAdsMetaNhip, keoChiAdsMetaCoSo, keoThayDoiMeta, keoNenTangMeta } from './keo_chi_ads_meta.mjs'
+import { keoMauAdsMeta } from './keo_mau_ads_meta.mjs'   // [WP-103] E: kéo mẫu creative
 
 function docToken() {
   const env = readFileSync(new URL('../../.env', import.meta.url), 'utf8')   // = togihome-kho/.env (ROOT)
@@ -26,7 +27,9 @@ try {
   else if (only === 'B') { console.log('── B cửa sổ 7 ngày + kéo bù ──'); await keoChiAdsMetaNhip(c, { token }) }
   else if (only === 'C') { console.log('── C sổ thay đổi 30 ngày ──'); await keoThayDoiMeta(c, { token }) }
   else if (only === 'D') { console.log('── D tách nền tảng 7 ngày ──'); await keoNenTangMeta(c, { token }) }
-  else { console.log('── B + C + D (một lượt cron) ──'); const r = await keoAdsLuot(c, { token }); loi = r.loi }
+  else if (only === 'E') { console.log('── E kéo MẪU creative ──'); await keoMauAdsMeta(c, { token }) }
+  else { console.log('── B + C + D + E (một lượt cron) ──'); const r = await keoAdsLuot(c, { token }); loi = r.loi
+    try { await keoMauAdsMeta(c, { token }) } catch (e) { loi.push({ viec: 'E_mau', loi: String(e && e.message || e) }) } }
 } catch (e) { loi.push({ viec: only || 'luot', loi: String(e && e.message || e) }) }
 finally { await c.end() }
 

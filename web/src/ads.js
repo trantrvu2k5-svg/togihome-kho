@@ -11,6 +11,7 @@ const TEN_VAI = { ads_user: 'Người chạy quảng cáo', ceo: 'CEO' }
 let USER = null, DL = null
 let PRESET = 7, TU = null, DEN = null
 let SORT = { col: 'chi', dir: 'desc' }, HIEN_AN = false, KHOI_AD_MO = false, MO = new Set(), MOC = new Set()
+let MAN = 'thuvien'   // [WP-107] màn đang xem (cột trái): thuvien|tongquan|ngay|nentang|chiendich|viec
 
 const $ = id => document.getElementById(id)
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -60,12 +61,19 @@ async function laySauDangNhap(user) {
 }
 function capApp() {
   $('cong').style.display = 'none'; $('boot').style.display = 'none'; $('app').style.display = 'block'
-  $('hdTen').textContent = USER.ten || TEN_VAI[USER.vai_tro]; $('hdVai').textContent = TEN_VAI[USER.vai_tro] || USER.vai_tro
+  // [WP-107] chân cột trái: vai (đậm) + phạm vi xem
+  $('hdTen').textContent = TEN_VAI[USER.vai_tro] || USER.vai_tro
+  $('hdVai').textContent = USER.vai_tro === 'ceo' ? 'Xem mọi tài khoản' : (USER.ten || '')
   $('btOut').onclick = async () => {
     try { await sb.auth.signOut() } catch (e) {}
     try { Object.keys(localStorage).filter(k => /^sb-|supabase/i.test(k)).forEach(k => localStorage.removeItem(k)) } catch (e) {}
     location.reload()
   }
+  // [WP-107] cột trái: bấm mục → đổi màn bên phải (bind MỘT lần, nav ngoài #noi)
+  document.querySelectorAll('.ads-muc').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.ads-muc').forEach(x => x.classList.remove('chon'))
+    b.classList.add('chon'); MAN = b.dataset.man; render()
+  })
   datPreset(7)
 }
 
@@ -81,7 +89,7 @@ function datPreset(n) {
 // ══════════ NẠP (nguồn số DUY NHẤT là RPC) ══════════
 async function nap() {
   $('noi').innerHTML = '<div class="trong">Đang tải…</div>'
-  const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt] = await Promise.all([
+  const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt, mau, mauTt] = await Promise.all([
     sb.rpc('ads_bang_ky', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN }),
@@ -93,7 +101,9 @@ async function nap() {
     sb.rpc('ads_tinh_trang_keo'),   // [WP-91] đèn ĐỘ PHỦ + trễ-giờ (RPC thứ 5). Hỏng/rỗng → dải xám, KHÔNG ẩn.
     sb.rpc('ads_suc_khoe_mau', { p_tu_ngay: TU, p_den_ngay: DEN }),   // [WP-100] sức khoẻ mẫu
     sb.rpc('ads_thay_doi_gan_day', { p_so_dong: 15 }),                // [WP-100] sổ thay đổi Meta
-    sb.rpc('chi_ads_nen_tang_tong', { p_tu_ngay: TU, p_den_ngay: DEN }) // [WP-100] tách FB/IG
+    sb.rpc('chi_ads_nen_tang_tong', { p_tu_ngay: TU, p_den_ngay: DEN }), // [WP-100] tách FB/IG
+    sb.rpc('ads_mau_ds'),         // [WP-103] thư viện mẫu (creative)
+    sb.rpc('ads_mau_tom_tat')     // [WP-103] tóm tắt: tổng mẫu · fanpage · chưa rõ page · tài khoản
   ])
   const loi = [bk, ss, vl].find(x => x.error)
   if (loi) { $('noi').innerHTML = '<div class="ads-loi">Lỗi tải dữ liệu: ' + esc(loi.error.message) + '</div>'; return }
@@ -104,34 +114,37 @@ async function nap() {
   const tyLeNgo = ngRow ? Number(ngRow.gia_tri) === 1 : false
   const okD = r => (r && r.error) ? null : (r && r.data)   // RPC lỗi/rỗng → null (khối tự hiện dải xám, KHÔNG ẩn)
   DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo,
-    ttk: okD(ttk), sk: okD(sk), std: okD(std), nt: okD(nt) }
+    ttk: okD(ttk), sk: okD(sk), std: okD(std), nt: okD(nt), mau: okD(mau), mauTt: okD(mauTt) }
   render()
 }
 
 // ══════════ RENDER (thứ tự v2b) ══════════
 function render() {
-  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk, sk, std, nt } = DL
-  let dong = (bk.dong || []).slice()
-  const anCount = dong.filter(d => d.co_an).length
-  if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
-  // sort theo cột số
-  const s = SORT
-  dong.sort((a, b) => { const va = a[s.col], vb = b[s.col]; const na = va == null ? -Infinity : Number(va), nb = vb == null ? -Infinity : Number(vb); return s.dir === 'desc' ? nb - na : na - nb })
-
+  const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk, sk, std, nt, mau, mauTt } = DL
+  // [WP-107] cột trái đổi màn: chỉ dựng nội dung của MÀN ĐANG XEM. 5 màn cũ GIỮ NGUYÊN section đang chạy,
+  //   chia đủ để KHÔNG mất chức năng: mọi khối cũ đều nằm trong đúng một màn.
   const h = []
-  h.push(khoiThoiGian())
-  h.push(baOTrangThai(bk, tk, thMap))
-  h.push(khoiTrungThuc(dp, vl))
-  h.push(khoiViec(vl))
-  h.push(khoiSoSanh(ss, tyLeNgo))
-  h.push(khoiDenPhu(ttk))   // [WP-91] đèn độ phủ NGAY TRÊN khối tổng
-  h.push(khoiBang(dong, bk.tong, anCount))
-  h.push(khoiSucKhoe(sk))       // [WP-100] sức khoẻ mẫu
-  h.push(khoiNenTang(nt))       // [WP-100] Facebook / Instagram
-  h.push(khoiSoThayDoi(std))    // [WP-100] sổ thay đổi Meta
-  h.push(khoiMucAd(ad, DL.adErr))
-  h.push(khoiChuGiai())
-  h.push(khoiDeSau())
+  if (MAN === 'thuvien') {
+    h.push(khoiThuVienMau(mau, mauTt))   // [WP-103] thư viện mẫu quảng cáo (màn LÔ 1 làm xong)
+  } else {
+    h.push(khoiThoiGian())   // picker khoảng ngày cho các màn số
+    if (MAN === 'tongquan') {
+      h.push(baOTrangThai(bk, tk, thMap)); h.push(khoiTrungThuc(dp, vl)); h.push(khoiSoSanh(ss, tyLeNgo)); h.push(khoiDenPhu(ttk)); h.push(khoiChuGiai()); h.push(khoiDeSau())
+    } else if (MAN === 'ngay') {
+      let dong = (bk.dong || []).slice()
+      const anCount = dong.filter(d => d.co_an).length
+      if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
+      const s = SORT
+      dong.sort((a, b) => { const va = a[s.col], vb = b[s.col]; const na = va == null ? -Infinity : Number(va), nb = vb == null ? -Infinity : Number(vb); return s.dir === 'desc' ? nb - na : na - nb })
+      h.push(khoiBang(dong, bk.tong, anCount))
+    } else if (MAN === 'nentang') {
+      h.push(khoiNenTang(nt))
+    } else if (MAN === 'chiendich') {
+      h.push(khoiMucAd(ad, DL.adErr))
+    } else if (MAN === 'viec') {
+      h.push(khoiViec(vl)); h.push(khoiSucKhoe(sk)); h.push(khoiSoThayDoi(std))
+    }
+  }
   $('noi').innerHTML = h.join('')
 
   // wiring
@@ -147,6 +160,21 @@ function render() {
   const bt = $('btKhoiAd'); if (bt) bt.onclick = () => { KHOI_AD_MO = !KHOI_AD_MO; render() }
   $('noi').querySelectorAll('tr.cdrow').forEach(tr => tr.onclick = () => { const a = tr.dataset.cd; MOC.has(a) ? MOC.delete(a) : MOC.add(a); render() })
   $('noi').querySelectorAll('tr.adrow').forEach(tr => tr.onclick = () => { const a = tr.dataset.ad; MO.has(a) ? MO.delete(a) : MO.add(a); render() })
+  // [WP-103] ảnh Meta hỏng/hết hạn → khung xám có chữ (không vỡ lưới) — bind ở đây để tránh onerror inline (CSP)
+  $('noi').querySelectorAll('.ads-mau-img').forEach(im => im.onerror = () => { im.style.display = 'none'; im.parentNode.setAttribute('data-hong', '1') })
+  // [WP-107 L-1c] chip "N ảnh" → mở khay dải xoay vòng; ✕ / nền → đóng
+  const modalDai = $('ads-mau-dai')
+  if (modalDai) {
+    const ds = modalDai.querySelector('.ads-mau-dai-ds')
+    const dong = () => { modalDai.hidden = true; ds.innerHTML = '' }
+    $('noi').querySelectorAll('.ads-mau-chip-dai').forEach(ch => ch.onclick = () => {
+      let urls = []; try { urls = JSON.parse(ch.dataset.dai) } catch (e) {}
+      ds.innerHTML = urls.map(u => '<img src="' + String(u).replace(/"/g, '&quot;') + '" alt="" loading="lazy">').join('')
+      modalDai.hidden = false
+    })
+    modalDai.querySelector('.ads-mau-dai-x').onclick = dong
+    modalDai.onclick = e => { if (e.target === modalDai) dong() }
+  }
 }
 
 function khoiThoiGian() {
@@ -304,6 +332,74 @@ function khoiBang(dong, tong, anCount) {
 function xamKhoi(msg) { return '<div class="ads-xam">' + esc(msg) + '</div>' }
 
 // [WP-100 A] SỨC KHOẺ MẪU — nguồn ads_suc_khoe_mau (RPC tính HẾT; FE không tính lại). ket_luan ⟂ ghi_chu = 2 cột.
+// ══════════ [WP-103] THƯ VIỆN MẪU (creative) — app ĐỌC, không có đường ghi ══════════
+function khoiThuVienMau(mau, tt) {
+  const dau = '<div class="ads-mau-dau"><h1>Thư viện mẫu</h1>'
+  if (!mau || !Array.isArray(mau)) return dau + '</div>' + xamKhoi('Không đọc được thư viện mẫu.')
+  const t = (Array.isArray(tt) ? tt[0] : tt) || {}
+  const dangChay = mau.filter(m => m.dang_chay), daNghi = mau.filter(m => !m.dang_chay)
+  const nAct = t.so_tai_khoan != null ? t.so_tai_khoan : '—'
+  const tongMau = t.tong_mau != null ? t.tong_mau : mau.length
+  const head = dau + '<p>' + tongMau + ' mẫu · ' + nAct + ' tài khoản</p></div>'
+  const box = (cls, v, ten) => '<div class="ads-mau-o ' + cls + '"><div class="s">' + esc(String(v)) + '</div><div class="t">' + esc(ten) + '</div></div>'
+  const tom = '<div class="ads-mau-tom">' + box('ads-mau-o1', tongMau, 'Mẫu') + box('ads-mau-o2', dangChay.length, 'Đang chạy 7 ngày') +
+    box('ads-mau-o3', t.so_fanpage != null ? t.so_fanpage : '—', 'Fanpage') + box('ads-mau-o4', t.so_mau_chua_xac_dinh != null ? t.so_mau_chua_xac_dinh : '—', 'Chưa rõ page') + '</div>'
+  // [WP-107 L-1c] CHIP = định dạng SUY ĐƯỢC (dinh_dang_that), KHÔNG phải object_type (VIDEO/SHARE sai)
+  const chip = d => '<span class="ads-mau-chip dd">' + esc(d || 'chưa rõ') + '</span>'
+  const anhHtml = m => {
+    const dai = Array.isArray(m.anh_dai_url) ? m.anh_dai_url : []
+    if (m.anh_net_url) {   // ảnh nét (video đơn) HOẶC ảnh đầu của xoay vòng + chip "N ảnh" mở dải
+      const chipDai = dai.length > 1 ? '<button class="ads-mau-chip-dai" data-dai="' + esc(JSON.stringify(dai)) + '">' + dai.length + ' ảnh</button>' : ''
+      return '<div class="ads-mau-anh"><img class="ads-mau-img" src="' + esc(m.anh_net_url) + '" alt="" loading="lazy"><span class="ads-mau-anh-txt">Ảnh Meta hết hạn</span>' + chipDai + '</div>'
+    }
+    // đẩy bài có sẵn: KHÔNG lấy được ảnh (bài đăng sẵn, cần quyền đọc trang) — nói đúng nguyên nhân + nút Mở bài
+    const moBai = m.link_fb ? '<a class="ads-mau-mobai" href="' + esc(m.link_fb) + '" target="_blank" rel="noopener">Mở bài</a>' : ''
+    return '<div class="ads-mau-anh" data-hong="1"><span class="ads-mau-anh-txt">Bài đăng sẵn — cần quyền đọc trang để lấy ảnh</span>' + moBai + '</div>'
+  }
+  const ctr7 = m => m.ctr_7ngay == null ? '—' : (Number(m.ctr_7ngay) * 100).toFixed(2).replace('.', ',') + '%'
+  const tienN = n => n == null ? '—' : so(n) + 'đ'   // [WP-107 L-1f] CPM/CPC: mẫu số 0 → NULL → "—"
+  const lechTd = m => {
+    if (m.ctr_lech_pct == null) return '<td class="ads-mau-chua">chưa đủ 7 ngày</td>'
+    const p = Number(m.ctr_lech_pct) * 100
+    return '<td class="' + (p >= 0 ? 'ads-mau-len' : '') + '"' + (p < 0 ? ' style="color:#C8202E;font-weight:600"' : '') + '>' + (p >= 0 ? '+' : '−') + Math.abs(p).toFixed(0) + '%</td>'
+  }
+  const fbNut = (m, cls) => m.link_fb ? '<a class="' + cls + '" href="' + esc(m.link_fb) + '" target="_blank" rel="noopener">Bài FB</a>' : '<span class="' + cls + ' tat">Không có bài FB</span>'
+  const igNut = (m, cls) => m.ig_link ? '<a class="' + cls + '" href="' + esc(m.ig_link) + '" target="_blank" rel="noopener">Bài IG</a>' : '<span class="' + cls + ' tat">Không có bài IG</span>'
+  // thẻ ĐANG CHẠY (đúng mẫu: chi to riêng dòng + bảng 2 cột)
+  const the = m => '<article class="ads-mau-the">' + anhHtml(m) +
+    '<div class="ads-mau-than">' +
+      '<div class="ads-mau-chiph">' + chip(m.dinh_dang_that) + '<span class="ads-mau-chip">' + esc(m.nut || '—') + '</span><span class="ads-mau-chipad">' + (m.so_ad || 0) + ' ad</span></div>' +
+      '<div class="ads-mau-ten">' + esc(m.tieu_de || m.ten || '(không tiêu đề)') + '</div>' +
+      '<div class="ads-mau-body">' + esc(m.body || '') + '</div>' +
+      // [WP-107 L-1f] KHỐI TIỀN: chi to · CPM · CPC link
+      '<div class="ads-mau-khoi-t">Tiền</div>' +
+      '<div class="ads-mau-chi">' + so(m.chi_7ngay || 0) + '<span>đ</span></div><div class="ads-mau-chinhan">chi 7 ngày</div>' +
+      '<table class="ads-mau-so">' +
+        '<tr><td>CPM</td><td>' + tienN(m.cpm_7ngay) + '</td></tr>' +
+        '<tr><td>CPC link</td><td>' + tienN(m.cpc_link_7ngay) + '</td></tr></table>' +
+      // vạch ngăn + KHỐI KẾT QUẢ
+      '<div class="ads-mau-vach"></div><div class="ads-mau-khoi-t">Kết quả</div>' +
+      '<table class="ads-mau-so">' +
+        '<tr><td>Hiển thị</td><td>' + so(m.hien_thi_7ngay || 0) + '</td></tr>' +
+        '<tr><td>Bấm link</td><td>' + so(m.bam_7ngay || 0) + '</td></tr>' +
+        '<tr><td>CTR link</td><td>' + ctr7(m) + '</td></tr>' +
+        '<tr><td>Tuổi mẫu</td><td>' + (m.tuoi_ngay != null ? m.tuoi_ngay : '—') + ' ngày</td></tr>' +
+        '<tr><td>So tuần đầu</td>' + lechTd(m) + '</tr></table>' +
+      '<div class="ads-mau-nuth">' + fbNut(m, 'ads-mau-nut') + igNut(m, 'ads-mau-nut') + '</div>' +
+    '</div></article>'
+  const luoi = dangChay.length ? '<div class="ads-mau-luoi">' + dangChay.map(the).join('') + '</div>' : xamKhoi('Không có mẫu nào đang chạy trong 7 ngày.')
+  // ĐÃ NGHỈ (bảng dòng như mẫu)
+  const dongNghi = m => '<tr><td><div class="ads-mau-catten">' + esc(m.tieu_de || m.ten || m.creative_id) + '</div></td>' +
+    '<td>' + esc(m.dinh_dang_that || '') + '</td><td class="p">' + (m.tuoi_ngay != null ? m.tuoi_ngay : '—') + ' ngày</td>' +
+    '<td class="p">' + tien(m.chi) + '</td><td class="p">' + tienN(m.cpm_doi) + '</td><td class="p">' + tienN(m.cpc_link_doi) + '</td>' +
+    '<td style="text-align:right;white-space:nowrap">' + fbNut(m, 'ads-mau-bnut') + ' ' + igNut(m, 'ads-mau-bnut') + '</td></tr>'
+  const nghi = daNghi.length ? '<p class="ads-mau-nhom-h nghi">Đã nghỉ (' + daNghi.length + ')</p><p class="ads-mau-nhom-phu">Không tiêu đồng nào trong 7 ngày. CPM/CPC là số cộng dồn cả đời mẫu. Vẫn giữ để xem lại và dựng lại.</p>' +
+    '<div class="ads-mau-bang-wrap"><table class="ads-mau-bang"><tr><th>Mẫu</th><th>Định dạng</th><th style="text-align:right">Tuổi</th><th style="text-align:right">Chi cộng dồn</th><th style="text-align:right">CPM (cộng dồn)</th><th style="text-align:right">CPC link (cộng dồn)</th><th></th></tr>' + daNghi.map(dongNghi).join('') + '</table></div>' : ''
+  // [WP-107 L-1c] khay xem dải ảnh xoay vòng (đơn giản: mở/đóng, không thư viện cầu kỳ)
+  const modal = '<div id="ads-mau-dai" class="ads-mau-dai-modal" hidden><div class="ads-mau-dai-in"><button class="ads-mau-dai-x" aria-label="Đóng">✕</button><div class="ads-mau-dai-ds"></div></div></div>'
+  return head + tom + '<p class="ads-mau-nhom-h">Đang chạy (' + dangChay.length + ')</p><p class="ads-mau-nhom-phu">Sắp theo chi 7 ngày, nhiều nhất lên đầu</p>' + luoi + nghi + modal
+}
+
 function khoiSucKhoe(sk) {
   if (!sk || !sk.mau) return sec('4', 'Sức khoẻ mẫu quảng cáo', '', xamKhoi('Không đọc được sức khoẻ mẫu.'))
   const mau = sk.mau, nn = sk.nen_7ngay || {}

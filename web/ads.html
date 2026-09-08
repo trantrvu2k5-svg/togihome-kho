@@ -162,17 +162,108 @@
     .ads-3o{grid-template-columns:1fr 1fr}
   }
   @media(max-width:430px){ .ads-3o{grid-template-columns:1fr} }
+
+  /* ══ [WP-107] KHUNG CỘT TRÁI (ads-cot/ads-phai) — khuôn app sale, đỏ #A5342E CEO duyệt ══ */
+  .ads-khung{display:flex;min-height:100vh}
+  .ads-cot{width:236px;flex:none;background:#A5342E;color:#fff;padding:22px 16px;display:flex;flex-direction:column}
+  .ads-hieu{font-size:22px;font-weight:700;letter-spacing:-.2px}
+  .ads-hieu-phu{font-size:13px;opacity:.75;margin:2px 0 26px}
+  .ads-muc{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;font:inherit;font-size:15px;padding:11px 16px;border-radius:10px;cursor:pointer;opacity:.82;margin-bottom:3px}
+  .ads-muc:hover{background:rgba(255,255,255,.12);opacity:1}
+  .ads-muc.chon{background:#fff;color:#A5342E;font-weight:600;opacity:1}
+  .ads-chan{margin-top:auto;border-top:1px solid rgba(255,255,255,.25);padding-top:14px;font-size:13px;opacity:.9}
+  .ads-chan b{display:block;font-size:14px} .ads-chan span{display:block;opacity:.85;margin-top:1px}
+  .ads-out{margin-top:10px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .ads-phai{flex:1;min-width:0;padding:22px 26px 60px}
+
+  /* ══ [WP-103/107] MÀN THƯ VIỆN MẪU (ads-mau-) — theo mẫu CEO duyệt ══ */
+  .ads-mau-dau h1{font-size:27px;margin:0 0 3px;font-weight:700;letter-spacing:-.3px}
+  .ads-mau-dau p{font-size:14px;color:var(--tx2);margin:0 0 18px}
+  .ads-mau-tom{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+  .ads-mau-o{border-radius:14px;padding:16px 18px;color:#fff}
+  .ads-mau-o .s{font-size:38px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+  .ads-mau-o .t{font-size:14px;opacity:.92;margin-top:2px}
+  .ads-mau-o1{background:#C9534A} .ads-mau-o2{background:#4A9E93} .ads-mau-o3{background:#E1943A} .ads-mau-o4{background:#7B57C4}
+  .ads-mau-nhom-h{font-size:15px;font-weight:600;margin:0 0 4px} .ads-mau-nhom-h.nghi{margin-top:26px}
+  .ads-mau-nhom-phu{font-size:13px;color:var(--tx2);margin:0 0 12px}
+  .ads-mau-luoi{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ads-mau-the{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  /* [WP-107 L-1c] 18/20 ảnh là VUÔNG 1440×1440 → khung 1/1, cover, canh từ MÉP TRÊN (chữ bán hàng nằm nửa trên) */
+  .ads-mau-anh{aspect-ratio:1/1;background:#EAE8E3;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+  .ads-mau-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;z-index:1}
+  .ads-mau-chip-dai{position:absolute;right:8px;bottom:8px;z-index:3;background:rgba(19,26,43,.82);color:#fff;border:0;font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:7px;cursor:pointer}
+  .ads-mau-chip-dai:hover{background:rgba(19,26,43,.95)}
+  .ads-mau-mobai{margin-top:9px;display:inline-block;background:var(--tx);color:#fff;font-size:12px;font-weight:600;padding:5px 12px;border-radius:7px;text-decoration:none;z-index:2}
+  .ads-mau-chip.dd{background:#E7EAF1;color:#3B4356;text-transform:none;letter-spacing:0}
+  /* khay dải ảnh xoay vòng (đơn giản) */
+  .ads-mau-dai-modal{position:fixed;inset:0;z-index:50;background:rgba(19,26,43,.6);display:flex;align-items:center;justify-content:center;padding:24px}
+  .ads-mau-dai-modal[hidden]{display:none}
+  .ads-mau-dai-in{background:#fff;border-radius:14px;max-width:min(920px,94vw);max-height:88vh;overflow:auto;padding:16px;position:relative}
+  .ads-mau-dai-x{position:sticky;top:0;float:right;background:var(--tx);color:#fff;border:0;width:30px;height:30px;border-radius:15px;font-size:15px;cursor:pointer}
+  .ads-mau-dai-ds{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;clear:both}
+  .ads-mau-dai-ds img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line)}
+  .ads-mau-anh-txt{font-size:12px;color:#8C8A84;text-align:center;padding:8px;z-index:0}
+  .ads-mau-anh[data-hong]{background:#F4E7E6} .ads-mau-anh[data-hong] .ads-mau-anh-txt{color:#A5342E;z-index:2}
+  .ads-mau-than{padding:12px 14px 14px;display:flex;flex-direction:column;flex:1}
+  .ads-mau-chiph{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+  .ads-mau-chip{font-size:11px;padding:3px 8px;border-radius:6px;background:#EFEDE8;color:#5A5852;font-weight:600}
+  .ads-mau-chip.v{background:#E4F0EE;color:#2C6B63} .ads-mau-chip.s{background:#F6EAE0;color:#8A5320}
+  .ads-mau-chipad{margin-left:auto;font-size:12px;color:#8C8A84}
+  /* [WP-107 L-1c] tên + body CỨNG 2 dòng → mọi thẻ cùng mốc, hàng "chi 7 ngày"/bảng số ngang hàng khi so 3 thẻ */
+  .ads-mau-ten{font-size:14px;font-weight:600;line-height:1.35;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px}
+  .ads-mau-body{font-size:13px;color:var(--tx2);line-height:1.45;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px}
+  .ads-mau-chi{font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+  .ads-mau-chi span{font-size:15px;font-weight:600;color:var(--tx2)}
+  .ads-mau-chinhan{font-size:12px;color:#8C8A84;margin-bottom:10px}
+  table.ads-mau-so{width:100%;min-width:0;font-size:13px;font-variant-numeric:tabular-nums;border-collapse:collapse;margin-top:1px}
+  /* [WP-107 L-1f] hai khối TIỀN / KẾT QUẢ + vạch ngăn */
+  .ads-mau-khoi-t{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--fnt);margin:11px 0 3px}
+  .ads-mau-vach{height:1px;background:var(--line);margin:12px 0 0}
+  /* [WP-107 L-1c] chống RÒ th,td/table chung (min-width:840, text-align:right, border, nowrap) vào bảng thẻ */
+  table.ads-mau-so td{padding:3px 0;border:0;white-space:normal} table.ads-mau-so td:first-child{color:var(--tx2);text-align:left} table.ads-mau-so td:last-child{text-align:right;font-weight:600}
+  .ads-mau-len{color:#2F7A46} .ads-mau-chua{color:#8C8A84;font-weight:400;font-style:italic}
+  .ads-mau-nuth{display:flex;gap:8px;margin-top:auto;padding-top:12px}
+  .ads-mau-nut{flex:1;font:inherit;font-size:13px;font-weight:600;padding:8px;border-radius:9px;border:1px solid #22201D;background:#22201D;color:#fff;text-align:center;text-decoration:none;cursor:pointer}
+  .ads-mau-nut:hover{background:#3A3733} .ads-mau-nut.tat{background:#F2F0EC;color:#A8A6A0;border-color:var(--line);cursor:default}
+  .ads-mau-bang-wrap{overflow-x:auto}   /* [WP-107 L-1f] bảng 7 cột — cuộn TRONG khung, không để tràn trang trên điện thoại */
+  table.ads-mau-bang{width:100%;min-width:560px;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14px}
+  table.ads-mau-bang th{text-align:left;font-size:12px;color:var(--tx2);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line);background:#FAF9F7}
+  table.ads-mau-bang td{padding:10px 14px;border-bottom:1px solid #F0EEE9;vertical-align:middle;text-align:left;white-space:normal}
+  table.ads-mau-bang tr:last-child td{border-bottom:0}
+  table.ads-mau-bang td.p{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  .ads-mau-catten{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ads-mau-bnut{display:inline-block;font-size:12px;font-weight:600;padding:6px 12px;border-radius:7px;background:#22201D;color:#fff;text-decoration:none;white-space:nowrap}
+  .ads-mau-bnut.tat{background:#F2F0EC;color:#A8A6A0;cursor:default}
+  @media(max-width:900px){ .ads-mau-luoi{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:820px){
+    .ads-khung{flex-direction:column}
+    .ads-cot{width:auto;flex-direction:row;flex-wrap:wrap;gap:6px;padding:14px}
+    .ads-cot .ads-hieu,.ads-cot .ads-hieu-phu,.ads-chan{width:100%;margin:0 0 6px}
+    .ads-muc{width:auto} .ads-chan{margin-top:8px;text-align:left}
+    .ads-phai{padding:16px}
+    .ads-mau-tom{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .ads-mau-luoi{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
   <div id="cong" style="display:none"></div>
   <div id="boot">Đang mở ứng dụng quảng cáo…</div>
   <div id="app" style="display:none">
-    <div class="topbar">
-      <div><h1>Tiền quảng cáo theo chiến dịch</h1><div class="sub">Nhịp tuần. Vào là thấy việc phải làm.</div></div>
-      <div class="who"><b id="hdTen"></b><span id="hdVai"></span><br><button id="btOut">Đăng xuất</button></div>
+    <div class="ads-khung">
+      <nav class="ads-cot">
+        <div class="ads-hieu">togihome</div>
+        <div class="ads-hieu-phu">Phần quảng cáo</div>
+        <button class="ads-muc chon" data-man="thuvien">Thư viện mẫu</button>
+        <button class="ads-muc" data-man="tongquan">Tổng quan</button>
+        <button class="ads-muc" data-man="ngay">Chi theo ngày</button>
+        <button class="ads-muc" data-man="nentang">Facebook · Instagram</button>
+        <button class="ads-muc" data-man="chiendich">Chiến dịch</button>
+        <button class="ads-muc" data-man="viec">Việc phải làm</button>
+        <div class="ads-chan"><b id="hdTen"></b><span id="hdVai"></span><button id="btOut" class="ads-out">Đăng xuất</button></div>
+      </nav>
+      <main class="ads-phai"><div id="noi"><div class="trong">Đang tải…</div></div></main>
     </div>
-    <div id="noi"><div class="trong">Đang tải…</div></div>
   </div>
   <script type="module" src="/src/ads.js"></script>
 </body>
