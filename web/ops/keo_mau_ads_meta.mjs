@@ -11,8 +11,9 @@ const B = 'https://graph.facebook.com/' + CAPI_V
 const CR = 'creative{id,name,title,body,call_to_action_type,object_story_spec,effective_object_story_id,instagram_permalink_url,image_url,thumbnail_url,video_id,object_type}'
 const j = x => JSON.stringify(x)
 
-// ⚠ HẠN TOKEN META_CAPI_TOKEN: 07/11/2026 (token user 60 ngày, thay ở L-107-1e). QUẢ BOM HẸN GIỜ — hết hạn là bộ kéo
-//   đứng câm. VIỆC LÔ SAU (chưa làm ở đây, tránh đẻ cơ chế mới): thêm cảnh báo màn "Việc phải làm" app ads khi còn <14 ngày.
+// ⚠ HẠN TOKEN META_CAPI_TOKEN: token user 60 ngày, hết hạn là bộ kéo đứng câm. NGÀY HẾT HẠN = MỘT CHỖ DUY NHẤT:
+//   kho.tham_so_van_hanh (ma='meta_token_han', epoch giây) — đèn màn "Việc phải làm" đọc qua RPC meta_token_trang_thai (L-108-7).
+//   Thay token thì SỬA NGÀY Ở ĐÓ, đừng viết cứng ở đây.
 function docToken() {
   const env = readFileSync(new URL('../../.env', import.meta.url), 'utf8')   // ROOT togihome-kho/.env
   const m = env.split('\n').find(l => l.startsWith('META_CAPI_TOKEN='))
@@ -37,7 +38,7 @@ function bocMau(ad_id, act_id, cr) {
       tho: cr   // NGUYÊN VĂN
     },
     ad: { creative_id: cr.id || null, ad_id, tai_khoan_id: act_id || null },
-    hash: (oss.video_data && oss.video_data.image_hash) || null,   // [WP-107] ảnh nét qua /adimages
+    hash: (oss.video_data && oss.video_data.image_hash) || (oss.link_data && oss.link_data.image_hash) || null,   // [WP-107] ảnh nét qua /adimages · [L-108-7] +link_data (ảnh đơn)
     childHashes: (((oss.link_data && oss.link_data.child_attachments) || []).map(x => x.image_hash).filter(Boolean))   // [WP-107 L-1c] dải xoay vòng
   }
 }

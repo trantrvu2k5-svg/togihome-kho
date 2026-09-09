@@ -12,6 +12,23 @@ let USER = null, DL = null
 let PRESET = 7, TU = null, DEN = null
 let SORT = { col: 'chi', dir: 'desc' }, HIEN_AN = false, KHOI_AD_MO = false, MO = new Set(), MOC = new Set()
 let MAN = 'thuvien'   // [WP-107] màn đang xem (cột trái): thuvien|tongquan|ngay|nentang|chiendich|viec
+let FILTER_PAGE = 'all'   // [WP-107 L-1i] lọc thư viện theo page_id THẬT: 'all' | <page_id> | 'null' (chưa rõ page)
+// [WP-107 L-1i] NHÃN hiển thị trang (label UI, KHÔNG phải số liệu) — page_id → tên. Trang lạ → "Trang …ID".
+const TEN_TRANG = { '576847645509797': 'Sophia Concept', '279205171948766': 'OpenLiving', '223920510804703': 'Togihome - TailorNest' }
+const tenTrang = pid => pid ? (TEN_TRANG[pid] || ('Trang …' + String(pid).slice(-4))) : 'Chưa rõ page'
+let BRAND = 'all'   // [WP-108] lọc TOÀN APP theo thương hiệu: 'all' | <brand_id> | 'chua_ro'
+const brandOfPage = pid => { const r = (DL.tk || []).find(t => t.page_id === pid); return r ? r.brand_id : null }
+// mẫu (có page_id) hợp thương hiệu đang chọn? · dòng có sẵn field brand ('chưa rõ') hợp không?
+const hopBrandPage = pid => BRAND === 'all' ? true : (BRAND === 'chua_ro' ? !brandOfPage(pid) : brandOfPage(pid) === BRAND)
+const hopBrandRow  = b   => BRAND === 'all' ? true : (BRAND === 'chua_ro' ? (b == null || b === 'chưa rõ') : b === BRAND)
+// [WP-108] tổng footer bảng chiến dịch tính LẠI từ dòng đã lọc brand (khớp công thức RPC: bấm=luot_bam_link)
+const tongTuDong = ds => {
+  const chi = ds.reduce((s, d) => s + Number(d.chi || 0), 0), ht = ds.reduce((s, d) => s + Number(d.luot_hien_thi || 0), 0)
+  const lbl = ds.reduce((s, d) => s + Number(d.luot_bam || 0), 0), lb = ds.reduce((s, d) => s + Number(d.luot_bam_tong || 0), 0)
+  return { chi, luot_hien_thi: ht, luot_bam: lbl, luot_bam_tong: lb,
+    ctr: ht > 0 && lbl ? Math.round(lbl * 100 / ht * 100) / 100 : null, cpm: ht > 0 ? Math.round(chi * 1000 / ht) : null,
+    cpc: lbl > 0 ? Math.round(chi / lbl) : null, so_chien_dich: ds.filter(d => Number(d.chi || 0) > 0).length }
+}
 
 const $ = id => document.getElementById(id)
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -89,21 +106,24 @@ function datPreset(n) {
 // ══════════ NẠP (nguồn số DUY NHẤT là RPC) ══════════
 async function nap() {
   $('noi').innerHTML = '<div class="trong">Đang tải…</div>'
-  const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt, mau, mauTt] = await Promise.all([
+  // [WP-108 nhịp 3] BRAND → p_brand cho RPC lọc SERVER (So sánh · FB/IG). 'all'→null · 'chua_ro'→'chưa rõ'
+  const pBrand = BRAND === 'all' ? null : (BRAND === 'chua_ro' ? 'chưa rõ' : BRAND)
+  const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt, mau, mauTt, tok] = await Promise.all([
     sb.rpc('ads_bang_ky', { p_tu_ngay: TU, p_den_ngay: DEN }),
-    sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN }),
+    sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN, p_brand: pBrand }),
     sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_ad_ngay', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_do_phu', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.from('ads_nguong').select('gia_tri,hieu_luc_tu,hieu_luc_den').eq('ma', 'chi_so_ty_le_dang_ngo'),
-    sb.from('ads_tai_khoan_brand').select('act_id,brand_id,ten_hien_thi').is('hieu_luc_den', null),
+    sb.from('ads_trang_brand').select('page_id,brand_id,ten_hien_thi').is('hieu_luc_den', null),   // [WP-108] khoá TRANG
     sb.from('thuong_hieu_ban').select('ma,ten'),
     sb.rpc('ads_tinh_trang_keo'),   // [WP-91] đèn ĐỘ PHỦ + trễ-giờ (RPC thứ 5). Hỏng/rỗng → dải xám, KHÔNG ẩn.
     sb.rpc('ads_suc_khoe_mau', { p_tu_ngay: TU, p_den_ngay: DEN }),   // [WP-100] sức khoẻ mẫu
-    sb.rpc('ads_thay_doi_gan_day', { p_so_dong: 15 }),                // [WP-100] sổ thay đổi Meta
-    sb.rpc('chi_ads_nen_tang_tong', { p_tu_ngay: TU, p_den_ngay: DEN }), // [WP-100] tách FB/IG
+    sb.rpc('ads_thay_doi_gan_day', { p_so_dong: 50 }),                // [WP-100] sổ thay đổi Meta · [L-108-6] 15→50, khung cuộn
+    sb.rpc('chi_ads_nen_tang_tong', { p_tu_ngay: TU, p_den_ngay: DEN, p_brand: pBrand }), // [WP-100] tách FB/IG · [WP-108] +brand
     sb.rpc('ads_mau_ds'),         // [WP-103] thư viện mẫu (creative)
-    sb.rpc('ads_mau_tom_tat')     // [WP-103] tóm tắt: tổng mẫu · fanpage · chưa rõ page · tài khoản
+    sb.rpc('ads_mau_tom_tat'),    // [WP-103] tóm tắt: tổng mẫu · fanpage · chưa rõ page · tài khoản
+    sb.rpc('meta_token_trang_thai')   // [L-108-7] hạn token Meta (đèn màn Việc phải làm) — nguồn: tham_so_van_hanh
   ])
   const loi = [bk, ss, vl].find(x => x.error)
   if (loi) { $('noi').innerHTML = '<div class="ads-loi">Lỗi tải dữ liệu: ' + esc(loi.error.message) + '</div>'; return }
@@ -114,7 +134,7 @@ async function nap() {
   const tyLeNgo = ngRow ? Number(ngRow.gia_tri) === 1 : false
   const okD = r => (r && r.error) ? null : (r && r.data)   // RPC lỗi/rỗng → null (khối tự hiện dải xám, KHÔNG ẩn)
   DL = { bk: bk.data, ss: ss.data, vl: vl.data, ad: ad.data || [], adErr: ad.error, dp: dp.data, tk: tk.data || [], thMap, tyLeNgo,
-    ttk: okD(ttk), sk: okD(sk), std: okD(std), nt: okD(nt), mau: okD(mau), mauTt: okD(mauTt) }
+    ttk: okD(ttk), sk: okD(sk), std: okD(std), nt: okD(nt), mau: okD(mau), mauTt: okD(mauTt), tok: okD(tok) }
   render()
 }
 
@@ -123,27 +143,29 @@ function render() {
   const { bk, ss, vl, ad, dp, tk, thMap, tyLeNgo, ttk, sk, std, nt, mau, mauTt } = DL
   // [WP-107] cột trái đổi màn: chỉ dựng nội dung của MÀN ĐANG XEM. 5 màn cũ GIỮ NGUYÊN section đang chạy,
   //   chia đủ để KHÔNG mất chức năng: mọi khối cũ đều nằm trong đúng một màn.
+  // [WP-108 nhịp 3] 6 MÀN — mỗi màn TRẢ LỜI MỘT CÂU. Bỏ số toàn cục 1–8; số lại theo từng màn. Bỏ "Để sau".
   const h = []
-  if (MAN === 'thuvien') {
-    h.push(khoiThuVienMau(mau, mauTt))   // [WP-103] thư viện mẫu quảng cáo (màn LÔ 1 làm xong)
-  } else {
-    h.push(khoiThoiGian())   // picker khoảng ngày cho các màn số
-    if (MAN === 'tongquan') {
-      h.push(baOTrangThai(bk, tk, thMap)); h.push(khoiTrungThuc(dp, vl)); h.push(khoiSoSanh(ss, tyLeNgo)); h.push(khoiDenPhu(ttk)); h.push(khoiChuGiai()); h.push(khoiDeSau())
-    } else if (MAN === 'ngay') {
-      let dong = (bk.dong || []).slice()
-      const anCount = dong.filter(d => d.co_an).length
-      if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
-      const s = SORT
-      dong.sort((a, b) => { const va = a[s.col], vb = b[s.col]; const na = va == null ? -Infinity : Number(va), nb = vb == null ? -Infinity : Number(vb); return s.dir === 'desc' ? nb - na : na - nb })
-      h.push(khoiBang(dong, bk.tong, anCount))
-    } else if (MAN === 'nentang') {
-      h.push(khoiNenTang(nt))
-    } else if (MAN === 'chiendich') {
-      h.push(khoiMucAd(ad, DL.adErr))
-    } else if (MAN === 'viec') {
-      h.push(khoiViec(vl)); h.push(khoiSucKhoe(sk)); h.push(khoiSoThayDoi(std))
-    }
+  h.push(boChonBrand(tk, thMap))   // bộ chọn thương hiệu — ĐẦU APP, lọc mọi màn
+  const coPicker = MAN === 'tongquan' || MAN === 'chiendich' || MAN === 'nentang' || MAN === 'viec'
+  if (coPicker) h.push(khoiThoiGian())
+  if (MAN === 'thuvien') {                      // MẪU NÀO CHẠY, MẪU NÀO MỎI CẦN THAY
+    h.push(khoiThuVienMau(mau, mauTt)); h.push(khoiSucKhoe(sk))
+  } else if (MAN === 'tongquan') {              // KỲ NÀY HƠN KÉM KỲ TRƯỚC
+    h.push(baOTrangThai(bk, tk, thMap)); h.push(khoiTrungThuc(dp, vl, bk)); h.push(khoiSoSanh(ss, tyLeNgo)); h.push(khoiDenPhu(ttk)); h.push(khoiChuGiai())
+  } else if (MAN === 'chiendich') {             // TIỀN VÀO CHIẾN DỊCH NÀO
+    let dong = (bk.dong || []).filter(d => hopBrandRow(d.brand))
+    const anCount = dong.filter(d => d.co_an).length
+    if (!HIEN_AN) dong = dong.filter(d => !d.co_an)
+    const s = SORT
+    dong.sort((a, b) => { const va = a[s.col], vb = b[s.col]; const na = va == null ? -Infinity : Number(va), nb = vb == null ? -Infinity : Number(vb); return s.dir === 'desc' ? nb - na : na - nb })
+    h.push(khoiBang(dong, BRAND === 'all' ? bk.tong : tongTuDong(dong), anCount))
+    h.push(khoiMucAd((ad || []).filter(a => hopBrandRow(a.brand)), DL.adErr))
+  } else if (MAN === 'nentang') {               // NỀN TẢNG NÀO ĂN TIỀN (lọc server theo p_brand)
+    h.push(khoiNenTang(nt))
+  } else if (MAN === 'viec') {                  // HÔM NAY PHẢI XỬ LÝ CÁI GÌ
+    h.push(khoiViec(vl, DL.tok))
+  } else if (MAN === 'sothaydoi') {             // AI VỪA SỬA GÌ
+    h.push(khoiSoThayDoi(std))
   }
   $('noi').innerHTML = h.join('')
 
@@ -162,6 +184,10 @@ function render() {
   $('noi').querySelectorAll('tr.adrow').forEach(tr => tr.onclick = () => { const a = tr.dataset.ad; MO.has(a) ? MO.delete(a) : MO.add(a); render() })
   // [WP-103] ảnh Meta hỏng/hết hạn → khung xám có chữ (không vỡ lưới) — bind ở đây để tránh onerror inline (CSP)
   $('noi').querySelectorAll('.ads-mau-img').forEach(im => im.onerror = () => { im.style.display = 'none'; im.parentNode.setAttribute('data-hong', '1') })
+  // [WP-107 L-1i] lọc thư viện theo TRANG → đổi FILTER_PAGE rồi render lại (ô tóm tắt + lưới đổi theo)
+  $('noi').querySelectorAll('.ads-mau-loc').forEach(b => b.onclick = () => { FILTER_PAGE = b.dataset.page; render() })
+  // [WP-108] bộ chọn thương hiệu → đổi BRAND, NẠP LẠI (So sánh + FB/IG lọc server theo p_brand; các màn khác lọc client)
+  $('noi').querySelectorAll('.ads-brand').forEach(b => b.onclick = () => { BRAND = b.dataset.brand; nap() })
   // [WP-107 L-1c] chip "N ảnh" → mở khay dải xoay vòng; ✕ / nền → đóng
   const modalDai = $('ads-mau-dai')
   if (modalDai) {
@@ -186,45 +212,76 @@ function khoiThoiGian() {
   return b + '</div>'
 }
 
-function baOTrangThai(bk, tk, thMap) {
-  const tong = bk.tong || {}
-  const brands = [...new Set((tk || []).map(x => x.brand_id))]
-  const brandTxt = brands.length === 1 ? (thMap[brands[0]] || brands[0]) : brands.map(b => thMap[b] || b).join(', ')
-  const brandDong = (tk || []).length
-    ? '<div class="ads-o-big">' + (tk.length) + ' tài khoản</div><div class="ads-o-sub">' + (brands.length === 1 ? 'đều thuộc ' : brands.length + ' thương hiệu: ') + esc(brandTxt) + '</div>'
-    : '<div class="ads-o-big">—</div><div class="ads-o-sub">chưa map tài khoản</div>'
-  return '<div class="ads-3o">' +
-    '<div class="ads-o"><div class="ads-o-big num">' + tien(tong.chi) + '</div><div class="ads-o-sub">tổng chi khoảng này</div></div>' +
-    '<div class="ads-o"><div class="ads-o-big num">' + so(tong.so_chien_dich) + '</div><div class="ads-o-sub">chiến dịch đang chạy</div></div>' +
-    '<div class="ads-o">' + brandDong + '</div></div>'
+// [WP-108] BỘ CHỌN THƯƠNG HIỆU — dựng động từ ads_trang_brand (biến tk). Nhãn = ten_hien_thi trang.
+function boChonBrand(tk, thMap) {
+  const bmap = {}
+  for (const t of (tk || [])) if (t.brand_id && !bmap[t.brand_id]) bmap[t.brand_id] = t.ten_hien_thi || (thMap && thMap[t.brand_id]) || t.brand_id
+  const btn = (val, label) => '<button class="ads-brand' + (BRAND === val ? ' on' : '') + '" data-brand="' + esc(val) + '">' + esc(label) + '</button>'
+  return '<div class="ads-brand-bar"><span class="ads-brand-nhan">Thương hiệu</span>' +
+    btn('all', 'Mọi thương hiệu') + Object.keys(bmap).map(b => btn(b, bmap[b])).join('') + btn('chua_ro', 'Chưa rõ') + '</div>'
 }
 
-function khoiTrungThuc(dp, vl) {
+function baOTrangThai(bk, tk, thMap) {
+  // [WP-108] tính lại theo BRAND từ bk.dong (mỗi chiến dịch có .brand). "Tài khoản" = TK THỰC CHI (distinct act_id), KHÔNG đếm bảng gán.
+  const dong = (bk.dong || []).filter(d => hopBrandRow(d.brand))
+  const chi = dong.reduce((s, d) => s + Number(d.chi || 0), 0)
+  const soCd = dong.filter(d => Number(d.chi || 0) > 0).length
+  const soTk = new Set(dong.map(d => d.act_id).filter(Boolean)).size
+  const phu = BRAND === 'all' ? 'tài khoản thực chi' : (BRAND === 'chua_ro' ? 'chưa rõ thương hiệu' : esc(thMap[BRAND] || BRAND))
+  return '<div class="ads-3o">' +
+    '<div class="ads-o"><div class="ads-o-big num">' + tien(chi) + '</div><div class="ads-o-sub">tổng chi khoảng này</div></div>' +
+    '<div class="ads-o"><div class="ads-o-big num">' + so(soCd) + '</div><div class="ads-o-sub">chiến dịch có chi</div></div>' +
+    '<div class="ads-o"><div class="ads-o-big num">' + so(soTk) + ' tài khoản</div><div class="ads-o-sub">' + phu + '</div></div></div>'
+}
+
+function khoiTrungThuc(dp, vl, bk) {
+  const loc = BRAND !== 'all'
   let b = '<div class="thucte"><b>Chi phí</b> là số thật từ Meta (chưa rõ đã gồm VAT hay chưa). ' +
     '<b>Hiệu quả từng đồng CHƯA đo được:</b> quảng cáo đang chạy dẫn khách vào web, không gắn dấu lên hội thoại. ' +
     'Sẽ đo được khi bật đường nối đơn hàng.'
-  // F2 · HAI số độ phủ có mốc rõ (ads_do_phu): khoảng đang xem vs toàn bộ từ 05/2020. KHÔNG để hai số trần trụi.
+  // F2 · HAI số độ phủ có mốc (ads_do_phu). [L-108-6] hội thoại di sản KHÔNG tách được theo brand → ghi rõ "toàn hệ".
   if (dp && dp.khoang && dp.lich_su) {
     const k = dp.khoang, l = dp.lich_su
-    b += '<span class="ads-phu-moc">Hội thoại có gắn mã quảng cáo (di sản quảng cáo tin nhắn đã tắt, không phải phần đo được của tiền đang chạy):' +
+    const nhan = loc ? ' <b class="ads-toan-he">(toàn hệ, chưa tách theo thương hiệu)</b>' : ''
+    b += '<span class="ads-phu-moc">Hội thoại có gắn mã quảng cáo (di sản quảng cáo tin nhắn đã tắt, không phải phần đo được của tiền đang chạy)' + nhan + ':' +
       '<br>• trong khoảng đang xem (' + dmy(k.tu) + '→' + dmy(k.den) + '): <b>' + pctTxt(k.pct) + '</b> (' + so(k.co_ma) + '/' + so(k.tong) + ')' +
       '<br>• toàn bộ từ 05/2020: <b>' + pctTxt(l.pct) + '</b> (' + so(l.co_ma) + '/' + so(l.tong) + ')</span>'
   }
   b += '</div>'
-  // 1b · dòng cảnh báo gộp (canh_bao_gop). NULL → ẩn hẳn.
-  const g = vl.canh_bao_gop
-  if (g && g.so_chien_dich > 0) b += '<div class="ads-gop">' + g.so_chien_dich + ' chiến dịch đang tiêu <b class="num">' + tien(g.tong_chi) +
+  // 1b · dòng "đang tiêu" — [L-108-6] TÍNH LẠI theo BRAND đang chọn (từ bk.dong đã lọc), KHÔNG để số toàn hệ.
+  const dongB = ((bk && bk.dong) || []).filter(d => hopBrandRow(d.brand) && Number(d.chi || 0) > 0)
+  const soCd = dongB.length, tongChi = dongB.reduce((s, d) => s + Number(d.chi || 0), 0)
+  if (soCd > 0) b += '<div class="ads-gop">' + soCd + ' chiến dịch đang tiêu <b class="num">' + tien(tongChi) +
     '</b> nhưng chưa đo được hiệu quả vì dẫn khách vào web. Sẽ đo được khi bật đường nối đơn hàng.</div>'
   return b
 }
 
-function khoiViec(vl) {
-  const v = vl.viec || []
-  const TEN = { chi_cao_khong_hoi_thoai: 'Chi cao, chưa thấy hội thoại', chi_tang_dot_bien: 'Chi tăng đột biến', ad_moi_chua_du_ngay: 'Mới chạy, chưa đủ ngày', moi_bat: 'Mới bật trong kỳ' }
+function khoiViec(vl, tok) {
+  // [L-108-6] MÀN QUAN TRỌNG NHẤT — không được rỗng. Hiện ĐỦ 4 loại: loại KÊU (có việc) + loại IM (ghi điều kiện kích hoạt).
+  const v = vl.viec || [], ng = vl.nguong || {}
+  // [L-108-7] ĐÈN TOKEN META: <14 ngày = KÊU (nổi), còn nhiều = MỜ kèm số ngày. Ngày hết hạn từ tham_so_van_hanh (một chỗ).
+  let tokenHtml = ''
+  if (tok && tok.con_ngay != null) {
+    const n = Number(tok.con_ngay), keu = n < 14
+    tokenHtml = '<div class="ads-viec-item' + (keu ? '' : ' im') + '"><span class="ads-viec-loai' + (keu ? '' : ' im') + '">Token Meta</span>' +
+      '<div class="ads-viec-cau' + (keu ? '' : ' im') + '">' + (keu
+        ? '⚠ Token Meta còn <b>' + n + ' ngày</b> (hết hạn ' + esc(tok.han) + ') — XIN TOKEN MỚI, hết hạn là bộ kéo đứng câm.'
+        : 'Còn ' + n + ' ngày (hết hạn ' + esc(tok.han) + '). Sẽ kêu khi dưới 14 ngày.') + '</div></div>'
+  }
+  const CATS = [
+    { loai: 'chi_cao_khong_hoi_thoai', ten: 'Chi cao, chưa thấy hội thoại', dk: 'chiến dịch tiêu > ' + tien(ng.chi_cao_khong_hoi_thoai) + ' mà 0 hội thoại' },
+    { loai: 'chi_tang_dot_bien', ten: 'Chi tăng đột biến', dk: 'chi tăng vượt nhịp chung của cả tài khoản' + (vl.nhip_chung_pct != null ? ' (kỳ này +' + vl.nhip_chung_pct + '%)' : '') },
+    { loai: 'ad_moi_chua_du_ngay', ten: 'Mới chạy, chưa đủ ngày', dk: 'quảng cáo mới chạy dưới ' + (ng.ad_moi_du_ngay || 3) + ' ngày, chưa đủ để đọc' },
+    { loai: 'moi_bat', ten: 'Mới bật trong kỳ', dk: 'chiến dịch mới bật, chưa có kỳ trước để so' }
+  ]
+  const byLoai = {}; for (const x of v) (byLoai[x.loai] = byLoai[x.loai] || []).push(x)
   let body = ''
-  if (!v.length) body = '<div class="ads-viec-trong">Không có việc nào cần xử ngay trong khoảng này.</div>'
-  else for (const x of v) body += '<div class="ads-viec-item"><span class="ads-viec-loai">' + esc(TEN[x.loai] || x.loai) + '</span><div class="ads-viec-cau">' + esc(dinhSo(x.cau)) + '</div></div>'
-  return sec('1', 'Việc phải làm', '', body)
+  for (const c of CATS) {
+    const hit = byLoai[c.loai]
+    if (hit) for (const x of hit) body += '<div class="ads-viec-item"><span class="ads-viec-loai">' + esc(c.ten) + '</span><div class="ads-viec-cau">' + esc(dinhSo(x.cau)) + '</div></div>'
+    else body += '<div class="ads-viec-item im"><span class="ads-viec-loai im">' + esc(c.ten) + '</span><div class="ads-viec-cau im">Không có. Kêu khi: ' + esc(c.dk) + '.</div></div>'
+  }
+  return sec('1', 'Việc phải làm', 'kêu khi vượt ngưỡng · mục mờ = đang im, kèm điều kiện', body + tokenHtml)
 }
 
 function khoiSoSanh(ss, tyLeNgo) {
@@ -247,7 +304,7 @@ function khoiSoSanh(ss, tyLeNgo) {
   const cards = '<div class="ads-so2-cards">' + show.map(r =>
     '<div class="ads-so2-card"><div class="k">' + r.k + '</div><div class="now">' + r.f(r.now) + '</div><div class="prev">trước: ' + r.f(r.prev) + ' · ' + lechTxt(r.lv) + '</div></div>').join('') + '</div>'
   const note = tyLeNgo ? '<div class="ads-bang-note">CTR · CPM · CPC tạm ẩn: nguồn "bấm vào link" đang được rà lại, sẽ hiện lại khi xong.</div>' : ''
-  return sec('2', 'So với kỳ liền trước', dd + ' ngày mỗi kỳ · theo ngày chi', tbl + cards + note)
+  return sec('1', 'So với kỳ liền trước', dd + ' ngày mỗi kỳ · theo ngày chi', tbl + cards + note)
 }
 
 // [WP-91] ĐÈN ĐỘ PHỦ — dải mỏng NGAY TRÊN khối tổng. Nguồn: ads_tinh_trang_keo() (KHÔNG tính lại ở FE).
@@ -325,7 +382,7 @@ function khoiBang(dong, tong, anCount) {
   const cotDen = new Set(dong.map(d => d.den))
   if (dong.length && [...cotDen].every(x => x === 'chua_du_so' || x === 'khong_do_duoc'))
     duoi += '<div class="ads-den-lydo">Cả bảng đang "chưa đo được": các chiến dịch dẫn khách vào web nên chưa đo được hiệu quả từng đồng — sẽ đo được khi bật đường nối đơn hàng.</div>'
-  return sec('3', 'Bảng chiến dịch', 'gộp theo loại chiến dịch', tbl + cards + duoi)
+  return sec('1', 'Bảng chiến dịch', 'gộp theo loại chiến dịch', tbl + cards + duoi)
 }
 
 // D · khối RPC hỏng/rỗng → dải xám, KHÔNG ẩn khối (ẩn khi hỏng = bệnh im lặng cũ).
@@ -337,13 +394,20 @@ function khoiThuVienMau(mau, tt) {
   const dau = '<div class="ads-mau-dau"><h1>Thư viện mẫu</h1>'
   if (!mau || !Array.isArray(mau)) return dau + '</div>' + xamKhoi('Không đọc được thư viện mẫu.')
   const t = (Array.isArray(tt) ? tt[0] : tt) || {}
-  const dangChay = mau.filter(m => m.dang_chay), daNghi = mau.filter(m => !m.dang_chay)
+  // [L-108-6] BỎ thanh lọc trang RIÊNG — dùng chung thanh THƯƠNG HIỆU ở đầu app (brand ⟺ trang 1:1, tránh 2 thanh chồng).
+  const view = mau.filter(m => hopBrandPage(m.page_id))
+  const dangChay = view.filter(m => m.dang_chay), daNghi = view.filter(m => !m.dang_chay)
+  const fpView = new Set(view.map(m => m.page_id).filter(Boolean)).size
+  const chuaPage = view.filter(m => !m.page_id).length
   const nAct = t.so_tai_khoan != null ? t.so_tai_khoan : '—'
-  const tongMau = t.tong_mau != null ? t.tong_mau : mau.length
-  const head = dau + '<p>' + tongMau + ' mẫu · ' + nAct + ' tài khoản</p></div>'
+  const brandTen = BRAND === 'chua_ro' ? 'chưa rõ trang' : (((DL.tk || []).find(x => x.brand_id === BRAND) || {}).ten_hien_thi || BRAND)
+  const headTxt = BRAND === 'all'
+    ? view.length + ' mẫu · ' + nAct + ' tài khoản · ' + fpView + ' fanpage'
+    : view.length + ' mẫu · ' + esc(brandTen)
+  const head = dau + '<p>' + headTxt + '</p></div>'
   const box = (cls, v, ten) => '<div class="ads-mau-o ' + cls + '"><div class="s">' + esc(String(v)) + '</div><div class="t">' + esc(ten) + '</div></div>'
-  const tom = '<div class="ads-mau-tom">' + box('ads-mau-o1', tongMau, 'Mẫu') + box('ads-mau-o2', dangChay.length, 'Đang chạy 7 ngày') +
-    box('ads-mau-o3', t.so_fanpage != null ? t.so_fanpage : '—', 'Fanpage') + box('ads-mau-o4', t.so_mau_chua_xac_dinh != null ? t.so_mau_chua_xac_dinh : '—', 'Chưa rõ page') + '</div>'
+  const tom = '<div class="ads-mau-tom">' + box('ads-mau-o1', view.length, 'Mẫu') + box('ads-mau-o2', dangChay.length, 'Đang chạy 7 ngày') +
+    box('ads-mau-o3', fpView, 'Fanpage') + box('ads-mau-o4', chuaPage, 'Chưa rõ page') + '</div>'
   // [WP-107 L-1c] CHIP = định dạng SUY ĐƯỢC (dinh_dang_that), KHÔNG phải object_type (VIDEO/SHARE sai)
   const chip = d => '<span class="ads-mau-chip dd">' + esc(d || 'chưa rõ') + '</span>'
   const anhHtml = m => {
@@ -352,9 +416,15 @@ function khoiThuVienMau(mau, tt) {
       const chipDai = dai.length > 1 ? '<button class="ads-mau-chip-dai" data-dai="' + esc(JSON.stringify(dai)) + '">' + dai.length + ' ảnh</button>' : ''
       return '<div class="ads-mau-anh"><img class="ads-mau-img" src="' + esc(m.anh_net_url) + '" alt="" loading="lazy"><span class="ads-mau-anh-txt">Ảnh Meta hết hạn</span>' + chipDai + '</div>'
     }
-    // đẩy bài có sẵn: KHÔNG lấy được ảnh (bài đăng sẵn, cần quyền đọc trang) — nói đúng nguyên nhân + nút Mở bài
+    // [WP-107 L-1i] KHÔNG để ô xám câm. Đẩy-bài CÓ page mà vẫn trống ⇒ token CHƯA có quyền đọc trang đó
+    //   (nếu có quyền, bộ kéo đã lấy full_picture) → nói rõ TÊN TRANG + cần CEO cấp quyền. Định dạng khác trống
+    //   ⇒ bộ kéo chưa có đường lấy ảnh cho định dạng đó (vd ảnh-đơn dùng link_data.image_hash).
     const moBai = m.link_fb ? '<a class="ads-mau-mobai" href="' + esc(m.link_fb) + '" target="_blank" rel="noopener">Mở bài</a>' : ''
-    return '<div class="ads-mau-anh" data-hong="1"><span class="ads-mau-anh-txt">Bài đăng sẵn — cần quyền đọc trang để lấy ảnh</span>' + moBai + '</div>'
+    let txt
+    if (m.dinh_dang_that === 'đẩy bài có sẵn' && m.page_id) txt = 'Bài đăng ở trang <b>' + esc(tenTrang(m.page_id)) + '</b> — token chưa có quyền đọc trang này, cần CEO cấp quyền để lấy ảnh'
+    else if (m.dinh_dang_that === 'quảng cáo link') txt = 'Quảng cáo link — Meta không trả ảnh qua API (mẫu chỉ dùng ảnh xem-trước của trang đích)'   // [L-108-7]
+    else txt = 'Chưa lấy được ảnh cho định dạng “' + esc(m.dinh_dang_that || 'chưa rõ') + '”'
+    return '<div class="ads-mau-anh" data-hong="1"><span class="ads-mau-anh-txt">' + txt + '</span>' + moBai + '</div>'
   }
   const ctr7 = m => m.ctr_7ngay == null ? '—' : (Number(m.ctr_7ngay) * 100).toFixed(2).replace('.', ',') + '%'
   const tienN = n => n == null ? '—' : so(n) + 'đ'   // [WP-107 L-1f] CPM/CPC: mẫu số 0 → NULL → "—"
@@ -401,8 +471,11 @@ function khoiThuVienMau(mau, tt) {
 }
 
 function khoiSucKhoe(sk) {
-  if (!sk || !sk.mau) return sec('4', 'Sức khoẻ mẫu quảng cáo', '', xamKhoi('Không đọc được sức khoẻ mẫu.'))
-  const mau = sk.mau, nn = sk.nen_7ngay || {}
+  if (!sk || !sk.mau) return sec('2', 'Sức khoẻ mẫu quảng cáo', '', xamKhoi('Không đọc được sức khoẻ mẫu.'))
+  // [WP-108] lọc mẫu theo BRAND; NỀN mới = pooled RIÊNG BRAND (chọn 1 thương hiệu) hoặc pooled cả hệ ("Mọi thương hiệu")
+  const mau = (sk.mau || []).filter(m => hopBrandRow(m.brand))
+  const nb = sk.nen_theo_brand || {}
+  const nn = (BRAND !== 'all' && BRAND !== 'chua_ro' && nb[BRAND]) ? nb[BRAND] : (sk.nen_7ngay || {})
   const pf = x => (x == null) ? '—' : (Number(x) * 100).toFixed(0) + '%'
   const pf2 = x => (x == null) ? '—' : String((Number(x) * 100).toFixed(2)).replace('.', ',') + '%'
   const tsF = x => (x == null) ? '—' : String(Number(x).toFixed(2)).replace('.', ',')
@@ -421,7 +494,8 @@ function khoiSucKhoe(sk) {
       '<td>' + (xau ? '<b>' + esc(m.ket_luan) + '</b>' : esc(m.ket_luan)) + '</td>' +
       '<td class="ads-sk-gc">' + (m.ghi_chu ? esc(m.ghi_chu) : '') + '</td></tr>'
   }
-  const foot = '<tr class="ads-sk-nen"><td>Nền 7 ngày</td><td></td><td></td><td></td>' +
+  const nenNhan = (BRAND !== 'all' && BRAND !== 'chua_ro' && nb[BRAND]) ? 'Nền ' + esc(BRAND) + ' 7 ngày (pooled)' : 'Nền 7 ngày · cả hệ (pooled)'
+  const foot = '<tr class="ads-sk-nen"><td>' + nenNhan + '</td><td></td><td></td><td></td>' +
     '<td class="num">' + pf(nn.bat_dau_xem) + '</td><td class="num">' + pf(nn.giu_xem) + '</td>' +
     '<td class="num">' + pf2(nn.ctr_link) + '</td><td class="num">' + tien(nn.cpm) + '</td><td colspan="2"></td></tr>'
   const tbl = '<div class="tblwrap"><table class="ads-sk-tbl"><thead><tr><th>Mẫu</th><th class="r">Chi</th><th class="r">Hiển thị</th>' +
@@ -429,28 +503,41 @@ function khoiSucKhoe(sk) {
     '<tbody>' + (rows || '<tr><td colspan="10" class="trong2">Chưa có mẫu nào trong khoảng này.</td></tr>') + '</tbody>' +
     '<tfoot>' + foot + '</tfoot></table></div>' +
     '<div class="ads-bang-note">Nền bắt-đầu-xem tính trên ' + so(nn.so_mau_video_trong_nen) + ' mẫu video / ' + so(nn.so_mau_trong_nen) + ' mẫu.</div>'
-  return sec('4', 'Sức khoẻ mẫu quảng cáo', 'thứ tự đọc mỏi: bắt đầu xem → CTR → xếp hạng → tần suất', dongTren + tbl)
+  return sec('2', 'Sức khoẻ mẫu quảng cáo', 'thứ tự đọc mỏi: bắt đầu xem → CTR → xếp hạng → tần suất', dongTren + tbl)
 }
 
 // [WP-100 C] FACEBOOK / INSTAGRAM — chi_ads_nen_tang_tong. Dòng ước tính đọc cờ + câu TỪ RPC (không gõ cứng HTML).
 function khoiNenTang(nt) {
-  if (!nt || !nt.dong) return sec('5', 'Facebook / Instagram', '', xamKhoi('Không đọc được tách nền tảng.'))
+  if (!nt || !nt.dong) return sec('1', 'Facebook / Instagram', '', xamKhoi('Không đọc được tách nền tảng.'))
   const TEN = { facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', audience_network: 'Audience Network', messenger: 'Messenger' }
   const pct1 = x => (x == null) ? '—' : String(x).replace('.', ',') + '%'
+  // [L-108-6] ẩn dòng < 100 hiển thị (CTR từ mẫu quá nhỏ = rác, vd Audience Network 42,86% từ 7 hiển thị)
+  //   → gộp vào MỘT dòng "Khác" chỉ ghi TỔNG CHI, KHÔNG hiện tỷ lệ.
+  const NGUONG_HT = 100
+  const to = (nt.dong || []).filter(r => Number(r.hien_thi || 0) >= NGUONG_HT)
+  const nho = (nt.dong || []).filter(r => Number(r.hien_thi || 0) < NGUONG_HT)
   let rows = ''
-  for (const r of nt.dong) rows += '<tr><td>' + esc(TEN[r.nen_tang] || r.nen_tang) + '</td>' +
+  for (const r of to) rows += '<tr><td>' + esc(TEN[r.nen_tang] || r.nen_tang) + '</td>' +
     '<td class="num">' + tien(r.chi) + '</td><td class="num">' + so(r.hien_thi) + '</td>' +
     '<td class="num">' + pct1(r.ctr) + '</td><td class="num">' + pct1(r.phan_tram_chi) + '</td></tr>'
+  if (nho.length) {
+    const chiKhac = nho.reduce((s, r) => s + Number(r.chi || 0), 0), htKhac = nho.reduce((s, r) => s + Number(r.hien_thi || 0), 0)
+    const pcKhac = nho.reduce((s, r) => s + Number(r.phan_tram_chi || 0), 0)
+    rows += '<tr class="ads-nt-khac"><td>Khác <span class="ads-tk-id">(' + nho.length + ' nền tảng < ' + NGUONG_HT + ' hiển thị)</span></td>' +
+      '<td class="num">' + tien(chiKhac) + '</td><td class="num">' + so(htKhac) + '</td>' +
+      '<td class="num">—</td><td class="num">' + (pcKhac ? pct1(Math.round(pcKhac * 10) / 10) : '—') + '</td></tr>'
+  }
   const tbl = '<div class="tblwrap"><table class="ads-nt-tbl"><thead><tr><th>Nền tảng</th><th class="r">Chi</th><th class="r">Hiển thị</th><th class="r">CTR</th><th class="r">% chi</th></tr></thead>' +
-    '<tbody>' + (rows || '<tr><td colspan="5" class="trong2">Chưa có số tách nền tảng.</td></tr>') + '</tbody></table></div>'
+    '<tbody>' + (rows || '<tr><td colspan="5" class="trong2">Chưa có số tách nền tảng.</td></tr>') + '</tbody></table></div>' +
+    (nho.length ? '<div class="ads-bang-note">Ẩn ' + nho.length + ' nền tảng dưới ' + NGUONG_HT + ' hiển thị (tỷ lệ từ mẫu quá nhỏ không đáng tin) — gộp vào dòng "Khác", chỉ tính tổng chi.</div>' : '')
   const note = nt.la_uoc_tinh ? '<div class="ads-uoctinh">⚠ ' + esc(nt.ghi_chu) + '</div>' : ''
-  return sec('5', 'Facebook / Instagram', 'chi theo nền tảng (một chiều breakdown)', tbl + note)
+  return sec('1', 'Facebook / Instagram', 'chi theo nền tảng (một chiều breakdown)', tbl + note)
 }
 
 // [WP-100 B] SỔ THAY ĐỔI META — ads_thay_doi_gan_day. Tên người ĐÃ che ở RPC ("N.V.A"). 0 bản ghi → nói rõ, KHÔNG ẩn.
 function khoiSoThayDoi(std) {
-  if (!std || !std.dong) return sec('6', 'Sổ thay đổi Meta', '', xamKhoi('Không đọc được sổ thay đổi.'))
-  if (!std.dong.length) return sec('6', 'Sổ thay đổi Meta', '', xamKhoi('Không ai sửa trong 30 ngày.'))
+  if (!std || !std.dong) return sec('1', 'Sổ thay đổi Meta', '', xamKhoi('Không đọc được sổ thay đổi.'))
+  if (!std.dong.length) return sec('1', 'Sổ thay đổi Meta', '', xamKhoi('Không ai sửa trong 30 ngày.'))
   const hm = s => { const x = new Date(s); if (isNaN(x)) return '—'; const p = n => String(n).padStart(2, '0'); return p(x.getDate()) + '/' + p(x.getMonth() + 1) + ' ' + p(x.getHours()) + ':' + p(x.getMinutes()) }
   const tkTxt = r => r.ten_tk ? esc(r.ten_tk) : '<span class="adid">…' + esc(String(r.act_id).slice(-4)) + '</span>'
   let rows = ''
@@ -458,7 +545,10 @@ function khoiSoThayDoi(std) {
     '<td>' + tkTxt(r) + ' <span class="ads-td-ng">' + esc(r.nguoi) + '</span></td>' +
     '<td>' + esc(r.viec) + '</td><td>' + esc(r.doi_tuong || '—') + '</td></tr>'
   const tbl = '<div class="ads-std-cuon"><table class="ads-std-tbl"><thead><tr><th>Lúc</th><th>Tài khoản</th><th>Việc</th><th>Đối tượng</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
-  return sec('6', 'Sổ thay đổi Meta', std.tong + ' bản ghi · ' + std.so_tai_khoan + ' tài khoản (30 ngày · tên đã che)', tbl)
+  // [L-108-6] nói rõ đang hiện bao nhiêu / tổng; khung .ads-std-cuon cuộn (max-height + overflow)
+  const hien = std.dong.length, con = (std.tong || 0) - hien
+  const duoi = con > 0 ? '<div class="ads-bang-note">Đang hiện ' + hien + ' bản ghi mới nhất / tổng ' + so(std.tong) + ' (30 ngày). Cuộn trong khung để xem hết ' + hien + '.</div>' : ''
+  return sec('1', 'Sổ thay đổi Meta', 'hiện ' + hien + '/' + so(std.tong) + ' bản ghi · ' + std.so_tai_khoan + ' tài khoản (30 ngày · tên đã che)', tbl + duoi)
 }
 
 function khoiMucAd(ad, adErr) {
@@ -480,7 +570,7 @@ function khoiMucAd(ad, adErr) {
         (body || '<tr><td colspan="6" class="trong2">Không có hội thoại quảng cáo trong khoảng này.</td></tr>') + '</tbody></table></div>'
     }
   }
-  const h2 = '<h2><span class="n">7</span> <button class="mo-khoi" id="btKhoiAd">' + (KHOI_AD_MO ? '▾' : '▸') + ' Mức từng quảng cáo (ad)</button> <span class="h2sub">chỉ đúng cho quảng cáo tin nhắn — thu gọn</span></h2>'
+  const h2 = '<h2><span class="n">2</span> <button class="mo-khoi" id="btKhoiAd">' + (KHOI_AD_MO ? '▾' : '▸') + ' Mức từng quảng cáo (ad)</button> <span class="h2sub">chỉ đúng cho quảng cáo tin nhắn — thu gọn</span></h2>'
   return '<div class="sec">' + h2 + inner + '</div>'
 }
 
@@ -488,7 +578,7 @@ function khoiChuGiai() {
   const item = (k) => '<span class="ads-cg"><span class="ads-den ads-den-' + DEN_TT[k][1] + '"></span>' + DEN_TT[k][0] + '</span>'
   const g = '<div class="ads-cg-wrap">' + item('con_du') + item('sat_tran') + item('vuot_tran') + item('chua_du_so') + item('khong_do_duoc') + '</div>' +
     '<div class="ads-cg-note">"Chi phí có khách" so tiền bỏ ra với mức trần theo cỡ đơn khách mua. Còn dư / Sát mức / Vượt mức chỉ hiện khi đã có đơn thật quy về chiến dịch; hiện các chiến dịch dẫn web nên phần lớn là "Chưa đo được".</div>'
-  return sec('8', 'Chú giải đèn', '', g)
+  return sec('2', 'Chú giải đèn', '', g)
 }
 
 function khoiDeSau() {

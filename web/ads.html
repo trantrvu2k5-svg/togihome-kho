@@ -61,7 +61,7 @@
   th,td{padding:8px 11px;text-align:right;border-bottom:1px solid #EEF0ED;white-space:nowrap}
   th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
   th{background:#FAFBFA;font-size:11px;text-transform:uppercase;letter-spacing:.02em;color:var(--tx2);font-weight:700;position:sticky;top:0}
-  td.num{font-family:'JetBrains Mono',monospace} .adid{font-family:'JetBrains Mono',monospace;font-size:12px}
+  td.num{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace} .adid{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:12px}  /* [L-108-6] bỏ JetBrains Mono: nó dựng "đ" ra như "c" */
   tr.adrow{cursor:pointer} tr.adrow:hover td{background:#FAFBFA}
   tr.ngayrow td{background:#F7F9F7;font-size:12px;color:var(--tx2)} td.ngayc{padding-left:22px;color:var(--tx2)}
   td.cho{background:var(--cho);color:var(--choTx);font-weight:700;font-size:11.5px;text-align:center}
@@ -91,6 +91,13 @@
   .ads-viec-loai{flex:0 0 auto;font-size:11px;font-weight:700;background:var(--amB);color:var(--am);padding:3px 9px;border-radius:6px;white-space:nowrap}
   .ads-viec-cau{font-size:13.5px;line-height:1.5}
   .ads-viec-trong{padding:18px;color:var(--tx2);font-size:13px}
+  /* [L-108-6] mục việc đang IM (không kêu) — mờ + ghi điều kiện */
+  .ads-viec-item.im{opacity:.62}
+  .ads-viec-loai.im{background:#EEF0ED;color:var(--tx2)}
+  .ads-viec-cau.im{color:var(--tx2);font-size:12.5px}
+  /* [L-108-6] nhãn "toàn hệ" cạnh số chưa tách brand · dòng "Khác" nền tảng nhỏ */
+  .ads-toan-he{color:var(--am);font-weight:700;font-size:12px}
+  .ads-nt-khac td{color:var(--tx2);font-style:italic}
   .ads-lech.up{color:var(--do)} .ads-lech.down{color:var(--gn)}
   .ads-den{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
   .ads-den-gn{background:var(--gn)} .ads-den-am{background:var(--am)} .ads-den-do{background:var(--do)} .ads-den-xam{background:var(--xam)}
@@ -116,7 +123,8 @@
   /* B · bảng ③ vừa trong khung: min-width 0 để không ép cuộn; cột đèn (cuối) GHIM mép phải phòng khi hẹp */
   .ads-bang3 table{min-width:0}
   .ads-bang3 th,.ads-bang3 td{padding:7px 9px}
-  .ads-bang3 th:last-child,.ads-bang3 td:last-child{position:sticky;right:0;background:#fff;box-shadow:-6px 0 6px -6px rgba(0,0,0,.12)}
+  /* [L-108-6] BỎ sticky cột cuối "Có khách": nó đè lên cột CHI (chồng 13px) cắt mất chữ "đ" → thành "c". Cột cuối cuộn bình thường. */
+  .ads-bang3 th:last-child,.ads-bang3 td:last-child{background:#fff}
   .ads-bang3 thead th:last-child{background:#FAFBFA}
   .ads-bang3 tfoot td:last-child{background:#F1F2F0}
   .ads-bang-note{font-size:12px;color:var(--tx2);margin-top:8px;line-height:1.55}
@@ -184,6 +192,18 @@
   .ads-mau-o .s{font-size:38px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
   .ads-mau-o .t{font-size:14px;opacity:.92;margin-top:2px}
   .ads-mau-o1{background:#C9534A} .ads-mau-o2{background:#4A9E93} .ads-mau-o3{background:#E1943A} .ads-mau-o4{background:#7B57C4}
+  /* [WP-107 L-1i] thanh lọc theo trang */
+  .ads-mau-loc-bar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+  .ads-mau-loc{font:inherit;font-size:13px;padding:7px 15px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--tx);cursor:pointer;white-space:nowrap}
+  .ads-mau-loc:hover{border-color:#A5342E;color:#A5342E}
+  .ads-mau-loc.on{background:#A5342E;border-color:#A5342E;color:#fff;font-weight:600}
+  /* [WP-108] bộ chọn thương hiệu — đầu app, mọi màn */
+  .ads-brand-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .ads-brand-nhan{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.4px;margin-right:2px}
+  .ads-brand{font:inherit;font-size:13px;padding:7px 15px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--tx);cursor:pointer;white-space:nowrap}
+  .ads-brand:hover{border-color:#A5342E;color:#A5342E}
+  .ads-brand.on{background:#A5342E;border-color:#A5342E;color:#fff;font-weight:600}
+  .ads-brand-note{font-size:12.5px;color:var(--tx2);background:#faf6f5;border:1px dashed #e3cfcb;border-radius:8px;padding:8px 12px;margin:0 0 14px}
   .ads-mau-nhom-h{font-size:15px;font-weight:600;margin:0 0 4px} .ads-mau-nhom-h.nghi{margin-top:26px}
   .ads-mau-nhom-phu{font-size:13px;color:var(--tx2);margin:0 0 12px}
   .ads-mau-luoi{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -254,12 +274,12 @@
       <nav class="ads-cot">
         <div class="ads-hieu">togihome</div>
         <div class="ads-hieu-phu">Phần quảng cáo</div>
-        <button class="ads-muc chon" data-man="thuvien">Thư viện mẫu</button>
-        <button class="ads-muc" data-man="tongquan">Tổng quan</button>
-        <button class="ads-muc" data-man="ngay">Chi theo ngày</button>
-        <button class="ads-muc" data-man="nentang">Facebook · Instagram</button>
-        <button class="ads-muc" data-man="chiendich">Chiến dịch</button>
         <button class="ads-muc" data-man="viec">Việc phải làm</button>
+        <button class="ads-muc" data-man="tongquan">Tổng quan</button>
+        <button class="ads-muc" data-man="chiendich">Chiến dịch</button>
+        <button class="ads-muc chon" data-man="thuvien">Thư viện mẫu</button>
+        <button class="ads-muc" data-man="nentang">Facebook · Instagram</button>
+        <button class="ads-muc" data-man="sothaydoi">Sổ thay đổi</button>
         <div class="ads-chan"><b id="hdTen"></b><span id="hdVai"></span><button id="btOut" class="ads-out">Đăng xuất</button></div>
       </nav>
       <main class="ads-phai"><div id="noi"><div class="trong">Đang tải…</div></div></main>
