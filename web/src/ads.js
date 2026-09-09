@@ -129,7 +129,9 @@ async function nap() {
   if (loi) { $('noi').innerHTML = '<div class="ads-loi">Lỗi tải dữ liệu: ' + esc(loi.error.message) + '</div>'; return }
   const thMap = Object.fromEntries((th.data || []).map(x => [x.ma, x.ten]))
   // Cờ chi_so_ty_le_dang_ngo hiệu lực HÔM NAY: bật (=1) thì ẩn CTR/CPM/CPC (nguồn tỷ lệ đang ngờ).
-  const homNay = DEN
+  // [L-108-14] cờ "nguồn tỷ lệ đang ngờ" là trạng thái NGUỒN HÔM NAY, KHÔNG theo khoảng đang xem.
+  //   Trước lấy homNay=DEN → xem tháng 6 (DEN<02/09) trúng cờ CŨ =1 → ẩn CTR/CPM/CPC dù nguồn đã sửa (db/208, cờ=0 từ 02/09).
+  const homNay = iso(new Date())
   const ngRow = (ng.data || []).find(r => r.hieu_luc_tu <= homNay && (r.hieu_luc_den == null || homNay <= r.hieu_luc_den))
   const tyLeNgo = ngRow ? Number(ngRow.gia_tri) === 1 : false
   const okD = r => (r && r.error) ? null : (r && r.data)   // RPC lỗi/rỗng → null (khối tự hiện dải xám, KHÔNG ẩn)
@@ -161,7 +163,8 @@ function render() {
     h.push(khoiBang(dong, BRAND === 'all' ? bk.tong : tongTuDong(dong), anCount))
     h.push(khoiMucAd((ad || []).filter(a => hopBrandRow(a.brand)), DL.adErr))
   } else if (MAN === 'nentang') {               // NỀN TẢNG NÀO ĂN TIỀN (lọc server theo p_brand)
-    h.push(khoiNenTang(nt))
+    const tongBrandNT = (bk.dong || []).filter(d => hopBrandRow(d.brand)).reduce((s, d) => s + Number(d.chi || 0), 0)
+    h.push(khoiNenTang(nt, tongBrandNT))   // [L-108-13] truyền Σ chính (brand) để dựng dòng "chưa tách"
   } else if (MAN === 'viec') {                  // HÔM NAY PHẢI XỬ LÝ CÁI GÌ
     h.push(khoiViec(vl, DL.tok))
   } else if (MAN === 'sothaydoi') {             // AI VỪA SỬA GÌ
@@ -299,12 +302,17 @@ function khoiSoSanh(ss, tyLeNgo) {
     { k: 'CPC', now: a.cpc, prev: b.cpc, lv: l.cpc, f: tien, tyle: true }
   ]
   const show = rows6.filter(r => !(r.tyle && tyLeNgo))
-  const trs = show.map(r => '<tr><td>' + r.k + '</td><td class="num">' + r.f(r.now) + '</td><td class="num">' + r.f(r.prev) + '</td>' + lechCell(r.lv) + '</tr>').join('')
+  // [L-108-14] kỳ trước KHÔNG CÓ DỮ LIỆU (không phải chi 0đ) → cột trước "chưa có dữ liệu", cột lệch gạch ngang.
+  const prevTrong = !!b.khong_co_du_lieu
+  const pF = r => prevTrong ? '<span class="ads-kodo">—</span>' : r.f(r.prev)
+  const lF = r => prevTrong ? '<td class="dash">—</td>' : lechCell(r.lv)
+  const trs = show.map(r => '<tr><td>' + r.k + '</td><td class="num">' + r.f(r.now) + '</td><td class="num">' + pF(r) + '</td>' + lF(r) + '</tr>').join('')
   const tbl = '<div class="ads-so2-tbl tblwrap"><table><thead><tr><th>Chỉ tiêu</th><th>' + dd + ' ngày qua</th><th>' + dd + ' ngày trước đó</th><th>Lệch</th></tr></thead><tbody>' + trs + '</tbody></table></div>'
   const cards = '<div class="ads-so2-cards">' + show.map(r =>
-    '<div class="ads-so2-card"><div class="k">' + r.k + '</div><div class="now">' + r.f(r.now) + '</div><div class="prev">trước: ' + r.f(r.prev) + ' · ' + lechTxt(r.lv) + '</div></div>').join('') + '</div>'
-  const note = tyLeNgo ? '<div class="ads-bang-note">CTR · CPM · CPC tạm ẩn: nguồn "bấm vào link" đang được rà lại, sẽ hiện lại khi xong.</div>' : ''
-  return sec('1', 'So với kỳ liền trước', dd + ' ngày mỗi kỳ · theo ngày chi', tbl + cards + note)
+    '<div class="ads-so2-card"><div class="k">' + r.k + '</div><div class="now">' + r.f(r.now) + '</div><div class="prev">trước: ' + (prevTrong ? 'chưa có dữ liệu' : r.f(r.prev) + ' · ' + lechTxt(r.lv)) + '</div></div>').join('') + '</div>'
+  const note = tyLeNgo ? '<div class="ads-uoctinh">⚠ CTR · CPM · CPC đang ẩn theo cờ <b>chi_so_ty_le_dang_ngo</b> (nghi nguồn bấm-vào-link sai). Việc phải làm: xác minh nguồn rồi TẮT cờ (ads_nguong) mới hiện lại.</div>' : ''
+  const noteData = prevTrong ? '<div class="ads-bang-note">Kỳ trước (' + dmy(b.tu) + '→' + dmy(b.den) + ') <b>CHƯA CÓ DỮ LIỆU</b> — hệ chỉ có chi từ 01/06/2026 (mốc kéo). Không so được, cột lệch để trống — KHÔNG lấy 0 làm nền.</div>' : ''
+  return sec('1', 'So với kỳ liền trước', dd + ' ngày mỗi kỳ · theo ngày chi', tbl + cards + note + noteData)
 }
 
 // [WP-91] ĐÈN ĐỘ PHỦ — dải mỏng NGAY TRÊN khối tổng. Nguồn: ads_tinh_trang_keo() (KHÔNG tính lại ở FE).
@@ -320,14 +328,16 @@ function khoiDenPhu(tt) {
   else if (dp.dai_du_so === 'xanh') { cls = 'xanh'; txt = 'Số ads đủ tới ' + dm(dp.ngay_du_lieu_moi_nhat) + '.' }
   else if (dp.dai_du_so === 'vang') { cls = 'vang'; txt = 'Thiếu ' + dp.thieu_so_ngay + ' ngày: ' + kh + '. Số dưới đây đang thấp hơn thực tế.' }
   else { cls = 'do'; txt = 'Thiếu ' + dp.thieu_so_ngay + ' ngày: ' + kh + '. ĐỪNG dùng số dưới đây để quyết.' }
-  const ic = { xanh: '●', vang: '▲', do: '■', xam: '○' }[cls]
-  // vế lượt kéo gần nhất bị lỗi (hiện DÙ dải đủ-số đang xanh)
+  // [L-108-14] TÁCH HAI CHUYỆN: (1) độ phủ dữ liệu · (2) tình trạng lần kéo cuối — mỗi cái MỘT DÒNG.
   const loi = (tt.nguon || []).map(n => n.loi_gan_nhat).find(Boolean)
-  const veLoi = loi ? ' <span class="ads-dophu-loi">Lần kéo lúc ' + hm(loi.luc) + ' bị lỗi.</span>' : ''
-  // dòng phụ nhỏ: cập nhật lúc (lượt xong mới nhất)
   const xong = (tt.nguon || []).map(n => n.lan_xong_luc).filter(Boolean).sort().pop()
-  const phu = xong ? '<div class="ads-dophu-sub">cập nhật lúc ' + hm(xong) + ' ngày ' + dm(xong) + '</div>' : ''
-  return '<div class="ads-dophu ads-dophu-' + cls + '"><div class="ads-dophu-hang"><span class="ads-dophu-ic">' + ic + '</span><b>' + esc(txt) + '</b>' + veLoi + '</div>' + phu + '</div>'
+  // đủ số (xanh) NHƯNG lần kéo cuối lỗi → đèn VÀNG (không xanh): màu phản ánh cả kéo-lỗi, không chỉ độ phủ.
+  if (cls === 'xanh' && loi) cls = 'vang'
+  const ic = { xanh: '●', vang: '▲', do: '■', xam: '○' }[cls]
+  const keoLine = loi
+    ? '<div class="ads-dophu-sub ads-dophu-loi">⚠ Lần kéo cuối lúc ' + hm(loi.luc) + ' ngày ' + dm(loi.luc) + ' BỊ LỖI — số có thể chưa mới nhất.</div>'
+    : (xong ? '<div class="ads-dophu-sub">Lần kéo cuối XONG lúc ' + hm(xong) + ' ngày ' + dm(xong) + '.</div>' : '')
+  return '<div class="ads-dophu ads-dophu-' + cls + '"><div class="ads-dophu-hang"><span class="ads-dophu-ic">' + ic + '</span><b>Độ phủ: ' + esc(txt) + '</b></div>' + keoLine + '</div>'
 }
 
 function objCell(o) {
@@ -507,7 +517,7 @@ function khoiSucKhoe(sk) {
 }
 
 // [WP-100 C] FACEBOOK / INSTAGRAM — chi_ads_nen_tang_tong. Dòng ước tính đọc cờ + câu TỪ RPC (không gõ cứng HTML).
-function khoiNenTang(nt) {
+function khoiNenTang(nt, tongBrand) {
   if (!nt || !nt.dong) return sec('1', 'Facebook / Instagram', '', xamKhoi('Không đọc được tách nền tảng.'))
   const TEN = { facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', audience_network: 'Audience Network', messenger: 'Messenger' }
   const pct1 = x => (x == null) ? '—' : String(x).replace('.', ',') + '%'
@@ -527,8 +537,17 @@ function khoiNenTang(nt) {
       '<td class="num">' + tien(chiKhac) + '</td><td class="num">' + so(htKhac) + '</td>' +
       '<td class="num">—</td><td class="num">' + (pcKhac ? pct1(Math.round(pcKhac * 10) / 10) : '—') + '</td></tr>'
   }
+  // [L-108-13] TIỀN KHÔNG ĐƯỢC BIẾN MẤT GIỮA HAI MÀN: dòng cuối = Σ chính (brand) − Σ đã tách.
+  //   =0 → ẩn · >0 → "Chưa có số tách" (Meta chưa chia) · <0 → ĐỎ "số tách đang vượt số chính, đang tra" (KHÔNG giấu).
+  const daTach = (nt.dong || []).reduce((s, r) => s + Number(r.chi || 0), 0)
+  const chuaTach = (tongBrand != null ? Number(tongBrand) : daTach) - daTach
+  if (Math.round(chuaTach) > 0) rows += '<tr class="ads-nt-chuatach"><td>Chưa có số tách <span class="ads-tk-id">(Meta chưa chia nền tảng cho phần này)</span></td>' +
+    '<td class="num">' + tien(chuaTach) + '</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>'
+  else if (Math.round(chuaTach) < 0) rows += '<tr class="ads-nt-vuot"><td><b>⚠ Số tách đang VƯỢT số chính — đang tra</b></td>' +
+    '<td class="num">' + tien(chuaTach) + '</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>'
   const tbl = '<div class="tblwrap"><table class="ads-nt-tbl"><thead><tr><th>Nền tảng</th><th class="r">Chi</th><th class="r">Hiển thị</th><th class="r">CTR</th><th class="r">% chi</th></tr></thead>' +
     '<tbody>' + (rows || '<tr><td colspan="5" class="trong2">Chưa có số tách nền tảng.</td></tr>') + '</tbody></table></div>' +
+    (Math.round(chuaTach) !== 0 ? '<div class="ads-bang-note">Tổng bảng (gồm dòng chưa tách) = ' + tien((tongBrand != null ? Number(tongBrand) : daTach)) + ' — khớp màn Tổng quan.</div>' : '') +
     (nho.length ? '<div class="ads-bang-note">Ẩn ' + nho.length + ' nền tảng dưới ' + NGUONG_HT + ' hiển thị (tỷ lệ từ mẫu quá nhỏ không đáng tin) — gộp vào dòng "Khác", chỉ tính tổng chi.</div>' : '')
   const note = nt.la_uoc_tinh ? '<div class="ads-uoctinh">⚠ ' + esc(nt.ghi_chu) + '</div>' : ''
   return sec('1', 'Facebook / Instagram', 'chi theo nền tảng (một chiều breakdown)', tbl + note)

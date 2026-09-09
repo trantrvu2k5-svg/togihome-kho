@@ -85,7 +85,13 @@ export async function keoChiAdsMeta(client, opts = {}) {
   const fetchFn = opts.fetch || globalThis.fetch
   const token = opts.token
   if (!token) return { skip: 'thieu_token', taiKhoan: [], upsert: 0, tongDong: 0 }
-  const accts = await layTaiKhoan(fetchFn, token)
+  // [L-108-11] TÀI KHOẢN = HỢP /me/adaccounts VỚI act_id đã có trong chi_ads_ngay.
+  //   TK vào muộn / rớt khỏi /me/adaccounts vẫn được kéo (trước đây chỉ /me/adaccounts → sót TK, số đóng băng).
+  const metaAccts = await layTaiKhoan(fetchFn, token)
+  const map = new Map(metaAccts.map(a => [a.act_id, a]))
+  for (const r of (await client.query(`select act_id, max(tien_te) tien_te from kho.chi_ads_ngay where act_id is not null group by act_id`)).rows)
+    if (!map.has(r.act_id)) map.set(r.act_id, { name: null, act: 'act_' + r.act_id, act_id: r.act_id, currency: r.tien_te || 'VND' })
+  const accts = [...map.values()]
   const ketQua = []
   const rows = []      // cấp ad → chi_ads_ngay (giữ nguyên, cho ad tin nhắn)
   const cdRows = []    // cấp CHIẾN DỊCH → chi_chien_dich_ngay (trục chính)
@@ -215,7 +221,9 @@ export async function keoChiAdsMetaNhip(client, opts = {}) {
   const khoang = gomKhoangNgay(trong)
   for (const [s, e] of khoang) { console.log(`ads-nhip: kéo bù ngày chưa kéo ${s}→${e}`); await keoChiAdsMetaCoSo(client, { ...opts, range: { since: s, until: e } }) }
   if (!khoang.length) console.log('ads-nhip: 90 ngày đã đủ, không có ngày trống.')
-  return keoChiAdsMetaCoSo(client, { ...opts, range: null })   // cửa sổ 7 ngày (bắt số chốt muộn)
+  // [L-108-13] cửa sổ refresh 7 → 30 ngày (Meta chốt số/hoàn tiền tới ~28 ngày). Dùng range CHUNG của lượt (đồng bộ với D) nếu có.
+  const denR = new Date().toISOString().slice(0, 10), tu30R = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  return keoChiAdsMetaCoSo(client, { ...opts, range: opts.rangeRefresh || { since: tu30R, until: denR } })
 }
 
 // ── C · SỔ THAY ĐỔI META (/act_<id>/activities) ────────────────────────────────
@@ -332,8 +340,14 @@ export async function keoNenTangMeta(client, opts = {}) {
 //   mốc mỗi nguồn tự ghi 'loi'. Trả .loi[] để runner/worker thoát mã ≠0 nếu có bất kỳ việc nào lỗi.
 export async function keoAdsLuot(client, opts = {}) {
   const kq = { b: null, c: null, d: null, loi: [] }
-  try { kq.b = await keoChiAdsMetaNhip(client, opts) } catch (e) { kq.loi.push({ viec: 'B_chi', loi: String(e && e.message || e).slice(0, 200) }) }
+  // [L-108-13] MỘT MỐC THỜI GIAN CHUNG cho B (chi chính) + D (tách nền tảng), CÙNG cửa sổ 30 ngày → hết lệch-thời-điểm
+  //   (trước: mỗi hàm tự new Date() + last_7d → D kéo sau B vài phút, ngày cuối chốt cao hơn → tách VƯỢT chính).
+  //   Chưa tách được "kéo cả hai rồi mới ghi" vì mỗi hàm tự upsert bên trong; nhưng CÙNG range trong CÙNG lượt đã đủ khớp.
+  const den = new Date().toISOString().slice(0, 10)
+  const tu30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const rangeChung = { since: tu30, until: den }
+  try { kq.b = await keoChiAdsMetaNhip(client, { ...opts, rangeRefresh: rangeChung }) } catch (e) { kq.loi.push({ viec: 'B_chi', loi: String(e && e.message || e).slice(0, 200) }) }
   try { kq.c = await keoThayDoiMeta(client, opts) } catch (e) { kq.loi.push({ viec: 'C_thay_doi', loi: String(e && e.message || e).slice(0, 200) }) }
-  try { kq.d = await keoNenTangMeta(client, opts) } catch (e) { kq.loi.push({ viec: 'D_nen_tang', loi: String(e && e.message || e).slice(0, 200) }) }
+  try { kq.d = await keoNenTangMeta(client, { ...opts, range: rangeChung }) } catch (e) { kq.loi.push({ viec: 'D_nen_tang', loi: String(e && e.message || e).slice(0, 200) }) }
   return kq
 }
