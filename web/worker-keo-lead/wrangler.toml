@@ -17,4 +17,6 @@ cpu_ms = 30000
 #   "* * * * *" = kéo LEAD mỗi phút (cũ). "0 19 * * *" = kéo CHI ADS 1 lần/ngày (19:00 UTC = 02:00 VN, off-peak).
 #   scheduled() rẽ theo event.cron. Ads cần secret META_CAPI_TOKEN (wrangler secret put) TRƯỚC khi deploy.
 [triggers]
-crons = ["* * * * *", "0 19 * * *"]
+# [WP-91 L-91k] lead "* * * * *" GIỮ NGUYÊN. Ads: 6 mốc/ngày = giờ VN 02·06·10·14·18·22 (UTC 19·23·03·07·11·15).
+#   Nhánh index.mjs rẽ theo LEAD ("* * * * *"); MỌI cron khác = ads → đổi giờ ads không lạc nhánh.
+crons = ["* * * * *", "0 19,23,3,7,11,15 * * *"]

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MẪU · Độ phủ brand + Chi chưa gán (WP-91 N-13) — v1</title>
+<!--
+  VÌ SAO CÓ KHỐI NÀY: hệ đang biết 13.534.642đ chi quảng cáo của 7 tài khoản KHÔNG gán được thương hiệu, và mới
+  chỉ phủ 2/9 thương hiệu — nhưng màn KHÔNG nói ra, người đọc tưởng số đã đủ. "Thiếu dữ liệu ≠ 0đ": số thiếu
+  phải hiện, không được im lặng.
+
+  MẪU TĨNH — số ghi cứng, KHÔNG gọi API. Số THẬT lấy bằng SELECT (ads_do_phu_brand + chi 'chưa rõ' theo tài khoản),
+  số tại 2026-09-10 15:33 (giờ VN). Đặt trên TAB "Kênh & CAC" của app Tài chính (nơi hiện chi quảng cáo theo
+  thương hiệu — taichinh.js:584-643), ngay TRÊN dải chọn thương hiệu (#kc_brand / #kc_tieude).
+
+  Màu: LẤY nguyên bộ biến của app Tài chính (bộ hex inline của Tài chính đã được map sang tên biến trong ads.html;
+  KHÔNG đẻ mã màu mới). Class có tiền tố tc-phu- (không class 1-2 ký tự, không class trơn). Font hệ thống (không Google Fonts).
+-->
+<style>
+  /* ── Bộ biến LẤY TỪ app Tài chính (giá trị hex inline của Tài chính, đã đặt tên trong ads.html) ── */
+  :root{
+    --bg:#FFFFFF; --card:#FFFFFF; --line:#D3D9E4; --tx:#131A2B; --tx2:#98A2B3;
+    --gn:#175E24; --am:#C99A3B; --do:#C8202E; --xam:#98A2B3;
+    --gnB:#DCF5E9; --amB:#FDF3DC; --cho:#FFF7F7; --choTx:#8A1620;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#F4F5F7;color:var(--tx);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--tx);color:#fff;padding:12px 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header b{font-size:15px}
+  header span{opacity:.8;font-size:12.5px}
+  .tc-phu-wrap{padding:22px;max-width:900px}
+  .tc-phu-moc{color:var(--tx2);font-size:12px;margin:0 0 4px}
+  .tc-phu-ctx{color:var(--tx2);font-size:12.5px;margin:0 0 18px;border-left:3px solid var(--line);padding-left:10px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+  /* Khối gắn trên tab (khung mô phỏng "đây là chỗ nó nằm") */
+  .tc-phu-sim{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 18px 6px;margin-bottom:26px}
+  .tc-phu-simlbl{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+
+  /* ① Dòng độ phủ — n<9 = CẢNH BÁO (không phải dòng vui) */
+  .tc-phu-cover{display:flex;align-items:center;gap:12px;background:var(--amB);border:1px solid var(--am);border-radius:6px;padding:11px 15px;margin-bottom:16px}
+  .tc-phu-cover-ic{font-size:18px;line-height:1}
+  .tc-phu-cover-txt b{font-size:15px}
+  .tc-phu-cover-txt .num{color:var(--choTx);font-weight:700}
+  .tc-phu-cover-sub{color:var(--tx2);font-size:12.5px;margin-top:1px}
+
+  /* ② Khối CHI CHƯA GÁN — đứng RIÊNG, viền đỏ nhạt */
+  .tc-phu-treo{background:var(--cho);border:1px solid var(--do);border-radius:6px;padding:14px 16px;margin-bottom:16px}
+  .tc-phu-treo-dau{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .tc-phu-treo-dau b{color:var(--do);font-size:14.5px}
+  .tc-phu-treo-tong{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;color:var(--do);letter-spacing:-.03em}
+  .tc-phu-treo-ghi{color:var(--choTx);font-size:12.5px;margin:0 0 12px}
+  .tc-phu-tbl{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .tc-phu-tbl th{font-size:11.5px;color:var(--tx2);text-align:left;font-weight:600;padding:7px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .tc-phu-tbl td{padding:7px 11px;border-bottom:1px solid #EEF1F5;font-size:13.5px;vertical-align:middle}
+  .tc-phu-tbl th.r,.tc-phu-tbl td.r{text-align:right}
+  .tc-phu-tbl tr:last-child td{border-bottom:0}
+  .tc-phu-actid{font-family:var(--mono);font-size:12px;color:var(--tx2)}
+  .tc-phu-ten{font-weight:600}
+  .tc-phu-ten-trong{color:var(--tx2);font-style:italic;font-weight:400}
+  .tc-phu-chi{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--do);font-weight:600}
+  .tc-phu-ngay{font-family:var(--mono);font-size:12px;color:var(--tx2)}
+  .tc-phu-tbl tfoot td{font-weight:700;background:#FBFCFD;border-top:1px solid var(--line)}
+
+  /* ③ Câu người thường đọc được */
+  .tc-phu-viec{background:#F1F6FF;border:1px solid #C7DBF5;border-radius:6px;padding:12px 15px;font-size:13.5px}
+  .tc-phu-viec b{color:var(--tx)}
+  .tc-phu-viec .lam{display:block;margin-top:5px;color:#1B4C8C}
+
+  /* Trạng thái ĐỦ (9/9) — thu về MỘT DÒNG */
+  .tc-phu-du{display:flex;align-items:center;gap:10px;background:var(--gnB);border:1px solid var(--gn);border-radius:6px;padding:9px 14px}
+  .tc-phu-du b{color:var(--gn)}
+  .tc-phu-du .num{color:var(--gn);font-weight:700}
+
+  .tc-phu-sec{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin:30px 0 10px;border-top:1px dashed var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<header><b>Togihome — Tài chính</b><span>MẪU khối "Độ phủ thương hiệu + Chi chưa gán" · tab Kênh &amp; CAC · số THẬT tại 2026-09-10 15:33</span></header>
+
+<div class="tc-phu-wrap">
+  <p class="tc-phu-moc">Số tại 2026-09-10 15:33 (giờ VN) — mẫu tĩnh, ghi cứng, không gọi API.</p>
+  <p class="tc-phu-ctx">Người đọc tab này thấy chi quảng cáo chia theo thương hiệu, nhưng phần tiền chưa gắn được vào
+    thương hiệu nào thì đang bị giấu — nên tưởng đã đủ. Khối dưới đây kéo phần thiếu ra ánh sáng: <b>thiếu dữ liệu không phải là 0 đồng.</b></p>
+
+  <div class="tc-phu-sim">
+    <div class="tc-phu-simlbl">▾ Chèn ở đầu tab Kênh &amp; CAC — ngay trên dải chọn thương hiệu</div>
+
+    <!-- ① DÒNG ĐỘ PHỦ (cảnh báo vì 2 < 9) -->
+    <div class="tc-phu-cover">
+      <span class="tc-phu-cover-ic">⚠️</span>
+      <div class="tc-phu-cover-txt">
+        <b>Đã gán thương hiệu: <span class="num">2/9</span> thương hiệu</b>
+        <div class="tc-phu-cover-sub">Mới có Open Living và Sophia Concept nhận được chi quảng cáo theo thương hiệu. 7 thương hiệu còn lại chưa có số.</div>
+      </div>
+    </div>
+
+    <!-- ② KHỐI CHI CHƯA GÁN — đứng RIÊNG -->
+    <div class="tc-phu-treo">
+      <div class="tc-phu-treo-dau">
+        <b>Chi quảng cáo CHƯA gán được thương hiệu</b>
+        <span class="tc-phu-treo-tong num">13.534.642đ</span>
+      </div>
+      <p class="tc-phu-treo-ghi">Từ <b>7 tài khoản quảng cáo</b>. Khoản này <b>KHÔNG được cộng vào bất kỳ thương hiệu nào</b>,
+        kể cả thương hiệu mặc định — nó đứng riêng cho tới khi có người gán.</p>
+      <table class="tc-phu-tbl">
+        <thead><tr><th>Tài khoản quảng cáo</th><th>Mã tài khoản</th><th class="r">Chi chưa gán</th><th>Khoảng ngày có chi</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tc-phu-ten tc-phu-ten-trong">(chưa đặt tên)</span></td><td class="tc-phu-actid">1630053298046246</td><td class="r tc-phu-chi">3.909.083đ</td><td class="tc-phu-ngay">10/07 – 07/08</td></tr>
+          <tr><td><span class="tc-phu-ten tc-phu-ten-trong">(chưa đặt tên)</span></td><td class="tc-phu-actid">1506786870730604</td><td class="r tc-phu-chi">3.310.010đ</td><td class="tc-phu-ngay">01/06 – 24/06</td></tr>
+          <tr><td><span class="tc-phu-ten tc-phu-ten-trong">(chưa đặt tên)</span></td><td class="tc-phu-actid">1320946839005507</td><td class="r tc-phu-chi">2.306.834đ</td><td class="tc-phu-ngay">01/06 – 20/06</td></tr>
+          <tr><td><span class="tc-phu-ten">sofabed việt</span></td><td class="tc-phu-actid">725695276511778</td><td class="r tc-phu-chi">1.492.685đ</td><td class="tc-phu-ngay">01/06 – 05/06</td></tr>
+          <tr><td><span class="tc-phu-ten">bàn nâng hạ</span></td><td class="tc-phu-actid">1639223353406452</td><td class="r tc-phu-chi">1.040.447đ</td><td class="tc-phu-ngay">01/06 – 06/06</td></tr>
+          <tr><td><span class="tc-phu-ten tc-phu-ten-trong">(chưa đặt tên)</span></td><td class="tc-phu-actid">652099947440912</td><td class="r tc-phu-chi">1.033.312đ</td><td class="tc-phu-ngay">01/06 – 20/06</td></tr>
+          <tr><td><span class="tc-phu-ten tc-phu-ten-trong">(chưa đặt tên)</span></td><td class="tc-phu-actid">326991447055444</td><td class="r tc-phu-chi">442.271đ</td><td class="tc-phu-ngay">26/08</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="2">7 tài khoản</td><td class="r num">13.534.642đ</td><td></td></tr></tfoot>
+      </table>
+    </div>
+
+    <!-- ③ CÂU NGƯỜI THƯỜNG -->
+    <div class="tc-phu-viec">
+      <b>Chi quảng cáo đang thiếu 4,4% chưa vào thương hiệu nào</b> — 13.534.642đ trên tổng 306.688.506đ chưa biết thuộc thương hiệu nào,
+      nên báo cáo theo thương hiệu đang thiếu chừng đó.
+      <span class="lam">➜ Việc phải làm: gán thương hiệu cho 7 tài khoản quảng cáo ở trên. Gán xong, số này tự chảy về đúng thương hiệu và ô cảnh báo tắt.</span>
+    </div>
+  </div>
+
+  <!-- ══ Lúc KHOẺ trông thế nào ══ -->
+  <div class="tc-phu-sec">Khi đã gán đủ (9/9, 0đ chưa gán) — khối THU về một dòng, KHÔNG biến mất</div>
+  <div class="tc-phu-du">
+    <span>✅</span>
+    <b>Đã gán thương hiệu: <span class="num">9/9</span> — 0đ chưa gán.</b>
+    <span class="tc-phu-cover-sub">Đủ thì chỉ còn một dòng xanh này để người xem yên tâm số đã trọn; bảng 7 tài khoản ẩn đi cho tới khi lại có khoản chưa gán.</span>
+  </div>
+</div>
+</body>
+</html>

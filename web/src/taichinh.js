@@ -111,7 +111,7 @@ function doiTab(t) {
   if (t === 'gvdon') taiGiaVonDon()
   if (t === 'pl') taiPL()
   if (t === 'cmdon') { CM_TRANG = 0; CM_MO = -1; taiCM() }
-  if (t === 'kenhcac') { KC_BRAND = 'all'; taiCacLuong(); taiKenhCac() }
+  if (t === 'kenhcac') { KC_BRAND = 'all'; taiPhuBrand(); taiCacLuong(); taiKenhCac() }
   if (t === 'dongtien') { DT_TRANG = 1; taiDongTien() }
   if (t === 'nhanxet') taiNhanXet()
   if (t === 'chiphi') taiChiPhiKy()
@@ -592,6 +592,37 @@ async function napBrandsKC() {
   const { data } = await sb.from('thuong_hieu_ban').select('ma,ten')
   KC_BRANDS = Object.fromEntries((data || []).map(b => [b.ma, b.ten]))
 }
+// [WP-91 N-13] khối "Chi quảng cáo theo thương hiệu" — đầu tab Kênh & CAC. Đọc ads_chi_theo_brand (RPC bọc kiểm chéo Σ).
+//   Kỳ RỖNG / lỗi → hiện chữ, KHÔNG nổ trắng màn (khuôn D-1 WP-110). Hai vế dải trạng thái (xanh/đỏ) đều dựng.
+async function taiPhuBrand() {
+  const root = $('tc_phu_root'); if (!root) return
+  const { data: r, error } = await sb.rpc('ads_chi_theo_brand')
+  if (error) { root.innerHTML = `<div class="hint" style="padding:14px;color:#C8202E">Chưa tải được chi theo thương hiệu: ${escH(error.message)}</div>`; return }
+  if (!r || !Number(r.tong)) { root.innerHTML = `<div class="hint ky-rong" style="padding:14px">Chưa có chi quảng cáo để tách theo thương hiệu.</div>`; return }
+  const cg = r.chua_gan || { tien: 0, so_tk: 0, fanpages: [] }
+  // ① dải trạng thái — HAI VẾ
+  let cover
+  if (Number(cg.tien) === 0) {
+    cover = `<div class="tc-phu-cover tc-phu-cover-xanh"><span>✓</span><div><b>Mọi khoản chi quảng cáo đã có thương hiệu — 0đ chưa gán</b></div></div>`
+  } else {
+    const fp = (cg.fanpages || []).map(f => `<tr><td>${escH(f.page_id)}</td><td class="r">${fmt(f.tien)}đ</td><td class="r">${f.so_tk}</td></tr>`).join('')
+    cover = `<div class="tc-phu-cover tc-phu-cover-do"><span>⚠</span><div style="flex:1"><b>${fmt(cg.tien)}đ chi quảng cáo chưa gán thương hiệu</b> · ${cg.so_tk} tài khoản`
+      + `<div class="tc-phu-cover-sub">Khoản này chưa vào thương hiệu nào — cần khai fanpage cho các trang dưới:</div>`
+      + `<table class="tc-phu-fp"><thead><tr><th>Fanpage (page_id)</th><th class="r">Tiền treo</th><th class="r">Số TK</th></tr></thead><tbody>${fp}</tbody></table></div></div>`
+  }
+  // ③ bảng brand (diện bán trước, brand ẩn cuối — thứ tự do RPC quyết)
+  const rows = (r.brands || []).map(b => `<tr class="${b.an ? 'tc-phu-an' : ''}"><td>${escH(b.ten)}${b.an ? ' <span class="tc-phu-ngoai">· ngoài nội thất</span>' : ''}</td><td class="r">${b.so_mau}</td><td class="r tien">${fmt(b.tien)}đ</td></tr>`).join('')
+  const conMau = (r.brands || []).reduce((a, b) => a + Number(b.so_mau), 0)
+  const conTien = (r.brands || []).reduce((a, b) => a + Number(b.tien), 0)
+  const conLai = Number(r.do_phu_mau) - Number(r.do_phu_n)
+  root.innerHTML = cover
+    + `<div class="tc-phu-card"><div class="tc-phu-dau"><h3>Chi quảng cáo theo thương hiệu</h3><div class="tc-phu-tong">${fmt(r.tong)}đ</div></div>`
+    + `<div class="tc-phu-khoang">${r.tu} → ${r.den} · Σ thương hiệu khớp tổng, lệch 0,00%</div>`
+    + `<table class="tc-phu-tbl"><thead><tr><th>Thương hiệu</th><th class="r">Số mẫu</th><th class="r">Chi quảng cáo</th></tr></thead><tbody>${rows}`
+    + `<tr class="cong"><td>Cộng</td><td class="r">${conMau}</td><td class="r">${fmt(conTien)}đ</td></tr></tbody></table>`
+    + `<div class="tc-phu-chan"><span>ⓘ</span><span>Mới <b>${r.do_phu_n}</b> trong ${r.do_phu_mau} thương hiệu nội thất có chi quảng cáo. Còn ${conLai} thương hiệu chưa chạy đồng nào — nếu bắt đầu chạy mà chưa khai fanpage, tiền sẽ rơi vào ô chưa gán.</span></div></div>`
+}
+
 async function taiKenhCac() {
   if (!$('kc_body')) return
   await napBrandsKC()

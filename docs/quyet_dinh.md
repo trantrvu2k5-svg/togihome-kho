@@ -1455,6 +1455,34 @@ khoản động, cô lập lỗi từng tài khoản, retry ≤3, tài khoản D
 
 **Trạng thái:** db/199 · `test_chi_ads_ngay` 5/0. Chưa nối vế (a) [công tắc meta_capi_bat vẫn TẮT]. CHƯA commit/tag.
 
+## QD-87 (01/09, WP-77 L-15, db/198) — HÀNG ĐỢI Meta CAPI: đơn chốt ghi hàng đợi, worker gửi (công tắc TẮT) · CHỐT
+
+Bơm sự kiện `Purchase` lên Meta Conversions API **qua HÀNG ĐỢI**, không gọi Meta trong cổng chốt đơn:
+
+- **`chot_don` chỉ GHI MỘT DÒNG** `su_kien_meta` (trang_thai='cho'), **KHÔNG gọi mạng**. Lý do: Meta chậm/lỗi thì sale
+  đang đứng ở cổng chốt — **luật tốc độ tác nghiệp <500ms** + **QD-69** (việc thật thắng số suy: chốt/bàn giao không bao
+  giờ bị thứ khác chặn). Meta lỗi → dòng thành `'loi'` + `so_lan_thu`, **KHÔNG nuốt im, KHÔNG chặn chốt**.
+- **`su_kien_meta` = HÀNG ĐỢI** (không phải sổ thuần): **PAYLOAD append-only** (trigger `sm_chan_sua` chặn DELETE + chặn
+  sửa nội dung), **TRẠNG THÁI mutable** (`cho`→`da_gui`/`loi`, qua RPC hệ thống `sm_danh_dau`). Khác QD-86 ở chỗ trạng
+  thái gửi đổi được — nhưng nội dung (đơn/giá/SĐT băm) thì bất biến.
+- **`event_id` = `ma_don`** (ổn định — bắn lại cùng đơn ra cùng id; unique `(don_id,loai)` chống đếm đôi/re-chốt).
+- **Giá trị = `don_hang.doanh_thu` GỒM VAT** (QĐ-04 §C: chi ads/doanh thu nhập gồm VAT).
+- **SĐT băm sha256 trên chuẩn Meta** = mã quốc gia + số, **BỎ dấu `+`, BỎ số 0 đầu** (`84`+…) — dùng LẠI `chuan_hoa_sdt`
+  (db/190), **CẤM hàm chuẩn hoá thứ hai**. ⚠ Đầu bài L-15 ghi "E.164 (+84…)" nhưng Meta khử trùng bằng **chữ số, không
+  dấu `+`** → băm `84903…` (không `+`) mới khớp; đây là chỉnh theo spec Meta, ghi rõ để không tưởng sai.
+- **`ad_id` + `ma_hoi_thoai`(lead_id)** lấy từ `don_hang.lead_id` nếu có; không có → NULL, **KHÔNG đoán**.
+- **CÔNG TẮC `meta_capi_bat` mặc định `false`** (bảng `cau_hinh_meta`) — **bật là quyết định của CEO**, máy không tự bật
+  (khuôn `BO_QUA_BACKUP`/QD-61). `meta_test_event_code` có mã → mọi lần gửi kèm (chỉ vào tab thử nghiệm); trống → gửi
+  thật. Worker thử **tối đa 3 lần** rồi để `'loi'` (không lặp vô hạn — bài học vòng chết 30/08).
+
+**RỦI RO ĐẾM ĐÔI CÒN TREO (VIỆC 0):** web **sconcept.vn bắn Meta pixel qua CÙNG dataset** `1183254803404557`
+(`fbq('init','1183254803404557')` xác nhận runtime). ERP bơm thêm `Purchase` vào cùng dataset → **đếm đôi** với đơn khách
+checkout trên web, TRỪ KHI cùng `event_id`. `event_id` web dùng gì **CHƯA đọc được** (cần một lượt checkout thật). Vì vậy
+**bật thật TỪNG BƯỚC**, không bật cả loạt: bật → soi Test Events → đối chiếu web pixel có trùng đơn không → mới mở rộng.
+
+**Trạng thái:** db/198 (hàng đợi + công tắc TẮT + chot_don enqueue) · worker `meta_capi.mjs` viết xong **để TẮT, chưa
+deploy**. `test_su_kien_meta` 9/0. CHƯA commit/tag.
+
 ## QD-77 (30/08, WP-70 L-08, db/182) — BA CHIỀU TÁCH BẠCH · loai_thuong_mai là bảng gốc phân loại · CHỐT
 
 Chat não duyệt (iii-b) 29/08. Phân loại sản phẩm là **BA CHIỀU tách bạch, cấm trộn vào một cột:**
@@ -2065,3 +2093,78 @@ ambiguous → đo ra 0 đơn). Nguy nhất là hai ký chỉ khác nhau ở tham
 1-arg kiem/qtcl khi test_061 chuyển sang `qt_luu_buoc`; dọn 2-arg `tien_mon` khi test_042 chuyển sang ký 3-tham-số.
 
 **Trạng thái:** hiệu lực.
+
+## QD-120 (09/09→10/09, WP-91 P1, db/252 · ban_giao_xuong + vuot_coc_canh_bao) — NGƯỠNG CỌC CHỌN KỲ QUA MỘT CỔNG `ky_gia_hien_hanh()` NHƯ GIÁ · HIỆU LỰC
+
+**Nội dung:** Mọi tham số điều khiển **CỬA CHẶN** (ngưỡng cọc dự án `coc_toi_thieu_du_an_pct`) và **GIÁ** đều chọn kỳ qua **một
+cổng duy nhất** `kho.ky_gia_hien_hanh()` (kỳ ĐÃ XÁC NHẬN, dự phòng kỳ mới nhất — QD-102). Hai hàm cọc `ban_giao_xuong` và
+`vuot_coc_canh_bao` (db/174) **bỏ** biểu thức `to_char(current_date,'YYYY-MM')` (tháng dương lịch) đang dùng. **GỠ nền 30 CHÔN
+TRONG CODE** (`coalesce(…, 30)`) ở cả hai — thiếu kỳ/thiếu ngưỡng → **RAISE `THIEU_NGUONG_COC`**, KHÔNG im lặng rơi về 30 (luật
+ngưỡng-không-dự-phòng-im-lặng). **GIỮ** `tham_so_tai_chinh.coc_toi_thieu_du_an_pct DEFAULT 30` — đó là giá trị **khởi tạo kỳ
+mới**, không phải nền ở tầng gọi. Trước migration: 13 hàm GIÁ đã qua cổng, riêng 2 hàm cọc còn lấy tháng dương lịch (rà L-91b).
+
+**Lý do (lời CEO):** cọc chặn bàn giao là **chặn TIỀN và chặn SẢN XUẤT** — không để **kỳ chép `[TẠM]` chưa ai soát** điều khiển
+nó; kỳ 08 và 09 hiện là **bản chép của 07**. Bản cũ lấy tháng-hiện-tại, nên nếu kỳ hiện hành chưa soát mà kỳ-đã-xác-nhận là kỳ
+cũ hơn, cửa cọc chạy theo bản chưa soát — đúng cái QD-102 ngăn cho giá.
+
+**Bằng chứng (test_wp91_coc_cong.mjs, 7/7, transaction rollback):** Ca A — xác nhận 2026-07 coc=30, dựng 2026-09 (tháng hiện
+tại) coc=50 CHƯA xác nhận; cửa cọc chạy theo **30** (gate), bẻ tạm hàm về `to_char(current_date)` thì lật sang 50 → **chứng minh
+bản cũ SAI, bản mới ĐÚNG**. Ca B — không kỳ nào xác nhận → dự phòng kỳ mới nhất, không RAISE. Ca C — bảng rỗng → RAISE
+`THIEU_NGUONG_COC`. Ca D — đơn dự án thiếu cọc vẫn **CHẶN** bàn giao (ngưỡng 30% của gate, không 50%); CEO có lý do → cửa vượt
+mở + **GHI VẾT** (`vuot_coc_boi/luc/ly_do`). BƯỚC 4: gọi `ban_giao_xuong` live-trong-txn moi_len_don→cho_cat, Δgiao_dich=0 ·
+Δsu_kien_quet=0 (đúng — hai bảng đó do QUÉT TEM sinh, không phải bàn giao).
+
+**Trạng thái:** áp dụng từ db/252 (đã chạy qua `run_sql.mjs`, có backup pre_252). CHƯA deploy · CHƯA commit. `ban_giao_xuong`
+chỉ đổi ĐÚNG biểu thức chọn kỳ — 7 việc + nhánh cửa-vượt-CEO-ghi-vết GIỮ NGUYÊN.
+
+## QD-121 (09/09→10/09, WP-91 N-06, db/253 · trg_go_lich_don_chet) — ĐƠN HẾT ĐƯỜNG SẢN XUẤT RỜI `xep_lich` NGAY TẠI CỔNG ĐỔI TRẠNG THÁI · HIỆU LỰC
+
+**Nội dung:** Đơn vào trạng thái **hết đường sản xuất** — `huy` (huỷ) hoặc `bao_gia_thua` (thua báo giá) — thì **rời khỏi
+`xep_lich`** ngay tại cổng đổi trạng thái, qua trigger `trg_go_lich_don_chet` (AFTER INSERT OR UPDATE OF trang_thai trên
+`don_hang`) — noi theo mẫu `trg_huy_giu_cho → huy_giu_cho_don`. `tam_ngung` **KHÔNG rời** (QD-52: tạm ngưng giữ nguyên giữ chỗ
++ lịch). Idempotent (xoá 0 dòng = no-op; gọi lại không lỗi/không âm). **KHÔNG** ghi `giao_dich` (gỡ lịch là việc SUY, không phải
+sổ tiền). **KHÔNG** đụng `giu_cho` — huỷ đã có đường riêng `huy_giu_cho_don` (kiểm rồi, KHÔNG làm lại). Đi qua HỌ đường ghi
+`xep_lich` sẵn có (delete-per-đơn, như `luu_xep_lich`/`ban_giao_xuong`) — KHÔNG đẻ đường ghi thứ hai (QD-03).
+
+**Lý do:** `xep_lich` là bảng **SUY** nuôi tải tổ + nút thắt + ngày giao hứa — giữ phút của đơn đã chết là **bơm TẢI MA**, làm
+sai cả ngày hứa lẫn nút thắt. Bệnh cũ (L-91a): db/036 chuyển sang thua không đụng `xep_lich`; `xep_lich` chỉ bị xoá khi RE-XẾP.
+
+**LỆCH mô tả — làm theo DB (BƯỚC 1d):** `tai_theo_to_tuan` **tự lọc trạng thái** (WHERE loại `huy`/`tam_ngung`) nên với đơn HUỶ
+nó **không rò**; leak thật chỉ ở `nut_that_ghi` + `vung_cua_tuan` (đọc THẲNG `xep_lich`, không lọc). Gỡ tại nguồn `xep_lich` sửa
+đúng hai reader này (và mọi reader khác) một lần. (`tai_theo_to_tuan` vẫn gồm `bao_gia_thua` trong WHERE — đó là chuyện WHERE
+của nó, ngoài phạm vi xep_lich; lô này không đụng.)
+
+**Mở lại sau huỷ/thua:** gỡ chỉ XOÁ, không lưu lịch cũ để hoàn. Xếp lại = **NGƯỜI bấm** (bàn giao lại `ban_giao_xuong` chèn lại
+`xep_lich`, hoặc `ceo/xuong` gọi `luu_xep_lich`). Xếp lại **hàng loạt** phải `p_tu_dong=true` (WP-45 demand fence; lưu ý
+`khoa_lich_luc` còn set từ lần bàn giao trước → batch sẽ trả `DA_KHOA_LICH`, xếp tay `p_tu_dong=false` thì đi qua).
+
+**Bằng chứng (test_wp91_go_lich.mjs, 6/6, transaction rollback):** Ca A HUỶ (đã xếp) → `xep_lich` 1→0, tải(cnc,tuần) 300→0 phút,
+`vung_cua_tuan` day→mo, rời tập quét `nut_that_ghi`. Ca B THUA → 1→0, tải −300. Ca C TẠM NGƯNG → GIỮ NGUYÊN (đối chứng). Ca D
+đang chạy (cho_cat→dang_lam) → giữ lịch, không gỡ nhầm. Ca E gọi lại → không lỗi, tải không đổi. **CHỨNG MINH ĐỎ:** bẻ phần gỡ
+ra khỏi trigger → đơn đã huỷ mà tải CÒN 300 phút (vùng vẫn 'day') → đúng câu "tải còn X phút của đơn đã huỷ", rồi hoàn lại.
+
+**Trạng thái:** áp dụng từ db/253 (đã chạy qua `run_sql.mjs`, backup pre_253). CHƯA deploy · CHƯA commit. Bước robot bàn giao
+(demo_phong_hop.py) KHÔNG chạy lẻ được → dồn vào cổng hồi quy 11/11 cả vòng trước khi tag.
+
+## QD-122 (10/09, WP-91 N-13, db/254 · thuong_hieu 'thu_nghiem' + ads_trang_brand) — CHI ADS THỬ NGOÀI NGÀNH GẮN BRAND "THỬ NGHIỆM" Ở MỨC FANPAGE, KHÔNG RẢI VÀO 9 BRAND, KHÔNG LÊN MÀN BÁN · HIỆU LỰC
+
+**Nội dung:** Chi quảng cáo cho hoạt động **thử ngoài ngành nội thất** (2 fanpage `1189129987617712` + `100276159846147`,
+4.351.354đ, 6 quảng cáo) gắn thương hiệu **"Thử nghiệm"** ở **mức FANPAGE** (đúng WP-112, qua `ads_trang_brand`), KHÔNG rải
+vào 9 brand nội thất. Chi này **vẫn nằm trong TỔNG chi ads**, chỉ tách ra ở **chiều brand** (không viết nhánh loại trừ MER/CAC).
+Brand "Thử nghiệm" **KHÔNG hiện ở màn bán hàng**: đặt `ngung=true` + `ma_3chu=NULL` → tự loại khỏi VIEW `thuong_hieu_ban`
+(Sale/Sản phẩm/Tài chính đọc view này) và khỏi `sp_loc_options` (lọc `loai='thuong_hieu' and not ngung`) — dùng cơ chế ẩn
+SẴN CÓ, không đẻ nhánh mới. Bản ghi vẫn ở `thuong_hieu` (master) nên `ads_do_phu_brand` join thấy để hiện ở chiều brand.
+
+**Lý do:** Garrison ch.6 — chi phí KHÔNG do segment gây ra thì KHÔNG phân bổ vào segment; rải chi thử-ngành-khác vào 9 brand
+nội thất là làm brand khác **lỗ giả**. Gắn brand riêng "Thử nghiệm" giữ được chi trong tổng mà không bóp méo lãi/lỗ từng brand.
+
+**Kiểm chéo (QD-110):** chi chưa gán 4.351.354đ → **0đ/0 ad** · brand "Thử nghiệm" = **4.351.354đ/6 ad** · tổng
+**306.688.506đ KHÔNG ĐỔI** (Σ theo brand + Σ chưa gán = tổng) · 66 ad còn lại (sconcept 49 + openliving 17) **không đổi brand**
+· cổng: `thuong_hieu_ban` (9 dòng) + `sp_loc_options` đều **KHÔNG** chứa "Thử nghiệm".
+
+**[GIẢ ĐỊNH treo]:** giữ nguyên cách tính MER/CAC (chi thử vẫn trong tổng, chỉ tách chiều brand) — đổi ý sửa sau, rẻ.
+Hệ quả phụ: `ads_do_phu_brand` nay đếm 3 brand có bản đồ (2 bán + 1 thử) → độ phủ hiển thị 3/9; nếu muốn tách "thử" khỏi
+mẫu số độ-phủ-brand-BÁN thì làm lô riêng (ngoài phạm vi N-13).
+
+**Trạng thái:** áp dụng từ db/254 (đã chạy qua `run_sql.mjs`, backup pre_254). CHƯA deploy · CHƯA commit. Không gán brand hộ
+cho fanpage nội thất nào khác; chỉ 2 page thử.

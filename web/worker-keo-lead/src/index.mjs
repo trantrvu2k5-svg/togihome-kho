@@ -133,9 +133,10 @@ function log(r) {
 
 export default {
   async scheduled(event, env, ctx) {
-    // [WP-91 L-91.3] rẽ theo cron: "0 19 * * *" = kéo CHI ADS (1 lần/ngày); còn lại (mỗi phút) = kéo LEAD.
-    if (event.cron === '0 19 * * *') ctx.waitUntil((async () => { const r = await chayLuotAds(env); logAds(r) })())
-    else ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })())
+    // [WP-91 L-91k] rẽ theo LEAD (cron mỗi phút "* * * * *") = kéo LEAD; MỌI cron khác = kéo CHI ADS (6 mốc/ngày).
+    //   Rẽ theo lead (không theo chuỗi ads) để đổi giờ ads KHÔNG lạc nhánh. Lead & ads TÁCH BẠCH: mỗi mốc là 1 event riêng.
+    if (event.cron === '* * * * *') ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })())
+    else ctx.waitUntil((async () => { const r = await chayLuotAds(env); logAds(r) })())
   },
   // GET / = KÉO TAY (nút "Kéo ngay" app Sale) hoặc smoke-test. CORS mở để app gọi được. Khoá + GUC như cron.
   async fetch(req, env) {

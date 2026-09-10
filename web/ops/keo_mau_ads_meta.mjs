@@ -22,14 +22,24 @@ function docToken() {
   return t
 }
 
-// bóc mẫu từ creative Meta (một nguồn: object_story_spec.page_id; video_id ưu tiên top-level rồi video_data)
+// [WP-91 N-13] page_id của mẫu: ƯU TIÊN object_story_spec.page_id; quảng cáo BOOST BÀI (STATUS/VIDEO) để ô đó NULL,
+//   page thật nằm ở effective_object_story_id dạng "<page>_<post>" → lấy phần trước "_". Không tách được → null (gọi kêu lên).
+export function pageTuCreative(cr) {
+  const oss = cr.object_story_spec || {}
+  if (oss.page_id) return oss.page_id
+  const eff = cr.effective_object_story_id
+  if (eff && String(eff).includes('_')) { const p = String(eff).split('_')[0]; if (p) return p }
+  return null
+}
+
+// bóc mẫu từ creative Meta (page_id qua pageTuCreative: oss.page_id → fallback effective_object_story_id; video_id top-level rồi video_data)
 function bocMau(ad_id, act_id, cr) {
   const oss = cr.object_story_spec || {}
   return {
     mau: {
       creative_id: cr.id || null, ten: cr.name || null, tieu_de: cr.title || null, body: cr.body || null,
       nut: cr.call_to_action_type || null, dinh_dang: cr.object_type || null,
-      page_id: oss.page_id || null, story_id: cr.effective_object_story_id || null,
+      page_id: pageTuCreative(cr), story_id: cr.effective_object_story_id || null,
       ig_link: cr.instagram_permalink_url || null, anh_url: cr.image_url || null,
       thumbnail_url: cr.thumbnail_url || null,
       video_id: cr.video_id || (oss.video_data && oss.video_data.video_id) || null,
@@ -60,7 +70,7 @@ export async function keoMauAdsMeta(client, opts = {}) {
   }
   try {
     const ads = (await client.query('select distinct ad_id, act_id from kho.chi_ads_ngay where ad_id is not null')).rows
-    const mauMap = new Map(), adRows = [], loi = [], hashMap = new Map(), childMap = new Map()
+    const mauMap = new Map(), adRows = [], loi = [], hashMap = new Map(), childMap = new Map(), canhBaoPage = []
     let keoDuoc = 0
     for (const { ad_id, act_id } of ads) {
       try {
@@ -72,6 +82,8 @@ export async function keoMauAdsMeta(client, opts = {}) {
         keoDuoc++
         const { mau, ad, hash, childHashes } = bocMau(ad_id, act_id, cr)
         mauMap.set(mau.creative_id, mau)   // dedup theo creative_id (một creative nhiều ad)
+        // [WP-91 N-13] KÊU LÊN khi không tách được page_id (cấm ghi NULL im lặng — luật ngưỡng-không-dự-phòng-im-lặng)
+        if (!mau.page_id) canhBaoPage.push({ ad_id, creative_id: mau.creative_id, story_id_tho: cr.effective_object_story_id || null, dinh_dang: cr.object_type || null })
         adRows.push(ad)
         if (hash && act_id && !hashMap.has(mau.creative_id)) hashMap.set(mau.creative_id, { hash, act: act_id })
         if (childHashes.length && act_id && !childMap.has(mau.creative_id)) childMap.set(mau.creative_id, { hashes: childHashes, act: act_id })
@@ -138,7 +150,8 @@ export async function keoMauAdsMeta(client, opts = {}) {
     const s = ((Date.now() - t0) / 1000).toFixed(1)
     const coAnh = mauRows.filter(m => m.anh_net_url).length
     console.log(`ads-mau XONG · ${ads.length} ad · creative ${keoDuoc} · mẫu ${mauRows.length} · CÓ ẢNH ${coAnh}/${mauRows.length} (nét ${anhNet} · xoay vòng ${anhDai} · đẩy bài ${anhBai}) · lỗi ${loi.length} · ${s}s`)
-    return { tongAd: ads.length, keoDuoc, soMau: mauRows.length, coAnh, anhNet, anhDai, anhBai, loi }
+    if (canhBaoPage.length) console.warn(`⚠ ads-mau: ${canhBaoPage.length} ad KHÔNG tách được page_id (ghi NULL, cần soi): ${JSON.stringify(canhBaoPage)}`)
+    return { tongAd: ads.length, keoDuoc, soMau: mauRows.length, coAnh, anhNet, anhDai, anhBai, loi, canhBaoPage }
   } catch (e) {
     await ghi('loi', null, idMoc, null, String(e.message).slice(0, 200)).catch(() => {})
     throw e

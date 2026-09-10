@@ -343,6 +343,32 @@
   #tc .tc-cnt-ct { border:1px solid var(--bd); background:#fff; border-radius:6px; padding:2px 9px; cursor:pointer; font-size:12px; }
   #tc .tc-cnt-hd { background:var(--auto); }
   #tc .tc-cnt-hd td { font-family:var(--mono); font-size:11.5px; color:var(--mut); }
+  /* ══ WP-91 N-13 · Chi quảng cáo theo thương hiệu (mẫu man_do_phu_brand, biến màu sẵn có — không hex mới) ══ */
+  #tc .tc-phu-root { margin:0 0 22px; }
+  #tc .tc-phu-cover { display:flex; gap:10px; align-items:flex-start; border-radius:8px; padding:11px 15px; margin-bottom:14px; font-size:14px; }
+  #tc .tc-phu-cover-xanh { background:var(--gnB); color:var(--gn); border:1px solid var(--gn); }
+  #tc .tc-phu-cover-do { background:var(--priS); color:var(--pri); border:1px solid var(--priB); }
+  #tc .tc-phu-cover b { font-weight:600; }
+  #tc .tc-phu-cover-sub { color:var(--mut); font-size:12.5px; margin-top:2px; }
+  #tc .tc-phu-fp { width:100%; border-collapse:collapse; margin-top:8px; background:var(--surface); border-radius:6px; }
+  #tc .tc-phu-fp th, #tc .tc-phu-fp td { padding:5px 9px; border-bottom:1px solid var(--bd); font-size:12.5px; text-align:left; }
+  #tc .tc-phu-fp th { color:var(--mut); font-weight:600; }
+  #tc .tc-phu-fp .r { text-align:right; font-family:var(--mono); }
+  #tc .tc-phu-card { background:var(--surface); border:1px solid var(--bd); border-radius:8px; padding:16px 18px; }
+  #tc .tc-phu-dau { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  #tc .tc-phu-dau h3 { margin:0; font-size:15px; }
+  #tc .tc-phu-tong { font-family:var(--mono); font-size:22px; font-weight:500; font-variant-numeric:tabular-nums; }
+  #tc .tc-phu-khoang { color:var(--mut); font-size:12.5px; margin:2px 0 12px; }
+  #tc .tc-phu-tbl { width:100%; border-collapse:collapse; }
+  #tc .tc-phu-tbl th { color:var(--mut); font-weight:600; font-size:12px; text-align:left; padding:6px 9px; border-bottom:1px solid var(--bd); }
+  #tc .tc-phu-tbl td { padding:6px 9px; border-bottom:1px solid var(--bd2); font-size:13.5px; }
+  #tc .tc-phu-tbl .r { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  #tc .tc-phu-tbl .tien { font-weight:600; }
+  #tc .tc-phu-tbl .cong td { border-top:2px solid var(--bd); font-weight:700; background:var(--raise); }
+  #tc .tc-phu-an td { color:var(--mut); }
+  #tc .tc-phu-an .tien { font-weight:400; }
+  #tc .tc-phu-ngoai { color:var(--fnt); font-size:11.5px; }
+  #tc .tc-phu-chan { margin-top:12px; padding-top:11px; border-top:1px solid var(--bd); display:flex; gap:8px; color:var(--mut); font-size:13px; }
   /* ══ WP-70 L-03 · Kênh & CAC theo luồng + chủ đề (mẫu man_cac_luong_chude_v1) ══ */
   #tc .cl-sep { border-top:2px solid var(--tx); margin:38px 0 22px; }
   #tc .cl-h2brand { font-size:17px; font-weight:600; margin-bottom:2px; }
@@ -739,6 +765,8 @@
     <!-- ══════════ TAB · KÊNH & CAC (L-48) ══════════ -->
     <div class="tabp" id="tab-kenhcac">
       <h1>Kênh &amp; CAC</h1>
+      <!-- WP-91 N-13: khối "Chi quảng cáo theo thương hiệu" (mẫu man_do_phu_brand). Render trong JS: taiPhuBrand(). -->
+      <section id="tc_phu_root" class="tc-phu-root"><div class="hint" style="padding:14px">Đang tải chi quảng cáo theo thương hiệu…</div></section>
       <!-- WP-70 L-03: khối luồng + chủ đề (mẫu man_cac_luong_chude_v1). Render trong JS: taiCacLuong(). -->
       <section id="cl_root" class="cl-root"><div class="hint" style="padding:22px">Đang tải luồng &amp; chủ đề…</div></section>
 

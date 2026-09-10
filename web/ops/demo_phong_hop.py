@@ -193,10 +193,15 @@ def main(pw):
     print(f"  đơn DEMO đang có (trước lên đơn): {len(demo_pre)}")
     try:
         # Sale mở mặc định tab "Báo giá"; nút "+ Lên đơn" chỉ ở tab "Sổ đơn hàng" (nav trái) → điều hướng trước.
-        try: pg.get_by_text("Sổ đơn hàng", exact=True).first.click(timeout=4000); time.sleep(1)
-        except PWTimeout: print("  ⚠ không thấy nav 'Sổ đơn hàng' — thử '+ Lên đơn' tại chỗ")
+        # [L-91n] chờ app Sale HYDRATE xong theo ĐIỀU KIỆN (nav trái hiện), KHÔNG nới giây cứng trên click.
+        nav_don = pg.get_by_text("Sổ đơn hàng", exact=True).first
+        nav_don.wait_for(state="visible", timeout=25000)   # app render xong → nav hiện
+        nav_don.click(); time.sleep(0.3)
         req0, dom0 = snap(pg)
-        pg.get_by_role("button", name="+ Lên đơn", exact=True).click(timeout=5000)
+        # chờ nút "+ Lên đơn" HIỆN RA rồi mới bấm (điều kiện, không phải timeout cứng lên click)
+        len_don = pg.get_by_role("button", name="+ Lên đơn", exact=True)
+        len_don.wait_for(state="visible", timeout=20000)
+        len_don.click()
         pg.get_by_placeholder("0903 792 333").wait_for(timeout=5000)   # modal mở
         # Ô chữ (placeholder ổn định cả 2 nhánh KHÁCH MỚI/CŨ)
         pg.get_by_placeholder("Chị Lan").fill("DEMO Phòng họp")
@@ -278,6 +283,14 @@ def main(pw):
     login(pg, "thietke")
     print(f"\n── BƯỚC 2 · Thiết kế: nhận việc + gửi bản 3D ({D}) ──")
     try:
+        # [L-91n] chờ đơn D VÀO danh sách "Chờ nhận" theo ĐIỀU KIỆN (vừa tạo ở Sale, cần list load + propagate).
+        #   CEO/trưởng = laTruong → nút data-giao; thiết kế thường → data-nhan. Chờ BẤT KỲ nút của D gắn vào DOM.
+        sel_d = f'#dsChoNhan [data-giao="{D}"], #dsChoNhan [data-nhan="{D}"]'
+        try:
+            pg.wait_for_selector(sel_d, state="attached", timeout=20000)
+        except PWTimeout:
+            pg.reload(wait_until="domcontentloaded")   # list có thể đã load TRƯỚC khi đơn kịp propagate → tải lại rồi chờ
+            pg.wait_for_selector(sel_d, state="attached", timeout=20000)
         # DUMP nút thật của thẻ đơn D trong #dsChoNhan (không đoán): data-nhan (tự nhận) hay data-giao (vai ceo/trưởng)?
         info = pg.evaluate("""(d) => {
             const root = document.querySelector('#dsChoNhan'); if(!root) return {co_ds:false};
@@ -324,8 +337,16 @@ def main(pw):
         if RESULT.get(2) != 'OK': raise Skipped(2)
         login(pg, "taichinh")
         # WP-03: màn gvdon nay gọi gia_von_don_ds p_gom_demo=true → đơn demo HIỆN trong #gv_don → đi qua MÀN thật.
-        pg.locator('[data-tab="gvdon"]').click(timeout=5000)
-        pg.locator('#gv_don').wait_for(timeout=5000)
+        # [L-91n] Tài chính bind onclick nav trong napApp (SAU fetch HTML) — click quá sớm = no-op, tab không mở.
+        #   Chờ nav hiện rồi click LẠI tới khi #gv_don thật sự HIỆN (điều kiện), KHÔNG nới timeout cứng.
+        tab_gv = pg.locator('[data-tab="gvdon"]')
+        tab_gv.wait_for(state="visible", timeout=25000)
+        for _ in range(12):
+            tab_gv.click()
+            try: pg.locator('#gv_don').wait_for(state="visible", timeout=3000); break
+            except PWTimeout: time.sleep(0.5)
+        else:
+            raise AssertionError("tab 'Giá vốn theo đơn' không mở — #gv_don vẫn ẩn sau nhiều lần click (nav chưa bind?)")
         opts = []
         for _ in range(16):
             opts = pg.eval_on_selector('#gv_don', "el => Array.from(el.options).map(o=>o.value)")

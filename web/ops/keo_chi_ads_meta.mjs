@@ -343,9 +343,13 @@ export async function keoAdsLuot(client, opts = {}) {
   // [L-108-13] MỘT MỐC THỜI GIAN CHUNG cho B (chi chính) + D (tách nền tảng), CÙNG cửa sổ 30 ngày → hết lệch-thời-điểm
   //   (trước: mỗi hàm tự new Date() + last_7d → D kéo sau B vài phút, ngày cuối chốt cao hơn → tách VƯỢT chính).
   //   Chưa tách được "kéo cả hai rồi mới ghi" vì mỗi hàm tự upsert bên trong; nhưng CÙNG range trong CÙNG lượt đã đủ khớp.
+  // [WP-91 L-91k] cửa sổ ĐỌC LÙI N ngày đọc từ BẢNG (không chôn code); thiếu → RAISE, CẤM nền ngầm.
+  const pr = await client.query(`select gia_tri::int n from kho.tham_so_van_hanh where ma = 'ads_doc_lui_ngay'`)
+  if (!pr.rows.length || pr.rows[0].n == null) throw new Error('THIEU_THAM_SO: ads_doc_lui_ngay (kho.tham_so_van_hanh) — không xác định số ngày đọc lùi')
+  const N = pr.rows[0].n
   const den = new Date().toISOString().slice(0, 10)
-  const tu30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-  const rangeChung = { since: tu30, until: den }
+  const tuN = new Date(Date.now() - N * 86400000).toISOString().slice(0, 10)
+  const rangeChung = { since: tuN, until: den }
   try { kq.b = await keoChiAdsMetaNhip(client, { ...opts, rangeRefresh: rangeChung }) } catch (e) { kq.loi.push({ viec: 'B_chi', loi: String(e && e.message || e).slice(0, 200) }) }
   try { kq.c = await keoThayDoiMeta(client, opts) } catch (e) { kq.loi.push({ viec: 'C_thay_doi', loi: String(e && e.message || e).slice(0, 200) }) }
   try { kq.d = await keoNenTangMeta(client, { ...opts, range: rangeChung }) } catch (e) { kq.loi.push({ viec: 'D_nen_tang', loi: String(e && e.message || e).slice(0, 200) }) }
