@@ -111,7 +111,7 @@ async function nap() {
   const [bk, ss, vl, ad, dp, ng, tk, th, ttk, sk, std, nt, mau, mauTt, tok] = await Promise.all([
     sb.rpc('ads_bang_ky', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_tong_so_sanh', { p_tu_ngay: TU, p_den_ngay: DEN, p_brand: pBrand }),
-    sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN }),
+    sb.rpc('ads_viec_phai_lam', { p_tu_ngay: TU, p_den_ngay: DEN, p_brand: pBrand }),   // [WP-113] lọc brand SERVER cho dòng mới+cũ
     sb.rpc('ads_ad_ngay', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.rpc('ads_do_phu', { p_tu_ngay: TU, p_den_ngay: DEN }),
     sb.from('ads_nguong').select('gia_tri,hieu_luc_tu,hieu_luc_den').eq('ma', 'chi_so_ty_le_dang_ngo'),
@@ -278,13 +278,28 @@ function khoiViec(vl, tok) {
     { loai: 'moi_bat', ten: 'Mới bật trong kỳ', dk: 'chiến dịch mới bật, chưa có kỳ trước để so' }
   ]
   const byLoai = {}; for (const x of v) (byLoai[x.loai] = byLoai[x.loai] || []).push(x)
+  // [WP-113 L-113-4] dòng MỚI dùng đúng khuôn cũ: nhãn + câu, kêu→đậm, im→mờ; danh sách ten_chien_dich gập dưới câu.
+  const NHAN = { keo_do: 'Số Meta thiếu', loi_web: 'Lỗi web', mau_can_doi: 'Mẫu cần đổi', gia_cuoc_tro_chuyen_cao: 'Giá cuộc trò chuyện cao' }
+  const itemNew = (x, ten) => {
+    const keu = x.keu !== false
+    const list = (x.ten_chien_dich && x.ten_chien_dich.length)
+      ? '<details class="ads-viec-mo"><summary>mở bảng xem từng cái (' + x.ten_chien_dich.length + ')</summary><ul class="ads-viec-ds">' + x.ten_chien_dich.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul></details>' : ''
+    return '<div class="ads-viec-item' + (keu ? '' : ' im') + '"><span class="ads-viec-loai' + (keu ? '' : ' im') + '">' + esc(ten) +
+      '</span><div class="ads-viec-cau' + (keu ? '' : ' im') + '">' + esc(dinhSo(x.cau)) + list + '</div></div>'
+  }
+  // keo_do LUÔN đứng đầu
+  let head = ''; for (const x of (byLoai['keo_do'] || [])) head += itemNew(x, NHAN.keo_do)
   let body = ''
   for (const c of CATS) {
     const hit = byLoai[c.loai]
     if (hit) for (const x of hit) body += '<div class="ads-viec-item"><span class="ads-viec-loai">' + esc(c.ten) + '</span><div class="ads-viec-cau">' + esc(dinhSo(x.cau)) + '</div></div>'
     else body += '<div class="ads-viec-item im"><span class="ads-viec-loai im">' + esc(c.ten) + '</span><div class="ads-viec-cau im">Không có. Kêu khi: ' + esc(c.dk) + '.</div></div>'
   }
-  return sec('1', 'Việc phải làm', 'kêu khi vượt ngưỡng · mục mờ = đang im, kèm điều kiện', body + tokenHtml)
+  // loi_web · mau_can_doi · gia_cuoc_tro_chuyen_cao theo THỨ TỰ hàm trả
+  let newBody = ''
+  for (const x of v) if (NHAN[x.loai] && x.loai !== 'keo_do') newBody += itemNew(x, NHAN[x.loai])
+  const nhip = '<div class="ads-viec-nhip im">Nhịp tuần: thứ 2 đọc trang này, mỗi lần sửa một thứ và ghi Sổ thay đổi; thứ 5 kiểm lại, không tốt thì đảo lại.</div>'
+  return sec('1', 'Việc phải làm', 'kêu khi vượt ngưỡng · mục mờ = đang im, kèm điều kiện', head + body + newBody + tokenHtml + nhip)
 }
 
 function khoiSoSanh(ss, tyLeNgo) {
@@ -355,24 +370,79 @@ function denCell(den) {
 }
 function thSort(col, ten) { const on = SORT.col === col; return '<th class="ads-sort r' + (on ? ' ads-on' : '') + '" data-col="' + col + '">' + ten + (on ? (SORT.dir === 'desc' ? ' ▾' : ' ▴') : '') + '</th>' }
 
+// [WP-113 L-113-4] số hiển thị dạng tỉ lệ "lượt vào / 100 bấm" (số thường, KHÔNG %). NULL → "—".
+function ratCell(d) {
+  const rat = n => n == null ? '—' : String(n).replace('.', ',')
+  const chuaTin = d.so_pixel_chua_tin === true || d.web_chua_co_su_kien_lien_he === 'chua_tin'
+  const note = '<span class="ads-note-nho">pixel chưa tin (sửa 11/09)</span>'
+  if (chuaTin) return '<td class="num ads-mo">' + rat(d.toi_trang_100_bam) + ' ' + note + '</td>'
+  if (d.toi_trang_100_bam != null && Number(d.toi_trang_100_bam) < 70)
+    return '<td class="num ads-do-so">' + rat(d.toi_trang_100_bam) + ' <span class="ads-note-nho">lỗi web</span></td>'
+  return '<td class="num">' + rat(d.toi_trang_100_bam) + '</td>'
+}
+function webCols(d) {   // 4 cột web: Tới trang/100 bấm · Giá 1 lượt vào · Lượt liên hệ · Giá 1 liên hệ
+  const chuaTin = d.so_pixel_chua_tin === true || d.web_chua_co_su_kien_lien_he === 'chua_tin'
+  const khong = d.web_chua_co_su_kien_lien_he === 'khong'
+  const note = '<span class="ads-note-nho">pixel chưa tin (sửa 11/09)</span>'
+  const g1v = chuaTin ? '<td class="num ads-mo">' + tien(d.gia_1_luot_vao) + ' ' + note + '</td>' : '<td class="num">' + tien(d.gia_1_luot_vao) + '</td>'
+  let llh
+  if (khong) llh = '<td class="num">' + so(d.luot_lien_he) + ' <span class="ads-note-nho">chỉ tính nhắn trên quảng cáo</span></td>'
+  else if (chuaTin) llh = '<td class="num ads-mo">' + so(d.luot_lien_he) + ' ' + note + '</td>'
+  else llh = '<td class="num">' + so(d.luot_lien_he) + '</td>'
+  let g1l
+  if (khong) g1l = '<td class="num">—</td>'
+  else if (chuaTin) g1l = '<td class="num ads-mo">' + tien(d.gia_1_lien_he) + '</td>'
+  else g1l = '<td class="num">' + tien(d.gia_1_lien_he) + '</td>'
+  return ratCell(d) + g1v + llh + g1l
+}
+
+function cotTyleFoot(ds) {   // ô CTR/CPM/CPC của dòng TỔNG một bảng (tính từ nhóm)
+  const ht = ds.reduce((s, d) => s + Number(d.luot_hien_thi || 0), 0)
+  const lbl = ds.reduce((s, d) => s + Number(d.luot_bam || 0), 0)
+  const chi = ds.reduce((s, d) => s + Number(d.chi || 0), 0)
+  const ctr = ht > 0 ? Math.round(lbl * 10000 / ht) / 100 : null
+  const cpm = ht > 0 ? Math.round(chi * 1000 / ht) : null
+  const cpc = lbl > 0 ? Math.round(chi / lbl) : null
+  return '<td class="num">' + pctTxt(ctr) + '</td><td class="num">' + tien(cpm) + '</td><td class="num">' + tien(cpc) + '</td>'
+}
 function khoiBang(dong, tong, anCount) {
-  let rows = ''
-  for (const d of dong) {
-    rows += '<tr class="cdrow" data-cd="' + esc(d.campaign_id) + '"><td>' + esc(d.campaign_name || d.campaign_id) + '</td>' +
-      '<td>' + objCell(d.objective) + '</td><td>' + tkCell(d) + '</td>' +
-      '<td class="num">' + tien(d.chi) + '</td><td class="num">' + so(d.luot_hien_thi) + '</td><td class="num">' + so(d.luot_bam) + '</td>' +
-      '<td class="num">' + pctTxt(d.ctr) + '</td><td class="num">' + tien(d.cpm) + '</td><td class="num">' + tien(d.cpc) + '</td>' +
-      denCell(d.den) + '</tr>'
-  }
-  const T = tong || {}
-  const foot = '<tr class="ngoai"><td>TỔNG (' + so(T.so_chien_dich) + ' chiến dịch)</td><td></td><td></td>' +
-    '<td class="num">' + tien(T.chi) + '</td><td class="num">' + so(T.luot_hien_thi) + '</td><td class="num">' + so(T.luot_bam) + '</td>' +
-    '<td class="num">' + pctTxt(T.ctr) + '</td><td class="num">' + tien(T.cpm) + '</td><td class="num">' + tien(T.cpc) + '</td><td></td></tr>'
-  const tbl = '<div class="ads-truc">chi/hiển thị/bấm: theo ngày chi</div><div class="ads-bang3 tblwrap"><table><thead><tr>' +
-    '<th>Chiến dịch</th><th>Loại</th><th>Tài khoản</th>' +
+  const web = dong.filter(d => d.loai_chien_dich === 'dan_vao_web')
+  const nhan = dong.filter(d => d.loai_chien_dich === 'nhan_tin')
+  const chuaXep = dong.filter(d => d.loai_chien_dich === 'chua_xep')
+  const sumChi = ds => ds.reduce((s, d) => s + Number(d.chi || 0), 0)
+  const cot3 = d => '<td>' + esc(d.campaign_name || d.campaign_id) + '</td><td>' + objCell(d.objective) + '</td><td>' + tkCell(d) + '</td>'
+  const cot123 = d => '<td class="num">' + tien(d.chi) + '</td><td class="num">' + so(d.luot_hien_thi) + '</td><td class="num">' + so(d.luot_bam) + '</td>'
+  const cotTyle = d => '<td class="num">' + pctTxt(d.ctr) + '</td><td class="num">' + tien(d.cpm) + '</td><td class="num">' + tien(d.cpc) + '</td>'
+  const footN = (ds, extra) => { const T = { chi: sumChi(ds), ht: ds.reduce((s, d) => s + Number(d.luot_hien_thi || 0), 0), lb: ds.reduce((s, d) => s + Number(d.luot_bam || 0), 0) }
+    return '<tr class="ngoai"><td>TỔNG (' + ds.length + ' chiến dịch)</td><td></td><td></td><td class="num">' + tien(T.chi) + '</td><td class="num">' + so(T.ht) + '</td><td class="num">' + so(T.lb) + '</td>' + extra + '</tr>' }
+  // Bảng DẪN VÀO WEB (+4 cột sau Bấm vào link)
+  const webRows = web.map(d => '<tr class="cdrow" data-cd="' + esc(d.campaign_id) + '">' + cot3(d) + cot123(d) + webCols(d) + cotTyle(d) + denCell(d.den) + '</tr>').join('')
+  const webTbl = '<div class="ads-bang3 tblwrap"><table><thead><tr><th>Chiến dịch</th><th>Loại</th><th>Tài khoản</th>' +
     thSort('chi', 'Chi') + thSort('luot_hien_thi', 'Hiển thị') + thSort('luot_bam', 'Bấm vào link') +
-    thSort('ctr', 'CTR') + thSort('cpm', 'CPM') + thSort('cpc', 'CPC') + '<th>Có khách</th></tr></thead>' +
-    '<tbody>' + (rows || '<tr><td colspan="10" class="trong2">Không có chiến dịch chi trong khoảng này.</td></tr>') + '</tbody><tfoot>' + (dong.length ? foot : '') + '</tfoot></table></div>'
+    '<th class="r">Tới trang / 100 bấm</th><th class="r">Giá 1 lượt vào</th><th class="r">Lượt liên hệ</th><th class="r">Giá 1 liên hệ</th>' +
+    thSort('ctr', 'CTR') + thSort('cpm', 'CPM') + thSort('cpc', 'CPC') + '<th>Có khách</th></tr></thead><tbody>' +
+    (webRows || '<tr><td colspan="14" class="trong2">Không có chiến dịch Dẫn vào web nào chạy trong khoảng ngày này.</td></tr>') +
+    '</tbody><tfoot>' + (web.length ? footN(web, '<td></td><td></td><td></td><td></td>' + cotTyleFoot(web) + '<td></td>') : '') + '</tfoot></table></div>'
+  // Bảng NHẮN TIN (+2 cột sau Bấm vào link)
+  const nhanRows = nhan.map(d => '<tr class="cdrow" data-cd="' + esc(d.campaign_id) + '">' + cot3(d) + cot123(d) +
+    '<td class="num">' + so(d.cuoc_tro_chuyen) + '</td><td class="num">' + tien(d.gia_1_cuoc) + '</td>' + cotTyle(d) + denCell(d.den) + '</tr>').join('')
+  const nhanTbl = '<div class="ads-bang3 tblwrap"><table><thead><tr><th>Chiến dịch</th><th>Loại</th><th>Tài khoản</th>' +
+    thSort('chi', 'Chi') + thSort('luot_hien_thi', 'Hiển thị') + thSort('luot_bam', 'Bấm vào link') +
+    '<th class="r">Cuộc trò chuyện</th><th class="r">Giá 1 cuộc</th>' +
+    thSort('ctr', 'CTR') + thSort('cpm', 'CPM') + thSort('cpc', 'CPC') + '<th>Có khách</th></tr></thead><tbody>' +
+    (nhanRows || '<tr><td colspan="12" class="trong2">Không có chiến dịch Nhắn tin nào chạy trong khoảng ngày này.</td></tr>') +
+    '</tbody><tfoot>' + (nhan.length ? footN(nhan, '<td></td><td></td>' + cotTyleFoot(nhan) + '<td></td>') : '') + '</tfoot></table></div>'
+  // đối soát + chưa xếp (từ dong đang hiện)
+  const cx = chuaXep.length
+  const doiSoat = '<div class="ads-doisoat">Dẫn vào web ' + tien(sumChi(web)) + ' + Nhắn tin ' + tien(sumChi(nhan)) +
+    ' + Chưa xếp ' + tien(sumChi(chuaXep)) + ' = tổng chi kỳ ' + tien(sumChi(dong)) + '</div>'
+  const cxLine = cx > 0
+    ? '<div class="ads-chuaxep ads-do-so">Chưa xếp được loại: ' + cx + ' chiến dịch · ' + tien(sumChi(chuaXep)) + ' — ' + chuaXep.map(d => esc(d.campaign_name || d.campaign_id)).join(', ') + '</div>'
+    : '<div class="ads-chuaxep">Chưa xếp được loại: 0 chiến dịch · 0đ</div>'
+  const noteWeb = '<div class="ads-bang-note">Tới trang / 100 bấm: cứ 100 lượt bấm ra web thì bao nhiêu lượt mở được trang… Dưới 70 là lỗi web, không phải lỗi quảng cáo.</div>'
+  const tbl = '<div class="ads-truc">chi/hiển thị/bấm: theo ngày chi</div>' +
+    '<h3 class="ads-bang-tieude">Dẫn vào web</h3>' + webTbl + noteWeb +
+    '<h3 class="ads-bang-tieude">Nhắn tin</h3>' + nhanTbl + cxLine + doiSoat
   // C · thẻ cho màn hẹp (<860px) — cùng số liệu, một thẻ mỗi chiến dịch
   const cardRow = (k, v) => '<div class="ads-card-row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'
   const cardHtml = dong.map(d => {
