@@ -140,9 +140,13 @@ export default {
   },
   // GET / = KÉO TAY (nút "Kéo ngay" app Sale) hoặc smoke-test. CORS mở để app gọi được. Khoá + GUC như cron.
   async fetch(req, env) {
-    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,OPTIONS', 'Access-Control-Allow-Headers': 'content-type' }
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,OPTIONS', 'Access-Control-Allow-Headers': 'content-type,x-keo-key' }
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
-    // [WP-91 L-91.4] ?job=ads → kích nhánh ADS thủ công (chạy QUA worker+Hyperdrive để nghiệm thu vá GUC). Mặc định = lead.
+    // [WP-113 lô 2F] KHOÁ đường kích tay: đòi header x-keo-key = secret KEO_JOB_KEY, so SÁNH THỜI GIAN HẰNG.
+    //   Thiếu secret cấu hình / thiếu header / sai → 403. scheduled (cron) KHÔNG đi qua đây nên KHÔNG đổi.
+    if (!env.KEO_JOB_KEY || !bangNhau(req.headers.get('x-keo-key') || '', env.KEO_JOB_KEY))
+      return new Response(JSON.stringify({ loi: 'can x-keo-key' }), { status: 403, headers: { ...cors, 'content-type': 'application/json' } })
+    // ?job=ads → kích nhánh ADS thủ công (QUA worker+Hyperdrive). Mặc định = lead.
     if (new URL(req.url).searchParams.get('job') === 'ads') {
       const r = await chayLuotAds(env); logAds(r)
       return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
@@ -150,4 +154,11 @@ export default {
     const r = await chayLuot(env); log(r)
     return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
   }
+}
+// so sánh chuỗi THỜI GIAN HẰNG (không lộ độ dài qua thời gian sớm-thoát). Khác độ dài → false nhưng vẫn quét hết.
+function bangNhau(a, b) {
+  const la = a.length, lb = b.length, n = Math.max(la, lb)
+  let kq = la === lb ? 0 : 1
+  for (let i = 0; i < n; i++) kq |= (a.charCodeAt(i % la || 0) || 0) ^ (b.charCodeAt(i % (lb || 1)) || 0)
+  return kq === 0
 }

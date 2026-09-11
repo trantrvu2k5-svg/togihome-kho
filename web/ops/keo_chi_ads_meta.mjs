@@ -32,6 +32,19 @@ export async function layTaiKhoan(fetchFn, token) {
   return out
 }
 
+// [WP-113 lô 2G] DANH SÁCH TÀI KHOẢN HỢP NHẤT — MỘT nguồn duy nhất cho MỌI mục B/C/D/E.
+//   /me/adaccounts ∪ mọi act_id từng có trong chi_ads_ngay (TK vào muộn / rớt khỏi /me vẫn được kéo).
+//   RỖNG → NÉM (kéo câm = che lỗi token/quyền — khuôn 'hết nuốt lỗi' 2F).
+export async function dsTaiKhoanHopNhat(client, fetchFn, token) {
+  const metaAccts = await layTaiKhoan(fetchFn, token)
+  const map = new Map(metaAccts.map(a => [a.act_id, a]))
+  for (const r of (await client.query(`select act_id, max(tien_te) tien_te from kho.chi_ads_ngay where act_id is not null group by act_id`)).rows)
+    if (!map.has(r.act_id)) map.set(r.act_id, { name: null, act: 'act_' + r.act_id, act_id: r.act_id, currency: r.tien_te || 'VND' })
+  const ds = [...map.values()]
+  if (!ds.length) throw new Error('DS_TAI_KHOAN_RONG: /me/adaccounts + chi_ads_ngay đều trống — KHÔNG kéo (tránh chạy câm)')
+  return ds
+}
+
 // Bộ chọn thời gian: range={since,until} → time_range (kéo lại khoảng lịch sử); không có → last_7d (nhịp thường).
 function chonThoiGian(range) {
   return range && range.since && range.until
@@ -45,6 +58,61 @@ export const bocAction = a => {
   if (a == null) return null
   if (Array.isArray(a)) return a.length ? a.reduce((s, x) => s + Number(x.value || 0), 0) : null
   return Number(a)
+}
+
+// [WP-113 lô 2C] Đọc 5 SỐ HÀNH ĐỘNG từ actions/outbound_clicks (KHÔNG cộng lead lồng nhau — chỉ 5 action_type đích).
+//   - action_type có → lấy · mảng có nhưng thiếu type → 0 (Meta bỏ = 0).
+//   - THIẾU HẲN khoá actions + inline_link_clicks=0 → tất cả = 0 (dạng 'du').
+//   - THIẾU HẲN khoá actions + inline_link_clicks>0 → dạng LẠ: cột = NULL, kiem_dang='la' (CẤM ghi 0).
+const layAct = (arr, t) => { if (!Array.isArray(arr)) return 0; const f = arr.find(a => a.action_type === t); return f ? Number(f.value) : 0 }
+export function bocHanhDong(r) {
+  const acts = r.actions
+  const ilc = r.inline_link_clicks != null ? Number(r.inline_link_clicks) : 0
+  if (!Array.isArray(acts)) {
+    if (ilc > 0) return { luot_vao_trang: null, bam_ra_web: null, cuoc_tro_chuyen: null, lien_he_pixel: null, mua_pixel: null, kiem_dang: 'la' }
+    return { luot_vao_trang: 0, bam_ra_web: 0, cuoc_tro_chuyen: 0, lien_he_pixel: 0, mua_pixel: 0, kiem_dang: 'du' }
+  }
+  return {
+    luot_vao_trang:  layAct(acts, 'landing_page_view'),
+    bam_ra_web:      layAct(r.outbound_clicks, 'outbound_click'),
+    cuoc_tro_chuyen: layAct(acts, 'onsite_conversion.messaging_conversation_started_7d'),
+    lien_he_pixel:   layAct(acts, 'offsite_conversion.fb_pixel_lead'),
+    mua_pixel:       layAct(acts, 'offsite_conversion.fb_pixel_purchase'),
+    kiem_dang: 'du'
+  }
+}
+
+// [WP-113 lô 2C] Kéo NHÓM QUẢNG CÁO (adset) → ads_nhom_quang_cao. Cho kiểm loại chiến dịch + luật "sửa nhiều tầng".
+//   Ghi qua kết nối OWNER của worker (RLS chỉ gác app). Attribution không liên quan. Gọi ở lượt cron THẬT (lệnh sau).
+export async function keoNhomQuangCao(client, opts = {}) {
+  const token = opts.token; const fetchFn = opts.fetchFn || fetch
+  if (!token) return { skip: 'thieu_token', so_nhom: 0 }
+  const B = 'https://graph.facebook.com/' + CAPI_V
+  const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)   // [2G] danh sách chung
+  const rows = []
+  for (const a of accts) {
+    let url = B + '/' + a.act + '/adsets?fields=id,campaign_id,optimization_goal,promoted_object&limit=500&access_token=' + encodeURIComponent(token)
+    for (let guard = 0; url && guard < 20; guard++) {
+      const jr = await (await fetchFn(url)).json()
+      if (jr.error) break
+      for (const s of (jr.data || [])) rows.push({
+        adset_id: s.id, campaign_id: s.campaign_id || null, tai_khoan_id: a.act_id,
+        optimization_goal: s.optimization_goal || null,
+        custom_event_type: (s.promoted_object && s.promoted_object.custom_event_type) || null
+      })
+      url = jr.paging && jr.paging.next
+    }
+  }
+  let ghi = 0
+  for (const r of rows) {
+    await client.query(`insert into kho.ads_nhom_quang_cao(adset_id,campaign_id,tai_khoan_id,optimization_goal,custom_event_type,cap_nhat_luc)
+      values($1,$2,$3,$4,$5,now()) on conflict (adset_id) do update set
+      campaign_id=excluded.campaign_id, tai_khoan_id=excluded.tai_khoan_id,
+      optimization_goal=excluded.optimization_goal, custom_event_type=excluded.custom_event_type, cap_nhat_luc=now()`,
+      [r.adset_id, r.campaign_id, r.tai_khoan_id, r.optimization_goal, r.custom_event_type])
+    ghi++
+  }
+  return { so_nhom: ghi }
 }
 
 // Insights cấp ad × ngày của MỘT tài khoản. inline_link_clicks = bấm-vào-link (cho CTR/CPC); clicks = mọi lượt bấm.
@@ -70,7 +138,7 @@ export async function layInsights(fetchFn, token, act, range) {
 export async function layInsightsChienDich(fetchFn, token, act, range) {
   const B = 'https://graph.facebook.com/' + CAPI_V
   let url = B + '/' + act + '/insights?level=campaign&time_increment=1' + chonThoiGian(range) +
-    '&fields=campaign_id,campaign_name,objective,spend,impressions,clicks,inline_link_clicks,date_start&limit=500&access_token=' + encodeURIComponent(token)
+    '&fields=campaign_id,campaign_name,objective,spend,impressions,clicks,inline_link_clicks,date_start,actions,outbound_clicks&limit=500&access_token=' + encodeURIComponent(token)
   const out = []
   for (let i = 0; i < 20 && url; i++) {
     const j = await goi(fetchFn, url)
@@ -85,13 +153,8 @@ export async function keoChiAdsMeta(client, opts = {}) {
   const fetchFn = opts.fetch || globalThis.fetch
   const token = opts.token
   if (!token) return { skip: 'thieu_token', taiKhoan: [], upsert: 0, tongDong: 0 }
-  // [L-108-11] TÀI KHOẢN = HỢP /me/adaccounts VỚI act_id đã có trong chi_ads_ngay.
-  //   TK vào muộn / rớt khỏi /me/adaccounts vẫn được kéo (trước đây chỉ /me/adaccounts → sót TK, số đóng băng).
-  const metaAccts = await layTaiKhoan(fetchFn, token)
-  const map = new Map(metaAccts.map(a => [a.act_id, a]))
-  for (const r of (await client.query(`select act_id, max(tien_te) tien_te from kho.chi_ads_ngay where act_id is not null group by act_id`)).rows)
-    if (!map.has(r.act_id)) map.set(r.act_id, { name: null, act: 'act_' + r.act_id, act_id: r.act_id, currency: r.tien_te || 'VND' })
-  const accts = [...map.values()]
+  // [WP-113 lô 2G] TÀI KHOẢN = hàm HỢP NHẤT dùng chung (B/C/D/E cùng một danh sách).
+  const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)
   const ketQua = []
   const rows = []      // cấp ad → chi_ads_ngay (giữ nguyên, cho ad tin nhắn)
   const cdRows = []    // cấp CHIẾN DỊCH → chi_chien_dich_ngay (trục chính)
@@ -125,7 +188,8 @@ export async function keoChiAdsMeta(client, opts = {}) {
         hien_thi: r.impressions != null ? Number(r.impressions) : null,
         luot_bam: r.clicks != null ? Number(r.clicks) : null,
         luot_bam_link: r.inline_link_clicks != null ? Number(r.inline_link_clicks) : null,   // bấm-vào-link (CTR/CPC)
-        tien_te: a.currency || 'VND'
+        tien_te: a.currency || 'VND',
+        ...bocHanhDong(r)   // [WP-113] 5 số hành động + kiem_dang (NULL=chưa kéo, 'la'=dạng lạ)
       })
       ketQua.push({ ten: a.name, act: a.act, dong: ins.length, dong_cd: insCd.length, loi: null })
     } catch (e) {
@@ -174,8 +238,19 @@ export async function keoChiAdsMetaCoSo(client, opts = {}) {
       await ghi('xong', null, idAd, 0); await ghi('xong', null, idCd, 0)
       console.log(`ads-keo: SKIP (${kq.skip})`); return kq
     }
-    await ghi('xong', null, idAd, kq.tongDong)
-    await ghi('xong', null, idCd, kq.tongDongCd)
+    // [WP-113 lô 2F] HẾT NUỐT LỖI: TK nào ném lỗi trong keoChiAdsMeta → mốc 'loi' (KHÔNG 'xong' giả),
+    //   ghi ok/tổng + danh sách lỗi (đã lọc access_token). ok_ads=false nối ở keoAdsLuot qua kq.loiTK.
+    const locTok = s => String(s || '').replace(/access_token=[^&\s]+/gi, 'access_token=<ẩn>').slice(0, 120)
+    const loiTK = (kq.taiKhoan || []).filter(t => t.loi).map(t => ({ act: t.act, loi: locTok(t.loi) }))
+    const tongTK = (kq.taiKhoan || []).length, okTK = tongTK - loiTK.length
+    if (loiTK.length) {
+      const tom = `ok ${okTK}/${tongTK} · ` + loiTK.map(t => '...' + String(t.act || '').slice(-4) + ':' + t.loi).join(' | ')
+      await ghi('loi', null, idAd, kq.tongDong, tom.slice(0, 400))
+      await ghi('loi', null, idCd, kq.tongDongCd, tom.slice(0, 400))
+    } else {
+      await ghi('xong', null, idAd, kq.tongDong)
+      await ghi('xong', null, idCd, kq.tongDongCd)
+    }
     // 2) GỘP KỲ tự động (idempotent QD-90 — KHÔNG đè nhập tay), CÙNG tiến trình
     let idGop, soGop = 0
     try {
@@ -193,8 +268,8 @@ export async function keoChiAdsMetaCoSo(client, opts = {}) {
     }
     const s = ((Date.now() - t0) / 1000).toFixed(1)
     const kho = tu ? `${tu}→${den}` : 'last_7d'
-    console.log(`ads-keo XONG · meta_chi_ad ${kho}: ${kq.tongDong} dòng · meta_chi_chien_dich: ${kq.tongDongCd} dòng · gop_ky: ${soGop} dòng · ${s}s`)
-    return { ...kq, soGop }
+    console.log(`ads-keo ${loiTK.length ? 'LỖI(' + okTK + '/' + tongTK + ' TK)' : 'XONG'} · meta_chi_ad ${kho}: ${kq.tongDong} dòng · meta_chi_chien_dich: ${kq.tongDongCd} dòng · gop_ky: ${soGop} dòng · ${s}s`)
+    return { ...kq, soGop, loiTK, okTK, tongTK }
   } catch (e) {
     await ghi('loi', null, idAd, null, String(e.message).slice(0, 200)).catch(() => {})
     await ghi('loi', null, idCd, null, String(e.message).slice(0, 200)).catch(() => {})
@@ -255,7 +330,7 @@ export async function keoThayDoiMeta(client, opts = {}) {
   try { idM = (await ghi('mo')).rows[0].g.id }
   catch (e) { if (/đang chạy|chặn lượt trùng/.test(e.message)) { console.log('ads-thay-doi: đang chạy, bỏ.'); return { skip: 'khoa' } } throw e }
   try {
-    const accts = await layTaiKhoan(fetchFn, token)
+    const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)   // [2G] danh sách chung
     const rows = []; const theoTk = []
     for (const a of accts) {
       try {
@@ -311,7 +386,7 @@ export async function keoNenTangMeta(client, opts = {}) {
   try { idM = (await ghi('mo')).rows[0].g.id }
   catch (e) { if (/đang chạy|chặn lượt trùng/.test(e.message)) { console.log('ads-nen-tang: đang chạy, bỏ.'); return { skip: 'khoa' } } throw e }
   try {
-    const accts = await layTaiKhoan(fetchFn, token)
+    const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)   // [2G] danh sách chung
     const rows = []
     for (const a of accts) {
       try {
@@ -339,7 +414,7 @@ export async function keoNenTangMeta(client, opts = {}) {
 // ── E · MỘT LƯỢT CRON ADS = B + C + D. Mỗi việc BỌC RIÊNG: một việc lỗi KHÔNG giết hai việc kia;
 //   mốc mỗi nguồn tự ghi 'loi'. Trả .loi[] để runner/worker thoát mã ≠0 nếu có bất kỳ việc nào lỗi.
 export async function keoAdsLuot(client, opts = {}) {
-  const kq = { b: null, c: null, d: null, loi: [] }
+  const kq = { b: null, c: null, d: null, e: null, loi: [] }
   // [L-108-13] MỘT MỐC THỜI GIAN CHUNG cho B (chi chính) + D (tách nền tảng), CÙNG cửa sổ 30 ngày → hết lệch-thời-điểm
   //   (trước: mỗi hàm tự new Date() + last_7d → D kéo sau B vài phút, ngày cuối chốt cao hơn → tách VƯỢT chính).
   //   Chưa tách được "kéo cả hai rồi mới ghi" vì mỗi hàm tự upsert bên trong; nhưng CÙNG range trong CÙNG lượt đã đủ khớp.
@@ -351,7 +426,11 @@ export async function keoAdsLuot(client, opts = {}) {
   const tuN = new Date(Date.now() - N * 86400000).toISOString().slice(0, 10)
   const rangeChung = { since: tuN, until: den }
   try { kq.b = await keoChiAdsMetaNhip(client, { ...opts, rangeRefresh: rangeChung }) } catch (e) { kq.loi.push({ viec: 'B_chi', loi: String(e && e.message || e).slice(0, 200) }) }
+  // [WP-113 lô 2F] TK lỗi per-account (đã ghi mốc 'loi') → nổi lên kq.loi để ok_ads=false (hết 'xong' giả).
+  if (kq.b && kq.b.loiTK && kq.b.loiTK.length) kq.loi.push({ viec: 'B_chi_TK', loi: `sót ${kq.b.tongTK - kq.b.okTK}/${kq.b.tongTK} TK`, chi_tiet: kq.b.loiTK })
   try { kq.c = await keoThayDoiMeta(client, opts) } catch (e) { kq.loi.push({ viec: 'C_thay_doi', loi: String(e && e.message || e).slice(0, 200) }) }
   try { kq.d = await keoNenTangMeta(client, { ...opts, range: rangeChung }) } catch (e) { kq.loi.push({ viec: 'D_nen_tang', loi: String(e && e.message || e).slice(0, 200) }) }
+  // [WP-113 lô 2D] E: kéo NHÓM QUẢNG CÁO (adset) → ads_nhom_quang_cao (kiểm loại chiến dịch). Ghi owner, non-fatal.
+  try { kq.e = await keoNhomQuangCao(client, { token: opts.token, fetchFn: opts.fetch || globalThis.fetch }) } catch (e) { kq.loi.push({ viec: 'E_nhom', loi: String(e && e.message || e).slice(0, 200) }) }
   return kq
 }
