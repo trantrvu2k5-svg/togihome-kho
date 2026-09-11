@@ -60,12 +60,13 @@ const j8 = await call('2026-08')
   await c.query(`insert into kho.chi_ads(ma_ky, thuong_hieu, kenh, so_tien_nhap) values('2099-09',$1,'quang_cao', 11000000)`, [brand])
   await asVai('ceo', CEO)
   const j99 = await call('2099-09')
-  const luKB = (j99.luong || []).find(r => r.luong === 'khong_biet')   // 2 lead đều luong=khong_biet; chi chia cho 1 xac_dinh
+  // [WP-113 lô A] luong nay TÍNH từ muc/ad (db/257), KHÔNG lấy giá trị worker: T-XD(xac_dinh+ad)→mess_truc_tiep,
+  //   T-SR(suy_ref)→qua_web. Chi (10tr) chia theo lead xac_dinh → nay ở bucket 'mess_truc_tiep' (trước: 'khong_biet').
+  const luMess = (j99.luong || []).find(r => r.luong === 'mess_truc_tiep')
   const loNull = (j99.loai || []).every(r => r.chi_ads === null && r.cac === null)
-  // chi TỔNG = 11tr/1.1 = 10tr; luồng khong_biet có 1 xac_dinh / 1 tổng xac_dinh → chi=10tr (KHÔNG ×2 gồm suy)
-  ok('6. LUỒNG: chi chia theo xac_dinh =10tr (không ăn suy) · LOẠI: chi/cac NULL luôn',
-     Math.round(j99.chi_ads_that_ky) === 10000000 && luKB && Math.round(luKB.chi_ads) === 10000000 && loNull,
-     JSON.stringify({ chiTong: j99.chi_ads_that_ky, luKB: luKB && luKB.chi_ads, loNull }))
+  ok('6. LUỒNG: chi chia theo xac_dinh(→mess_truc_tiep) =10tr (không ăn suy) · LOẠI: chi/cac NULL luôn',
+     Math.round(j99.chi_ads_that_ky) === 10000000 && luMess && Math.round(luMess.chi_ads) === 10000000 && loNull,
+     JSON.stringify({ chiTong: j99.chi_ads_that_ky, luMess: luMess && luMess.chi_ads, loNull }))
   await c.query('rollback to savepoint s6') }
 
 // ═══ 7 · kỳ KHÔNG có lead → rỗng CÓ CẤU TRÚC: cohort 0, luồng 3 dòng 0, loai [] ═══
