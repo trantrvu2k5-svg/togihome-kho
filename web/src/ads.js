@@ -410,7 +410,11 @@ function khoiBang(dong, tong, anCount) {
   const nhan = dong.filter(d => d.loai_chien_dich === 'nhan_tin')
   const chuaXep = dong.filter(d => d.loai_chien_dich === 'chua_xep')
   const sumChi = ds => ds.reduce((s, d) => s + Number(d.chi || 0), 0)
-  const cot3 = d => '<td>' + esc(d.campaign_name || d.campaign_id) + '</td><td>' + objCell(d.objective) + '</td><td>' + tkCell(d) + '</td>'
+  const cot3 = d => '<td>' + esc(d.campaign_name || d.campaign_id) +
+    (d.dang_chay === false ? '<div class="ads-datat">đã tắt · chi cuối ' + dmy(d.ngay_chi_cuoi) + '</div>' : '') +
+    '</td><td>' + objCell(d.objective) + '</td><td>' + tkCell(d) + '</td>'
+  const demTat = ds => { const c = ds.filter(d => d.dang_chay === true).length, t = ds.filter(d => d.dang_chay === false).length
+    return '<div class="ads-dem-tat">' + c + ' đang chạy · ' + t + ' đã tắt trong kỳ</div>' }
   const cot123 = d => '<td class="num">' + tien(d.chi) + '</td><td class="num">' + so(d.luot_hien_thi) + '</td><td class="num">' + so(d.luot_bam) + '</td>'
   const cotTyle = d => '<td class="num">' + pctTxt(d.ctr) + '</td><td class="num">' + tien(d.cpm) + '</td><td class="num">' + tien(d.cpc) + '</td>'
   const footN = (ds, extra) => { const T = { chi: sumChi(ds), ht: ds.reduce((s, d) => s + Number(d.luot_hien_thi || 0), 0), lb: ds.reduce((s, d) => s + Number(d.luot_bam || 0), 0) }
@@ -441,8 +445,8 @@ function khoiBang(dong, tong, anCount) {
     : '<div class="ads-chuaxep">Chưa xếp được loại: 0 chiến dịch · 0đ</div>'
   const noteWeb = '<div class="ads-bang-note">Tới trang / 100 bấm: cứ 100 lượt bấm ra web thì bao nhiêu lượt mở được trang… Dưới 70 là lỗi web, không phải lỗi quảng cáo.</div>'
   const tbl = '<div class="ads-truc">chi/hiển thị/bấm: theo ngày chi</div>' +
-    '<h3 class="ads-bang-tieude">Dẫn vào web</h3>' + webTbl + noteWeb +
-    '<h3 class="ads-bang-tieude">Nhắn tin</h3>' + nhanTbl + cxLine + doiSoat
+    '<h3 class="ads-bang-tieude">Dẫn vào web</h3>' + webTbl + demTat(web) + noteWeb +
+    '<h3 class="ads-bang-tieude">Nhắn tin</h3>' + nhanTbl + demTat(nhan) + cxLine + doiSoat
   // C · thẻ cho màn hẹp (<860px) — cùng số liệu, một thẻ mỗi chiến dịch
   const cardRow = (k, v) => '<div class="ads-card-row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'
   const cardHtml = dong.map(d => {

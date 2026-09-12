@@ -115,6 +115,31 @@ export async function keoNhomQuangCao(client, opts = {}) {
   return { so_nhom: ghi }
 }
 
+// [WP-113 L-113-5] Kéo TRẠNG THÁI hiện tại của chiến dịch → ads_chien_dich_trang_thai (cho dấu "đã tắt").
+//   1 call/tài khoản (/act_X/campaigns?fields=id,effective_status). Ghi owner (RLS chỉ gác app). Non-fatal.
+export async function keoTrangThaiChienDich(client, opts = {}) {
+  const token = opts.token; const fetchFn = opts.fetchFn || opts.fetch || globalThis.fetch
+  if (!token) return { skip: 'thieu_token', so_cd: 0 }
+  const B = 'https://graph.facebook.com/' + CAPI_V
+  const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)
+  let ghi = 0
+  for (const a of accts) {
+    let url = B + '/' + a.act + '/campaigns?fields=id,effective_status&limit=500&access_token=' + encodeURIComponent(token)
+    for (let guard = 0; url && guard < 20; guard++) {
+      const jr = await (await fetchFn(url)).json()
+      if (jr.error) break
+      for (const cd of (jr.data || [])) {
+        await client.query(`insert into kho.ads_chien_dich_trang_thai(campaign_id, effective_status, cap_nhat_luc)
+          values($1,$2,now()) on conflict (campaign_id) do update set effective_status=excluded.effective_status, cap_nhat_luc=now()`,
+          [cd.id, cd.effective_status || null])
+        ghi++
+      }
+      url = jr.paging && jr.paging.next
+    }
+  }
+  return { so_cd: ghi }
+}
+
 // Insights cấp ad × ngày của MỘT tài khoản. inline_link_clicks = bấm-vào-link (cho CTR/CPC); clicks = mọi lượt bấm.
 //   [WP-100 L-100.3] +10 thước mẫu. ⚠ impressions liệt kê MỘT lần (lỗi "specified more than once" nếu lặp).
 //   ⚠ KHÔNG xin video_3_sec (Meta đã bỏ). Xếp hạng trả CHUỖI (giữ nguyên, kể cả "UNKNOWN"/"chưa đủ dữ liệu").
@@ -432,5 +457,7 @@ export async function keoAdsLuot(client, opts = {}) {
   try { kq.d = await keoNenTangMeta(client, { ...opts, range: rangeChung }) } catch (e) { kq.loi.push({ viec: 'D_nen_tang', loi: String(e && e.message || e).slice(0, 200) }) }
   // [WP-113 lô 2D] E: kéo NHÓM QUẢNG CÁO (adset) → ads_nhom_quang_cao (kiểm loại chiến dịch). Ghi owner, non-fatal.
   try { kq.e = await keoNhomQuangCao(client, { token: opts.token, fetchFn: opts.fetch || globalThis.fetch }) } catch (e) { kq.loi.push({ viec: 'E_nhom', loi: String(e && e.message || e).slice(0, 200) }) }
+  // [WP-113 L-113-5] F: trạng thái chiến dịch (effective_status) cho dấu "đã tắt". non-fatal.
+  try { kq.f = await keoTrangThaiChienDich(client, { token: opts.token, fetchFn: opts.fetch || globalThis.fetch }) } catch (e) { kq.loi.push({ viec: 'F_trang_thai', loi: String(e && e.message || e).slice(0, 200) }) }
   return kq
 }

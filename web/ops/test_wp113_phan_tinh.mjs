@@ -120,6 +120,19 @@ try {
      lwM.length>0 && lwM.every(x=>x.keu===false) && lwM.some(x=>/kêu lại từ 12\/09/.test(x.cau)), JSON.stringify(lwM.map(x=>[x.keu,(x.cau||'').slice(0,30)])))
   await c.query('rollback to savepoint p3')
 
+  // ── [3a L-113-5] dang_chay + ngay_chi_cuoi ──
+  await c.query('savepoint p5'); await owner()
+  await c.query(`insert into kho.ads_chien_dich_trang_thai(campaign_id,effective_status) values('W-LOIWEB','PAUSED')
+    on conflict (campaign_id) do update set effective_status='PAUSED'`)
+  await asCeo()
+  const bkT = (await c.query(`select kho.ads_bang_ky($1::date,$2::date) j`,[TU,DEN])).rows[0].j
+  const rT = (bkT.dong||[]).find(x=>x.campaign_id==='W-LOIWEB')
+  const rN = (bkT.dong||[]).find(x=>x.campaign_id==='C-NULL')
+  ok('24. [3a] CD có status PAUSED → dang_chay=false · ngay_chi_cuoi=ngày chi cuối (08/09)',
+     rT.dang_chay===false && rT.ngay_chi_cuoi==='2099-09-08', JSON.stringify({d:rT.dang_chay,n:rT.ngay_chi_cuoi}))
+  ok('25. [3a] CD chưa có status → dang_chay NULL (không bịa)', rN.dang_chay===null, JSON.stringify({d:rN.dang_chay}))
+  await c.query('rollback to savepoint p5')
+
   await c.query('rollback')
 } catch(e){ ok('LỖI', false, e.message); await c.query('rollback').catch(()=>{}) }
 console.log(`\n═══ test_wp113_phan_tinh: ${P} pass / ${F} fail ═══`)
