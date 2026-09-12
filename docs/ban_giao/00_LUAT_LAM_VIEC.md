@@ -78,6 +78,8 @@ File import `?raw` (`togihome_sale.html`, `togihome_taichinh.html`…) là **CHU
 
 Đã dính: 29/08 lệch 1 dấu `)` làm **chết app Sale trên prod**, robot kẹt boot bị đọc nhầm thành lỗi harness.
 
+**App nào harness không boot được thì nghiệm thu TRÊN PROD** — GIỮ nguyên tắc, **bỏ áp cho Sale**. 06/09 (WP-110) chứng bằng máy **6/6 app boot được harness** (kho·xuong·taichinh·thietke·sanpham·sale, mock nguoi_dung=ceo → render đủ tab, 0 pageerror). Tiền đề "Sale không boot harness" là **SAI**: gốc chỉ là **lỗi nền trong `<head>`** (recharts 2.12.7 cdnjs thiếu `prop-types` → `PropTypes.oneOfType` nổ lúc eval, React vẫn mount) — đã gỡ ở WP-110. Trước khi kết luận "app X không boot", phải **mở console xem lỗi nền `<head>`** chứ không suy từ một pageerror.
+
 ## KỶ LUẬT DEPLOY `worker-keo-lead` — CHỤP MỐC LEAD TRƯỚC & SAU
 
 `worker-keo-lead` gánh **HAI** bộ kéo trong MỘT worker: cron mỗi phút (lead Pancake) + cron

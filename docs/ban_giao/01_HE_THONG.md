@@ -8,6 +8,8 @@
 
 ## A. TÁM APP
 
+> **Nền client (06/09, WP-110):** app **Sale** đã **hết recharts** — component `DoiSoat` ("Hai số theo tháng", 0 caller) đã xoá + gỡ thẻ recharts khỏi `<head>`. Sale **vẫn nạp React/react-dom qua CDN cdnjs** (không có trong `package-lock.json`) — dời sang bundle Vite là việc của **WP-111**.
+
 | App | Vai vào được | Các tab / màn | Làm được gì | Ghi bảng | Đọc bảng |
 |---|---|---|---|---|---|
 | **Sale** (`togihome-sale`) | sale (+ceo) | Sổ đơn hàng · Danh mục sản phẩm · Khách hàng. *(Báo giá = ô đếm + lọc trong Sổ đơn, CHƯA có màn riêng)* | Lên đơn/báo giá · sửa đơn · ghi khách duyệt/chê bản · gửi link khách · **KHÔNG thấy giá vốn** | don_hang · don_hang_mon · don_hang_nhat_ky · (ghi khách duyệt: ban_thiet_ke qua RPC) | san_pham_mau · khach · ban_thiet_ke · lead_time |
