@@ -1,7 +1,7 @@
 // TEST WP-113 lô 2F — HẾT NUỐT LỖI: 1 TK ném lỗi → mốc ads='loi' + ok/tổng + danh sách; 0 lỗi → 'xong'.
 //   Owner tx, ROLLBACK sạch. Cô lập: xoá chi_ads_ngay trong tx để union TK chỉ lấy /me/adaccounts của mock.
 import pg from 'pg'; import { docConfig } from './conn.mjs'
-import { keoChiAdsMetaCoSo } from './keo_chi_ads_meta.mjs'
+import { keoChiAdsMetaCoSo, keoThayDoiMeta, keoNenTangMeta, keoNhomQuangCao, keoTrangThaiChienDich } from './keo_chi_ads_meta.mjs'
 const c = new pg.Client(await docConfig()); await c.connect()
 let P = 0, F = 0
 const ok = (n, v, e = '') => { console.log((v ? '✅' : '❌') + ' ' + n + (!v && e ? '  — ' + String(e).slice(0, 180) : '')); v ? P++ : F++ }
@@ -14,7 +14,8 @@ const mkMock = (loiERR) => async (u) => {
   const path = u.split('?')[0]
   if (path.endsWith('/me/adaccounts')) return { ok: true, json: async () => ({ data: [
     { name: 'OK1', account_id: '111', currency: 'VND' }, { name: 'LOI', account_id: 'ERR', currency: 'VND' }] }) }
-  if (loiERR && path.includes('/act_ERR/insights')) return { ok: false, status: 400, json: async () => ({ error: { message: 'giả lập lỗi TK ERR', code: 100 } }) }
+  // [L-91.2-2] act_ERR lỗi ở MỌI endpoint (insights B/D · activities C · adsets E · campaigns F)
+  if (loiERR && /\/act_ERR\/(insights|activities|adsets|campaigns)/.test(path)) return { ok: false, status: 400, json: async () => ({ error: { message: 'giả lập lỗi TK ERR', code: 100 } }) }
   if (path.includes('/act_111/insights') && path.includes('level=campaign'))
     return { ok: true, json: async () => ({ data: [{ campaign_id: 'C1', campaign_name: 'Demo', objective: 'OUTCOME_SALES',
       spend: '1000', impressions: '10', clicks: '2', inline_link_clicks: '1', date_start: '2026-09-10',
@@ -44,6 +45,35 @@ try {
   const mAd2 = await mocMoi('meta_chi_ad')
   ok('5. 0 lỗi → loiTK rỗng · mốc "xong"', (!kq2.loiTK || kq2.loiTK.length === 0) && mAd2.trang_thai === 'xong', JSON.stringify({ l: kq2.loiTK && kq2.loiTK.length, tt: mAd2.trang_thai }))
   await c.query('rollback to savepoint s2')
+
+  // ── [L-91.2-2] C · D · E · F cũng KHÔNG nuốt: 1 TK lỗi → mốc 'loi' (C/D) + loiTK (E/F) ──
+  const clr = (n) => c.query(`delete from kho.ads_moc_keo where nguon=$1`, [n])
+  // C keoThayDoiMeta
+  await c.query('savepoint sc'); await clr('meta_thay_doi')
+  const rC = await keoThayDoiMeta(c, { token: 'X', fetch: mkMock(true), tx })
+  const mC = await mocMoi('meta_thay_doi')
+  ok('6. C: 1 TK lỗi → loiTK=1 · okTK=1 · mốc meta_thay_doi "loi" ("ok 1/2")',
+     rC.loiTK && rC.loiTK.length === 1 && rC.okTK === 1 && mC.trang_thai === 'loi' && /ok 1\/2/.test(mC.loi), JSON.stringify({ l: rC.loiTK && rC.loiTK.length, tt: mC.trang_thai }))
+  await c.query('rollback to savepoint sc')
+  // C 0 lỗi → xong
+  await c.query('savepoint sc0'); await clr('meta_thay_doi')
+  const rC0 = await keoThayDoiMeta(c, { token: 'X', fetch: mkMock(false), tx })
+  ok('7. C 0 lỗi → mốc "xong"', (await mocMoi('meta_thay_doi')).trang_thai === 'xong' && (!rC0.loiTK || rC0.loiTK.length === 0), '')
+  await c.query('rollback to savepoint sc0')
+  // D keoNenTangMeta
+  await c.query('savepoint sd'); await clr('meta_nen_tang')
+  const rD = await keoNenTangMeta(c, { token: 'X', fetch: mkMock(true), tx, range })
+  const mD = await mocMoi('meta_nen_tang')
+  ok('8. D: 1 TK lỗi → loiTK=1 · mốc meta_nen_tang "loi" ("ok 1/2") · chuỗi D 1/2',
+     rD.loiTK && rD.loiTK.length === 1 && rD.okTK === 1 && rD.tongTK === 2 && mD.trang_thai === 'loi' && /ok 1\/2/.test(mD.loi), JSON.stringify({ l: rD.loiTK && rD.loiTK.length, tt: mD.trang_thai }))
+  await c.query('rollback to savepoint sd')
+  // E + F: loiTK per-account (không mốc riêng)
+  await c.query('savepoint sef')
+  const rE = await keoNhomQuangCao(c, { token: 'X', fetchFn: mkMock(true) })
+  ok('9. E keoNhomQuangCao: loiTK=1 · okTK=1 · tongTK=2 (không nuốt jr.error)', rE.loiTK && rE.loiTK.length === 1 && rE.okTK === 1 && rE.tongTK === 2, JSON.stringify(rE.loiTK))
+  const rF = await keoTrangThaiChienDich(c, { token: 'X', fetchFn: mkMock(true) })
+  ok('10. F keoTrangThaiChienDich: loiTK=1 · okTK=1', rF.loiTK && rF.loiTK.length === 1 && rF.okTK === 1, JSON.stringify(rF.loiTK))
+  await c.query('rollback to savepoint sef')
 
   await c.query('rollback')
 } catch (e) { ok('LỖI chạy', false, e.message); await c.query('rollback').catch(() => {}) }

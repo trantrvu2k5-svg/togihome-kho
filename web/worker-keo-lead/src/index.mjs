@@ -5,6 +5,7 @@
 import postgres from 'postgres'
 import { keoMotPage, MET, metReset } from '../../ops/keo_lead_core.mjs'
 import { keoAdsLuot } from '../../ops/keo_chi_ads_meta.mjs'   // [WP-100 L-100.3] một lượt cron = B chi+thước · C sổ thay đổi · D tách nền tảng
+import { chonViecCron, chonViecJob } from './chonViec.mjs'    // [WP-91 L-91.2-2] rẽ nhánh theo danh-sách-cho-phép
 
 // [L-70r7 ĐO] đếm câu SQL + thời-gian-trôi-qua DB mỗi lượt (KHÔNG phải CPU). Reset đầu mỗi chayLuot.
 const MET_DB = { ms: 0, n: 0 }
@@ -133,9 +134,12 @@ function log(r) {
 
 export default {
   async scheduled(event, env, ctx) {
-    // [WP-91 L-91k] rẽ theo LEAD (cron mỗi phút "* * * * *") = kéo LEAD; MỌI cron khác = kéo CHI ADS (6 mốc/ngày).
-    //   Rẽ theo lead (không theo chuỗi ads) để đổi giờ ads KHÔNG lạc nhánh. Lead & ads TÁCH BẠCH: mỗi mốc là 1 event riêng.
-    if (event.cron === '* * * * *') ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })())
+    // [WP-91 L-91.2-2] rẽ nhánh theo DANH-SÁCH-CHO-PHÉP (chonViecCron). Cron lạ → ghi mốc ads 'loi' (đèn độ phủ
+    //   đỏ) rồi NÉM — thêm cron mà quên khai → thấy ngay, KHÔNG câm, KHÔNG tự rơi về ads/lead.
+    let viec
+    try { viec = chonViecCron(event.cron) }
+    catch (e) { ctx.waitUntil(ghiMocCronLa(env, event.cron)); throw e }
+    if (viec === 'lead') ctx.waitUntil((async () => { const r = await chayLuot(env); log(r) })())
     else ctx.waitUntil((async () => { const r = await chayLuotAds(env); logAds(r) })())
   },
   // GET / = KÉO TAY (nút "Kéo ngay" app Sale) hoặc smoke-test. CORS mở để app gọi được. Khoá + GUC như cron.
@@ -146,14 +150,32 @@ export default {
     //   Thiếu secret cấu hình / thiếu header / sai → 403. scheduled (cron) KHÔNG đi qua đây nên KHÔNG đổi.
     if (!env.KEO_JOB_KEY || !bangNhau(req.headers.get('x-keo-key') || '', env.KEO_JOB_KEY))
       return new Response(JSON.stringify({ loi: 'can x-keo-key' }), { status: 403, headers: { ...cors, 'content-type': 'application/json' } })
-    // ?job=ads → kích nhánh ADS thủ công (QUA worker+Hyperdrive). Mặc định = lead.
-    if (new URL(req.url).searchParams.get('job') === 'ads') {
+    // [WP-91 L-91.2-2] ?job= qua CÙNG danh-sách-cho-phép (chonViecJob). job lạ → 400 (đã qua x-keo-key 403).
+    const viec = chonViecJob(new URL(req.url).searchParams.get('job'))
+    if (viec === null)
+      return new Response(JSON.stringify({ loi: 'job lạ (chỉ lead/ads)' }), { status: 400, headers: { ...cors, 'content-type': 'application/json' } })
+    if (viec === 'ads') {
       const r = await chayLuotAds(env); logAds(r)
       return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
     }
     const r = await chayLuot(env); log(r)
     return new Response(JSON.stringify(r), { headers: { ...cors, 'content-type': 'application/json' } })
   }
+}
+// [WP-91 L-91.2-2] ghi mốc ads 'loi' "cron lạ …" để đèn độ phủ (ads.js) đỏ khi cron chưa khai. Owner + GUC như cron.
+async function ghiMocCronLa(env, cron) {
+  try {
+    const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, prepare: false, fetch_types: false })
+    try {
+      const s = (cron == null || cron === '') ? '(rỗng)' : String(cron).slice(0, 60)
+      await sql.begin(async (t) => {
+        await t`select set_config('kho.meta_he_thong','1',true)`
+        const g = await t`select kho.ads_moc_keo_ghi('mo','meta_chi_chien_dich',null,null,current_date,current_date,null) g`
+        const id = g[0].g.id
+        await t`select kho.ads_moc_keo_ghi('loi','meta_chi_chien_dich',${id},null,current_date,current_date,${'cron lạ: ' + s + ' — worker chưa khai nhánh (chonViec)'}) g`
+      })
+    } finally { await sql.end() }
+  } catch (e) { console.error('ghiMocCronLa lỗi:', String(e && e.message || e).slice(0, 120)) }
 }
 // so sánh chuỗi THỜI GIAN HẰNG (không lộ độ dài qua thời gian sớm-thoát). Khác độ dài → false nhưng vẫn quét hết.
 function bangNhau(a, b) {

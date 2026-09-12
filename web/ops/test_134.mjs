@@ -144,11 +144,11 @@ try {
     const b = await one(`select so_luong_co_so from kho.don_hang_mon_bom where mon_id=$1 and vat_tu_id=$2`, [M.mon, VAN])
     ok('C11 so_luong_co_so vẫn = 4 (snapshot bất biến)', Number(b.so_luong_co_so) === 4, JSON.stringify(b)) }
 
-  console.log('\n── C12 · view compat quy_doi còn đọc được (kho/ceo) ──')
-  { const r = await as(U.kho, `select count(*) c from kho.quy_doi`)
-    ok('C12 select quy_doi (view) OK', r.e === null && r.r?.[0] != null, r.e)
-    const t = await one(`select to_regclass('kho.plugin_ma_map') a, to_regclass('kho.quy_doi') b`)
-    ok('C12 plugin_ma_map + view quy_doi tồn tại', !!t.a && !!t.b, JSON.stringify(t)) }
+  console.log('\n── C12 · [D-06] view compat quy_doi ĐÃ GỠ; nguồn thật = plugin_ma_map ──')
+  { const t = await one(`select to_regclass('kho.plugin_ma_map') a, to_regclass('kho.quy_doi') b`)
+    ok('C12 plugin_ma_map CÒN · view quy_doi ĐÃ GỠ (D-06)', !!t.a && !t.b, JSON.stringify(t))
+    const r = await one(`select count(*) c from kho.plugin_ma_map`)
+    ok('C12 đọc plugin_ma_map (bảng thật) OK', r.c != null, JSON.stringify(r)) }
 
   console.log('\n── C13 · nhãn thiếu-hệ-số ở tham_so_vat_tu_ds TỰ TẮT sau khi nhập (snapshot vẫn NULL) ──')
   { const VAN3 = (await one(`select id from kho.vat_tu where kho.la_nhom_van(nhom_id) and don_vi_co_so='tam' and ngung_dung=false order by ma limit 1 offset 2`)).id

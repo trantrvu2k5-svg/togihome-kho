@@ -2168,3 +2168,29 @@ mẫu số độ-phủ-brand-BÁN thì làm lô riêng (ngoài phạm vi N-13).
 
 **Trạng thái:** áp dụng từ db/254 (đã chạy qua `run_sql.mjs`, backup pre_254). CHƯA deploy · CHƯA commit. Không gán brand hộ
 cho fanpage nội thất nào khác; chỉ 2 page thử.
+
+## QD-123 (12/09, WP-91 L-91.2-2 · worker-keo-lead) — NHÁNH VIỆC CRON THEO DANH-SÁCH-CHO-PHÉP · BỘ KÉO META HẾT NUỐT LỖI PER-ĐỐI-TƯỢNG · CEO DUYỆT 12/09 · HIỆU LỰC
+
+**Quyết định:** Nhánh việc của worker cron chọn theo DANH-SÁCH-CHO-PHÉP (`chonViec.mjs`); cron/job không khai
+→ NÉM + ghi mốc ads 'loi' "cron lạ …". Bộ kéo Meta: lỗi per-đối-tượng ở MỌI bước (B/C/D/E/F) lên mốc
+"ok N/M" + danh sách (lọc access_token), cấm `catch` nuốt (chỉ console.error nguyên văn, không là điểm dừng).
+
+**Lý do:** cron mới thêm từng TỰ RƠI vào ads (else = deny-list, cùng bệnh QD-96 diễn giải "không phải mỗi phút");
+bộ kéo Meta đã MÙ IM LẶNG 4 lần (WP-113 phát hiện): trước 2F chỉ B đẩy mốc, C (keo:370 theoTk) · D (keo:424
+console.error) · E/F (`if jr.error break`) đều nuốt. Nay cả 5 bước dùng chung `tomLoiTK`, keoAdsLuot nổi
+`kq.loi` → ok_ads=false + chuỗi "ok B x/y · C · D · E · F". Rẽ nhánh gộp MỘT nguồn (scheduled + fetch cùng gọi
+chonViec); fetch job lạ → 400 (sau x-keo-key 403).
+
+**Trạng thái:** code sửa `keo_chi_ads_meta.mjs` + `worker/src/index.mjs` + `chonViec.mjs`; ĐÃ deploy worker
+(version cc12bd78, lead không giảm). Test: test_wp113_moc_loi 10/10 (cũ 6/10 đỏ C/D/E/F) · test_chonviec 7/7.
+CEO DUYỆT 12/09 → commit lô 2 + tag v-kho-165 (L-91.2-8).
+
+**[L-91.2-4 N-04 · bổ sung QD-123]:** Đo LẠI bằng số — brand chi ads ĐÃ một-nguồn = FANPAGE (QD-112):
+ads_bang_ky.brand == ads_brand_cua_ad 19/19 dòng (0 lệch), == ads_tong_so_sanh theo brand (sconcept
+14.432.960 · openliving 11.149.549 khớp). Hai RPC `ads_bang_ky` + `ads_thay_doi_gan_day` đọc
+`ads_tai_khoan_brand` CHỈ để lấy TÊN hiển thị tài khoản (ten_hien_thi/ten_tk), KHÔNG đọc brand_id
+(brand_id vestigial: 6/19 có, 13 dòng tên L-113-5 để NULL). → KHÔNG có "brand theo tài khoản" để sửa;
+**KHÔNG DROP** bảng (còn 2 nơi đọc cho TÊN — luật B2 "còn đọc → DỪNG"; tên tài khoản là tính năng
+v-kho-164, robot 4b phụ thuộc). N-05 (RPC map tài khoản→brand) HẾT Ý NGHĨA. Đường ghi fanpage→brand
+(`ads_trang_brand`) = 0 RPC + 0 màn → CHỈ SQL tay/migration (db/254·255); 167,1tr 'chưa rõ' treo vì
+CEO chưa gán fanpage bằng SQL tay (chưa có màn — việc v87/WP-112b).

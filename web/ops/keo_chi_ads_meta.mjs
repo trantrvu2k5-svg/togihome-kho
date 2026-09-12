@@ -45,6 +45,16 @@ export async function dsTaiKhoanHopNhat(client, fetchFn, token) {
   return ds
 }
 
+// [WP-91 L-91.2-2] gom lỗi PER-TÀI-KHOẢN → chuỗi đọc được + số ok/tổng (KHUÔN CHUNG cho B/C/D/E/F, hết nuốt).
+//   theoTk: [{act, loi?}]. Lọc access_token khỏi thông điệp lỗi trước khi ghi mốc.
+export function tomLoiTK(theoTk) {
+  const locTok = s => String(s || '').replace(/access_token=[^&\s]+/gi, 'access_token=<ẩn>').slice(0, 120)
+  const loi = (theoTk || []).filter(t => t.loi).map(t => ({ act: t.act, loi: locTok(t.loi) }))
+  const tong = (theoTk || []).length, ok = tong - loi.length
+  const text = loi.length ? `ok ${ok}/${tong} · ` + loi.map(t => '...' + String(t.act || '').slice(-4) + ':' + t.loi).join(' | ') : null
+  return { loi, ok, tong, text }
+}
+
 // Bộ chọn thời gian: range={since,until} → time_range (kéo lại khoảng lịch sử); không có → last_7d (nhịp thường).
 function chonThoiGian(range) {
   return range && range.since && range.until
@@ -89,12 +99,13 @@ export async function keoNhomQuangCao(client, opts = {}) {
   if (!token) return { skip: 'thieu_token', so_nhom: 0 }
   const B = 'https://graph.facebook.com/' + CAPI_V
   const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)   // [2G] danh sách chung
-  const rows = []
+  const rows = []; const theoTk = []
   for (const a of accts) {
     let url = B + '/' + a.act + '/adsets?fields=id,campaign_id,optimization_goal,promoted_object&limit=500&access_token=' + encodeURIComponent(token)
+    let errTk = null
     for (let guard = 0; url && guard < 20; guard++) {
       const jr = await (await fetchFn(url)).json()
-      if (jr.error) break
+      if (jr.error) { errTk = jr.error.message || ('#' + jr.error.code); console.error(`ads-nhom: ${a.act} lỗi ${String(errTk).slice(0, 80)}`); break }
       for (const s of (jr.data || [])) rows.push({
         adset_id: s.id, campaign_id: s.campaign_id || null, tai_khoan_id: a.act_id,
         optimization_goal: s.optimization_goal || null,
@@ -102,7 +113,9 @@ export async function keoNhomQuangCao(client, opts = {}) {
       })
       url = jr.paging && jr.paging.next
     }
+    theoTk.push(errTk ? { act: a.act, loi: errTk } : { act: a.act })
   }
+  const L = tomLoiTK(theoTk)
   let ghi = 0
   for (const r of rows) {
     await client.query(`insert into kho.ads_nhom_quang_cao(adset_id,campaign_id,tai_khoan_id,optimization_goal,custom_event_type,cap_nhat_luc)
@@ -112,7 +125,7 @@ export async function keoNhomQuangCao(client, opts = {}) {
       [r.adset_id, r.campaign_id, r.tai_khoan_id, r.optimization_goal, r.custom_event_type])
     ghi++
   }
-  return { so_nhom: ghi }
+  return { so_nhom: ghi, loiTK: L.loi, okTK: L.ok, tongTK: L.tong }
 }
 
 // [WP-113 L-113-5] Kéo TRẠNG THÁI hiện tại của chiến dịch → ads_chien_dich_trang_thai (cho dấu "đã tắt").
@@ -122,12 +135,13 @@ export async function keoTrangThaiChienDich(client, opts = {}) {
   if (!token) return { skip: 'thieu_token', so_cd: 0 }
   const B = 'https://graph.facebook.com/' + CAPI_V
   const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)
-  let ghi = 0
+  let ghi = 0; const theoTk = []
   for (const a of accts) {
     let url = B + '/' + a.act + '/campaigns?fields=id,effective_status&limit=500&access_token=' + encodeURIComponent(token)
+    let errTk = null
     for (let guard = 0; url && guard < 20; guard++) {
       const jr = await (await fetchFn(url)).json()
-      if (jr.error) break
+      if (jr.error) { errTk = jr.error.message || ('#' + jr.error.code); console.error(`ads-trang-thai: ${a.act} lỗi ${String(errTk).slice(0, 80)}`); break }
       for (const cd of (jr.data || [])) {
         await client.query(`insert into kho.ads_chien_dich_trang_thai(campaign_id, effective_status, cap_nhat_luc)
           values($1,$2,now()) on conflict (campaign_id) do update set effective_status=excluded.effective_status, cap_nhat_luc=now()`,
@@ -136,8 +150,10 @@ export async function keoTrangThaiChienDich(client, opts = {}) {
       }
       url = jr.paging && jr.paging.next
     }
+    theoTk.push(errTk ? { act: a.act, loi: errTk } : { act: a.act })
   }
-  return { so_cd: ghi }
+  const L = tomLoiTK(theoTk)
+  return { so_cd: ghi, loiTK: L.loi, okTK: L.ok, tongTK: L.tong }
 }
 
 // Insights cấp ad × ngày của MỘT tài khoản. inline_link_clicks = bấm-vào-link (cho CTR/CPC); clicks = mọi lượt bấm.
@@ -376,9 +392,11 @@ export async function keoThayDoiMeta(client, opts = {}) {
       if (opts.tx) await opts.tx(w)
       else { await client.query('begin'); try { await w(client); await client.query('commit') } catch (e) { await client.query('rollback').catch(() => {}); throw e } }
     }
-    await ghi('xong', idM, rows.length)
-    console.log(`ads-thay-doi XONG · ${tu}→${den}: ${rows.length} bản ghi (mới ${ghiN}) · ${((Date.now() - t0) / 1000).toFixed(1)}s`)
-    return { tongDong: rows.length, ghiMoi: ghiN, theoTk }
+    const L = tomLoiTK(theoTk)   // [L-91.2-2] TK lỗi per-account → mốc 'loi', KHÔNG nuốt
+    if (L.loi.length) await ghi('loi', idM, rows.length, L.text.slice(0, 400))
+    else await ghi('xong', idM, rows.length)
+    console.log(`ads-thay-doi ${L.loi.length ? 'LỖI(' + L.ok + '/' + L.tong + ')' : 'XONG'} · ${tu}→${den}: ${rows.length} bản ghi (mới ${ghiN}) · ${((Date.now() - t0) / 1000).toFixed(1)}s`)
+    return { tongDong: rows.length, ghiMoi: ghiN, theoTk, loiTK: L.loi, okTK: L.ok, tongTK: L.tong }
   } catch (e) { await ghi('loi', idM, null, String(e.message).slice(0, 200)).catch(() => {}); throw e }
 }
 
@@ -412,7 +430,7 @@ export async function keoNenTangMeta(client, opts = {}) {
   catch (e) { if (/đang chạy|chặn lượt trùng/.test(e.message)) { console.log('ads-nen-tang: đang chạy, bỏ.'); return { skip: 'khoa' } } throw e }
   try {
     const accts = await dsTaiKhoanHopNhat(client, fetchFn, token)   // [2G] danh sách chung
-    const rows = []
+    const rows = []; const theoTk = []
     for (const a of accts) {
       try {
         const ins = await layNenTang(fetchFn, token, a.act, range)
@@ -421,7 +439,11 @@ export async function keoNenTangMeta(client, opts = {}) {
           chi_tieu: Number(r.spend), hien_thi: r.impressions != null ? Number(r.impressions) : null,
           luot_bam_link: r.inline_link_clicks != null ? Number(r.inline_link_clicks) : null, tien_te: a.currency || 'VND'
         })
-      } catch (e) { /* một TK lỗi → bỏ, đi tiếp */ console.error(`ads-nen-tang: ${a.act} lỗi ${String(e.message).slice(0, 80)}`) }
+        theoTk.push({ act: a.act })
+      } catch (e) {   // [L-91.2-2] KHÔNG nuốt: giữ console.error nguyên văn + gom lên mốc
+        console.error(`ads-nen-tang: ${a.act} lỗi ${String(e.message).slice(0, 80)}`)
+        theoTk.push({ act: a.act, loi: String(e.message).slice(0, 100) })
+      }
     }
     let ghiN = 0
     if (rows.length) {
@@ -430,16 +452,18 @@ export async function keoNenTangMeta(client, opts = {}) {
       if (opts.tx) await opts.tx(w)
       else { await client.query('begin'); try { await w(client); await client.query('commit') } catch (e) { await client.query('rollback').catch(() => {}); throw e } }
     }
-    await ghi('xong', idM, rows.length)
-    console.log(`ads-nen-tang XONG · ${tu}→${den}: ${rows.length} dòng (ghi ${ghiN}) · ${((Date.now() - t0) / 1000).toFixed(1)}s`)
-    return { tongDong: rows.length, ghi: ghiN }
+    const L = tomLoiTK(theoTk)   // [L-91.2-2] TK lỗi per-account → mốc 'loi'
+    if (L.loi.length) await ghi('loi', idM, rows.length, L.text.slice(0, 400))
+    else await ghi('xong', idM, rows.length)
+    console.log(`ads-nen-tang ${L.loi.length ? 'LỖI(' + L.ok + '/' + L.tong + ')' : 'XONG'} · ${tu}→${den}: ${rows.length} dòng (ghi ${ghiN}) · ${((Date.now() - t0) / 1000).toFixed(1)}s`)
+    return { tongDong: rows.length, ghi: ghiN, loiTK: L.loi, okTK: L.ok, tongTK: L.tong }
   } catch (e) { await ghi('loi', idM, null, String(e.message).slice(0, 200)).catch(() => {}); throw e }
 }
 
 // ── E · MỘT LƯỢT CRON ADS = B + C + D. Mỗi việc BỌC RIÊNG: một việc lỗi KHÔNG giết hai việc kia;
 //   mốc mỗi nguồn tự ghi 'loi'. Trả .loi[] để runner/worker thoát mã ≠0 nếu có bất kỳ việc nào lỗi.
 export async function keoAdsLuot(client, opts = {}) {
-  const kq = { b: null, c: null, d: null, e: null, loi: [] }
+  const kq = { b: null, c: null, d: null, e: null, f: null, loi: [] }
   // [L-108-13] MỘT MỐC THỜI GIAN CHUNG cho B (chi chính) + D (tách nền tảng), CÙNG cửa sổ 30 ngày → hết lệch-thời-điểm
   //   (trước: mỗi hàm tự new Date() + last_7d → D kéo sau B vài phút, ngày cuối chốt cao hơn → tách VƯỢT chính).
   //   Chưa tách được "kéo cả hai rồi mới ghi" vì mỗi hàm tự upsert bên trong; nhưng CÙNG range trong CÙNG lượt đã đủ khớp.
@@ -459,5 +483,14 @@ export async function keoAdsLuot(client, opts = {}) {
   try { kq.e = await keoNhomQuangCao(client, { token: opts.token, fetchFn: opts.fetch || globalThis.fetch }) } catch (e) { kq.loi.push({ viec: 'E_nhom', loi: String(e && e.message || e).slice(0, 200) }) }
   // [WP-113 L-113-5] F: trạng thái chiến dịch (effective_status) cho dấu "đã tắt". non-fatal.
   try { kq.f = await keoTrangThaiChienDich(client, { token: opts.token, fetchFn: opts.fetch || globalThis.fetch }) } catch (e) { kq.loi.push({ viec: 'F_trang_thai', loi: String(e && e.message || e).slice(0, 200) }) }
+  // [WP-91 L-91.2-2] lỗi per-TK MỌI bước (B đã có 2F) → nổi lên kq.loi (ok_ads=false) + chuỗi đọc được "ok B x/y · …".
+  const nhan = { c: 'C_thay_doi_TK', d: 'D_nen_tang_TK', e: 'E_nhom_TK', f: 'F_trang_thai_TK' }
+  for (const [k, v] of Object.entries(nhan)) {
+    const r = kq[k]
+    if (r && r.loiTK && r.loiTK.length) kq.loi.push({ viec: v, loi: `sót ${r.tongTK - r.okTK}/${r.tongTK} TK`, chi_tiet: r.loiTK })
+  }
+  const oXy = (r) => r && r.tongTK != null ? `${r.okTK}/${r.tongTK}` : '—'
+  kq.tomTat = `ok B ${oXy(kq.b)} · C ${oXy(kq.c)} · D ${oXy(kq.d)} · E ${oXy(kq.e)} · F ${oXy(kq.f)}`
+  console.log(`ads-luot ${kq.loi.length ? 'LỖI' : 'XONG'}: ${kq.tomTat}`)
   return kq
 }
